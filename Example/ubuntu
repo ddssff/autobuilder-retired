@@ -1,0 +1,15 @@
+Name: ubuntu-common
+Use: common
+Let: ubuntu=ubuntu
+Comment:
+  We use a variable for ubuntu so we can set it to point to a dated archive
+  when we need to use an older or newer snapshot.
+
+Name: ubuntu-build
+Use: build
+
+Name: ubuntu-sources
+Use: ubuntu-local
+Use: feisty-sources
+Use: gutsy-sources
+Use: hardy-sources

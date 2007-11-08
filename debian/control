@@ -1,0 +1,52 @@
+Source: autobuilder
+Priority: optional
+Maintainer: David Fox <david.fox@linspire.com>
+Build-Depends: debhelper (>= 4.0.0), ghc6 (>= 6.6), ghc6-prof, haskell-devscripts (>= 0.5.6), cpphs, libghc6-debian-dev (>= 2.1), libghc6-debian-prof (>= 2.1), libghc6-extra-prof, libghc6-unixutils-prof (>= 1.8), libghc6-html-dev, libghc6-cgi-dev, libghc6-xhtml-dev, libghc6-network-dev, libghc6-time-dev, libghc6-time-prof, haddock, tetex-bin, tetex-extra, libgmp3c2, libghc6-mime-prof (>= 1.2)
+Standards-Version: 3.6.2.2
+Section: devel
+
+Package: autobuilder
+Section: devel
+Architecture: any
+Recommends: subversion
+Depends: ${shlibs:Depends}, ${haskell:Depends}, build-env (>= 2.8), rsync, dupload, darcs, tla, mercurial, apt, build-essential, quilt, curl
+Description: Build and upload debian packages in clean enviroments
+
+Package: autobuilder-web-client
+Section: devel
+Architecture: any
+Depends: ${shlibs:Depends}, ${haskell:Depends}, autobuilder, apache | httpd-cgi
+Description: Web client for autobuilder
+
+Package: newdist
+Replaces: autobuilder-newdist
+Conflicts: autobuilder-newdist
+Section: devel
+Architecture: any
+Depends: ${shlibs:Depends}, ${haskell:Depends}
+Suggests: freespire-archive-keyring
+Description: Debian pool manager
+
+Package: autobuilder-doc
+Section: devel
+Architecture: all
+Depends: haskell-debian-doc
+Description: Autobuilder documentation
+
+Package: libghc6-autobuilder-dev
+Section: libdevel
+Architecture: any
+Depends: ${haskell:Depends}
+Description: A library version of the autobuilder
+ A Haskell library providing an autobuilder for Debian packages.
+ .
+ This package contains the libraries compiled for GHC 6.
+
+Package: libghc6-autobuilder-prof
+Section: libdevel
+Architecture: any
+Depends: ${haskell:Depends}
+Description: A library version of the autobuilder
+ A Haskell library providing an autobuilder for Debian packages.
+ .
+ This package contains the libraries compiled for GHC 6 with profiling enabled.

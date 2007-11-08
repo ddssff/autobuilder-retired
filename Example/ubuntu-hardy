@@ -1,0 +1,45 @@
+Comment:
+  Definitions for building packages for Ubuntu Hardy. 
+
+Name: hardy-common
+Use: ubuntu-common
+Let: base=hardy
+
+Name: hardy-build
+Use: ubuntu-build
+Use: hardy-common
+Extra-Essential: belocs-locales-bin
+
+Name: hardy-sources
+Sources: hardy
+  deb http://${ubuntu-mirror-host}/ubuntu/ hardy main restricted universe multiverse
+  deb-src http://${ubuntu-mirror-host}/ubuntu/ hardy main restricted universe multiverse
+  deb http://${ubuntu-mirror-host}/ubuntu/ hardy-updates main restricted universe multiverse
+  deb-src http://${ubuntu-mirror-host}/ubuntu/ hardy-updates main restricted universe multiverse
+  deb http://${ubuntu-mirror-host}/ubuntu/ hardy-backports main restricted universe multiverse
+  deb-src http://${ubuntu-mirror-host}/ubuntu/ hardy-backports main restricted universe multiverse
+  deb http://${ubuntu-security-mirror-host}/ubuntu/ hardy-security main restricted universe multiverse
+  deb-src http://${ubuntu-security-mirror-host}/ubuntu/ hardy-security main restricted universe multiverse
+
+Name: hardy-extra
+Use: hardy-build
+Use: autobuilder-targets
+Use: yhc-targets
+Comment:
+ Use: kernel-targets
+
+Name: hardy-autobuilder
+Use: autobuilder-targets
+Use: hardy-build
+
+Name: hardy-ghc-base
+Use: ghc-base
+Use: hardy-build
+
+Name: hardy-ghc-libs
+Use: ghc-libs
+Use: hardy-build
+
+Name: hardy-yhc
+Use: yhc-targets
+Use: hardy-build

@@ -1,0 +1,126 @@
+Comment:
+  Release-independent target lists.  For a given release there
+  may be additional targets which need to be built.  For example
+  Debian Etch has a version of haskell-cabal which is too old to
+  build the autobuilder, so in the 'etch' file we pull in the one
+  from feisty, the next oldest release.
+
+Name: autobuilder-targets
+Targets:
+  svn:http://www.gerboa.com/svn/autobuilder
+  tla:dsf@foxthompson.net--2004/build-env--dsf--0
+  proc:apt:gutsy:neko
+  proc:apt:gutsy:haxe
+
+Name: ghc-base
+Relax-Depends: g++
+Relax-Depends: make
+Targets:
+  apt:sid:haddock
+  apt:sid:haskell-devscripts
+  apt:sid:ghc6
+  apt:sid:c2hs
+  apt:gutsy:haskell-cabal
+  apt:sid:cpphs
+  apt:sid:hugs98
+
+Name: ghc-libs
+Relax-Depends: g++
+Relax-Depends: make
+Targets:
+  apt:sid:drift
+  apt:sid:gtk2hs
+  apt:sid:happs
+  apt:sid:haskell-alut
+  apt:sid:haskell-arrows
+  apt:sid:haskell-binary
+  apt:sid:haskell-cgi
+  apt:sid:haskell-doc
+  apt:sid:haskell-edison
+  apt:sid:haskell-fgl
+  apt:sid:haskell-glut
+  apt:sid:haskell-hgl
+  apt:sid:haskell-hlist
+  apt:sid:haskell-hsql
+  apt:sid:haskell-html
+  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.org/haskell-http-quilt)
+  apt:sid:haskell-hunit
+  apt:sid:haskell-mode
+  apt:sid:haskell-mtl
+  apt:sid:haskell-network
+  apt:sid:haskell-openal
+  apt:sid:haskell-opengl
+  apt:sid:haskell-quickcheck
+  apt:sid:haskell-src-exts
+  apt:sid:haskell-time
+  apt:sid:haskell-utils
+  apt:sid:haskell-uulib
+  apt:sid:haskell-x11
+  apt:sid:haskell-xhtml
+  apt:sid:haskelldb
+  apt:sid:hat
+  apt:sid:haxml
+  apt:sid:hdbc
+  apt:sid:hdbc-odbc
+  apt:sid:hdbc-postgresql
+  quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
+  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.org/hslogger-quilt)
+  apt:sid:ldap-haskell
+  apt:sid:listlike
+  apt:sid:magic-haskell
+  apt:sid:pandoc
+  apt:sid:pugs
+  apt:sid:washngo
+  svn:http://www.gerboa.com/svn/haskell-unixutils
+  darcs:http://src.seereason.org/haskell-extra
+  darcs:http://src.seereason.org/haskell-debian
+  darcs:http://src.seereason.org/haskell-mime
+  svn:http://www.gerboa.com/svn/autobuilder
+  darcs:http://src.seereason.org/build-env
+  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.org/haskell-crypto-quilt)
+  quilt:(darcs:http://happs.org/HAppS-Data):(darcs:http://src.seereason.org/happs-data-quilt)
+  quilt:(darcs:http://happs.org/HAppS-IxSet):(darcs:http://src.seereason.org/happs-ixset-quilt)
+  quilt:(darcs:http://happs.org/HAppS-Server):(darcs:http://src.seereason.org/happs-server-quilt)
+  quilt:(darcs:http://happs.org/HAppS-State):(darcs:http://src.seereason.org/happs-state-quilt)
+  quilt:(darcs:http://happs.org/HAppS-Util):(darcs:http://src.seereason.org/happs-util-quilt)
+  quilt:(darcs:http://happs.org/syb-with-class):(darcs:http://src.seereason.org/haskell-syb-with-class-quilt)
+Comment:
+  Disabled due to flaw in the autobuilder's build dependency parser:
+    apt:sid:missingpy
+  Depends on hugs libraries which don't exist:
+    apt:sid:hdbc-sqlite3
+    apt:sid:missingh
+    apt:sid:ftphs
+    apt:sid:haskell-anydbm
+    apt:sid:haskell-configfile
+  Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
+    apt:sid:haskell-haskell-src
+    apt:sid:hdbc-missingh
+  Depends on libghc6-hslogger-dev, libghc6-missingh-dev
+    apt:sid:haskell-hsh
+  Trumped:
+    apt:sid:hs-plugins
+
+Name: yhc-targets
+Targets:
+  sourcedeb:tla:dsf@foxthompson.net--2004/haskell-binary--dsf--0.3.0
+  tla:dsf@foxthompson.net--2004/hxt--dsf--7.0
+  sourcedeb:tla:dsf@foxthompson.net--2004/cpphs--dsf--1.3
+  quilt:(apt:feisty:haskell-http):(tla:dsf@foxthompson.net--2004/haskell-http-quilt--dsf--0)
+  sourcedeb:tla:dsf@foxthompson.net--2004/yhc--dsf--0.7.0
+
+Name: kernel-targets
+Targets:
+  apt:gutsy:linux-source-2.6.22
+  apt:gutsy:linux-meta
+  quilt:(apt:gutsy:linux-restricted-modules-2.6.22):(tla:tos@linspire.com--skipjack/linux-restricted-modules-quilt--ubuntu--0)
+Comment: Here are some more proposed targets
+  tla:tos@linspire.com--skipjack/forward-oss-kernel-module--cnr--20070605
+  tla:tos@linspire.com--skipjack/forward-oss--build-skipjack--0.3
+  quilt:(apt:${base}:bcm43xx-fwcutter):(tla:tos@linspire.com--skipjack/bcm43xx-fwcutter-quilt--cnr--0)
+
+Name: devel-targets
+Targets:
+  quilt:(apt:sid:xtla):(tla:tos@linspire.com--skipjack/xtla-quilt--fos--1.2)
+  apt:marlin-old:tree-widget
+  tla:tos@linspire.com--skipjack/haskell-mode--upstream--2.3

@@ -1,0 +1,26 @@
+Comment:
+  Information about the various types of Debian environment we can pull
+  source from or build for.
+
+Name: debian-common
+Use: common
+
+Name: debian-build
+Use: build
+Set-Env: DEBIAN_KERNEL_JOBS=5
+
+Name: debian-sources
+Use: debian-local
+Use: sid-sources
+Use: etch-sources
+Use: sarge-sources
+Use: lenny-sources
+Use: debian-experimental-sources
+
+Name: debian-experimental-sources
+Sources: debian-experimental
+ deb http://${debian-mirror-host}/debian experimental main contrib non-free
+ deb-src http://${debian-mirror-host}/debian experimental main contrib non-free
+Comment:
+ Debian experimental repository, where we can pick up cutting edge packages
+ such as upstart, etc.

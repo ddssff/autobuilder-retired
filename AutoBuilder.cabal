@@ -1,0 +1,21 @@
+Name:           AutoBuilder
+Version:        2.0
+License:        BSD3
+Author:         David Fox
+Synopsis:       Build Debian source packages in suitable environments
+Build-Depends:  base, parsec, regex-compat, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra
+Extensions:	ScopedTypeVariables
+Exposed-modules:
+	BuildTarget, BuildTarget.Apt, BuildTarget.Darcs, BuildTarget.DebDir, BuildTarget.Hg, BuildTarget.Proc, BuildTarget.Quilt, BuildTarget.SourceDeb, BuildTarget.Svn, BuildTarget.Tla, BuildTarget.Uri, Config, Target, Version
+
+Executable:     autobuilder
+Main-Is:        AutoBuilder.hs
+GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm
+
+Executable:     webpage
+Main-Is:        WebPage.hs
+GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm
+
+Executable:     newdist
+Main-Is:        NewDist.hs
+GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm

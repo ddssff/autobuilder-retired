@@ -1,0 +1,25 @@
+Name: lenny-common
+Let: base=lenny
+Use: debian-common
+
+Name: lenny-build
+Use: debian-build
+Use: lenny-common
+
+Name: lenny-sources
+Sources: lenny
+ deb http://${debian-mirror-host}/debian lenny main contrib non-free
+ deb-src http://${debian-mirror-host}/debian lenny main contrib non-free
+
+Name: lenny-extra
+Use: lenny-build
+Use: autobuilder-targets
+Use: yhc-targets
+Comment:
+ Use: kernel-targets
+
+Name: lenny-autobuilder
+Use: autobuilder-targets
+Use: lenny-build
+Targets:
+  apt:feisty:haskell-cabal

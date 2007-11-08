@@ -1,0 +1,25 @@
+Name: etch-common
+Let: base=etch
+Use: debian-common
+
+Name: etch-build
+Use: debian-build
+Use: etch-common
+
+Name: etch-sources
+Sources: etch
+ deb http://${debian-mirror-host}/debian etch main contrib non-free
+ deb-src http://${debian-mirror-host}/debian etch main contrib non-free
+
+Name: etch-extra
+Use: etch-build
+Use: autobuilder-targets
+Use: yhc-targets
+Comment:
+ Use: kernel-targets
+
+Name: etch-autobuilder
+Use: autobuilder-targets
+Use: etch-build
+Targets:
+  apt:feisty:haskell-cabal
