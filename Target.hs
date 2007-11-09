@@ -25,7 +25,6 @@ import		 Debian.Local.Insert
 import		 Debian.OSImage
 import		 Debian.Package
 import		 Debian.Repo
-import		 Debian.Slice
 import		 Debian.SourceTree
 import		 Debian.Time
 import		 Debian.Types
@@ -130,7 +129,7 @@ prepareBuild os target =
       copySource :: DebianSourceTree -> AptIO DebianBuildTree
       copySource debSource =
           do let name = logPackage . entry $ debSource
-                 dest = EnvPath (osRoot os) ("/work/build/" ++ name)
+                 dest = EnvPath (rootDir os) ("/work/build/" ++ name)
                  ver = Debian.Version.version . logVersion . entry $ debSource
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
@@ -141,7 +140,7 @@ prepareBuild os target =
       copyBuild :: DebianBuildTree -> AptIO DebianBuildTree
       copyBuild debBuild =
           do let name = logPackage . entry . debTree $ debBuild
-                 dest = EnvPath (osRoot os) ("/work/build/" ++ name)
+                 dest = EnvPath (rootDir os) ("/work/build/" ++ name)
                  ver = Debian.Version.version . logVersion . entry . debTree $ debBuild
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
@@ -154,7 +153,7 @@ prepareBuild os target =
       doCopy :: Maybe DebianBuildTree -> DebianSourceTree -> AptIO (Maybe DebianBuildTree)
       doCopy debBuild debSource =
           do let name = logPackage . entry $ debSource
-                 dest = EnvPath (osRoot os) ("/work/build/" ++ name)
+                 dest = EnvPath (rootDir os) ("/work/build/" ++ name)
                  ver = Debian.Version.version . logVersion . entry $ debSource
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              io $ System.IO.hPutStrLn System.IO.stderr $ "doCopy " ++ getTop target ++ " " ++ show debBuild
@@ -284,11 +283,12 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop _ _ _ ([], failed) = return failed
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
-            groups <- chooseNextTarget globalBuildDeps unbuilt
-            vPutStrLn 1 ("\n\n" ++ makeTable groups)
-            case groups of
+            targetGroups <- chooseNextTarget globalBuildDeps unbuilt
+            vPutStrLn 1 ("\n\n" ++ makeTable targetGroups)
+            case targetGroups of
               (group@(target : blocked) : other) ->
-                  vBOL 0 >> vPutStr 0 (printf "[%2d of %2d] TARGET: %s\n" (count - length (concat groups) + 1) count (show target)) >>
+                  vBOL 0 >> vPutStr 0 (printf "[%2d of %2d] TARGET: %s\n"
+                                       (count - length (concat targetGroups) + 1) count (show target)) >>
                   setStyle (addPrefixes " " " ") (buildTarget' target) >>=
                   either (\ e -> do vBOL 0
                                     vPutStrLn 0 "Package build failed:"
@@ -572,7 +572,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
       debug = (Params.debug params)
       buildDepends = (Params.buildDepends params)
       noClean = Params.noClean params
-      newPath = EnvPath {envRoot = osRoot buildOS, envPath = envPath oldPath}
+      newPath = EnvPath {envRoot = rootDir buildOS, envPath = envPath oldPath}
       oldPath = topdir . cleanSource $ target
       syncStyle = setStyle (setStart (Just "Syncing buildOS"))
       iStyle = setStyle (addPrefixes " " " ")
@@ -593,7 +593,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
       debug = Params.debug params
       buildDepends = Params.buildDepends params
       noClean = Params.noClean params
-      newPath = EnvPath {envRoot = osRoot buildOS, envPath = (envPath . topdir . cleanSource $ target)}
+      newPath = EnvPath {envRoot = rootDir buildOS, envPath = (envPath . topdir . cleanSource $ target)}
       syncStyle = setStyle (setStart (Just "Syncing buildOS"))
       iStyle = setStyle (addPrefixes " " " ")
       debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun debug)
@@ -717,7 +717,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
       let (_, relations, _) = GenBuildDeps.buildDependencies debianControl
       vBOL 1 >> vPutStrLn 1 ("Build dependency relations: " ++ show relations)
       let relations' = computeBuildDeps os (relations ++ globalBuildDeps)
-      arch <- io $ buildArchOfEnv (osRoot os)
+      arch <- io $ buildArchOfEnv (rootDir os)
       -- vPutStrLn 0 $ "Available in " ++ show os ++ ": " ++ show (map makeVersion . osBinaryPackages $ os)
       return $ Debian.Dependencies.solutions (available relations') relations' preferred arch
     where
@@ -807,11 +807,11 @@ downloadDependencies os source extra versions =
     where
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install --download-only " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = setStyle (setStart (Just ("Downloading build dependencies into " ++ show (osRoot os))) .
+      builddepStyle = setStyle (setStart (Just ("Downloading build dependencies into " ++ show (rootDir os))) .
                                 addPrefixes " " " " .
                                 setError (Just "Could not satisfy build dependencies."))
       path = envPath (topdir source)
-      root = osRoot os
+      root = rootDir os
 
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> AptIO TaskSuccess_
@@ -822,11 +822,11 @@ installDependencies os source extra versions =
     where
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = setStyle (setStart (Just ("Installing build dependencies into " ++ show (osRoot os))) .
+      builddepStyle = setStyle (setStart (Just ("Installing build dependencies into " ++ show (rootDir os))) .
                                 addPrefixes " " " " .
                                 setError (Just "Could not satisfy build dependencies."))
       path = envPath (topdir source)
-      root = osRoot os
+      root = rootDir os
 
 -- |Set a "Revision" line in the .dsc file, and update the .changes
 -- file to reflect the .dsc file's new md5sum.  By using our newdist

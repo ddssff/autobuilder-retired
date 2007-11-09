@@ -4,7 +4,6 @@ import Debian.AptImage
 import Debian.Cache
 import Debian.IO
 import Debian.Local.Changes
-import Debian.Slice
 import Debian.SourceTree
 import Debian.Types
 import BuildTarget

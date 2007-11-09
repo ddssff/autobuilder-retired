@@ -30,7 +30,6 @@ Relax-Depends: make
 Targets:
   apt:sid:drift
   apt:sid:gtk2hs
-  apt:sid:happs
   apt:sid:haskell-alut
   apt:sid:haskell-arrows
   apt:sid:haskell-binary
@@ -75,15 +74,15 @@ Targets:
   darcs:http://src.seereason.org/haskell-extra
   darcs:http://src.seereason.org/haskell-debian
   darcs:http://src.seereason.org/haskell-mime
-  svn:http://www.gerboa.com/svn/autobuilder
+  darcs:http://src.seereason.org/autobuilder
   darcs:http://src.seereason.org/build-env
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.org/haskell-crypto-quilt)
-  quilt:(darcs:http://happs.org/HAppS-Data):(darcs:http://src.seereason.org/happs-data-quilt)
-  quilt:(darcs:http://happs.org/HAppS-IxSet):(darcs:http://src.seereason.org/happs-ixset-quilt)
-  quilt:(darcs:http://happs.org/HAppS-Server):(darcs:http://src.seereason.org/happs-server-quilt)
-  quilt:(darcs:http://happs.org/HAppS-State):(darcs:http://src.seereason.org/happs-state-quilt)
-  quilt:(darcs:http://happs.org/HAppS-Util):(darcs:http://src.seereason.org/happs-util-quilt)
-  quilt:(darcs:http://happs.org/syb-with-class):(darcs:http://src.seereason.org/haskell-syb-with-class-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.org/happs-data-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.org/happs-ixset-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.org/happs-server-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.org/happs-state-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.org/happs-util-quilt)
+  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.org/haskell-syb-with-class-quilt)
 Comment:
   Disabled due to flaw in the autobuilder's build dependency parser:
     apt:sid:missingpy

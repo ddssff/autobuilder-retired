@@ -31,7 +31,6 @@ module BuildTarget
     ) where
 
 import Debian.IO
-import Debian.OSImage
 import Debian.SourceTree
 import Debian.Types
 import Control.Monad

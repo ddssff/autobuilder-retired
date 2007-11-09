@@ -4,7 +4,6 @@ module BuildTarget.Proc where
 import BuildTarget
 import Linspire.Unix.Process
 import Debian.IO
-import Debian.OSImage
 import Debian.SourceTree
 import Debian.Types
 
@@ -20,9 +19,9 @@ instance BuildTarget Proc where
         BuildTarget.revision s >>= return . maybe Nothing (Just . ("proc:" ++))
     buildPkg noClean setEnv buildOS buildTree status _ =
         do vBOL 0 >> vPutStrLn 0 "Mouting /proc during target build"
-           io $ simpleProcess "mount" ["--bind", "/proc", rootPath (osRoot buildOS) ++ "/proc"] 
+           io $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 
            result <- buildDebs noClean setEnv buildOS buildTree status
-           io $ simpleProcess "umount" [rootPath (osRoot buildOS) ++ "/proc"]
+           io $ simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]
            return result
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
