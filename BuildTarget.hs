@@ -91,12 +91,12 @@ class BuildTarget t where
 data Dir = Dir SourceTree
 
 instance Show Dir where
-    show (Dir tree) = "dir:" ++ outsidePath (dir' tree)
+    show (Dir tree) = "dir:" ++ outsidePath (dir tree)
 
 instance BuildTarget Dir where
-    getTop (Dir tree) = dir' tree
+    getTop (Dir tree) = dir tree
     revision (Dir _) = return Nothing
-    logText (Dir tree) _ = "Built from local directory " ++ outsidePath (dir' tree)
+    logText (Dir tree) _ = "Built from local directory " ++ outsidePath (dir tree)
 
 -- |Prepare a Dir target
 prepareDir :: Bool -> FilePath -> Bool -> EnvPath -> AptIO Tgt
