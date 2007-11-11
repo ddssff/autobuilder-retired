@@ -17,7 +17,6 @@ import Debian.IO
 import Debian.Types
 import DryRun
 import Extra.List
-import Extra.Misc
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 import Debian.Local.Changes
@@ -28,6 +27,13 @@ data Quilt = Quilt Tgt Tgt SourceTree
 
 instance Show Quilt where
     show (Quilt t q _) = "quilt:(" ++ show t ++ "):(" ++ show q ++ ")"
+
+documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, target1 is"
+                , "any source tree, and target2 is a quilt directory which contains"
+                , "a debian style changelog file named 'changelog', a file named"
+                , "'series' with a list of patch file names, and finally the patch"
+                , "files listed in the series file.  The quilt system is used to apply"
+                , "the patches to the source tree before building." ]
 
 {-
 instance Eq Quilt where
@@ -69,6 +75,7 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
        vPutStrLn 0 $ "Quilt patch: " ++ show (getTop patch)
        let dest = top ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
        createDirectoryIfMissingDR True (top ++ "/quilt")
+       --baseTree <- findDebianBuildTree (getTop base) >>= maybe (findSourceTree (getTop base)) (return . Just) >>= maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
        baseTree <- findSourceTree (getTop base) >>= return . maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
        patchTree <- findSourceTree (getTop patch) >>= return . maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
        quiltTree <- copySourceTree baseTree (rootEnvPath dest)

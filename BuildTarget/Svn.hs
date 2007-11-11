@@ -1,4 +1,9 @@
-module BuildTarget.Svn (BuildTarget(..), prepareSvn, Svn) where
+module BuildTarget.Svn 
+    ( BuildTarget(..)
+    , prepareSvn
+    , Svn
+    , documentation
+    ) where
 
 import BuildTarget
 import Debian.SourceTree
@@ -21,6 +26,9 @@ data Svn = Svn URI SourceTree
 
 instance Show Svn where
     show (Svn s _) = "svn:" ++ uriToString id s ""
+
+documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
+                , "a subversion repository." ]
 
 svn :: Maybe EnvPath -> [String] -> AptIO TaskSuccess
 svn path args = systemProcess "svn" args (maybe Nothing (Just . outsidePath) path) Nothing

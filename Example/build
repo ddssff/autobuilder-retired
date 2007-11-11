@@ -20,7 +20,7 @@ Targets:
   apt:sid:haskell-devscripts
   apt:sid:ghc6
   apt:sid:c2hs
-  apt:gutsy:haskell-cabal
+  quilt:(darcs:http://darcs.haskell.org/cabal):(darcs:http://src.seereason.org/cabal-quilt)
   apt:sid:cpphs
   apt:sid:hugs98
 
@@ -71,6 +71,7 @@ Targets:
   apt:sid:pugs
   apt:sid:washngo
   svn:http://www.gerboa.com/svn/haskell-unixutils
+  darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour
   darcs:http://src.seereason.org/haskell-extra
   darcs:http://src.seereason.org/haskell-debian
   darcs:http://src.seereason.org/haskell-mime

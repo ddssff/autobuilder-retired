@@ -9,8 +9,9 @@ module Target
     , prepareTarget	-- ReleaseName -> OSImage -> Int -> Int -> Tgt -> IO Target
     , readSpec		-- Bool -> FilePath -> Bool -> [DistroCache] -> String -> IO Tgt
     , buildTargets
-    , showTargets)
-    where
+    , showTargets 
+    , targetDocumentation
+    ) where
 
 import		 Debian.Apt
 import		 Debian.Cache
@@ -59,6 +60,27 @@ import		 System.Posix.Files
 import		 System.Time
 import		 Text.Printf
 import		 Text.Regex
+
+targetDocumentation :: String
+targetDocumentation =
+    "TARGET TYPES\n\nEach argument to --target describes a technique for obtaining\n" ++
+    "the source code used to build a target.  The following target types are available:\n\n" ++
+    concat (intersperse "\n\n" $
+            map (concat . intersperse "\n  ")
+            [ [ "dir:<path> - A target of this form simply uses whatever it finds on"
+              , "the local machine at the given path as the debian source tree."
+              , "Packages built using this targets are not allowed to be uploaded"
+              , "since they include no revision control information." ]
+            , BuildTarget.Apt.documentation
+            , BuildTarget.Darcs.documentation
+            , BuildTarget.DebDir.documentation
+            , BuildTarget.Hg.documentation
+            , BuildTarget.Proc.documentation
+            , BuildTarget.Quilt.documentation
+            , BuildTarget.SourceDeb.documentation
+            , BuildTarget.Svn.documentation
+            , BuildTarget.Tla.documentation
+            , BuildTarget.Uri.documentation ])
 
 -- | Build target info.
 data Target

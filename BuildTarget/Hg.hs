@@ -18,6 +18,9 @@ data Hg = Hg String SourceTree
 instance Show Hg where
     show (Hg s _) = "hg:" ++ s
 
+documentation = [ "hg:<string> - A target of this form target obtains the source"
+                , "code by running the Mercurial command 'hg clone <string>'." ]
+
 instance BuildTarget Hg where
     getTop (Hg _ tree) = dir tree
     --getSourceTree (Hg _ tree) = tree

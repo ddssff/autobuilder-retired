@@ -20,6 +20,11 @@ data Darcs = Darcs { uri :: String
                    , tag :: Maybe String
                    , sourceTree :: SourceTree }
 
+documentation = [ "darcs:<string> - a target of this form obtains the source code by running"
+                , "darcs get <string>.  If the argument needs to use ssh to reach the darcs"
+                , "repository, it is necessary to set up ssh keys to allow access without"
+                , "typing a password.  See the --ssh-export option for help doing this." ]
+
 instance Show Darcs where
     show t = "darcs:" ++ uri t
 

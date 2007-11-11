@@ -70,7 +70,7 @@ main =
        IO.hFlush IO.stderr
     where
       doHelp flags
-          | isJust (Config.findValue flags "Help") = do io (IO.putStrLn (Params.usage appName) >> exitWith ExitSuccess)
+          | isJust (Config.findValue flags "Help") = do io (IO.putStrLn (Params.usage appName ++ targetDocumentation) >> exitWith ExitSuccess)
           | True = return flags
       doVersion flags
           | isJust (Config.findValue flags "Version") = do io (IO.putStrLn Version.version >> exitWith ExitSuccess)

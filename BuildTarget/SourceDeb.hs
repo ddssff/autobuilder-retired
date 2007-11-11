@@ -19,6 +19,12 @@ data SourceDeb = SourceDeb Tgt EnvPath String
 instance Show SourceDeb where
     show (SourceDeb t _ _) = "sourcedeb:" ++ show t
 
+documentation = [ "sourcedeb:<target> - A target of this form unpacks the source deb"
+                , "retrieved by the original target and presents an unpacked source"
+                , "tree for building.  Thus, the original target should retrieve a"
+                , "directory containing a .dsc file, a .tar.gz, and an optional"
+                , ".diff.gz file." ]
+
 -- |SourceDeb targets inherit the revision string of the target they modify.
 instance BuildTarget SourceDeb where
     getTop (SourceDeb (Tgt _) dir _) = dir

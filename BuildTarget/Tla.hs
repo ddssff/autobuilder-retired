@@ -20,6 +20,9 @@ data Tla = Tla String SourceTree
 instance Show Tla where
     show (Tla s _) = "tla:" ++ s
 
+documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
+                , "given revision name." ]
+
 instance BuildTarget Tla where
     getTop (Tla _ tree) = dir tree
     cleanTarget (Tla _ _) source =

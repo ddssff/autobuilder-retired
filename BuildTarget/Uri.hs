@@ -24,6 +24,11 @@ data Uri = Uri URI (Maybe String) SourceTree
 instance Show Uri where
     show (Uri s c _) = "uri:" ++ show s ++ (maybe "" (":" ++) c)
 
+documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the file at the"
+                , "given URI, which is assumed to be a gzipped tarball.  The optional md5sum"
+                , "suffix causes the build to fail if the downloaded file does not match"
+                , "this checksum.  This prevents builds when the remote tarball has changed." ]
+
 instance BuildTarget Uri where
     getTop (Uri _ _ tree) = dir tree
     -- The revision string for a URI target is the md5sum if it is known.

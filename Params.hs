@@ -677,7 +677,8 @@ targets params = concat (map words (values params targetsOpt))
 
 targetsOpt = Param ['t'] ["target", "targets"] ["Target", "Targets"] (ReqArg (Value "Targets") "TARGET TARGET...")
 	     (text ["Specify one or more build targets, methods for obtaining the source",
-                    "code of a package to be built."])
+                    "code of a package to be built.  See TARGET TYPES below for information",
+                    "about the available target types." ])
 
 -- |Return the value of the --omit-target flag.
 omitTargets :: Params -> [String]

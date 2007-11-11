@@ -19,6 +19,10 @@ data Apt = Apt NamedSliceList String (Maybe DebianVersion) DebianBuildTree
 instance Show Apt where
     show (Apt d n v _) = "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ n ++ maybe "" (("=" ++) . show) v
 
+documentation = [ "apt:<distribution>:<packagename> - a target of this form looks up"
+                , "the sources.list named <distribution> and retrieves the package with"
+                , "the given name from that distribution." ]
+
 -- | Apt targets have no revision string, they just have a version
 -- number.  This means that we don't have to build version 0.5.12
 -- of a package if it is already in the apt repository.

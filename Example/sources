@@ -6,6 +6,7 @@ Use: slimdevices-sources
 Use: debian-multimedia-sources
 Use: kanotix-sources
 Use: marlin-old-sources
+Use: debian-experimental-sources
 
 Name: slimdevices-sources
 Sources: slimdevices
@@ -22,6 +23,19 @@ Name: kanotix-sources
 Sources: kanotix
   deb http://kanotix.com/files/debian sid main contrib non-free vdr
   deb-src http://kanotix.com/files/debian sid main contrib non-free vdr
+
+Name: debian-experimental-sources
+Sources: debian-experimental
+ deb http://${debian-mirror-host}/debian experimental main contrib non-free
+ deb-src http://${debian-mirror-host}/debian experimental main contrib non-free
+Comment:
+ Debian experimental repository, where we can pick up cutting edge packages
+ such as upstart, etc.
+
+Name: haskell-unsafe-sources
+Sources: haskell-unsafe
+  deb http://haskell-unsafe.alioth.debian.org/archive/i386 . unstable testing stable
+  deb-src http://haskell-unsafe.alioth.debian.org/archive/i386 . unstable testing stable
 
 Name: marlin-old-sources
 Sources: marlin-old
