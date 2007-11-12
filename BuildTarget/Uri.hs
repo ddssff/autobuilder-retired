@@ -3,8 +3,8 @@
 module BuildTarget.Uri where
 
 import BuildTarget
-import Debian.SourceTree
 import Debian.Types
+import Debian.Types.SourceTree
 import Network.URI (URI, parseURI, uriPath)
 import Control.Monad
 import Linspire.Unix.Directory
@@ -30,7 +30,7 @@ documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the f
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
 instance BuildTarget Uri where
-    getTop (Uri _ _ tree) = dir tree
+    getTop (Uri _ _ tree) = topdir tree
     -- The revision string for a URI target is the md5sum if it is known.
     -- If it isn't known, we raise an error to avoid mysterious things
     -- happening with URI's that, for example, always point to the latest
@@ -80,12 +80,17 @@ prepareUri _debug top flush target =
             path = tmp ++ "/" ++ name
       unpackTarget uri (sum, sumDir, name) =
           do let tarball = sumDir ++ "/" ++ name
-             tardir <- io $ tarDir tarball
-             let sourceDir = sumDir ++ "/" ++ maybe "source" id tardir
+             --tardir <- io $ tarDir tarball
+             let sourceDir = sumDir ++ "/unpack"
              io $ createDirectoryIfMissing True sourceDir
              unpackStyle name $ systemTask ("tar xfz " ++ tarball ++ " -C " ++ sourceDir)
-             source <- findSourceTree (rootEnvPath sourceDir)
-             case source of
+             contents <- io (getDirectoryContents sourceDir) >>= return . filter (not . flip elem [".", ".."])
+             sourceTree <-
+                 case contents of
+                   [] -> error "Empty tarball?"
+                   [subdir] -> findSourceTree (rootEnvPath (sourceDir ++ "/" ++ subdir))
+                   _ -> findSourceTree (rootEnvPath sourceDir)
+             case sourceTree of
                Nothing -> error ("Tarball does not contain a valid debian source tree: " ++ sumDir)
                Just p -> return $ Tgt $ Uri uri (Just sum) p
       tmp = top ++ "/tmp"

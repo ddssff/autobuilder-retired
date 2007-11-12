@@ -12,9 +12,9 @@ import System.Directory
 import System.Exit
 import Debian.Version
 import BuildTarget
-import Debian.SourceTree
 import Debian.IO
 import Debian.Types
+import Debian.Types.SourceTree
 import DryRun
 import Extra.List
 --import Debian.Time(parseTimeRFC822)
@@ -46,7 +46,7 @@ getEntry (Base x) = x
 getEntry (Patch x) = x
 
 instance BuildTarget Quilt where
-    getTop (Quilt _ _ tree) = dir tree
+    getTop (Quilt _ _ tree) = topdir tree
     cleanTarget (Quilt (Tgt base) _ _) source = cleanTarget base source
     -- A quilt revision string is the base target revision string and the
     -- patch target revision string connected with a '+'.  If the base
@@ -79,8 +79,8 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
        baseTree <- findSourceTree (getTop base) >>= return . maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
        patchTree <- findSourceTree (getTop patch) >>= return . maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
        quiltTree <- copySourceTree baseTree (rootEnvPath dest)
-       let quiltDir = dir quiltTree
-       let patchDir = dir patchTree
+       let quiltDir = topdir quiltTree
+       let patchDir = topdir patchTree
        -- Set up links to the quilt directory, and use quilt to get a
        -- list of the unapplied patches.
        let cmd1 = ("set -x && cd '" ++ outsidePath quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++
@@ -128,7 +128,7 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
                      (ExitFailure _, _) -> error $ "Failure removing quilt directory: " ++ cmd3
                      (ExitSuccess, _) -> return ()
 		   -- Re-read the build tree with the new changelog
-                   tree <- findSourceTree (dir quiltTree) >>= return . maybe (error "Failed to find tree") id
+                   tree <- findSourceTree (topdir quiltTree) >>= return . maybe (error "Failed to find tree") id
                    return . Tgt $ Quilt (Tgt base) (Tgt patch) tree
          (ExitFailure _, s, _) -> error ("Unexpected output from quilt applied: " ++ show (eConcat s))
          (ExitSuccess, _, _) -> error "Unexpected result code from quilt applied"

@@ -31,6 +31,7 @@ module BuildTarget
     ) where
 
 import Debian.IO
+import Debian.Types.SourceTree
 import Debian.SourceTree
 import Debian.Types
 import Control.Monad
@@ -54,7 +55,7 @@ class BuildTarget t where
     getTop :: BuildTarget t => t -> EnvPath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: BuildTarget t => t -> SourceTree -> AptIO ()
+    cleanTarget :: BuildTarget t => t -> EnvPath -> AptIO ()
     cleanTarget _ _ = return ()
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
@@ -91,12 +92,12 @@ class BuildTarget t where
 data Dir = Dir SourceTree
 
 instance Show Dir where
-    show (Dir tree) = "dir:" ++ outsidePath (dir tree)
+    show (Dir tree) = "dir:" ++ outsidePath (topdir tree)
 
 instance BuildTarget Dir where
-    getTop (Dir tree) = dir tree
+    getTop (Dir tree) = topdir tree
     revision (Dir _) = return Nothing
-    logText (Dir tree) _ = "Built from local directory " ++ outsidePath (dir tree)
+    logText (Dir tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
 
 -- |Prepare a Dir target
 prepareDir :: Bool -> FilePath -> Bool -> EnvPath -> AptIO Tgt

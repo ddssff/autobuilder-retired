@@ -26,9 +26,10 @@ import		 Debian.Local.Insert
 import		 Debian.OSImage
 import		 Debian.Package
 import		 Debian.Repo
-import		 Debian.SourceTree
 import		 Debian.Time
 import		 Debian.Types
+import		 Debian.Types.SourceTree
+import		 Debian.SourceTree
 import		 Debian.VersionPolicy
 import		 Extra.Bool
 import		 Extra.List
@@ -114,8 +115,8 @@ prepareTarget :: OSImage -> Tgt -> AptIO Target
 prepareTarget os tgt@(Tgt source) =
     do tree <- prepareBuild os source >>= 
                return . maybe (error $ "Could not find Debian build tree for " ++ show source) id
-       let ctl = control . debTree $ tree
-           latest = entry . debTree $ tree
+       let ctl = control tree
+           latest = entry tree
            ver = logVersion latest
        rev <- BuildTarget.revision source
        return $ Target tgt tree latest ctl ver rev
@@ -157,42 +158,20 @@ prepareBuild os target =
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
              copy <- copyDebianSourceTree debSource (appendPath ("/" ++ newdir) dest)
              -- Clean the revision control files for this target out of the copy of the source tree
-             cleanTarget target (tree copy)
-             return $ DebianBuildTree dest newdir copy
+             cleanTarget target (topdir copy)
+             findDebianBuildTree' dest newdir >>= return . fromJust
       copyBuild :: DebianBuildTree -> AptIO DebianBuildTree
       copyBuild debBuild =
-          do let name = logPackage . entry . debTree $ debBuild
+          do let name = logPackage . entry $ debBuild
                  dest = EnvPath (rootDir os) ("/work/build/" ++ name)
-                 ver = Debian.Version.version . logVersion . entry . debTree $ debBuild
+                 ver = Debian.Version.version . logVersion . entry $ debBuild
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
              copy <- copyDebianBuildTree debBuild dest
-             cleanTarget target (tree . debTree $ copy)
+             cleanTarget target (topdir copy)
              when (newdir /= (subdir debBuild))
                       (io $ renameDirectory (outsidePath dest ++ "/" ++ subdir debBuild) (outsidePath dest ++ "/" ++ newdir))
-             return $ copy {subdir = newdir}
-{-             
-      doCopy :: Maybe DebianBuildTree -> DebianSourceTree -> AptIO (Maybe DebianBuildTree)
-      doCopy debBuild debSource =
-          do let name = logPackage . entry $ debSource
-                 dest = EnvPath (rootDir os) ("/work/build/" ++ name)
-                 ver = Debian.Version.version . logVersion . entry $ debSource
-                 newdir = escapeForBuild $ name ++ "-" ++ ver
-             io $ System.IO.hPutStrLn System.IO.stderr $ "doCopy " ++ getTop target ++ " " ++ show debBuild
-             case debBuild of
-               Nothing ->
-                   do copy <- copyDebianSourceTree debSource (show dest ++ "/" ++ newdir)
-                      -- Clean the revision control files for this target out of the copy of the source tree
-                      cleanTarget target (tree copy)
-                      return . Just $ DebianBuildTree (show dest) newdir copy
-               Just debBuild ->
-                   do copy <- copyDebianBuildTree debBuild (show dest ++ "/" ++ newdir)
-                      -- Clean the revision control files for this target out of the copy of the source tree
-                      cleanTarget target (tree . debTree $ copy)
-                      when (newdir /= (subdir debBuild))
-                               (io $ renameDirectory (show dest ++ "/" ++ subdir debBuild) (show dest ++ "/" ++ newdir))
-                      return . Just $ copy {subdir = newdir}
--}
+             findDebianBuildTree' dest newdir >>= return . fromJust
 
 -- |Make a path "safe" for building.  This shouldn't be necessary,
 -- but various packages make various assumptions about the type
@@ -367,8 +346,8 @@ chooseNextTarget globalBuildDeps targets =
       getDepInfo :: Relations -> DebianBuildTree -> AptIO GenBuildDeps.DepInfo
       getDepInfo globalBuildDeps buildTree =
           do
-            let sourceTree = debTree buildTree
-            let controlPath = appendPath "/debian/control" (dir . tree $ sourceTree)
+            --let sourceTree = debTree buildTree
+            let controlPath = appendPath "/debian/control" (debdir buildTree)
             info <- io $ GenBuildDeps.genDep (outsidePath controlPath)
             -- My.ePutStr ("getDepInfo " ++ show target ++ ": " ++ show info)
             return $ addRelations globalBuildDeps info
@@ -447,7 +426,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       -- that should only be added by the autobuilder.
       sourceRevision <- case realSource target of (Tgt spec) -> BuildTarget.revision spec
       -- Get the changelog entry from the clean source
-      let sourceLog = entry . debTree . cleanSource $ target
+      let sourceLog = entry . cleanSource $ target
       let sourceVersion = logVersion sourceLog
       let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
       let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
@@ -519,7 +498,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
       -- Depending on the strictness, build dependencies either
       -- get installed into the clean or the build environment.
       maybeAddLogEntry _ Nothing = return ()
-      maybeAddLogEntry buildTree (Just newVersion) = makeLogEntry newVersion >>= (flip addLogEntry) (debTree buildTree)
+      maybeAddLogEntry buildTree (Just newVersion) = makeLogEntry newVersion >>= (flip addLogEntry) buildTree
       makeLogEntry newVersion = 
           do
             date <- getCurrentLocalRFC822Time

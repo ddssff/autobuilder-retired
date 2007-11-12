@@ -6,8 +6,8 @@ module BuildTarget.Svn
     ) where
 
 import BuildTarget
-import Debian.SourceTree
 import Debian.Types
+import Debian.Types.SourceTree
 import System.Time
 import Control.Monad
 import Linspire.Unix.Directory
@@ -46,11 +46,10 @@ password userInfo =
     else ["--password",unEscapeString pw]
 
 instance BuildTarget Svn where
-    getTop (Svn _ tree) = dir tree
+    getTop (Svn _ tree) = topdir tree
     -- We should recursively find and remove all the .svn directories in |dir source|
-    cleanTarget (Svn _ _) source = 
-        do let path = dir source
-               cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
+    cleanTarget (Svn _ _) path = 
+        do let cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
 
            dr' (return noTimeDiff) (cleanStyle path $ systemTask_ cmd)
            return ()
@@ -59,7 +58,7 @@ instance BuildTarget Svn where
     revision (Svn uri tree) =
         do
           -- FIXME: this command can take a lot of time, message it
-          (out, _) <- svn (Just $ dir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
+          (out, _) <- svn (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
           case parseControl "svn info" (B.concat (stdoutOnly out)) of
             (Right (Control (c:_))) ->
                 case (lookupP "URL" c, lookupP "Revision" c) of -- JAS, I don't know why I did not just use the uri that was passed in

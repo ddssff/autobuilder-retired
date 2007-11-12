@@ -1,8 +1,8 @@
 module BuildTarget.Tla where
 
 import BuildTarget
-import Debian.SourceTree
 import Debian.Types
+import Debian.Types.SourceTree
 import System.IO
 import Control.Monad
 import System.Process
@@ -24,16 +24,15 @@ documentation = [ "tla:<revision> - A target of this form retrieves the a TLA ar
                 , "given revision name." ]
 
 instance BuildTarget Tla where
-    getTop (Tla _ tree) = dir tree
-    cleanTarget (Tla _ _) source =
-        do let path = dir source
-               cmd = "find '" ++ outsidePath path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
+    getTop (Tla _ tree) = topdir tree
+    cleanTarget (Tla _ _) path =
+        do let cmd = "find '" ++ outsidePath path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
            cleanStyle path $ systemTask_ cmd
            return ()
         where cleanStyle path = setStyle $ setStart (Just ("Clean TLA target in " ++ outsidePath path))
 
     revision (Tla _ tree) =
-        do let path = dir tree
+        do let path = topdir tree
                cmd = "cd " ++ outsidePath path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- io $ runInteractiveCommand cmd

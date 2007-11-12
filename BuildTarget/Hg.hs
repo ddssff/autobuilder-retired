@@ -9,9 +9,9 @@ import System.Process
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
 import BuildTarget
-import Debian.SourceTree
 import Debian.IO
 import Debian.Types
+import Debian.Types.SourceTree
 
 data Hg = Hg String SourceTree
 
@@ -22,12 +22,12 @@ documentation = [ "hg:<string> - A target of this form target obtains the source
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
 instance BuildTarget Hg where
-    getTop (Hg _ tree) = dir tree
+    getTop (Hg _ tree) = topdir tree
     --getSourceTree (Hg _ tree) = tree
     --setSpecTree (Hg s _) tree = Hg s tree
 
     revision (Hg _ tree) =
-        do let path = dir tree
+        do let path = topdir tree
                cmd = "cd " ++ outsidePath path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
            (_, outh, _, handle) <- io $ runInteractiveCommand cmd
            revision <- io (hGetContents outh) >>= return . listToMaybe . lines >>=
@@ -35,11 +35,10 @@ instance BuildTarget Hg where
            io $ waitForProcess handle
            return . Just $ "hg:" ++ revision
 
-    cleanTarget (Hg _ _) source =
+    cleanTarget (Hg _ _) path =
         do cleanStyle path $ systemTask_ cmd
            return ()
         where
-          path = dir source
           cmd = "rm -rf " ++ outsidePath path ++ "/.hg"
           cleanStyle path = setStyle (setStart (Just ("Clean Hg target in " ++ show path)))
 

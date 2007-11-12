@@ -12,6 +12,12 @@ Targets:
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
 
+Name: ghc681
+Relax-Depends: g++
+Relax-Depends: make
+Targets:
+  quilt:(uri:file:///home/david/tmp/ghc681/haskell-unsafe/ghc6_6.8.1.orig.tar.gz):(darcs:http://src.seereason.org/ghc6-quilt)
+
 Name: ghc-base
 Relax-Depends: g++
 Relax-Depends: make
@@ -71,7 +77,7 @@ Targets:
   apt:sid:pugs
   apt:sid:washngo
   svn:http://www.gerboa.com/svn/haskell-unixutils
-  darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:file:///home/david/darcs/hscolour-quilt)
   darcs:http://src.seereason.org/haskell-extra
   darcs:http://src.seereason.org/haskell-debian
   darcs:http://src.seereason.org/haskell-mime

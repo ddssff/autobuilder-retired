@@ -2,14 +2,14 @@ module BuildTarget.DebDir where
 
 import BuildTarget
 import Prelude hiding (catch)
-import Debian.SourceTree
 import Debian.Types
+import Debian.Types.SourceTree
 import System.Directory
 import Debian.IO
 --import ChangeLog
 
 -- | Get the upstream source from one location, and the debian directory from another
-data DebDir = DebDir Tgt Tgt SourceTree
+data DebDir = DebDir Tgt Tgt DebianSourceTree
 
 instance Show DebDir where
     show (DebDir t q _) = "deb-dir:(" ++ show t ++ "):(" ++ show q ++ ")"
@@ -19,10 +19,10 @@ documentation = [ "debdir:(<target>):(<target>) - A target of this form combines
                 , "onlye the contents of the debian subdirectory." ]
 
 instance BuildTarget DebDir where
-    getTop (DebDir _ _ tree) = dir tree
-    cleanTarget (DebDir (Tgt upstream) (Tgt debian) _) tree =
-        do cleanTarget upstream tree
-           cleanTarget debian (SourceTree (appendPath "/debian" (dir tree)))
+    getTop (DebDir _ _ tree) = topdir tree
+    cleanTarget (DebDir (Tgt upstream) (Tgt debian) _) path =
+        do cleanTarget upstream path
+           cleanTarget debian (appendPath "/debian" path)
     revision (DebDir (Tgt upstream) (Tgt debian) _) =
         do upstreamRev <- revision upstream
            case upstreamRev of
@@ -50,7 +50,7 @@ prepareDebDir _debug top _flush (Tgt upstream) (Tgt debian) =
       cleanStyle dest $ systemTask_ cmd1
       let cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ outsidePath debianDir ++ "/debian' '" ++ dest ++ "/'")
       cleanStyle dest $ systemTask_ cmd2
-      tree <- findSourceTree (rootEnvPath dest)
+      tree <- findDebianSourceTree (rootEnvPath dest)
       case tree of
         Nothing -> error ("Couldn't find source tree at " ++ show dest)
         Just tree -> return $ Tgt $ DebDir (Tgt upstream) (Tgt debian) tree

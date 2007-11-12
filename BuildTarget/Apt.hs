@@ -4,8 +4,8 @@ import Debian.AptImage
 import Debian.Cache
 import Debian.IO
 import Debian.Local.Changes
-import Debian.SourceTree
 import Debian.Types
+import Debian.Types.SourceTree
 import BuildTarget
 import Control.Monad
 import Data.Maybe
@@ -27,7 +27,7 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
 -- number.  This means that we don't have to build version 0.5.12
 -- of a package if it is already in the apt repository.
 instance BuildTarget Apt where
-    getTop (Apt _ _ _ t) = dir . tree .debTree $ t
+    getTop (Apt _ _ _ t) = topdir t
     revision (Apt d p (Just v) _) = return (Just $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show v)
     revision (Apt _ _ Nothing _) = error "Attempt to generate revision string for unversioned apt package"
     logText (Apt _ _ _ _) _ = "Built from apt pool"
@@ -45,7 +45,7 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
       --when flush (io $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
       when flush (io . removeRecursiveSafely $ aptDir os package)
       tree <- Debian.AptImage.aptGetSource (rootEnvPath (aptDir os package)) os package version
-      let version' = logVersion . entry . debTree $ tree
+      let version' = logVersion . entry $ tree
       return $ Tgt $ Apt distro package (Just version') tree
     where
       ms = match "([^:]+):([^=]*)(=([^ \t\n]+))?" target

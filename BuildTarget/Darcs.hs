@@ -1,8 +1,8 @@
 module BuildTarget.Darcs where
 
 import BuildTarget
-import Debian.SourceTree
 import Debian.Types
+import Debian.Types.SourceTree
 import System.Directory
 import System.Exit
 import System.Process
@@ -29,15 +29,14 @@ instance Show Darcs where
     show t = "darcs:" ++ uri t
 
 instance BuildTarget Darcs where
-    getTop t = dir (sourceTree t)
-    cleanTarget _ source = 
-        do let path = dir source
-               cmd = "find " ++ outsidePath path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
+    getTop t = topdir (sourceTree t)
+    cleanTarget _ path = 
+        do let cmd = "find " ++ outsidePath path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
            cleanStyle path $ systemTask_ cmd
            return ()
         where cleanStyle path = setStyle $ setStart (Just (" Copy and clean TLA target to " ++ show path))
     revision tgt =
-        do let path = dir (sourceTree tgt)
+        do let path = topdir (sourceTree tgt)
                cmd = "cd " ++ outsidePath path ++ " && darcs changes --xml-output"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- io $ runInteractiveCommand cmd
