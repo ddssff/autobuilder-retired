@@ -127,6 +127,5 @@ Comment: Here are some more proposed targets
 
 Name: devel-targets
 Targets:
-  quilt:(apt:sid:xtla):(tla:tos@linspire.com--skipjack/xtla-quilt--fos--1.2)
-  apt:marlin-old:tree-widget
-  tla:tos@linspire.com--skipjack/haskell-mode--upstream--2.3
+  darcs:http://src.seereason.org/tree-widget
+  quilt:(apt:sid:xtla):(darcs:http://src.seereason.org/xtla-quilt)
