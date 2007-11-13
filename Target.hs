@@ -128,7 +128,7 @@ prepareTarget os tgt@(Tgt source) =
 -- executable.
 prepareBuild :: (BuildTarget t) => OSImage -> t -> AptIO (Maybe DebianBuildTree)
 prepareBuild os target =
-    do debBuild <- findDebianBuildTree (getTop target)
+    do debBuild <- findOneDebianBuildTree (getTop target)
        case debBuild of
          Just tree -> copyBuild tree >>= return . Just
          Nothing ->
@@ -159,7 +159,7 @@ prepareBuild os target =
              copy <- copyDebianSourceTree debSource (appendPath ("/" ++ newdir) dest)
              -- Clean the revision control files for this target out of the copy of the source tree
              cleanTarget target (topdir copy)
-             findDebianBuildTree' dest newdir >>= return . fromJust
+             findDebianBuildTree dest newdir >>= return . fromJust
       copyBuild :: DebianBuildTree -> AptIO DebianBuildTree
       copyBuild debBuild =
           do let name = logPackage . entry $ debBuild
@@ -171,7 +171,7 @@ prepareBuild os target =
              cleanTarget target (topdir copy)
              when (newdir /= (subdir debBuild))
                       (io $ renameDirectory (outsidePath dest ++ "/" ++ subdir debBuild) (outsidePath dest ++ "/" ++ newdir))
-             findDebianBuildTree' dest newdir >>= return . fromJust
+             findDebianBuildTree dest newdir >>= return . fromJust
 
 -- |Make a path "safe" for building.  This shouldn't be necessary,
 -- but various packages make various assumptions about the type
@@ -568,7 +568,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
       case noClean of
         False -> do syncStyle $ Debian.OSImage.syncEnv cleanOS buildOS
                     debugStyle $ prepareCopy tgt (cleanSource target) newPath
-        True -> findDebianBuildTree newPath >>= return . maybe (error $ "No build tree at " ++ show newPath) id
+        True -> findOneDebianBuildTree newPath >>= return . maybe (error $ "No build tree at " ++ show newPath) id
     where
       debug = (Params.debug params)
       buildDepends = (Params.buildDepends params)
@@ -583,7 +583,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
       buildTree <- 
           case noClean of
             False -> debugStyle $ prepareCopy tgt (cleanSource target) newPath
-            True -> findDebianBuildTree newPath >>= maybe (error "build tree not found") return
+            True -> findOneDebianBuildTree newPath >>= maybe (error "build tree not found") return
       iStyle $ downloadDependencies cleanOS buildTree buildDepends sourceDependencies
       case noClean of
         False -> syncStyle $ Debian.OSImage.syncEnv cleanOS buildOS

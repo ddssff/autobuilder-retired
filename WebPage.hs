@@ -5,7 +5,6 @@ import		 Debian.Cache
 import		 Debian.Control
 import		 Debian.IO
 import		 Debian.Slice
-import		 Debian.SourcesList
 import		 Debian.Types
 import qualified Config
 import		 Control.Monad

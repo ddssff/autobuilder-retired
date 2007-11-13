@@ -21,7 +21,7 @@ import Extra.List
 import Text.Regex
 import Debian.Local.Changes
 
-import System.IO
+import qualified System.IO as IO
 
 data Quilt = Quilt Tgt Tgt SourceTree
 
@@ -69,17 +69,20 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-prepareQuilt :: FilePath -> Bool -> Tgt -> Tgt -> AptIO Tgt
-prepareQuilt top _flush (Tgt base) (Tgt patch) = 
+makeQuiltTree top base patch =
     do vPutStrLn 0 $ "Quilt base: " ++ show (getTop base)
        vPutStrLn 0 $ "Quilt patch: " ++ show (getTop patch)
-       let dest = top ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
+       -- This will be the top directory of the quilt target
+       let copyDir = rootEnvPath (top ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"))
        createDirectoryIfMissingDR True (top ++ "/quilt")
-       --baseTree <- findDebianBuildTree (getTop base) >>= maybe (findSourceTree (getTop base)) (return . Just) >>= maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
        baseTree <- findSourceTree (getTop base) >>= return . maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
+       copyTree <- copySourceTree baseTree copyDir
+       -- If this is already a DebianBuildTree we need to apply
+       -- the patch to the subdirectory containing the DebianSourceTree.
+       debTree <- findOneDebianBuildTree copyDir
+       -- Compute the directory where the patches will be applied
+       let quiltDir = maybe copyDir debdir debTree
        patchTree <- findSourceTree (getTop patch) >>= return . maybe (error $ "Invalid source tree: " ++ show (getTop base)) id
-       quiltTree <- copySourceTree baseTree (rootEnvPath dest)
-       let quiltDir = topdir quiltTree
        let patchDir = topdir patchTree
        -- Set up links to the quilt directory, and use quilt to get a
        -- list of the unapplied patches.
@@ -89,6 +92,16 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
        case result of
          (ExitFailure _, _) -> error ("Failed to set up quilt target: " ++ show result)
          _ -> return ()
+       -- Now we need to have created a DebianSourceTree so
+       -- that there is a changelog for us to reconstruct.
+       quiltTree <- findSourceTree copyDir >>= return . maybe (error $ "Failed to create source tree at " ++ show copyDir) id
+       return (copyTree, quiltDir)
+    where
+      linkStyle = setStyle . vStyle 1 $ setStart (Just "Linking to quilt target")
+
+prepareQuilt :: FilePath -> Bool -> Tgt -> Tgt -> AptIO Tgt
+prepareQuilt top _flush (Tgt base) (Tgt patch) = 
+    do (quiltTree, quiltDir) <- makeQuiltTree top base patch
        let cmd1a = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ outsidePath quiltDir ++ "' && quilt applied")
        applied <- queryStyle1 $ systemTask' cmd1a
        case applied of
@@ -133,8 +146,7 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
          (ExitFailure _, s, _) -> error ("Unexpected output from quilt applied: " ++ show (eConcat s))
          (ExitSuccess, _, _) -> error "Unexpected result code from quilt applied"
     where
-      linkStyle = setStyle . vStyle 1 $ setStart (Just "Linking to quilt target")
-      queryStyle1 = setStyle . vStyle 1 $ setStart (Just "Checking for applied patches") . quietStyle stderr
+      queryStyle1 = setStyle . vStyle 1 $ setStart (Just "Checking for applied patches") . quietStyle IO.stderr
       queryStyle2 = setStyle . vStyle 1 $ setStart (Just "Checking for unapplied patches")
       applyStyle = setStyle . vStyle 1 $ setStart (Just "Patching Quilt target")
       cleanStyle = setStyle . vStyle 2 $ setStart (Just "Cleaning Quilt target")
