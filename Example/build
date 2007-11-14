@@ -129,3 +129,5 @@ Name: devel-targets
 Targets:
   darcs:http://src.seereason.org/tree-widget
   quilt:(apt:sid:xtla):(darcs:http://src.seereason.org/xtla-quilt)
+  remove this
+

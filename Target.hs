@@ -13,7 +13,6 @@ module Target
     , targetDocumentation
     ) where
 
-import		 Debian.Apt
 import		 Debian.Cache
 import		 Debian.Control
 import qualified Debian.Control.ByteString as B

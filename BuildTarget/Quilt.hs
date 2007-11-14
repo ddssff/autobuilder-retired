@@ -94,7 +94,7 @@ makeQuiltTree top base patch =
          _ -> return ()
        -- Now we need to have created a DebianSourceTree so
        -- that there is a changelog for us to reconstruct.
-       quiltTree <- findSourceTree copyDir >>= return . maybe (error $ "Failed to create source tree at " ++ show copyDir) id
+       --quiltTree <- findSourceTree copyDir >>= return . maybe (error $ "Failed to create source tree at " ++ show copyDir) id
        return (copyTree, quiltDir)
     where
       linkStyle = setStyle . vStyle 1 $ setStart (Just "Linking to quilt target")
