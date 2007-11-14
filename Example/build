@@ -76,7 +76,7 @@ Targets:
   apt:sid:pandoc
   apt:sid:pugs
   apt:sid:washngo
-  svn:http://www.gerboa.com/svn/haskell-unixutils
+  darcs:http://src.seereason.org/haskell-unixutils
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:file:///home/david/darcs/hscolour-quilt)
   darcs:http://src.seereason.org/haskell-extra
   darcs:http://src.seereason.org/haskell-debian
