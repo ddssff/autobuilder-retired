@@ -77,7 +77,7 @@ Targets:
   apt:sid:pugs
   apt:sid:washngo
   darcs:http://src.seereason.org/haskell-unixutils
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:file:///home/david/darcs/hscolour-quilt)
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.org/hscolour-quilt)
   darcs:http://src.seereason.org/haskell-extra
   darcs:http://src.seereason.org/haskell-debian
   darcs:http://src.seereason.org/haskell-mime
