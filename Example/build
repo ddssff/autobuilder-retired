@@ -90,6 +90,10 @@ Targets:
   quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.org/happs-state-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.org/happs-util-quilt)
   quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.org/haskell-syb-with-class-quilt)
+  quilt:(apt:sid:haskell-devscripts):(darcs:http://src.seereason.org/haskell-devscripts-quilt)
+  quilt:(uri:http://www.haskell.org/cabal/release/rc/cabal-1.2.2.0.tar.gz:5ab5c872869f35c81f427d8efd82569c):(darcs:http://src.seereason.org/haskell-cabal-quilt)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.org/haskell-bzlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.org/haskell-zlib-debian)
 Comment:
   Disabled due to flaw in the autobuilder's build dependency parser:
     apt:sid:missingpy
