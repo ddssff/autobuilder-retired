@@ -14,9 +14,9 @@ data DebDir = DebDir Tgt Tgt DebianSourceTree
 instance Show DebDir where
     show (DebDir t q _) = "deb-dir:(" ++ show t ++ "):(" ++ show q ++ ")"
 
-documentation = [ "debdir:(<target>):(<target>) - A target of this form combines two targets,"
+documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"
-                , "onlye the contents of the debian subdirectory." ]
+                , "a debian subdirectory." ]
 
 instance BuildTarget DebDir where
     getTop (DebDir _ _ tree) = topdir tree
