@@ -1,11 +1,8 @@
 Name: common-local
-Let: upload-host=seereason.org
+Let: upload-host=seereason.com
 Let: upload-user=upload
-Let: upload-repo=ubuntu
 Let: upload-release-suffix=seereason
 Vendor-Tag: seereason
-Upload-URI: ssh://${upload-user}@${upload-host}/var/www/${upload-host}/${upload-repo}
-Build-URI: http://${upload-host}/${upload-repo}
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
 Comment:
   The four Let values above need to be adjusted for the repository you
@@ -16,11 +13,24 @@ Comment:
   repository you are building against.
 
 Name: ubuntu-local
-Let: ubuntu-mirror-host=mirror.anl.gov
+Let: ubuntu-mirror-host=us.archive.ubuntu.com
 Let: ubuntu-mirror-host=sandbox.linspire.com
-Let: ubuntu-security-mirror-host=mirror.anl.gov
 Let: ubuntu-security-mirror-host=security.ubuntu.com
+Let: ubuntu-security-mirror-host=mirror.anl.gov
 Comment: The first value takes precedence over the second
+
+Name: feisty-local
+Upload-URI: ssh://${upload-user}@${upload-host}/var/www/${upload-host}/${upload-repo}
+Build-URI: http://${upload-host}/${upload-repo}
+Let: upload-repo=ubuntu
+Use: ubuntu-local
+
+Name: gutsy-local
+Upload-URI: ssh://${upload-user}@${upload-host}/var/www/${upload-host}/gutsy
+Build-URI: http://${upload-host}/${upload-repo}
+Let: upload-repo=gutsy
+Use: ubuntu-local
 
 Name: debian-local
 Let: debian-mirror-host=mirror.anl.gov
+Let: upload-repo=debian

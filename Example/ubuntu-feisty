@@ -8,6 +8,7 @@ Let: base=feisty
 Name: feisty-build
 Use: ubuntu-build
 Use: feisty-common
+Use: feisty-local
 
 Name: feisty-sources
 Sources: feisty
@@ -41,4 +42,8 @@ Use: feisty-build
 
 Name: feisty-yhc
 Use: yhc-targets
+Use: feisty-build
+
+Name: feisty-ghc682
+Use: ghc682
 Use: feisty-build

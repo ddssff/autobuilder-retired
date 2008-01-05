@@ -2,11 +2,16 @@ Comment:
   Some archives where we can pull packages from using the apt target.
 
 Name: extra-sources
+Use: haskell-unsafe-sources
 Use: slimdevices-sources
 Use: debian-multimedia-sources
 Use: kanotix-sources
 Use: marlin-old-sources
 Use: debian-experimental-sources
+
+Name: haskell-unsafe-sources
+Sources: haskell-unsafe
+  deb-src http://haskell-unsafe.alioth.debian.org/archive/amd64 unstable .
 
 Name: slimdevices-sources
 Sources: slimdevices

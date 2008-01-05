@@ -7,16 +7,64 @@ Comment:
 
 Name: autobuilder-targets
 Targets:
-  svn:http://www.gerboa.com/svn/autobuilder
-  tla:dsf@foxthompson.net--2004/build-env--dsf--0
+  darcs:http://src.seereason.com/autobuilder  
+  darcs:http://src.seereason.com/build-env
+  darcs:http://src.seereason.com/haskell-debian
+  darcs:http://src.seereason.com/haskell-extra
+  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
+Comment:
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
+
+Name: ghc682
+Relax-Depends: g++
+Relax-Depends: make
+Targets:
+  sourcedeb:darcs:http://src.seereason.com/ghc682/ghc6
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-alut
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-arrows
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-cgi
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-fgl
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-haskell-src
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-hgl
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-html
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-hunit
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mtl
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-network
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-openal
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-opengl
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-parallel
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-parsec
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-quickcheck
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-base
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-compat
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-posix
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stm
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-time
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-utils
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-x11
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-xhtml
+Comment: bad .dsc file
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mode
+Comment: This and ghc6 are mutual build dependencies, so I must omit it to break the cycle.
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
+Comment:
+  deb-dir:(uri:file:///home/david/Desktop/ghc-extralibs_6.8.2.orig.tar.gz):(darcs:file:///home/david/darcs/ghc6-extralibs-debian)
+  quilt:(uri:file:///home/david/Destkop/ghc6_6.8.2.orig.tar.gz):(darcs:http://src.seereason.com/ghc6-quilt)
 
 Name: ghc681
 Relax-Depends: g++
 Relax-Depends: make
 Targets:
-  quilt:(uri:file:///home/david/tmp/ghc681/haskell-unsafe/ghc6_6.8.1.orig.tar.gz):(darcs:http://src.seereason.org/ghc6-quilt)
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
+  quilt:(uri:file:///home/david/tmp/ghc681/ghc6_6.8.1.orig.tar.gz):(darcs:http://src.seereason.com/ghc6-quilt)
+  deb-dir:(uri:file:///home/david/tmp/ghc681/ghc-extralibs_6.8.1.orig.tar.gz):(darcs:file:///home/david/darcs/ghc6-extralibs-debian)
+Comment: These tarballs are avaiable here:
+  http://www.haskell.org/ghc/dist/6.8.1/ghc-6.8.1-src-extralibs.tar.bz2
+  http://www.haskell.org/ghc/dist/6.8.1/ghc-6.8.1-src.tar.bz2
 
 Name: ghc-base
 Relax-Depends: g++
@@ -26,7 +74,7 @@ Targets:
   apt:sid:haskell-devscripts
   apt:sid:ghc6
   apt:sid:c2hs
-  quilt:(darcs:http://darcs.haskell.org/cabal):(darcs:http://src.seereason.org/cabal-quilt)
+  quilt:(darcs:http://darcs.haskell.org/cabal):(darcs:http://src.seereason.com/cabal-quilt)
   apt:sid:cpphs
   apt:sid:hugs98
 
@@ -48,7 +96,7 @@ Targets:
   apt:sid:haskell-hlist
   apt:sid:haskell-hsql
   apt:sid:haskell-html
-  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.org/haskell-http-quilt)
+  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
   apt:sid:haskell-hunit
   apt:sid:haskell-mode
   apt:sid:haskell-mtl
@@ -61,39 +109,42 @@ Targets:
   apt:sid:haskell-utils
   apt:sid:haskell-uulib
   apt:sid:haskell-x11
-  apt:sid:haskell-xhtml
+  quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskelldb
   apt:sid:hat
-  apt:sid:haxml
+  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   apt:sid:hdbc
   apt:sid:hdbc-odbc
   apt:sid:hdbc-postgresql
   quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
-  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.org/hslogger-quilt)
+  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
+  quilt:(apt:sid:haskell-haskell-src):(darcs:http://src.seereason.com/haskell-src-quilt)
   apt:sid:ldap-haskell
   apt:sid:listlike
   apt:sid:magic-haskell
   apt:sid:pandoc
   apt:sid:pugs
   apt:sid:washngo
-  darcs:http://src.seereason.org/haskell-unixutils
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.org/hscolour-quilt)
-  darcs:http://src.seereason.org/haskell-extra
-  darcs:http://src.seereason.org/haskell-debian
-  darcs:http://src.seereason.org/haskell-mime
-  darcs:http://src.seereason.org/autobuilder
-  darcs:http://src.seereason.org/build-env
-  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.org/haskell-crypto-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.org/happs-data-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.org/happs-ixset-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.org/happs-server-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.org/happs-state-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.org/happs-util-quilt)
-  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.org/haskell-syb-with-class-quilt)
-  quilt:(apt:sid:haskell-devscripts):(darcs:http://src.seereason.org/haskell-devscripts-quilt)
-  quilt:(uri:http://www.haskell.org/cabal/release/rc/cabal-1.2.2.0.tar.gz:5ab5c872869f35c81f427d8efd82569c):(darcs:http://src.seereason.org/haskell-cabal-quilt)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.org/haskell-bzlib-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.org/haskell-zlib-debian)
+  darcs:http://src.seereason.com/haskell-unixutils
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
+  darcs:http://src.seereason.com/haskell-extra
+  darcs:http://src.seereason.com/haskell-debian
+  darcs:http://src.seereason.com/haskell-mime
+  darcs:http://src.seereason.com/autobuilder
+  darcs:http://src.seereason.com/build-env
+  darcs:http://src.seereason.com/haskell-ugly
+  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.com/happs-server-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.com/happs-state-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
+  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
+  quilt:(apt:sid:haskell-devscripts):(darcs:http://src.seereason.com/haskell-devscripts-quilt)
+  quilt:(uri:http://www.haskell.org/cabal/release/rc/cabal-1.2.2.0.tar.gz:5ab5c872869f35c81f427d8efd82569c):(darcs:http://src.seereason.com/haskell-cabal-quilt)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/haskell-bzlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
+  quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
 Comment:
   Disabled due to flaw in the autobuilder's build dependency parser:
     apt:sid:missingpy
@@ -104,7 +155,6 @@ Comment:
     apt:sid:haskell-anydbm
     apt:sid:haskell-configfile
   Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
-    apt:sid:haskell-haskell-src
     apt:sid:hdbc-missingh
   Depends on libghc6-hslogger-dev, libghc6-missingh-dev
     apt:sid:haskell-hsh
@@ -131,7 +181,7 @@ Comment: Here are some more proposed targets
 
 Name: devel-targets
 Targets:
-  darcs:http://src.seereason.org/tree-widget
-  quilt:(apt:sid:xtla):(darcs:http://src.seereason.org/xtla-quilt)
+  darcs:http://src.seereason.com/tree-widget
+  quilt:(apt:sid:xtla):(darcs:http://src.seereason.com/xtla-quilt)
   remove this
 

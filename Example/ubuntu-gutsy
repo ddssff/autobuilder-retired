@@ -8,6 +8,7 @@ Let: base=gutsy
 Name: gutsy-build
 Use: ubuntu-build
 Use: gutsy-common
+Use: gutsy-local
 Extra-Essential: belocs-locales-bin
 
 Name: gutsy-sources
@@ -42,4 +43,8 @@ Use: gutsy-build
 
 Name: gutsy-yhc
 Use: yhc-targets
+Use: gutsy-build
+
+Name: gutsy-ghc682
+Use: ghc682
 Use: gutsy-build

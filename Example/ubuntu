@@ -9,7 +9,6 @@ Name: ubuntu-build
 Use: build
 
 Name: ubuntu-sources
-Use: ubuntu-local
 Use: feisty-sources
 Use: gutsy-sources
 Use: hardy-sources
