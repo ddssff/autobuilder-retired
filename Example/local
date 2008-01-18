@@ -1,7 +1,7 @@
 Name: common-local
+Use: common
 Let: upload-host=seereason.com
 Let: upload-user=upload
-Let: upload-release-suffix=seereason
 Vendor-Tag: seereason
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
 Comment:
@@ -18,19 +18,31 @@ Let: ubuntu-mirror-host=sandbox.linspire.com
 Let: ubuntu-security-mirror-host=security.ubuntu.com
 Let: ubuntu-security-mirror-host=mirror.anl.gov
 Comment: The first value takes precedence over the second
-
-Name: feisty-local
 Upload-URI: ssh://${upload-user}@${upload-host}/var/www/${upload-host}/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
+Use: common-local
+
+Name: feisty-local
 Let: upload-repo=ubuntu
+Let: upload-release-suffix=seereason
 Use: ubuntu-local
 
 Name: gutsy-local
-Upload-URI: ssh://${upload-user}@${upload-host}/var/www/${upload-host}/gutsy
-Build-URI: http://${upload-host}/${upload-repo}
 Let: upload-repo=gutsy
+Let: upload-release-suffix=seereason
+Use: ubuntu-local
+
+Name: feisty-ghc68-local
+Let: upload-repo=feisty-ghc68
+Let: upload-release-suffix=ghc68-seereason
+Use: ubuntu-local
+
+Name: gutsy-ghc68-local
+Let: upload-repo=gutsy-ghc68
+Let: upload-release-suffix=ghc68-seereason
 Use: ubuntu-local
 
 Name: debian-local
 Let: debian-mirror-host=mirror.anl.gov
 Let: upload-repo=debian
+Use: common-local

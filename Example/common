@@ -4,7 +4,6 @@ Comment:
   version numbers, and all the sources of source code.
 
 Name: common
-Use: common-local
 Required-Version: 2.26
 Use: all-sources
 Base-Release: ${base}

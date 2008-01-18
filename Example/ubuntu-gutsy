@@ -5,10 +5,20 @@ Name: gutsy-common
 Use: ubuntu-common
 Let: base=gutsy
 
+Name: gutsy-ghc68-common
+Use: ubuntu-common
+Let: base=gutsy
+
 Name: gutsy-build
 Use: ubuntu-build
 Use: gutsy-common
 Use: gutsy-local
+Extra-Essential: belocs-locales-bin
+
+Name: gutsy-ghc68-build
+Use: ubuntu-build
+Use: gutsy-common
+Use: gutsy-ghc68-local
 Extra-Essential: belocs-locales-bin
 
 Name: gutsy-sources
