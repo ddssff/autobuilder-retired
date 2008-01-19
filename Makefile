@@ -9,7 +9,7 @@ NODOCHS = Documentatiion/CodeReview.hs Setup.hs Verify.hs Version.hs \
 
 DOCHS = $(filter-out $(NODOCHS), $(HS))
 
-GHC = ghc --make -fglasgow-exts -W -O2 -fasm
+GHC = ghc --make -fglasgow-exts -W -O2 -fasm -threaded
 
 all: autobuilder webpage newdist test doc
 
