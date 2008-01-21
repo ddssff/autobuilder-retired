@@ -544,7 +544,11 @@ flushRootOpt = Param [] ["flush-root"] ["Flush-Root"] (NoArg (Value "Flush-Root"
 flushPool :: Params -> Bool
 flushPool params = values params flushPoolOpt /= []
 flushPoolOpt = Param [] ["flush-pool"] ["Flush-Pool"] (NoArg (Value "Flush-Pool" "yes"))
-               "Discard the packages in the local pool before building."
+               (text ["Discard the packages in the local pool before building.  Use this",
+                      "when the packages in the local pool have already been uploaded, or",
+                      "when a bad package was uploaded to the local pool (but not to the",
+                      "remote pool), and you want to build a new version with the same",
+                      "version number."])
 
 flushSource :: Params -> Bool
 flushSource params = values params flushSourceOpt /= []

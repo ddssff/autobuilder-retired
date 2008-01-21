@@ -13,6 +13,8 @@ module Target
     , targetDocumentation
     ) where
 
+import		 Control.Exception
+import		 Control.Monad.Trans
 import		 Debian.Cache
 import		 Debian.Control
 import qualified Debian.Control.ByteString as B
@@ -403,50 +405,50 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
+      msgLn 0 "Loading package lists and searching for build dependency solution..."
       solutions <- iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl
-      --My.ePutStr ("build dependency solutions:\n" ++ unlines (map show solutions))
-      -- Get the newest available version of a source package,
-      -- along with its status, either Indep or All
-      let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
-      msgLn 2 message
-      msgLn 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
-                                ": " ++ explainSourcePackageStatus releaseStatus)
-      --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
-      -- Get the revision info of the package currently in the dist
-      let oldVersion = maybe Nothing (Just . getOldVersion) releaseControlInfo
-      let (oldRevision, oldDependencies) = maybe (Nothing, []) getOldRevision releaseControlInfo
-
-      -- Compute the Revision: string for the source tree.  This
-      -- string will appear in the .dsc file for the package, and will
-      -- then be copied into the Sources.gz file of the distribution.
-      -- For a TLA target this is the current revision name, by
-      -- default it is simply the debian version number.  The version
-      -- number in the source tree should not have our vendor tag,
-      -- that should only be added by the autobuilder.
-      sourceRevision <- case realSource target of (Tgt spec) -> BuildTarget.revision spec
-      -- Get the changelog entry from the clean source
-      let sourceLog = entry . cleanSource $ target
-      let sourceVersion = logVersion sourceLog
-      let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
-      let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
-      let sourceDependencies =
-              case solutions of
-                [] -> error "internal error"
-                (Right versions) : _ -> versions
-                (Left excuses) : _ -> error $ "Couldn't satisfy build dependencies\n " ++ consperse "\n " excuses
-      let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
-      let decision =
-              buildDecision (realSource target) (Params.vendorTag params)
-                                (Params.forceBuild params) ignoredBuildDeps sourceLog
-                                oldVersion oldRevision oldDependencies releaseStatus
-                                sourceVersion sourceRevision sourceDependencies
-      msgLn 0 ("Build decision: " ++ show decision)
-      -- FIXME: incorporate the release status into the build decision
-      case decision of
-        No _ -> return (Right repo)
-        Yes _ ->  buildPackage params cleanOS Nothing oldDependencies sourceRevision sourceDependencies target None repo sourceLog
-        Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies target releaseStatus repo sourceLog
-        Auto _ -> buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target None repo sourceLog
+      case solutions of
+        Left excuse -> do msgLn 0 ("Couldn't satisfy build dependencies\n " ++ excuse)
+                          error "Couldn't satisfy build dependencies"
+        Right [] -> error "Internal error"
+        Right ((count, sourceDependencies) : _) ->
+            do msgLn 0 ("Build dependency solution #" ++ show count ++ ": " ++ show sourceDependencies)
+               -- Get the newest available version of a source package,
+               -- along with its status, either Indep or All
+               let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
+               msgLn 2 message
+               msgLn 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
+                        ": " ++ explainSourcePackageStatus releaseStatus)
+               --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
+               -- Get the revision info of the package currently in the dist
+               let oldVersion = maybe Nothing (Just . getOldVersion) releaseControlInfo
+               let (oldRevision, oldDependencies) = maybe (Nothing, []) getOldRevision releaseControlInfo
+               -- Compute the Revision: string for the source tree.  This
+               -- string will appear in the .dsc file for the package, and will
+               -- then be copied into the Sources.gz file of the distribution.
+               -- For a TLA target this is the current revision name, by
+               -- default it is simply the debian version number.  The version
+               -- number in the source tree should not have our vendor tag,
+               -- that should only be added by the autobuilder.
+               sourceRevision <- case realSource target of (Tgt spec) -> BuildTarget.revision spec
+               -- Get the changelog entry from the clean source
+               let sourceLog = entry . cleanSource $ target
+               let sourceVersion = logVersion sourceLog
+               let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
+               let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
+               let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
+               let decision =
+                       buildDecision (realSource target) (Params.vendorTag params)
+                                         (Params.forceBuild params) ignoredBuildDeps sourceLog
+                                         oldVersion oldRevision oldDependencies releaseStatus
+                                         sourceVersion sourceRevision sourceDependencies
+               msgLn 0 ("Build decision: " ++ show decision)
+               -- FIXME: incorporate the release status into the build decision
+               case decision of
+                 No _ -> return (Right repo)
+                 Yes _ ->  buildPackage params cleanOS Nothing oldDependencies sourceRevision sourceDependencies target None repo sourceLog
+                 Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies target releaseStatus repo sourceLog
+                 Auto _ -> buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target None repo sourceLog
     where
       --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
       packageName = Target.targetName target
@@ -711,17 +713,41 @@ computeNewVersion params
       getVersion paragraph = maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)
       currentVersion = maybe Nothing (Just . parseDebianVersion . B.unpack) (maybe Nothing (fieldValue "Version" . sourceParagraph) current)
 
-buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> AptIO [Either [String] [PkgVersion]]
+buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> AptIO (Either String [(Int, [PkgVersion])])
 buildDepSolutions' preferred os globalBuildDeps debianControl =
     do
-      let (_, relations, _) = GenBuildDeps.buildDependencies debianControl
-      vBOL 1 >> vPutStrLn 1 ("Build dependency relations: " ++ show relations)
-      let relations' = computeBuildDeps os (relations ++ globalBuildDeps)
       arch <- io $ buildArchOfEnv (rootDir os)
-      -- vPutStrLn 0 $ "Available in " ++ show os ++ ": " ++ show (map makeVersion . osBinaryPackages $ os)
-      return $ Debian.Dependencies.solutions (available relations') relations' preferred arch
+      let (_, relations, _) = GenBuildDeps.buildDependencies debianControl
+      let relations' = filterRelations arch (relations ++ globalBuildDeps)
+      vBOL 1 >> vPutStrLn 1 ("Build dependency relations:\n  " ++
+                             concat (intersperse "\n  " (map show relations')))
+      let relations'' = computeBuildDeps os arch relations'
+      vPutStrLn 1 $ ("Build dependency relations with virtual packages replaced:\n  " ++
+                     concat (intersperse "\n  " (map show relations'')))
+      -- Do any of the dependencies require packages that simply don't
+      -- exist?  If so we don't have to search for solutions, there
+      -- aren't any.
+      if any (== []) relations'' then
+          return $ Left ("Unsatisfiable dependencies: " ++
+                         show (catMaybes (map unsatisfiable (zip relations' relations'')))) else
+          -- Do not stare directly into the solutions!  Your head will
+          -- explode (because there may be a lot of them.)
+          return $ Debian.Dependencies.solutions (available relations'') relations'' preferred arch
     where
-      available relations = Debian.OSImage.binaryPackages os (packagesOfRelations relations)
+      unsatisfiable (original, []) = Just original
+      unsatisfiable _ = Nothing
+
+      available relations = uniquify (Debian.OSImage.binaryPackages os (packagesOfRelations relations))
+      -- If the same package/version appears more than once, we can
+      -- ignore all but one since there is an assumption in Debian
+      -- that packages with the same name and version are the same.
+      uniquify versions =
+          map head . groupBy eq . sortBy cmp $ versions
+          where cmp a b = compare (packageName (packageID b), packageVersion (packageID b))
+				  (packageName (packageID a), packageVersion (packageID a))
+		eq a b = packageName (packageID a) == packageName (packageID b)
+      --printSoln rels = mapM_ printRel rels
+      --printRel x = vPutStrLn 0 (show x)
 
 parseProcCpuinfo :: IO [(String, String)]
 parseProcCpuinfo =
@@ -801,9 +827,11 @@ packagesOfRelations relations =
 -- |Download the package's build dependencies into /var/cache
 downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> AptIO TaskSuccess_
 downloadDependencies os source extra versions =
-    builddepStyle $ systemTask_ ("chroot " ++ rootPath root ++ " bash -c " ++
-                                 "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
-                                 (if True then aptGetCommand else pbuilderCommand) ++ "\"")
+    do vers <- liftIO (evaluate versions)
+       vPutStrLn 1 . ("versions: " ++) . show $! vers
+       builddepStyle $ systemTask_ ("chroot " ++ rootPath root ++ " bash -c " ++
+                                    "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
+                                    (if True then aptGetCommand else pbuilderCommand) ++ "\"")
     where
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install --download-only " ++ consperse " " (map showPkgVersion versions ++ extra)
