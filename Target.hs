@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSignatures #-}
 -- |A Target represents a particular set of source code and the
 -- methods to retrieve and update it.
 --

@@ -12,12 +12,12 @@ Targets:
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   darcs:http://src.seereason.com/haskell-mime
   darcs:http://src.seereason.com/haskell-unixutils
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/haskell-bzlib-debian)
   darcs:http://src.seereason.com/haskell-extra
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
   darcs:http://src.seereason.com/haskell-debian
-  darcs:http://src.seereason.com/autobuilder
   darcs:http://src.seereason.com/build-env
+  darcs:http://src.seereason.com/autobuilder
 Comment: Already built
 Comment:
   We need the latest hugs because haskell-unixutils builds a hugs library.

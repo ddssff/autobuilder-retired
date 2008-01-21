@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, ExistentialQuantification, FlexibleContexts #-}
 -- |Various ways of obtaining a Debian source code tree.
 --
 -- * "BuildTarget.Tla"
