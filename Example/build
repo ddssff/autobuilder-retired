@@ -7,51 +7,63 @@ Comment:
 
 Name: autobuilder-targets
 Targets:
-  darcs:http://src.seereason.com/autobuilder  
-  darcs:http://src.seereason.com/build-env
-  darcs:http://src.seereason.com/haskell-debian
-  darcs:http://src.seereason.com/haskell-extra
+  apt:sid:hugs98
+  apt:hardy:haskell-devscripts
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
+  darcs:http://src.seereason.com/haskell-mime
+  darcs:http://src.seereason.com/haskell-unixutils
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/haskell-bzlib-debian)
+  darcs:http://src.seereason.com/haskell-extra
+  darcs:http://src.seereason.com/haskell-debian
+  darcs:http://src.seereason.com/autobuilder
+  darcs:http://src.seereason.com/build-env
+Comment: Already built
 Comment:
+  We need the latest hugs because haskell-unixutils builds a hugs library.
+  Unfortunately, the lastest version still doesn't include System.Posix.Files,
+  so I am disabling the hugs library in haskell-unixutils.
+Comment: Probably don't need these
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
 
 Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
-Targets:
+Comment: Already built (in this order, FYI)
   sourcedeb:darcs:http://src.seereason.com/ghc682/ghc6
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-alut
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-utils
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-arrows
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-cgi
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-xhtml
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-parsec
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mtl
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-fgl
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-haskell-src
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-network
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-x11
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-hgl
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-html
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-hunit
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mtl
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-network
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-openal
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-opengl
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-parallel
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-parsec
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-quickcheck
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-base
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-compat
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-posix
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-compat
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stm
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-time
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-utils
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-x11
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-xhtml
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-cgi
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-haskell-src
+Comment: Build error in opengl: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=460385
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-opengl
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-openal
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-alut
+  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
+Targets:
 Comment: bad .dsc file
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mode
 Comment: This and ghc6 are mutual build dependencies, so I must omit it to break the cycle.
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-Comment:
+Comment: Ian has now broken this up into multiple packages.
   deb-dir:(uri:file:///home/david/Desktop/ghc-extralibs_6.8.2.orig.tar.gz):(darcs:file:///home/david/darcs/ghc6-extralibs-debian)
   quilt:(uri:file:///home/david/Destkop/ghc6_6.8.2.orig.tar.gz):(darcs:http://src.seereason.com/ghc6-quilt)
 
@@ -76,7 +88,6 @@ Targets:
   apt:sid:c2hs
   quilt:(darcs:http://darcs.haskell.org/cabal):(darcs:http://src.seereason.com/cabal-quilt)
   apt:sid:cpphs
-  apt:sid:hugs98
 
 Name: ghc-libs
 Relax-Depends: g++
@@ -125,13 +136,7 @@ Targets:
   apt:sid:pandoc
   apt:sid:pugs
   apt:sid:washngo
-  darcs:http://src.seereason.com/haskell-unixutils
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-  darcs:http://src.seereason.com/haskell-extra
-  darcs:http://src.seereason.com/haskell-debian
-  darcs:http://src.seereason.com/haskell-mime
-  darcs:http://src.seereason.com/autobuilder
-  darcs:http://src.seereason.com/build-env
   darcs:http://src.seereason.com/haskell-ugly
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
@@ -142,8 +147,6 @@ Targets:
   quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   quilt:(apt:sid:haskell-devscripts):(darcs:http://src.seereason.com/haskell-devscripts-quilt)
   quilt:(uri:http://www.haskell.org/cabal/release/rc/cabal-1.2.2.0.tar.gz:5ab5c872869f35c81f427d8efd82569c):(darcs:http://src.seereason.com/haskell-cabal-quilt)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/haskell-bzlib-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
   quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
 Comment:
   Disabled due to flaw in the autobuilder's build dependency parser:

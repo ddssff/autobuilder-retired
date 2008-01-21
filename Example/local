@@ -4,6 +4,7 @@ Let: upload-host=seereason.com
 Let: upload-user=upload
 Vendor-Tag: seereason
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
+Extra-Essential: seereason-keyring
 Comment:
   The four Let values above need to be adjusted for the repository you
   will be uploading to.  If you are only building packages and don't
