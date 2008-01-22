@@ -30,7 +30,7 @@ Comment: Probably don't need these
 Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
-Comment: Already built (in this order, FYI)
+Targets:
   sourcedeb:darcs:http://src.seereason.com/ghc682/ghc6
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-utils
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
@@ -58,7 +58,6 @@ Comment: Build error in opengl: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-openal
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-alut
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
-Targets:
 Comment: bad .dsc file
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mode
 Comment: This and ghc6 are mutual build dependencies, so I must omit it to break the cycle.
