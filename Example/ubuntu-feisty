@@ -10,6 +10,18 @@ Use: ubuntu-build
 Use: feisty-common
 Use: feisty-local
 
+Name: feisty-ghc68-build
+Use: ubuntu-build
+Use: feisty-common
+Use: feisty-ghc68-local
+
+Name: feisty-ghc682
+Use: ghc682
+Comment: This is required for feisty, but disabled because of the mutual
+	 build dependency with ghc6.  Use "sudo autobuilder feisty-ghc68-build --target apt:sid:haddock"
+  Targets:
+    apt:sid:haddock
+
 Name: feisty-sources
 Sources: feisty
   deb http://${ubuntu-mirror-host}/ubuntu/ feisty main restricted universe multiverse

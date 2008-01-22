@@ -1,6 +1,6 @@
 Name: common-local
 Use: common
-Let: upload-host=seereason.com
+Let: upload-host=deb.seereason.com
 Let: upload-user=upload
 Vendor-Tag: seereason
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
@@ -19,7 +19,7 @@ Let: ubuntu-mirror-host=sandbox.linspire.com
 Let: ubuntu-security-mirror-host=security.ubuntu.com
 Let: ubuntu-security-mirror-host=mirror.anl.gov
 Comment: The first value takes precedence over the second
-Upload-URI: ssh://${upload-user}@${upload-host}/var/www/${upload-host}/${upload-repo}
+Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
 Use: common-local
 
