@@ -4,6 +4,7 @@ Comment:
 
 Name: debian-common
 Use: common
+Extra-Essential: debian-archive-keyring
 
 Name: debian-build
 Use: build

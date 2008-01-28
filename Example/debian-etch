@@ -2,9 +2,18 @@ Name: etch-common
 Let: base=etch
 Use: debian-common
 
+Name: etch-ghc68-common
+Let: base=etch
+Use: debian-common
+
 Name: etch-build
 Use: debian-build
 Use: etch-common
+
+Name: etch-ghc68-build
+Use: debian-build
+Use: etch-common
+Use: etch-local
 
 Name: etch-sources
 Sources: etch

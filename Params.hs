@@ -24,10 +24,8 @@ module Params
      Params.sources,		-- Params -> [String]	(Use distro)
      targets,			-- Params -> [String]
      omitTargets,		-- Params -> [String]
-     noVersionFix,		-- Params -> Bool
      vendorTag,			-- Params -> String
-     --releaseTag,		-- Params -> Int
-     defaultTag,		-- Params -> VersionTag
+     extraReleaseTag,		-- Params -> Int
      flushSource,		-- Params -> Bool
      -- * Build Environment
      forceBuild,		-- Params -> Bool
@@ -47,6 +45,8 @@ module Params
      omitBuildEssential,	-- Params -> Bool
      baseRelease,
      buildRelease,
+     doNotChangeVersion,	-- Params -> Bool
+     isDevelopmentRelease,	-- Params -> Bool
      flushRoot,			-- Params -> Bool
      -- * Local repository
      cleanUp,			-- Params -> Bool
@@ -76,7 +76,7 @@ import		 Debian.IO
 import		 Debian.Slice
 import		 Debian.Types
 import		 Debian.Version
-import		 Debian.VersionPolicy
+--import	 Debian.VersionPolicy
 import		 Extra.Misc
 import		 Network.URI
 import qualified Config as P (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
@@ -194,9 +194,8 @@ sourceOpts :: [ParamDescr]
 sourceOpts =
     [sourcesOpt,
      flushSourceOpt, 
-     noVersionFixOpt,
      vendorTagOpt,
-     releaseTagOpt,
+     extraReleaseTagOpt,
      targetsOpt,
      omitTargetsOpt]
 
@@ -211,6 +210,8 @@ buildOpts =
      noCleanOpt,
      baseReleaseOpt,
      buildReleaseOpt,
+     doNotChangeVersionOpt,
+     isDevelopmentReleaseOpt,
      ifSourcesChangedOpt,
      relaxDependsOpt,
      omitBuildEssentialOpt,
@@ -313,7 +314,9 @@ findSlice params dist =
       [] -> Left ("No sources.list found for " ++ show dist)
       xs -> Left ("Multiple sources.lists found for " ++ show dist ++ "\n" ++ show (map (sliceName . sliceListName) xs))
 
--- |The string used to construct modified version numbers.
+-- |The string used to construct modified version numbers.  E.g.,
+-- Ubuntu uses "ubuntu", this should reflect the name of the repository
+-- you are going to upload to.
 vendorTag :: Params -> String
 vendorTag params =
     case values params vendorTagOpt of
@@ -322,28 +325,14 @@ vendorTag params =
 vendorTagOpt = Param [] ["vendor-tag"] ["Vendor-Tag"] (ReqArg (Value "Vendor-Tag") "TAG")
                "The string used to construct modified version numbers"
 
-defaultTag :: Params -> VersionTag
-defaultTag params =
-    case values params defaultTagOpt of
-      [] -> BuildTag (vendorTag params) 0
-      _ -> ReleaseBuildTag (releaseTag params) (vendorTag params) 0
-defaultTagOpt = Param [] ["release-build-tag"] ["Release-Build-Tag"] (NoArg (Value "Release-Build-Tag" "yes"))
-                "Use release tags of the form r0vendor3 rather than simply vendor3."
-
--- |These are vendor tags that, along with the one returned by
--- vendorTag, will be stripped off before the new version number is
--- constructed.  This is used when you decide to change vendor tags
--- and there are still packages in your repository with the old vendor
--- tag.  (Deprecated - it is dangerous to strip things off the version
--- number automatically because you may end up with a version number
--- that is too old.)
---stripVendorTags :: Params -> [String]
---stripVendorTags params = Map.findWithDefault [] "Strip-Vendor-Tag" (flags params)
-
-releaseTag :: Params -> Int
-releaseTag params = head ((map read (values params releaseTagOpt)) ++ [0])
-releaseTagOpt = Param [] ["release-tag"] ["Release-Tag"] (ReqArg (Value "Release-Tag") "NUMBER")
-                ("A number used to construct modified version numbers, default: 0")
+-- |If this parameter is set, use the old "r0vendor1" style tag instead
+-- of just "vendor1".
+extraReleaseTag :: Params -> Maybe Int
+extraReleaseTag params = case (values params extraReleaseTagOpt) of
+                      [] -> Nothing
+                      (n : _) -> read n
+extraReleaseTagOpt = Param [] ["extra-release-tag"] ["Extra-Release-Tag"] (ReqArg (Value "Extra-Release-Tag") "NUMBER")
+                ("use the old \"r0vendor1\" style tag instead of just \"vendor1\".")
 
 extraEssential :: Params -> [String]
 extraEssential params = values params extraEssentialOpt
@@ -570,14 +559,6 @@ preferOpt = Param [] ["prefer"] ["Prefer"] (ReqArg (Value "Prefer") "PACKAGE")
                    "gcc-4.0, etc.  If 'Prefer: gcc-3.4' is used, a dependency on",
                    "c-compiler will choose gcc-3.4 over the others if possible."])
 
-noVersionFix :: Params -> Bool
-noVersionFix params = values params noVersionFixOpt /= []
-noVersionFixOpt = Param [] ["no-version-fix"] ["No-Version-Fix"] (NoArg (Value "No-Version-Fix" "yes"))
-		  (text ["Don't modify the package's version before building.  The version",
-                         "number is modified before some builds to ensure newer builds",
-                         "are assigned later version numbers, and to prevent collisions",
-                         "upon uploading."])
-
 createRelease :: Params -> [String]
 createRelease params = values params createReleaseOpt
 createReleaseOpt = Param [] ["create-release"] ["Create-Release"] (ReqArg (Value "Create-Release") "NAME") 
@@ -627,6 +608,22 @@ buildRelease params =
       (x : _) -> ReleaseName x
 buildReleaseOpt = Param [] ["build-release"] ["Build-Release"] (ReqArg (Value "Build-Release") "NAME")
                   "The name of the release that the packages we build will be uploaded to."
+
+doNotChangeVersion :: Params -> Bool
+doNotChangeVersion params = values params doNotChangeVersionOpt /= []
+doNotChangeVersionOpt = Param [] ["do-not-change-version"] ["Do-Not-Change-Version"] (NoArg (Value "Do-Not-Change-Version" "yes"))
+		  (text ["Don't modify the package's version in any way before building.",
+                         "This can lead to attempts to upload packages that are already",
+                         "present in the repository, packages that are trumped by versions",
+                         "already uploaded to the release."])
+
+isDevelopmentRelease :: Params -> Bool
+isDevelopmentRelease params = values params isDevelopmentReleaseOpt /= []
+isDevelopmentReleaseOpt = Param [] ["development-release"] ["Development-Release"] (NoArg (Value "Development-Release" "yes"))
+		  (text ["Signifies that the release we are building for is a development",
+                         "(or unstable) release.  This means we the tag we add doesn't need",
+                         "to include '~release', since there are no newer releases to",
+                         "worry about trumping."])
 
 style :: Params -> IOStyle -> IOStyle
 style params =

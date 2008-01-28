@@ -437,6 +437,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let sourceVersion = logVersion sourceLog
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
+               msgLn 0 $ "Version number for new build: " ++ show sourceVersion ++ " -> " ++ show newVersion
                let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
                        buildDecision (realSource target) (Params.vendorTag params)
@@ -447,9 +448,9 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- FIXME: incorporate the release status into the build decision
                case decision of
                  No _ -> return (Right repo)
-                 Yes _ ->  buildPackage params cleanOS Nothing oldDependencies sourceRevision sourceDependencies target None repo sourceLog
+                 Yes _ ->  buildPackage params cleanOS (Just newVersion) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
                  Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies target releaseStatus repo sourceLog
-                 Auto _ -> buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target None repo sourceLog
+                 Auto _ -> buildPackage params cleanOS (Just newVersion) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
     where
       --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
       packageName = Target.targetName target
@@ -692,7 +693,7 @@ getOldRevision package =
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
 -- dist, and distinct from versions in any other dist.
-computeNewVersion :: Repo r => Params.Params -> [SourcePackage r] -> Maybe (SourcePackage r) -> DebianVersion -> Maybe DebianVersion
+computeNewVersion :: Repo r => Params.Params -> [SourcePackage r] -> Maybe (SourcePackage r) -> DebianVersion -> DebianVersion
 computeNewVersion params
                   available		-- All the versions that exist in the pool in any dist,
 					-- the new version number must not equal any of these.
@@ -701,18 +702,20 @@ computeNewVersion params
                                         -- than this.
                   sourceVersion =	-- Version number in the changelog entry of the checked-out
                                         -- source code.  The new version must also be newer than this.
-    if sourceVersionIsTrumped then Nothing else Just fixedVersion
+    case Params.doNotChangeVersion params of
+      True -> sourceVersion
+      False ->
+          let vendor = Params.vendorTag params
+              release = if (Params.isDevelopmentRelease params) then
+                            Nothing else
+                            (Just (sliceName (Params.baseRelease params)))
+              extra = Params.extraReleaseTag params in
+          setTag vendor release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
     where
-      sourceVersionIsTrumped = sourceVersion < newestVersionStripped
-      newestVersionStripped = dropTag (Params.vendorTag params) newestVersion
-      fixedVersion =
-          case Params.noVersionFix params of
-            True -> sourceVersion
-            False -> setTag (Params.defaultTag params) newestVersion
-                     (catMaybes . map getVersion $ available) sourceVersion
-      newestVersion = (head . sortBy (flip compare)) (sourceVersion : maybeToList currentVersion)
-      getVersion paragraph = maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)
-      currentVersion = maybe Nothing (Just . parseDebianVersion . B.unpack) (maybe Nothing (fieldValue "Version" . sourceParagraph) current)
+      getVersion paragraph =
+          maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)
+      currentVersion =
+          maybe Nothing (Just . parseDebianVersion . B.unpack) (maybe Nothing (fieldValue "Version" . sourceParagraph) current)
 
 buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> AptIO (Either String [(Int, [PkgVersion])])
 buildDepSolutions' preferred os globalBuildDeps debianControl =

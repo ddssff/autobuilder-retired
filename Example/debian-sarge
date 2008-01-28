@@ -2,9 +2,19 @@ Name: sarge-common
 Let: base=sarge
 Use: debian-common
 
+Name: sarge-ghc68-common
+Use: ubuntu-common
+Let: base=sarge
+
 Name: sarge-build
 Use: debian-build
 Use: sarge-common
+Use: sarge-local
+
+Name: sarge-ghc68-build
+Use: debian-build
+Use: sarge-common
+Use: sarge-local
 
 Name: sarge-sources
 Sources: sarge

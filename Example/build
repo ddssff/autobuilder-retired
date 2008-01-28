@@ -27,6 +27,16 @@ Comment: Probably don't need these
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
 
+Name: ghc682-prereqs
+Relax-Depends: g++
+Relax-Depends: make
+Targets:
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
+  apt:sid:hslogger
+  apt:sid:haskell-devscripts
+  apt:sid:haskell-http
+Comment: This and ghc6 are mutual build dependencies, so I must omit it to break the cycle.
+
 Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
@@ -60,8 +70,6 @@ Comment: Build error in opengl: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
 Comment: bad .dsc file
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mode
-Comment: This and ghc6 are mutual build dependencies, so I must omit it to break the cycle.
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
 Comment: Feisty needs haddock >= 0.8.2, but it is also a ghc6 mutual build dependency
   apt:sid:haddock
 Comment: Ian has now broken this up into multiple packages.

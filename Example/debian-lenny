@@ -5,6 +5,16 @@ Use: debian-common
 Name: lenny-build
 Use: debian-build
 Use: lenny-common
+Use: lenny-local
+Extra-Essential: upstart
+Omit-Essential: initscripts
+
+Name: lenny-ghc68-build
+Use: debian-build
+Use: lenny-common
+Use: lenny-local
+Extra-Essential: upstart
+Omit-Essential: initscripts
 
 Name: lenny-sources
 Sources: lenny

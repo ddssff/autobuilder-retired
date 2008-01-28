@@ -8,6 +8,7 @@ Use: debian-common
 Name: sid-build
 Use: debian-build
 Use: sid-common
+Use: sid-local
 
 Name: sid-sources
 Sources: sid

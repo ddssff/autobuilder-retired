@@ -2,6 +2,12 @@ Name: common-local
 Use: common
 Let: upload-host=deb.seereason.com
 Let: upload-user=upload
+Comment: The first value takes precedence over the second
+Let: ubuntu-mirror-host=us.archive.ubuntu.com
+Let: ubuntu-mirror-host=sandbox.linspire.com
+Let: ubuntu-security-mirror-host=security.ubuntu.com
+Let: ubuntu-security-mirror-host=mirror.anl.gov
+Let: debian-mirror-host=mirror.anl.gov
 Vendor-Tag: seereason
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
 Extra-Essential: seereason-keyring
@@ -14,11 +20,6 @@ Comment:
   repository you are building against.
 
 Name: ubuntu-local
-Let: ubuntu-mirror-host=us.archive.ubuntu.com
-Let: ubuntu-mirror-host=sandbox.linspire.com
-Let: ubuntu-security-mirror-host=security.ubuntu.com
-Let: ubuntu-security-mirror-host=mirror.anl.gov
-Comment: The first value takes precedence over the second
 Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
 Use: common-local
@@ -29,21 +30,42 @@ Let: upload-release-suffix=seereason
 Use: ubuntu-local
 
 Name: gutsy-local
-Let: upload-repo=gutsy
+Let: upload-repo=ubuntu
 Let: upload-release-suffix=seereason
 Use: ubuntu-local
 
-Name: feisty-ghc68-local
-Let: upload-repo=feisty-ghc68
-Let: upload-release-suffix=ghc68-seereason
+Name: hardy-local
+Let: upload-repo=ubuntu
+Let: upload-release-suffix=seereason
 Use: ubuntu-local
-
-Name: gutsy-ghc68-local
-Let: upload-repo=gutsy-ghc68
-Let: upload-release-suffix=ghc68-seereason
-Use: ubuntu-local
+Development-Release: yes
 
 Name: debian-local
-Let: debian-mirror-host=mirror.anl.gov
 Let: upload-repo=debian
 Use: common-local
+
+Name: sarge-local
+Let: upload-repo=debian
+Let: upload-release-suffix=seereason
+Use: debian-local
+
+Name: etch-local
+Let: upload-repo=debian
+Let: upload-release-suffix=seereason
+Use: debian-local
+
+Name: lenny-local
+Let: upload-repo=debian
+Let: upload-release-suffix=seereason
+Use: debian-local
+
+Name: lenny-ghc68-local
+Let: upload-repo=debian
+Let: upload-release-suffix=seereason
+Use: debian-local
+
+Name: sid-local
+Let: upload-repo=debian
+Let: upload-release-suffix=seereason
+Use: debian-local
+Development-Release: yes
