@@ -78,49 +78,24 @@ Comment: These tarballs are avaiable here:
   http://www.haskell.org/ghc/dist/6.8.1/ghc-6.8.1-src-extralibs.tar.bz2
   http://www.haskell.org/ghc/dist/6.8.1/ghc-6.8.1-src.tar.bz2
 
-Name: ghc-base
+Name: ghc-extra
 Relax-Depends: g++
 Relax-Depends: make
+Relax-Depends: base-passwd
+Relax-Depends: mktemp
+Relax-Depends: sed
 Targets:
-  apt:sid:haddock
-  apt:sid:haskell-devscripts
-  apt:sid:ghc6
-  apt:sid:c2hs
-  quilt:(darcs:http://darcs.haskell.org/cabal):(darcs:http://src.seereason.com/cabal-quilt)
-  apt:sid:cpphs
-
-Name: ghc-libs
-Relax-Depends: g++
-Relax-Depends: make
-Targets:
+  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
+  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
   apt:sid:drift
   apt:sid:gtk2hs
-  apt:sid:haskell-alut
-  apt:sid:haskell-arrows
-  apt:sid:haskell-binary
-  apt:sid:haskell-cgi
   apt:sid:haskell-doc
   apt:sid:haskell-edison
-  apt:sid:haskell-fgl
-  apt:sid:haskell-glut
-  apt:sid:haskell-hgl
   apt:sid:haskell-hlist
   apt:sid:haskell-hsql
-  apt:sid:haskell-html
-  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
-  apt:sid:haskell-hunit
   apt:sid:haskell-mode
-  apt:sid:haskell-mtl
-  apt:sid:haskell-network
-  apt:sid:haskell-openal
-  apt:sid:haskell-opengl
   apt:sid:haskell-quickcheck
-  apt:sid:haskell-src-exts
-  apt:sid:haskell-time
-  apt:sid:haskell-utils
   apt:sid:haskell-uulib
-  apt:sid:haskell-x11
-  quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskelldb
   apt:sid:hat
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
@@ -128,16 +103,12 @@ Targets:
   apt:sid:hdbc-odbc
   apt:sid:hdbc-postgresql
   quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
-  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
-  quilt:(apt:sid:haskell-haskell-src):(darcs:http://src.seereason.com/haskell-src-quilt)
   apt:sid:ldap-haskell
   apt:sid:listlike
   apt:sid:magic-haskell
   apt:sid:pandoc
   apt:sid:pugs
   apt:sid:washngo
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-  darcs:http://src.seereason.com/haskell-ugly
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
@@ -145,10 +116,14 @@ Targets:
   quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.com/happs-state-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
   quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
-  quilt:(apt:sid:haskell-devscripts):(darcs:http://src.seereason.com/haskell-devscripts-quilt)
-  quilt:(uri:http://www.haskell.org/cabal/release/rc/cabal-1.2.2.0.tar.gz:5ab5c872869f35c81f427d8efd82569c):(darcs:http://src.seereason.com/haskell-cabal-quilt)
-  quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
 Comment:
+  Error parsing build depends (unexpected #):
+    apt:sid:haskell-src-exts
+  Patches won't apply:
+     quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
+  No longer required:
+    quilt:(apt:sid:haskell-devscripts):(darcs:http://src.seereason.com/haskell-devscripts-quilt)
+    quilt:(uri:http://www.haskell.org/cabal/release/rc/cabal-1.2.2.0.tar.gz:5ab5c872869f35c81f427d8efd82569c):(darcs:http://src.seereason.com/haskell-cabal-quilt)
   Disabled due to flaw in the autobuilder's build dependency parser:
     apt:sid:missingpy
   Depends on hugs libraries which don't exist:
@@ -163,6 +138,23 @@ Comment:
     apt:sid:haskell-hsh
   Trumped:
     apt:sid:hs-plugins
+
+Name: ghc-seereason
+Relax-Depends: g++
+Relax-Depends: make
+Targets:
+  darcs:http://src.seereason.com/haskell-ugly
+
+Name: ghc-base
+Relax-Depends: g++
+Relax-Depends: make
+Targets:
+  apt:sid:haddock
+  apt:sid:haskell-devscripts
+  apt:sid:ghc6
+  apt:sid:c2hs
+  quilt:(darcs:http://darcs.haskell.org/cabal):(darcs:http://src.seereason.com/cabal-quilt)
+  apt:sid:cpphs
 
 Name: yhc-targets
 Targets:

@@ -410,7 +410,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       solutions <- iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl
       case solutions of
         Left excuse -> do msgLn 0 ("Couldn't satisfy build dependencies\n " ++ excuse)
-                          error "Couldn't satisfy build dependencies"
+                          return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error"
         Right ((count, sourceDependencies) : _) ->
             do msgLn 0 ("Build dependency solution #" ++ show count ++ ": " ++ show sourceDependencies)
@@ -437,7 +437,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let sourceVersion = logVersion sourceLog
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
-               msgLn 0 $ "Version number for new build: " ++ show sourceVersion ++ " -> " ++ show newVersion
+               --msgLn 0 $ "Version number for new build: " ++ show sourceVersion ++ " -> " ++ show newVersion
                let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
                        buildDecision (realSource target) (Params.vendorTag params)
@@ -446,11 +446,15 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                                          sourceVersion sourceRevision sourceDependencies
                msgLn 0 ("Build decision: " ++ show decision)
                -- FIXME: incorporate the release status into the build decision
-               case decision of
-                 No _ -> return (Right repo)
-                 Yes _ ->  buildPackage params cleanOS (Just newVersion) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
-                 Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies target releaseStatus repo sourceLog
-                 Auto _ -> buildPackage params cleanOS (Just newVersion) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
+               case newVersion of
+                 Left message ->
+                    return (Left message)
+                 Right version ->
+                    case decision of
+                      No _ -> return (Right repo)
+                      Yes _ ->  buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
+                      Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies target releaseStatus repo sourceLog
+                      Auto _ -> buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
     where
       --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
       packageName = Target.targetName target
@@ -693,7 +697,7 @@ getOldRevision package =
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
 -- dist, and distinct from versions in any other dist.
-computeNewVersion :: Repo r => Params.Params -> [SourcePackage r] -> Maybe (SourcePackage r) -> DebianVersion -> DebianVersion
+computeNewVersion :: Repo r => Params.Params -> [SourcePackage r] -> Maybe (SourcePackage r) -> DebianVersion -> Either String DebianVersion
 computeNewVersion params
                   available		-- All the versions that exist in the pool in any dist,
 					-- the new version number must not equal any of these.
@@ -703,14 +707,15 @@ computeNewVersion params
                   sourceVersion =	-- Version number in the changelog entry of the checked-out
                                         -- source code.  The new version must also be newer than this.
     case Params.doNotChangeVersion params of
-      True -> sourceVersion
+      True -> Right sourceVersion
       False ->
           let vendor = Params.vendorTag params
               release = if (Params.isDevelopmentRelease params) then
                             Nothing else
                             (Just (sliceName (Params.baseRelease params)))
-              extra = Params.extraReleaseTag params in
-          setTag vendor release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
+              extra = Params.extraReleaseTag params 
+              aliases = Params.releaseAliases params in
+          setTag aliases vendor release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
     where
       getVersion paragraph =
           maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)

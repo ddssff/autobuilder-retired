@@ -17,6 +17,7 @@ Use: etch-sources
 Use: sarge-sources
 Use: lenny-sources
 Use: debian-experimental-sources
+Release-Alias: etch=bpo40+
 
 Name: debian-experimental-sources
 Sources: debian-experimental

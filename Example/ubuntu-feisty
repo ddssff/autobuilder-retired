@@ -28,13 +28,6 @@ Relax-Depends: ghc6 haddock
 Targets:
    apt:sid:haddock
 
-Name: feisty-extra
-Use: feisty-build
-Use: autobuilder-targets
-Use: yhc-targets
-Comment:
- Use: kernel-targets
-
 Name: feisty-autobuilder
 Use: autobuilder-targets
 Use: feisty-build

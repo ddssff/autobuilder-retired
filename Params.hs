@@ -47,6 +47,7 @@ module Params
      buildRelease,
      doNotChangeVersion,	-- Params -> Bool
      isDevelopmentRelease,	-- Params -> Bool
+     releaseAliases,
      flushRoot,			-- Params -> Bool
      -- * Local repository
      cleanUp,			-- Params -> Bool
@@ -625,14 +626,15 @@ isDevelopmentReleaseOpt = Param [] ["development-release"] ["Development-Release
                          "to include '~release', since there are no newer releases to",
                          "worry about trumping."])
 
-releaseAliases :: Params -> [(String, String)]
+releaseAliases :: Params -> (String -> String)
 releaseAliases params =
-    map (makePair . break (== '=')) (values params releaseAliasOpt)
+    let pairs = map (makePair . break (== '=')) (values params releaseAliasOpt) in
+    \ s -> maybe s id (lookup s pairs )
     where
-      makePair (a, ('=' : b)) -> Just (a, b)
+      makePair (a, ('=' : b)) = (a, b)
       makePair (a, b) = error $ "ReleaseAlias invalid argument: " ++ a ++ b
 releaseAliasOpt = Param [] ["release-alias"] ["Release-Alias"] (ReqArg (Value "Release-Alias") "RELEASENAME=ALIAS")
-                  (text ["Use an alias for a release name when constructing the vendor tag,"
+                  (text ["Use an alias for a release name when constructing the vendor tag,",
                          "for example, --release-alias etch=bpo40+"])
 
 style :: Params -> IOStyle -> IOStyle
