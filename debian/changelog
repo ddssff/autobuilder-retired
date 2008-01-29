@@ -6,6 +6,8 @@ autobuilder (4.1) unstable; urgency=low
   * Configuration updates to use new merged ubuntu and debian repositories.
   * Add a Release-Alias parameter, to tell autobuilder to use bpo40+ for
     the etch release name when constructing versions.
+  * Eliminate some uncaught exceptions so execution can continue when target
+    builds fail.
 
  -- David Fox <ddssff@gmail.com>  Mon, 28 Jan 2008 13:54:03 -0800
 
