@@ -625,6 +625,16 @@ isDevelopmentReleaseOpt = Param [] ["development-release"] ["Development-Release
                          "to include '~release', since there are no newer releases to",
                          "worry about trumping."])
 
+releaseAliases :: Params -> [(String, String)]
+releaseAliases params =
+    map (makePair . break (== '=')) (values params releaseAliasOpt)
+    where
+      makePair (a, ('=' : b)) -> Just (a, b)
+      makePair (a, b) = error $ "ReleaseAlias invalid argument: " ++ a ++ b
+releaseAliasOpt = Param [] ["release-alias"] ["Release-Alias"] (ReqArg (Value "Release-Alias") "RELEASENAME=ALIAS")
+                  (text ["Use an alias for a release name when constructing the vendor tag,"
+                         "for example, --release-alias etch=bpo40+"])
+
 style :: Params -> IOStyle -> IOStyle
 style params =
     styleParams' . styleParams . defaultStyle
@@ -722,7 +732,10 @@ relaxDepends params =
       makePair [] = error "Invalid Relax-Depends value"
 relaxDependsOpt = Param [] ["relax-depends"] ["Relax-Depends"] (ReqArg (Value "Relax-Depends") "DEPENDENCY [SOURCE]")
                   (text ["Do not trigger builds due to new versions of this package",
-                         "appears, optionally specifying which source package not to build."])
+                         "appears, optionally specifying which source package not to build.",
+                         "This is used to break dependency loops, For example,",
+                         "'Relax-Depends: ghc6 hscolour' means 'even if ghc6 is rebuilt, don't",
+                         "rebuild hscolour even though ghc6 is one of its build dependencies'."])
 
 text :: [String] -> String
 text lines =

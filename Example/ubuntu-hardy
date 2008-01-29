@@ -8,6 +8,7 @@ Let: base=hardy
 Name: hardy-build
 Use: ubuntu-build
 Use: hardy-common
+Use: hardy-local
 Extra-Essential: belocs-locales-bin
 
 Name: hardy-sources
@@ -21,12 +22,9 @@ Sources: hardy
   deb http://${ubuntu-security-mirror-host}/ubuntu/ hardy-security main restricted universe multiverse
   deb-src http://${ubuntu-security-mirror-host}/ubuntu/ hardy-security main restricted universe multiverse
 
-Name: hardy-extra
-Use: hardy-build
-Use: autobuilder-targets
-Use: yhc-targets
-Comment:
- Use: kernel-targets
+Name: gutsy-ghc682
+Use: ghc682
+Use: gutsy-build
 
 Name: hardy-autobuilder
 Use: autobuilder-targets

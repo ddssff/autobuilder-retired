@@ -5,20 +5,10 @@ Name: gutsy-common
 Use: ubuntu-common
 Let: base=gutsy
 
-Name: gutsy-ghc68-common
-Use: ubuntu-common
-Let: base=gutsy
-
 Name: gutsy-build
 Use: ubuntu-build
 Use: gutsy-common
 Use: gutsy-local
-Extra-Essential: belocs-locales-bin
-
-Name: gutsy-ghc68-build
-Use: ubuntu-build
-Use: gutsy-common
-Use: gutsy-ghc68-local
 Extra-Essential: belocs-locales-bin
 
 Name: gutsy-sources
@@ -32,12 +22,9 @@ Sources: gutsy
   deb http://${ubuntu-security-mirror-host}/ubuntu/ gutsy-security main restricted universe multiverse
   deb-src http://${ubuntu-security-mirror-host}/ubuntu/ gutsy-security main restricted universe multiverse
 
-Name: gutsy-extra
+Name: gutsy-ghc682
+Use: ghc682
 Use: gutsy-build
-Use: autobuilder-targets
-Use: yhc-targets
-Comment:
- Use: kernel-targets
 
 Name: gutsy-autobuilder
 Use: autobuilder-targets
@@ -53,8 +40,4 @@ Use: gutsy-build
 
 Name: gutsy-yhc
 Use: yhc-targets
-Use: gutsy-build
-
-Name: gutsy-ghc682
-Use: ghc682
 Use: gutsy-build

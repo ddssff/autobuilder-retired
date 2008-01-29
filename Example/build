@@ -40,7 +40,10 @@ Comment: This and ghc6 are mutual build dependencies, so I must omit it to break
 Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
+Relax-Depends: ghc6 hscolour
 Targets:
+  apt:sid:haskell-devscripts
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
   sourcedeb:darcs:http://src.seereason.com/ghc682/ghc6
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-utils
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
@@ -70,18 +73,6 @@ Comment: Build error in opengl: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
 Comment: bad .dsc file
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mode
-Comment: Feisty needs haddock >= 0.8.2, but it is also a ghc6 mutual build dependency
-  apt:sid:haddock
-Comment: Ian has now broken this up into multiple packages.
-  deb-dir:(uri:file:///home/david/Desktop/ghc-extralibs_6.8.2.orig.tar.gz):(darcs:file:///home/david/darcs/ghc6-extralibs-debian)
-  quilt:(uri:file:///home/david/Destkop/ghc6_6.8.2.orig.tar.gz):(darcs:http://src.seereason.com/ghc6-quilt)
-
-Name: ghc681
-Relax-Depends: g++
-Relax-Depends: make
-Targets:
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-  quilt:(uri:file:///home/david/tmp/ghc681/ghc6_6.8.1.orig.tar.gz):(darcs:http://src.seereason.com/ghc6-quilt)
   deb-dir:(uri:file:///home/david/tmp/ghc681/ghc-extralibs_6.8.1.orig.tar.gz):(darcs:file:///home/david/darcs/ghc6-extralibs-debian)
 Comment: These tarballs are avaiable here:
   http://www.haskell.org/ghc/dist/6.8.1/ghc-6.8.1-src-extralibs.tar.bz2

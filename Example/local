@@ -1,3 +1,7 @@
+Comment:  The definitions in local specify particular hostnames to upload to,
+  the vendor name to use when constructing the version numbers, the host names
+  of repository mirrors, and anything else site specific or likely to change.
+
 Name: common-local
 Use: common
 Let: upload-host=deb.seereason.com
