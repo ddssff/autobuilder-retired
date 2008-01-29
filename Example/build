@@ -27,16 +27,6 @@ Comment: Probably don't need these
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
 
-Name: ghc682-prereqs
-Relax-Depends: g++
-Relax-Depends: make
-Targets:
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-  apt:sid:hslogger
-  apt:sid:haskell-devscripts
-  apt:sid:haskell-http
-Comment: This and ghc6 are mutual build dependencies, so I must omit it to break the cycle.
-
 Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
@@ -71,12 +61,6 @@ Comment: Build error in opengl: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-openal
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-alut
   sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
-Comment: bad .dsc file
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mode
-  deb-dir:(uri:file:///home/david/tmp/ghc681/ghc-extralibs_6.8.1.orig.tar.gz):(darcs:file:///home/david/darcs/ghc6-extralibs-debian)
-Comment: These tarballs are avaiable here:
-  http://www.haskell.org/ghc/dist/6.8.1/ghc-6.8.1-src-extralibs.tar.bz2
-  http://www.haskell.org/ghc/dist/6.8.1/ghc-6.8.1-src.tar.bz2
 
 Name: ghc-extra
 Relax-Depends: g++
@@ -84,47 +68,48 @@ Relax-Depends: make
 Relax-Depends: base-passwd
 Relax-Depends: mktemp
 Relax-Depends: sed
-Targets:
-  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
-  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
+Comment: Already built
   apt:sid:drift
   apt:sid:gtk2hs
   apt:sid:haskell-doc
   apt:sid:haskell-edison
-  apt:sid:haskell-hlist
-  apt:sid:haskell-hsql
   apt:sid:haskell-mode
   apt:sid:haskell-quickcheck
   apt:sid:haskell-uulib
   apt:sid:haskelldb
-  apt:sid:hat
-  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   apt:sid:hdbc
-  apt:sid:hdbc-odbc
-  apt:sid:hdbc-postgresql
-  quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
   apt:sid:ldap-haskell
   apt:sid:listlike
   apt:sid:magic-haskell
   apt:sid:pandoc
   apt:sid:pugs
   apt:sid:washngo
-  darcs:http://src.seereason.com/mirror
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
+  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
+  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
+  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
+  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
+Comment: Failing
+  apt:sid:washngo
+  apt:sid:pugs
+  apt:sid:pandoc
+  apt:sid:hdbc-odbc
+  apt:sid:hdbc-postgresql
+  quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
+  apt:sid:hat
+  apt:hardy:haskell-hsql
+  apt:sid:haskell-hlist
+Targets:
   quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.com/happs-server-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.com/happs-state-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
-  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
 Comment:
   Error parsing build depends (unexpected #):
     apt:sid:haskell-src-exts
   Patches won't apply:
-     quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
-  No longer required:
-    quilt:(apt:sid:haskell-devscripts):(darcs:http://src.seereason.com/haskell-devscripts-quilt)
-    quilt:(uri:http://www.haskell.org/cabal/release/rc/cabal-1.2.2.0.tar.gz:5ab5c872869f35c81f427d8efd82569c):(darcs:http://src.seereason.com/haskell-cabal-quilt)
+    quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
   Disabled due to flaw in the autobuilder's build dependency parser:
     apt:sid:missingpy
   Depends on hugs libraries which don't exist:
