@@ -48,6 +48,7 @@ import		 BuildTarget.Svn
 import		 BuildTarget.Tla
 import		 BuildTarget.Uri
 import		 Control.Monad
+import		 Linspire.Unix.Process hiding (processOutput)
 import qualified Data.ByteString.Char8 as B
 import		 Data.List
 import		 Data.Maybe
@@ -834,14 +835,15 @@ packagesOfRelations relations =
     where packageOfRelation (Rel name _ _) = name
 
 -- |Download the package's build dependencies into /var/cache
-downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> AptIO TaskSuccess_
+downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> AptIO (Either String ())
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        vPutStrLn 1 . ("versions: " ++) . show $! vers
-       builddepStyle $ systemTask_ ("chroot " ++ rootPath root ++ " bash -c " ++
-                                    "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
-                                    (if True then aptGetCommand else pbuilderCommand) ++ "\"")
+       runShell command
     where
+      command = ("chroot " ++ rootPath root ++ " bash -c " ++
+                 "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
+                 (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install --download-only " ++ consperse " " (map showPkgVersion versions ++ extra)
       builddepStyle = setStyle (setStart (Just ("Downloading build dependencies into " ++ show (rootDir os))) .
@@ -851,12 +853,13 @@ downloadDependencies os source extra versions =
       root = rootDir os
 
 -- |Install the package's build dependencies.
-installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> AptIO TaskSuccess_
+installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> AptIO (Either String ())
 installDependencies os source extra versions =
-    builddepStyle $ systemTask_ ("chroot " ++ rootPath root ++ " bash -c " ++
-                                 "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
-                                 (if True then aptGetCommand else pbuilderCommand) ++ "\"")
+    runShell command
     where
+      command = ("chroot " ++ rootPath root ++ " bash -c " ++
+                 "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
+                 (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install " ++ consperse " " (map showPkgVersion versions ++ extra)
       builddepStyle = setStyle (setStart (Just ("Installing build dependencies into " ++ show (rootDir os))) .
@@ -864,6 +867,28 @@ installDependencies os source extra versions =
                                 setError (Just "Could not satisfy build dependencies."))
       path = envPath (topdir source)
       root = rootDir os
+
+-- |Yet another function to run a shell command.  Run a the command,
+-- printing dots as it outputs text, and if it fails print a message.
+runShell :: String -> AptIO (Either String ())
+runShell command =
+    liftIO (lazyCommand command []) >>= foldM printDotsAndCollectOutput ([], Nothing) >>= finish command
+    where
+      printDotsAndCollectOutput :: ([Output], Maybe ExitCode) -> Output -> AptIO ([Output], Maybe ExitCode)
+      printDotsAndCollectOutput (saved, result) (Stdout s) = liftIO (hPutChar stderr '.') >> return (Stdout s : saved, result)
+      printDotsAndCollectOutput (saved, result) (Stderr s) = liftIO (hPutChar stderr '.') >> return (Stderr s : saved, result)
+      printDotsAndCollectOutput (saved, Nothing) (Result r) = liftIO (hPutChar stderr '.') >> return (saved, Just r)
+      printDotsAndCollectOutput (saved, Just _) (Result r) = error $ "Internal error: two result codes!"
+      finish :: String -> ([Output], Maybe ExitCode) -> AptIO (Either String ())
+      finish _ (_, Just ExitSuccess) = return (Right ())
+      finish command (output, Nothing) =
+          vBOL 0 >> vPutStrLn 0 message >> return (Left message)
+          where
+            message = "*** FAILURE: Process did not complete\n" ++ command ++ " ->\n" ++ B.unpack (B.concat (outputOnly (reverse output)))
+      finish command (output, Just (ExitFailure n)) =
+          vBOL 0 >> vPutStrLn 0 message >> return (Left message)
+          where
+            message = "*** FAILURE: " ++ command ++ " -> " ++ show n ++ "\n" ++ B.unpack (B.concat (outputOnly (reverse output)))
 
 -- |Set a "Revision" line in the .dsc file, and update the .changes
 -- file to reflect the .dsc file's new md5sum.  By using our newdist
