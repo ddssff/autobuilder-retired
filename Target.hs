@@ -34,6 +34,7 @@ import		 Debian.Types.SourceTree
 import		 Debian.SourceTree
 import		 Debian.VersionPolicy
 import		 Extra.Bool
+import		 Extra.Either
 import		 Extra.List
 import		 Extra.Misc
 import		 BuildTarget
@@ -332,28 +333,37 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
 --
--- The return value is a pair, the list of targets yet to be built and
--- the list of targets that failed to build.
+-- Each element of the return value is a list which starts with a target
+-- that is ready to build, followed by targets which are blocked by the
+-- first target.
 chooseNextTarget :: Relations -> [Target] -> AptIO [[Target]]
 chooseNextTarget globalBuildDeps targets =
     getDependencyInfo targets >>= return . buildGroups
     where
+      -- retrieve the dependency information for each target
       getDependencyInfo :: [Target] -> AptIO [(Target, GenBuildDeps.DepInfo)]
       getDependencyInfo targets =
-          mapM (getDepInfo globalBuildDeps . cleanSource) targets >>= return . (zip targets)
+          mapM (getDepInfo globalBuildDeps . cleanSource) targets >>=
+               return . zip targets >>=
+               return . filter (\ pair -> isRight (snd pair)) >>=
+               return . catMaybes . map (\ (target, info) -> case info of
+                                                               Left _ -> Nothing
+                                                               Right info -> Just (target, info))
       -- Return the set of build dependency groups, each of which
       -- starts with a target that is ready to build followed by
       -- targets which are blocked by the first target.
       buildGroups :: [(Target, GenBuildDeps.DepInfo)] -> [[Target]]
-      buildGroups pairs = map (map fst) (GenBuildDeps.buildable depends pairs)
-      getDepInfo :: Relations -> DebianBuildTree -> AptIO GenBuildDeps.DepInfo
+      buildGroups pairs =
+          let buildable = GenBuildDeps.buildable depends pairs in
+          map (map fst) buildable
+      getDepInfo :: Relations -> DebianBuildTree -> AptIO (Either String GenBuildDeps.DepInfo)
       getDepInfo globalBuildDeps buildTree =
           do
             --let sourceTree = debTree buildTree
             let controlPath = appendPath "/debian/control" (debdir buildTree)
             info <- io $ GenBuildDeps.genDep (outsidePath controlPath)
             -- My.ePutStr ("getDepInfo " ++ show target ++ ": " ++ show info)
-            return $ addRelations globalBuildDeps info
+            return $ either Left (Right . addRelations globalBuildDeps) info
       addRelations :: Relations -> GenBuildDeps.DepInfo -> GenBuildDeps.DepInfo
       addRelations moreRels (name, relations, bins) = (name, relations ++ moreRels, bins)
       depends (_, depInfo1) (_, depInfo2) = GenBuildDeps.compareSource depInfo1 depInfo2
@@ -475,6 +485,27 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
 -- | Build a package and upload it to the local repository.
 buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepo -> ChangeLogEntry -> AptIO (Either String LocalRepo)
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
+{-
+    checkDryRun >>= prepareImage >>= logEntry >>= build >>= find >>= upload
+    where
+      checkDryRun = case Params.dryRun params of
+                      True -> msgLn 0 "Not proceeding due to -n option." >> io (exitWith ExitSuccess)
+                      False -> return ()
+      prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
+      logEntry = either (return . Left) (\ buildTree -> case Params.noClean params of
+                                                          False -> maybeAddLogEntry buildTree newversion >>=
+                                                                   either (return . Left) (return (Right buildTree)))
+      build = either (return . Left) (\ buildTree ->
+                                          let Tgt t = realSource target in
+                                          buildPkg (Params.noClean params) (Params.setEnv params) buildOS buildTree status t >>=
+                                          return . Right . (buildTree (,)))
+      find = either (return . Left) (\ (buildTree, result) ->
+                                         Debian.SourceTree.findChanges buildTree >>=
+                                         (\ changesFile -> return (Right (buildTree, result, changesFile))))
+      upload = either (return . Left) (\ (buildTree, result, changesFile) ->
+                                           case result of
+                                             (ExitSucces, elapsed) -> either 
+-}
     do -- If this is a dry run we don't want to actually build any
        -- packages, so we are done.
        when (Params.dryRun params) 
@@ -572,7 +603,7 @@ withPreparedBuildImage cleanOS sourceDependencies buildOS target@(Target (Tgt tg
 prepareBuildImage :: Params.Params -> OSImage -> [PkgVersion] -> OSImage -> Target -> Params.Strictness -> AptIO DebianBuildTree
 prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _) Params.Lax =
     do
-      iStyle $ installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies
+      installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies
       case noClean of
         False -> do syncStyle $ Debian.OSImage.syncEnv cleanOS buildOS
                     debugStyle $ prepareCopy tgt (cleanSource target) newPath
@@ -727,22 +758,24 @@ buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> AptIO (Eith
 buildDepSolutions' preferred os globalBuildDeps debianControl =
     do
       arch <- io $ buildArchOfEnv (rootDir os)
-      let (_, relations, _) = GenBuildDeps.buildDependencies debianControl
-      let relations' = filterRelations arch (relations ++ globalBuildDeps)
-      vBOL 1 >> vPutStrLn 1 ("Build dependency relations:\n  " ++
-                             concat (intersperse "\n  " (map show relations')))
-      let relations'' = computeBuildDeps os arch relations'
-      vPutStrLn 1 $ ("Build dependency relations with virtual packages replaced:\n  " ++
-                     concat (intersperse "\n  " (map show relations'')))
-      -- Do any of the dependencies require packages that simply don't
-      -- exist?  If so we don't have to search for solutions, there
-      -- aren't any.
-      if any (== []) relations'' then
-          return $ Left ("Unsatisfiable dependencies: " ++
-                         show (catMaybes (map unsatisfiable (zip relations' relations'')))) else
-          -- Do not stare directly into the solutions!  Your head will
-          -- explode (because there may be a lot of them.)
-          return $ Debian.Dependencies.solutions (available relations'') relations'' preferred arch
+      case GenBuildDeps.buildDependencies debianControl of
+        Left message -> return (Left message)
+        Right (_, relations, _) ->
+            do let relations' = filterRelations arch (relations ++ globalBuildDeps)
+               vBOL 1 >> vPutStrLn 1 ("Build dependency relations:\n  " ++
+                                      concat (intersperse "\n  " (map show relations')))
+               let relations'' = computeBuildDeps os arch relations'
+               vPutStrLn 1 $ ("Build dependency relations with virtual packages replaced:\n  " ++
+                              concat (intersperse "\n  " (map show relations'')))
+               -- Do any of the dependencies require packages that simply don't
+               -- exist?  If so we don't have to search for solutions, there
+               -- aren't any.
+               if any (== []) relations'' then
+                   return $ Left ("Unsatisfiable dependencies: " ++
+                                  show (catMaybes (map unsatisfiable (zip relations' relations'')))) else
+                   -- Do not stare directly into the solutions!  Your head will
+                   -- explode (because there may be a lot of them.)
+                   return $ Debian.Dependencies.solutions (available relations'') relations'' preferred arch
     where
       unsatisfiable (original, []) = Just original
       unsatisfiable _ = Nothing

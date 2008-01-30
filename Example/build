@@ -34,33 +34,32 @@ Relax-Depends: ghc6 hscolour
 Targets:
   apt:sid:haskell-devscripts
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-  sourcedeb:darcs:http://src.seereason.com/ghc682/ghc6
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-utils
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stream
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-arrows
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-xhtml
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-parsec
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-mtl
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-fgl
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-network
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-x11
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-hgl
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-html
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-hunit
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-parallel
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-quickcheck
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-base
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-posix
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-regex-compat
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-stm
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-time
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-cgi
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-haskell-src
-Comment: Build error in opengl: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=460385
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-opengl
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-openal
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-alut
-  sourcedeb:darcs:http://src.seereason.com/ghc682/haskell-glut
+  apt:hardy:ghc6
+  apt:sid:haskell-utils
+  apt:sid:haskell-stream
+  apt:sid:haskell-arrows
+  apt:sid:haskell-xhtml
+  apt:sid:haskell-parsec
+  apt:sid:haskell-mtl
+  apt:sid:haskell-fgl
+  apt:sid:haskell-network
+  apt:sid:haskell-x11
+  apt:sid:haskell-hgl
+  apt:sid:haskell-html
+  apt:sid:haskell-hunit
+  apt:sid:haskell-parallel
+  apt:sid:haskell-quickcheck
+  apt:sid:haskell-regex-base
+  apt:sid:haskell-regex-posix
+  apt:sid:haskell-regex-compat
+  apt:sid:haskell-stm
+  apt:sid:haskell-time
+  apt:sid:haskell-cgi
+  apt:sid:haskell-haskell-src
+  apt:sid:haskell-opengl
+  apt:sid:haskell-openal
+  apt:sid:haskell-alut
+  apt:sid:haskell-glut
 
 Name: ghc-extra
 Relax-Depends: g++
@@ -68,44 +67,89 @@ Relax-Depends: make
 Relax-Depends: base-passwd
 Relax-Depends: mktemp
 Relax-Depends: sed
-Comment: Already built
+Targets:
+  apt:sid:alex
+  apt:sid:arch2darcs
+  apt:sid:bnfc
+  apt:sid:c2hs
+  apt:sid:cpphs
+  apt:sid:darcs
+  apt:sid:darcs-buildpackage
+  apt:sid:darcs-monitor
+  apt:sid:dfsbuild
   apt:sid:drift
+  apt:sid:frown
+  apt:sid:ftphs
+  apt:sid:ghc-cvs
   apt:sid:gtk2hs
+  apt:sid:gtkrsync
+  apt:sid:haddock
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.com/happs-server-quilt)
+  quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.com/happs-state-quilt)
+  apt:sid:happy
+  apt:sid:haskell-anydbm
+  apt:sid:haskell-binary
+  apt:sid:haskell-configfile
+  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   apt:sid:haskell-doc
   apt:sid:haskell-edison
+  apt:sid:haskell-filepath
+  apt:sid:haskell-hlist
+  apt:sid:haskell-hsh
+  apt:hardy:haskell-hsql
+  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
   apt:sid:haskell-mode
-  apt:sid:haskell-quickcheck
+  apt:sid:haskell-src-exts
+  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   apt:sid:haskell-uulib
+  apt:sid:haskell-x11-extras
+  apt:sid:haskell98-report
   apt:sid:haskelldb
+  apt:sid:hat
+  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   apt:sid:hdbc
+  apt:sid:hdbc-missingh
+  apt:sid:hdbc-odbc
+  apt:sid:hdbc-postgresql
+  apt:sid:hdbc-sqlite3
+  apt:sid:helium
+  apt:sid:hg-buildpackage
+  quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
+  apt:sid:hpodder
+  apt:sid:hs-plugins
+  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
+  apt:sid:kaya
   apt:sid:ldap-haskell
+  apt:sid:lhs2tex
   apt:sid:listlike
   apt:sid:magic-haskell
+  apt:sid:missingh
+  apt:sid:missingpy
   apt:sid:pandoc
   apt:sid:pugs
   apt:sid:washngo
+  darcs:http://src.seereason.com/mirror
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
   quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
-Comment: Failing
-  apt:sid:washngo
-  apt:sid:pugs
   apt:sid:pandoc
-  apt:sid:hdbc-odbc
-  apt:sid:hdbc-postgresql
-  quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
-  apt:sid:hat
-  apt:hardy:haskell-hsql
-  apt:sid:haskell-hlist
-Targets:
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.com/happs-server-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.com/happs-state-quilt)
+  apt:sid:pugs
+  apt:sid:srcinst
+  apt:sid:uuagc
+  apt:sid:washngo
+  apt:sid:whitespace
+  apt:sid:xmonad
 Comment:
+  Now part of ghc6
+    apt:sid:haskell-cabal
+  Replaced by happs-data, happs-ixset, etc.
+    apt:sid:happs
   Error parsing build depends (unexpected #):
     apt:sid:haskell-src-exts
   Patches won't apply:
@@ -124,6 +168,38 @@ Comment:
     apt:sid:haskell-hsh
   Trumped:
     apt:sid:hs-plugins
+
+Name: ghc-sid
+Comment: Now part of ghc6
+Comment: GHC core 
+  apt:sid:hscolour
+  apt:sid:ghc6
+  apt:sid:haskell-alut
+  apt:sid:haskell-arrows
+  apt:sid:haskell-cgi
+  apt:sid:haskell-fgl
+  apt:sid:haskell-glut
+  apt:sid:haskell-haskell-src
+  apt:sid:haskell-hgl
+  apt:sid:haskell-html
+  apt:sid:haskell-hunit
+  apt:sid:haskell-mtl
+  apt:sid:haskell-network
+  apt:sid:haskell-openal
+  apt:sid:haskell-opengl
+  apt:sid:haskell-parallel
+  apt:sid:haskell-parsec
+  apt:sid:haskell-quickcheck
+  apt:sid:haskell-regex-base
+  apt:sid:haskell-regex-compat
+  apt:sid:haskell-regex-posix
+  apt:sid:haskell-stm
+  apt:sid:haskell-stream
+  apt:sid:haskell-time
+  apt:sid:haskell-utils
+  apt:sid:haskell-x11
+  apt:sid:haskell-xhtml
+Targets:
 
 Name: ghc-seereason
 Relax-Depends: g++
