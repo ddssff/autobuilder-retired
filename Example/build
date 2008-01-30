@@ -109,6 +109,7 @@ Targets:
   apt:sid:pandoc
   apt:sid:pugs
   apt:sid:washngo
+  darcs:http://src.seereason.com/mirror
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
