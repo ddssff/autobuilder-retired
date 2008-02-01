@@ -10,7 +10,7 @@ module DryRun
     , renameFileDR
     , pgpSignFilesDR
     , removeRecursiveSafelyDR
-    , systemTaskDR
+    --, systemTaskDR
     , createSymbolicLinkIfMissingDR
     ) where
 
@@ -22,7 +22,7 @@ import Linspire.Unix.Process
 import Debian.IO
 import qualified System.IO as IO
 import System.Exit
-import System.Time
+--import System.Time
 import Extra.Files
 import Extra.GPGSign
 
@@ -94,10 +94,10 @@ removeRecursiveSafelyDR path =
 drMsg :: String -> AptIO a -> AptIO a -> AptIO a
 drMsg msg fake real = dr' (do msgLn 0 ("(dry run) " ++ msg); fake) real
 
-systemTaskDR cmd = drMsg ("(dry run) " ++ cmd) sysOK (systemTask cmd)
+--systemTaskDR cmd = drMsg ("(dry run) " ++ cmd) sysOK (systemTask cmd)
 
 --systemTaskDR_ cmd = drMsg ("(dry run) " ++ cmd) sysOK_ (systemTask_ cmd)
 
-sysOK = return ([], noTimeDiff)
+--sysOK = return ([], noTimeDiff)
 
 --sysOK_ = return noTimeDiff

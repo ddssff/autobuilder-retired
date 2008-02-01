@@ -10,6 +10,7 @@ import Control.Monad
 import System.Directory
 import Debian.IO
 import Debian.Types
+import Linspire.Unix.Process
 import qualified Debian.Control.String as S
 import qualified Debian.Version as V
 
@@ -29,28 +30,33 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 instance BuildTarget SourceDeb where
     getTop (SourceDeb (Tgt _) dir _) = dir
     revision (SourceDeb (Tgt t) _ _) =
-        BuildTarget.revision t >>= return . maybe Nothing (Just . ("sourcedeb:" ++))
+        BuildTarget.revision t >>= return . either Left (Right . ("sourcedeb:" ++))
     logText (SourceDeb (Tgt t) _ _) revision = logText t revision ++ " (source deb)"
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: Tgt -> AptIO Tgt
+prepareSourceDeb :: Tgt -> AptIO (Either String Tgt)
 prepareSourceDeb (Tgt base) =
     do let top = getTop base
        dscFiles <- io (getDirectoryContents (outsidePath top)) >>=
                    return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> io (readFile (outsidePath top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
-         [] -> error $ "Invalid sourcedeb base: no .dsc file in " ++ show base
+         [] -> return . Left $ "Invalid sourcedeb base: no .dsc file in " ++ show base
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
-             do systemTask $ "cd " ++ outsidePath top ++ " && dpkg-source -x " ++ dscName
-                case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
-                           (S.fieldValue "Version" dscInfo)) of
-                  (Just package, Just version) ->
-                      return . Tgt $ (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
-                  _ -> error $ "Invalid .dsc file: " ++ dscName
-         (dscName, _) : _ -> error $ "Invalid .dsc file: " ++ dscName
+             do out <- io (lazyCommand (unpack top dscName) [])
+                case exitCodeOnly out of
+                  [ExitSuccess] -> return $ makeTarget top dscInfo dscName
+                  _ -> return . Left $ ("*** FAILURE: " ++ unpack top dscName)
+         (dscName, _) : _ -> return . Left $ "Invalid .dsc file: " ++ dscName
     where
+      makeTarget top dscInfo dscName =
+          case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
+                     (S.fieldValue "Version" dscInfo)) of
+            (Just package, Just version) ->
+                Right . Tgt $ (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
+            _ -> Left $ "Invalid .dsc file: " ++ dscName
+      unpack top dscName = "cd " ++ outsidePath top ++ " && dpkg-source -x " ++ dscName
       compareVersions (name2, info2) (name1, info1) =
           case (info1, info2) of
             (Right (S.Control (para1 : _)), Right (S.Control (para2 : _))) ->

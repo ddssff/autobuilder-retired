@@ -22,7 +22,7 @@ instance BuildTarget Proc where
     getTop (Proc (Tgt s)) = getTop s
     cleanTarget (Proc (Tgt s)) source = cleanTarget s source
     revision (Proc (Tgt s)) =  
-        BuildTarget.revision s >>= return . maybe Nothing (Just . ("proc:" ++))
+        BuildTarget.revision s >>= return . either Left (Right . ("proc:" ++))
     buildPkg noClean setEnv buildOS buildTree status _ =
         do vBOL 0 >> vPutStrLn 0 "Mouting /proc during target build"
            io $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 
@@ -31,5 +31,5 @@ instance BuildTarget Proc where
            return result
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
-prepareProc :: FilePath -> Bool -> Tgt -> AptIO Tgt
-prepareProc _ _ base = return $ Tgt $ Proc base
+prepareProc :: FilePath -> Bool -> Tgt -> AptIO (Either String Tgt)
+prepareProc _ _ base = return . Right . Tgt $ Proc base

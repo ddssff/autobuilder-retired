@@ -7,6 +7,7 @@ import Debian.Types
 import Debian.Types.SourceTree
 import Network.URI (URI, parseURI, uriPath)
 import Control.Monad
+import Control.Exception
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
 import Data.Maybe
@@ -14,6 +15,7 @@ import System.Directory
 import System.Time
 import Text.Regex
 import Debian.IO
+import Debian.Shell
 import Extra.Misc
 
 -- | A URI that returns a tarball, with an optional md5sum which must
@@ -35,36 +37,39 @@ instance BuildTarget Uri where
     -- If it isn't known, we raise an error to avoid mysterious things
     -- happening with URI's that, for example, always point to the latest
     -- version of a package.
-    revision (Uri _ (Just c) _) = return (Just c)
-    revision (Uri _ Nothing _) = return Nothing
+    revision (Uri _ (Just c) _) = return (Right c)
+    revision (Uri _ Nothing _) = return (Left "Uri targets with no checksum do not have revision strings")
 
     logText (Uri s _ _) _ = "Built from URI download " ++ show s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: Bool -> FilePath -> Bool -> String -> AptIO Tgt
+prepareUri :: Bool -> FilePath -> Bool -> String -> AptIO (Either String Tgt)
 prepareUri _debug top flush target =
     case parseTarget target of
-      Just (uri, md5sum) -> downloadTarget uri >>= checkTarget md5sum >>= unpackTarget uri
-      Nothing -> error ("Invalid target: " ++ target)
+      Right (uri, md5sum) -> downloadTarget uri >>= checkTarget md5sum >>= unpackTarget uri
+      Left message -> return $ Left ("Invalid target " ++ target ++ ": " ++ message)
     where
       parseTarget target =
           case matchRegex (mkRegex uriRE) target of
             Just [s, _, md5sum] ->
                 case parseURI s of
-                  Nothing -> error ("Invalid uri: " ++ s)
-                  Just uri -> Just (uri, stringToMaybe md5sum)
+                  Nothing -> Left ("Invalid uri: " ++ s)
+                  Just uri -> Right (uri, stringToMaybe md5sum)
             _ -> error ("Internal error 11 parsing " ++ target)
+      downloadTarget :: URI -> AptIO (Either String String)
       downloadTarget uri =
           do let name = snd . splitFileName . uriPath $ uri
                  dest = tmp ++ "/" ++ name
              when flush (io . removeRecursiveSafely $ dest)
              exists <- io $ doesFileExist dest
-             if exists then
-                 return noTimeDiff else
-                 do io $ createDirectoryIfMissing True tmp
-                    createStyle name $ systemTask_ ("curl -s '" ++ show uri ++ "' > '" ++ dest ++ "'")
-             return name
-      checkTarget sum name =
+             case exists of
+               True -> return (Right name)
+               False ->
+                   io (try (createDirectoryIfMissing True tmp)) >>=
+                   either (return . Left . show) (const (createStyle name $ runCommandQuietlyTimed ("curl -s '" ++ show uri ++ "' > '" ++ dest ++ "'"))) >>=
+                   either (return . Left) (const . return . Right $ name)
+      checkTarget sum (Left message) = return (Left message)
+      checkTarget sum (Right name) =
           do output <- io $ md5sum path
              case output of
                Left e -> error ("Could not checksum destination file " ++ path ++ ": " ++ show e)
@@ -73,17 +78,25 @@ prepareUri _debug top flush target =
                                         dest = sumDir ++ "/" ++ name 
                                     io $ createDirectoryIfMissing True sumDir
                                     io $ renameFile path dest
-                                    return (realSum, sumDir, name)
+                                    return (Right (realSum, sumDir, name))
                Right realSum -> error ("Checksum mismatch for " ++ path ++
                                        ": expected " ++ fromJust sum ++ ", saw " ++ realSum)
           where
             path = tmp ++ "/" ++ name
-      unpackTarget uri (sum, sumDir, name) =
-          do let tarball = sumDir ++ "/" ++ name
-             --tardir <- io $ tarDir tarball
-             let sourceDir = sumDir ++ "/unpack"
-             io $ createDirectoryIfMissing True sourceDir
-             unpackStyle name $ systemTask ("tar xfz " ++ tarball ++ " -C " ++ sourceDir)
+      unpackTarget uri (Left message) = return (Left message)
+      unpackTarget uri (Right (sum, sumDir, name)) =
+          do (r1 :: Either Exception ())  <- io (try (createDirectoryIfMissing True sourceDir))
+             (r2 :: Either String TimeDiff) <- either (return . Left . show) (const (unpackStyle name $ runCommandQuietlyTimed ("tar xfz " ++ tarball ++ " -C " ++ sourceDir))) r1
+             r3 <- either (return . Left) (const (io (getDir sourceDir))) r2
+             r4 <- either (return . Left) (return . Right . filter (not . flip elem [".", ".."])) r3
+             (r5 :: (Either String SourceTree)) <- either (return . Left) checkContents r4
+             r6 <- return . checkSourceTree $ r5
+             return r6
+{-
+          case contents of
+            [] -> 
+          do io $ createDirectoryIfMissing True sourceDir
+             unpackStyle name $ runQuietlyTimed ("tar xfz " ++ tarball ++ " -C " ++ sourceDir)
              contents <- io (getDirectoryContents sourceDir) >>= return . filter (not . flip elem [".", ".."])
              sourceTree <-
                  case contents of
@@ -93,6 +106,21 @@ prepareUri _debug top flush target =
              case sourceTree of
                Nothing -> error ("Tarball does not contain a valid debian source tree: " ++ sumDir)
                Just p -> return $ Tgt $ Uri uri (Just sum) p
+-}
+	  where
+            getDir dir = try (getDirectoryContents dir) >>=
+                         either (return . Left . show) (return . Right . filter (not . flip elem [".", ".."]))
+            checkContents :: [FilePath] -> AptIO (Either String SourceTree)
+            checkContents [] = return (Left "Empty tarball?")
+            checkContents [subdir] = findSourceTree (rootEnvPath (sourceDir ++ "/" ++ subdir))
+            checkContents _ = findSourceTree (rootEnvPath sourceDir)
+            checkSourceTree :: Either String SourceTree -> Either String Tgt
+            checkSourceTree (Left message) =
+                Left ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
+            checkSourceTree (Right p) = Right . Tgt $ Uri uri (Just sum) p
+            tarball = sumDir ++ "/" ++ name
+            sourceDir = sumDir ++ "/unpack"
+
       tmp = top ++ "/tmp"
       uriRE = "([^:]+:[^:]+)" ++ "(:(" ++ md5sumRE ++ "))?"
       md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"

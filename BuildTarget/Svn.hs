@@ -9,16 +9,19 @@ import BuildTarget
 import Debian.Types
 import Debian.Types.SourceTree
 import System.Time
+import Control.Exception
 import Control.Monad
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
 import Linspire.Unix.Process
+import Data.List
 import Data.Maybe
 import qualified Data.ByteString.Char8 as B
 import System.Directory
 import Network.URI
 import Debian.Control.ByteString
 import Debian.IO
+import Debian.Shell
 import DryRun
 
 -- | A Subversion archive
@@ -30,8 +33,13 @@ instance Show Svn where
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: Maybe EnvPath -> [String] -> AptIO TaskSuccess
-svn path args = systemProcess "svn" args (maybe Nothing (Just . outsidePath) path) Nothing
+svn :: Maybe EnvPath -> [String] -> AptIO (Either String [Output])
+svn path args =
+    io $ lazyProcess "svn" args (maybe Nothing (Just . outsidePath) path) Nothing [] >>= return . finish
+    where
+      finish output = case exitCodeOnly output of
+                        [ExitSuccess] -> Right output
+                        _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
 
 username userInfo = 
     let un = takeWhile (/= ':') userInfo in
@@ -49,13 +57,28 @@ instance BuildTarget Svn where
     getTop (Svn _ tree) = topdir tree
     -- We should recursively find and remove all the .svn directories in |dir source|
     cleanTarget (Svn _ _) path = 
-        do let cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
-
-           dr' (return noTimeDiff) (cleanStyle path $ systemTask_ cmd)
-           return ()
-        where cleanStyle path = setStyle $ setStart (Just (" Copy and clean SVN target to " ++ show path))
+        dr' (return (Right noTimeDiff)) (cleanStyle path $ runCommandQuietlyTimed cmd)
+        where
+          cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
+          cleanStyle path = setStyle $ setStart (Just (" Copy and clean SVN target to " ++ show path))
 
     revision (Svn uri tree) =
+        svn (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
+        return . either (const (Left "svn info failed")) readControl
+        where
+          readControl :: [Output] -> Either String String
+          readControl out = 
+              case parseControl "svn info" (B.concat (stdoutOnly out)) of
+                (Right (Control (c:_))) ->
+                    -- JAS, I don't know why I did not just use the uri that was passed in
+                    case (lookupP "URL" c, lookupP "Revision" c) of
+                      (Just (Field (_, url)), Just (Field (_, revision))) ->
+                          Right $ "svn:" ++ (B.unpack (stripWS url)) ++"@" ++ (B.unpack (stripWS revision))
+                      _ -> Left $ "Failed to find URL and/or Revision fields in svn info"
+                (Right (Control [])) -> Left $ "svn info did not appear to produce any output"
+                Left e -> Left $ "Failed to parse svn info\n" ++ show e
+          userInfo = maybe "" uriUserInfo (uriAuthority uri)
+{-        
         do
           -- FIXME: this command can take a lot of time, message it
           (out, _) <- svn (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
@@ -69,24 +92,25 @@ instance BuildTarget Svn where
             Left e -> error $ "Failed to parse svn info\n" ++ show e
         where
           userInfo = maybe "" uriUserInfo (uriAuthority uri)
-
+-}
     logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
 
-prepareSvn ::  Bool -> FilePath -> Bool -> String -> AptIO Tgt
+prepareSvn ::  Bool -> FilePath -> Bool -> String -> AptIO (Either String Tgt)
 prepareSvn _debug top flush target =
-    do
-      when flush (removeRecursiveSafelyDR dir)
-      exists <- io $ doesDirectoryExist dir
-      tree <- if exists then verifySource dir else createSource dir
-      return $ Tgt $ Svn uri (maybe (error ("No source tree at " ++ show dir)) id tree)
+    do when flush (removeRecursiveSafelyDR dir)
+       exists <- io $ doesDirectoryExist dir
+       tree <- if exists then verifySource dir else createSource dir
+       case tree of
+         Left message -> return $ Left ("No source tree at " ++ show dir ++ ": " ++ message)
+         Right tree -> return . Right . Tgt $ Svn uri tree
     where
       verifySource dir =
-          do (out,_) <- svn (Just (rootEnvPath dir)) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
-             case (stdoutOnly out) ++ (stderrOnly out) of
-               -- no output == nothing changed
-               [] -> updateSource dir
-               -- Failure - error code or output from status means changes have occured
-               _ ->  removeSource dir >> createSource dir
+          svn (Just (rootEnvPath dir)) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
+          either (return . Left) (\ out -> case (stdoutOnly out) ++ (stderrOnly out) of
+                                             -- no output == nothing changed
+                                             [] -> updateSource dir
+                                             -- Failure - error code or output from status means changes have occured
+                                             _ ->  removeSource dir >> createSource dir)
 
       removeSource dir = io $ removeRecursiveSafely dir
 
@@ -97,14 +121,28 @@ prepareSvn _debug top flush target =
             findSourceTree (rootEnvPath dir)
 
       createSource dir =
+          let (parent, _) = splitFileName dir in
+          io (try (createDirectoryIfMissing True parent)) >>=
+          either (return . Left . show) (const (io checkout)) >>=
+          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
+      checkout :: IO (Either String [Output])
+      checkout = lazyProcess "svn" args Nothing Nothing [] >>= return . finish
+          where
+            args = ([ "co","--no-auth-cache","--non-interactive"] ++ 
+                    (username userInfo) ++ (password userInfo) ++ 
+                    [ (uriToString (const "") uri ""), dir ])
+            finish output = case exitCodeOnly output of
+                              [ExitSuccess] -> Right output
+                              _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
+{-
           do
             -- Create parent dir and let tla create dir
-            let (parent, _) = splitFileName dir
             io $ createDirectoryIfMissing True parent
-            createStyle $ systemProcess "svn" ([ "co","--no-auth-cache","--non-interactive"] ++ 
-                                               (username userInfo) ++ (password userInfo) ++ 
-                                               [ (uriToString (const "") uri ""), dir ]) Nothing Nothing
+            createStyle $ runQuietlyTimed "svn" (lazyProcess "svn" ([ "co","--no-auth-cache","--non-interactive"] ++ 
+                                                                    (username userInfo) ++ (password userInfo) ++ 
+                                                                    [ (uriToString (const "") uri ""), dir ]) Nothing)
             findSourceTree (rootEnvPath dir)
+-}
       _verifyStyle = setStyle (setStart (Just ("Verifying SVN source archive " ++ (show uri))) .
                                setError (Just ("SVN diff failed in" ++ dir)) {- . Output Indented-})
       updateStyle = setStyle (setStart (Just ("Updating SVN source for " ++ (show uri))) .

@@ -8,7 +8,7 @@ Comment:
 Name: autobuilder-targets
 Targets:
   apt:sid:hugs98
-  apt:hardy:haskell-devscripts
+  apt:sid:haskell-devscripts
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   darcs:http://src.seereason.com/haskell-mime
   darcs:http://src.seereason.com/haskell-unixutils
@@ -68,7 +68,6 @@ Relax-Depends: base-passwd
 Relax-Depends: mktemp
 Relax-Depends: sed
 Targets:
-  apt:sid:alex
   apt:sid:arch2darcs
   apt:sid:bnfc
   apt:sid:c2hs
@@ -83,30 +82,25 @@ Targets:
   apt:sid:ghc-cvs
   apt:sid:gtk2hs
   apt:sid:gtkrsync
-  apt:sid:haddock
   quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.com/happs-server-quilt)
   quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.com/happs-state-quilt)
-  apt:sid:happy
   apt:sid:haskell-anydbm
   apt:sid:haskell-binary
   apt:sid:haskell-configfile
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   apt:sid:haskell-doc
   apt:sid:haskell-edison
-  apt:sid:haskell-filepath
   apt:sid:haskell-hlist
   apt:sid:haskell-hsh
   apt:hardy:haskell-hsql
   quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
   apt:sid:haskell-mode
-  apt:sid:haskell-src-exts
   quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   apt:sid:haskell-uulib
   apt:sid:haskell-x11-extras
-  apt:sid:haskell98-report
   apt:sid:haskelldb
   apt:sid:hat
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
@@ -121,15 +115,13 @@ Targets:
   apt:sid:hpodder
   apt:sid:hs-plugins
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
-  apt:sid:kaya
   apt:sid:ldap-haskell
   apt:sid:lhs2tex
   apt:sid:listlike
   apt:sid:magic-haskell
   apt:sid:missingh
-  apt:sid:missingpy
   apt:sid:pandoc
-  apt:sid:pugs
+  apt:hardy:pugs
   apt:sid:washngo
   darcs:http://src.seereason.com/mirror
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
@@ -146,12 +138,23 @@ Targets:
   apt:sid:whitespace
   apt:sid:xmonad
 Comment:
+  Depends on directory, which is hidden:
+    apt:sid:haddock
+  http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=460388
+    apt:sid:alex
+    apt:sid:happy
   Now part of ghc6
     apt:sid:haskell-cabal
+    apt:sid:haskell-filepath
   Replaced by happs-data, happs-ixset, etc.
     apt:sid:happs
+  LaTeX couldn't find times.ttf: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=420479
+    apt:sid:haskell98-report
   Error parsing build depends (unexpected #):
     apt:sid:haskell-src-exts
+    apt:sid:kaya
+    apt:sid:missingpy
+Comment: Old comments
   Patches won't apply:
     quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
   Disabled due to flaw in the autobuilder's build dependency parser:

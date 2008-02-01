@@ -1,15 +1,18 @@
 -- | A Mercurial archive.
 module BuildTarget.Hg where
 
+import Control.Exception
 import Control.Monad
 import Data.Maybe
 import System.Directory
+import System.Exit
 import System.IO
 import System.Process
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
 import BuildTarget
 import Debian.IO
+import Debian.Shell
 import Debian.Types
 import Debian.Types.SourceTree
 
@@ -27,56 +30,53 @@ instance BuildTarget Hg where
     --setSpecTree (Hg s _) tree = Hg s tree
 
     revision (Hg _ tree) =
-        do let path = topdir tree
-               cmd = "cd " ++ outsidePath path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
-           (_, outh, _, handle) <- io $ runInteractiveCommand cmd
+        do (_, outh, _, handle) <- io $ runInteractiveCommand cmd
            revision <- io (hGetContents outh) >>= return . listToMaybe . lines >>=
-                       return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           io $ waitForProcess handle
-           return . Just $ "hg:" ++ revision
-
+                       return . maybe (Left $ "no revision info printed by '" ++ cmd ++ "'") Right
+           result <- io (try (waitForProcess handle))
+           case (revision, result) of
+             (Right revision, Right ExitSuccess) -> return . Right $ "hg:" ++ revision
+             (Right _, Right (ExitFailure _)) -> return . Left $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
+             (Left message, _) -> return . Left $ message
+             (_, Left e) -> return . Left . show $ e
+        where
+          path = topdir tree
+          cmd = "cd " ++ outsidePath path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
     cleanTarget (Hg _ _) path =
-        do cleanStyle path $ systemTask_ cmd
-           return ()
+        cleanStyle path $ runCommandQuietlyTimed cmd
         where
           cmd = "rm -rf " ++ outsidePath path ++ "/.hg"
           cleanStyle path = setStyle (setStart (Just ("Clean Hg target in " ++ show path)))
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
-prepareHg :: Bool -> FilePath -> Bool -> String -> AptIO Tgt
+prepareHg :: Bool -> FilePath -> Bool -> String -> AptIO (Either String Tgt)
 prepareHg _debug top flush archive =
     do
       when flush (io $ removeRecursiveSafely dir)
       exists <- io $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of
-        Nothing -> error ("Failed to find HG source tree at " ++ show dir)
-        Just tree -> return $ Tgt $ Hg archive tree
+        Left message -> return . Left $ "Failed to find HG source tree at " ++ show dir ++ ": " ++ message
+        Right tree -> return . Right . Tgt $ Hg archive tree
     where
       verifySource dir =
-          tryAB (verifyStyle $ systemTask ("cd " ++ dir ++ " && hg status | grep -q .")) >>=
+          tryAB (verifyStyle $ runCommandQuietly ("cd " ++ dir ++ " && hg status | grep -q .")) >>=
           either (\ _ -> updateSource dir)	-- failure means there were no changes
                  (\ _ -> removeSource dir >> createSource dir)	-- success means there was a change
 
       removeSource dir = io $ removeRecursiveSafely dir
 
       updateSource dir =
-          do
-            updateStyle $ systemTask ("cd " ++ dir ++ " && hg pull -u")
-            -- At one point we did a tla undo here.  However, we are
-            -- going to assume that the "clean" copies in the cache
-            -- directory are clean, since some of the other target
-            -- types have no way of doing this reversion.
-            findSourceTree (rootEnvPath dir)
+          updateStyle $ runCommandQuietly ("cd " ++ dir ++ " && hg pull -u") >>=
+          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
+            
 
       createSource dir =
-          do
-            -- Create parent dir and let tla create dir
-            let (parent, _) = splitFileName dir
-            io $ createDirectoryIfMissing True parent
-            createStyle $ systemTask ("hg clone " ++ archive ++ " " ++ dir)
-            findSourceTree (rootEnvPath dir)
+          let (parent, _) = splitFileName dir in
+          io (try (createDirectoryIfMissing True parent)) >>=
+          either (return . Left . show) (const (createStyle $ runCommandQuietly ("hg clone " ++ archive ++ " " ++ dir))) >>=
+          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
 
       verifyStyle = setStyle (setStart (Just ("Verifying Hg source archive " ++ archive)) .
                               setError (Just ("tla changes failed in" ++ show dir)))

@@ -23,6 +23,7 @@ module Main where
 import		 Debian.AptImage
 import		 Debian.Cache
 import		 Debian.IO
+import		 Debian.Shell
 import		 Debian.Local.Insert
 import		 Debian.Local.Release
 import		 Debian.Local.Repo
@@ -37,6 +38,7 @@ import		 Data.List
 import		 Data.Maybe
 import qualified Data.Set as Set
 import		 Extra.Bool
+import		 Extra.Either
 import		 Extra.List
 import		 Extra.Lock
 import		 Extra.Misc
@@ -81,7 +83,7 @@ main =
       -- exception or a completion code, or, if we fail to get a lock,
       -- nothing.  For a single result we can print a simple message,
       -- for multiple paramter sets we need to print a summary.
-      checkResults :: [Either Exception (Either Exception TaskElapsed)] -> AptIO ()
+      checkResults :: [Either Exception (Either Exception (Either String TimeDiff))] -> AptIO ()
       checkResults [Right (Left e)] = setStyle (normalStyle IO.stdout . normalStyle IO.stderr) (msgLn 0 (show e)) >> io (exitWith $ ExitFailure 1)
       checkResults [Right (Right _)] = io $ exitWith ExitSuccess
       checkResults [Left e] = msgLn 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> io (exitWith (ExitFailure 1))
@@ -101,7 +103,7 @@ main =
 appName :: String
 appName = "autobuilder"
 
-runParams :: Params.Params -> AptIO TaskElapsed
+runParams :: Params.Params -> AptIO (Either String TimeDiff)
 runParams params =
     do
       doRequiredVersion
@@ -152,7 +154,7 @@ runParams params =
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- (iStyle . debugStyle) $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
-      buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS targets	-- Build all the targets
+      buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)	-- Build all the targets
       uploadResult <- uploadStyle . upload $ buildResult	-- If all targets succeed they may be uploaded to a remote repo
       newdistStyle . newDist $ uploadResult		-- This processes the remote incoming dir
     where
@@ -191,10 +193,10 @@ runParams params =
                            io $ exitWith (ExitFailure 1)
       prepareLocalRepo =
           do let path = EnvPath (EnvRoot "") (Params.localPoolDir params)
-             vPutStrLn 0 $ "Preparing local repository at " ++ show path
+             vPutStrLn 0 $ "Preparing local repository at " ++ outsidePath path
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if Params.flushPool params then flushLocalRepository else return)
-             vPutStrLn 0 $ "Preparing release main in local repository at " ++ show path
+             vPutStrLn 0 $ "Preparing release main in local repository at " ++ outsidePath path
              release <- runStyle $ prepareRelease repo (Params.buildRelease params) [] [Section "main"] (Params.archList params)
              let repo' = releaseRepo release
              case Params.cleanUp params of
@@ -214,7 +216,7 @@ runParams params =
           where
             allTargets = listDiff (Params.targets params) (Params.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
-      upload :: (LocalRepo, [Target]) -> AptIO [TaskElapsed]
+      upload :: (LocalRepo, [Target]) -> AptIO [Either String TimeDiff]
       upload (repo, [])
           | Params.doUpload params =
               case Params.uploadURI params of
@@ -228,7 +230,7 @@ runParams params =
               True -> vPutStr 0 "Skipping upload."
               False -> return ()
             io $ exitWith (ExitFailure 1)
-      newDist :: [TaskElapsed] -> AptIO (TaskElapsed)
+      newDist :: [Either String TimeDiff] -> AptIO (Either String TimeDiff)
       newDist results
           | Params.doNewDist params =
               case Params.uploadURI params of
@@ -239,12 +241,12 @@ runParams params =
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ Params.newDistProgram params ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . Params.createRelease $ params)) in
-                             iStyle $ systemTask'_ cmd
+                             iStyle $ runCommandQuietlyTimed cmd
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
-                             iStyle $ systemTask'_ cmd
+                             iStyle $ runCommandQuietlyTimed cmd
                 _ -> error "Missing Upload-URI parameter"
-          | True = return (ExitSuccess, noTimeDiff)
+          | True = return (Right noTimeDiff)
       iStyle = setStyle (addPrefixes " " " ")
       top = Params.topDir params
       debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun debug)

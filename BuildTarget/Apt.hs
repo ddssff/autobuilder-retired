@@ -28,11 +28,11 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
 -- of a package if it is already in the apt repository.
 instance BuildTarget Apt where
     getTop (Apt _ _ _ t) = topdir t
-    revision (Apt d p (Just v) _) = return (Just $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show v)
+    revision (Apt d p (Just v) _) = return (Right $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show v)
     revision (Apt _ _ Nothing _) = error "Attempt to generate revision string for unversioned apt package"
     logText (Apt _ _ _ _) _ = "Built from apt pool"
 
-prepareApt :: FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIO Tgt
+prepareApt :: FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIO (Either String Tgt)
 prepareApt cacheDir flush sourcesChangedAction distros target =
     do
       let (dist, package, version) =
@@ -46,7 +46,7 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
       when flush (io . removeRecursiveSafely $ aptDir os package)
       tree <- Debian.AptImage.aptGetSource (rootEnvPath (aptDir os package)) os package version
       let version' = logVersion . entry $ tree
-      return $ Tgt $ Apt distro package (Just version') tree
+      return . Right . Tgt $ Apt distro package (Just version') tree
     where
       ms = match "([^:]+):([^=]*)(=([^ \t\n]+))?" target
       match = matchRegex . mkRegex

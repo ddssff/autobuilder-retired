@@ -73,7 +73,7 @@ import		 Control.Exception
 import		 Data.List
 import		 Data.Maybe
 import		 Debian.Cache
-import		 Debian.IO
+import		 Debian.IO hiding (verbosity)
 import		 Debian.Slice
 import		 Debian.Types
 import		 Debian.Version

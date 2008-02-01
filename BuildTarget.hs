@@ -36,6 +36,7 @@ import Debian.SourceTree
 import Debian.Types
 import Control.Monad
 import Data.Maybe
+import System.Time
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
@@ -55,8 +56,8 @@ class BuildTarget t where
     getTop :: BuildTarget t => t -> EnvPath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: BuildTarget t => t -> EnvPath -> AptIO ()
-    cleanTarget _ _ = return ()
+    cleanTarget :: BuildTarget t => t -> EnvPath -> AptIO (Either String TimeDiff)
+    cleanTarget _ _ = return . Right $ noTimeDiff
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
     -- is intended to characterize the build environment of the
@@ -65,9 +66,9 @@ class BuildTarget t where
     -- the build dependencies that were installed when the package was
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
-    revision :: t -> AptIO (Maybe String)
+    revision :: t -> AptIO (Either String String)
     -- |Copy 
-    prepareCopy :: (BuildTarget t) => t -> DebianBuildTree -> EnvPath -> AptIO DebianBuildTree
+    prepareCopy :: (BuildTarget t) => t -> DebianBuildTree -> EnvPath -> AptIO (Either String DebianBuildTree)
     prepareCopy _target buildTree dest = copyDebianBuildTree buildTree dest
 
     -- | Prepare a source tree for an actual build, run the function to do
@@ -78,7 +79,7 @@ class BuildTarget t where
 -}
 
     -- |Default function to build the package for this target.
-    buildPkg :: BuildTarget t => Bool -> [String] -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> AptIO TaskElapsed
+    buildPkg :: BuildTarget t => Bool -> [String] -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> AptIO (Either String TimeDiff)
     buildPkg noClean setEnv buildOS buildTree status _target =
         buildDebs noClean setEnv buildOS buildTree status
     -- | Text to include in changelog entry.
@@ -96,12 +97,14 @@ instance Show Dir where
 
 instance BuildTarget Dir where
     getTop (Dir tree) = topdir tree
-    revision (Dir _) = return Nothing
+    revision (Dir _) = return (Left "Dir targets do not have revision strings")
     logText (Dir tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
 
 -- |Prepare a Dir target
-prepareDir :: Bool -> FilePath -> Bool -> EnvPath -> AptIO Tgt
-prepareDir _ _ _ path = findSourceTree path >>= return . maybe (error $ "No source tree at " ++ outsidePath path) (Tgt . Dir)
+prepareDir :: Bool -> FilePath -> Bool -> EnvPath -> AptIO (Either String Tgt)
+prepareDir _ _ _ path =
+    findSourceTree path >>=
+    return . either (\ message -> Left $ "No source tree at " ++ outsidePath path ++ ": " ++ message) (Right . Tgt . Dir)
 
 -- |Build is similar to Dir, except that it owns the parent directory
 -- of the source directory.  This is required for building packages
@@ -113,7 +116,7 @@ instance Show Build where
 
 instance BuildTarget Build where
     getTop (Build tree) = topdir tree
-    revision (Build _) = return Nothing
+    revision (Build _) = return (Left "Build targets do not have revision strings")
     logText (Build tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
 
 -- | There are many characters which will confuse make if they appear
