@@ -1,8 +1,10 @@
 module BuildTarget.Apt where
 
+--import Control.Monad.Trans
 import Debian.AptImage
 import Debian.Cache
 import Debian.IO
+--import Debian.TIO
 import Debian.Local.Changes
 import Debian.Types
 import Debian.Types.SourceTree
@@ -42,9 +44,9 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
                 _ -> error ("failed parsing apt target: (expected dist:package[:version]): " ++ target)
       let distro = maybe (error $ "Invalid dist: " ++ show dist) id (findRelease distros dist)
       os <- prepareAptEnv cacheDir sourcesChangedAction distro
-      --when flush (io $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
+      --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
       when flush (io . removeRecursiveSafely $ aptDir os package)
-      tree <- Debian.AptImage.aptGetSource (rootEnvPath (aptDir os package)) os package version
+      tree <- tio $ Debian.AptImage.aptGetSource (rootEnvPath (aptDir os package)) os package version
       let version' = logVersion . entry $ tree
       return . Right . Tgt $ Apt distro package (Just version') tree
     where

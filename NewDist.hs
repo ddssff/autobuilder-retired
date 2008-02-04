@@ -1,7 +1,10 @@
 -- |Replacement for debpool.  
 module Main where
 
+import		 Prelude hiding (putStr, putStrLn, putChar)
+import		 Control.Monad.Trans
 import		 Debian.IO
+import		 Debian.TIO
 import		 Debian.Local.Changes
 import		 Debian.Local.Insert
 import		 Debian.Local.Package
@@ -100,22 +103,22 @@ defaultStyles = (setFinish (Just "done.") .
 
 defaultArchitectures = [Binary "i386", Binary "amd64"]
 
-style :: [Flag] -> IOStyle -> IOStyle
+style :: [Flag] -> TStyle -> TStyle
 style flags = foldl (.) id . map readStyle $ findValues flags "Style"
 
-readStyle :: String -> IOStyle -> IOStyle
+readStyle :: String -> TStyle -> TStyle
 readStyle text =
     case (mapSnd tail . break (== '=')) text of
       ("Start", message) -> setStart . Just $ message
       ("Finish", message) -> setFinish . Just $ message
       ("Error", message) -> setError . Just $ message
-      ("Output", "Indented") -> addPrefixes "" ""
-      ("Output", "Dots") -> dotStyle IO.stdout . dotStyle IO.stderr
-      ("Output", "Quiet") -> quietStyle IO.stderr . quietStyle IO.stdout
+      --("Output", "Indented") -> addPrefixes "" ""
+      --("Output", "Dots") -> dotStyle IO.stdout . dotStyle IO.stderr
+      --("Output", "Quiet") -> quietStyle IO.stderr . quietStyle IO.stdout
       ("Echo", flag) -> setEcho (readFlag flag)
       ("Elapsed", flag) -> setElapsed (readFlag flag)
       ("Verbosity", value) -> setVerbosity (read value)
-      ("Indent", prefix) -> addPrefixes prefix prefix
+      --("Indent", prefix) -> addPrefixes prefix prefix
       _ -> id
     where
       readFlag "yes" = True
@@ -129,17 +132,18 @@ main :: IO ()
 main =
     do args <- getArgs
        let verbosity = length $ filter (flip elem ["-v", "--verbose"]) args
-       run (defStyle verbosity)
+       runTIO defStyle
+              (run aptIOStyle
                (do -- Compute configuration options
                    let flags' = Config.seedFlags appName optSpecs args
                    flags <- io (computeConfig verbosity appName flags') >>= return . concat
-                   vPutStrLn 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags)))
+                   tio (vPutStrLn 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
                    let lockPath = outsidePath (root flags) ++ "/newdist.lock"
                    case findValues flags "Version" of
                      [] -> withLock lockPath (runFlags flags) >>=
-                           either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const $ vBOL 0)
-                     _ -> Debian.IO.putStrLn Version.version >>
-                          io (exitWith ExitSuccess))
+                           either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . tio $ vBOL 0)
+                     _ -> tio (putStrLn Version.version) >>
+                          io (exitWith ExitSuccess)))
 
 runFlags :: [Flag] -> AptIO ()
 runFlags flags =
@@ -149,7 +153,7 @@ runFlags flags =
        releases <- findReleases repo
        -- Get the Repository object, this will certainly be a singleton list.
        --let repos = nub $ map releaseRepo releases
-       deletePackages releases flags keyname
+       tio (deletePackages releases flags keyname)
        --vPutStrLn 1 IO.stderr $ "newdist " ++ show (root flags)
        --vPutStrLn 1 IO.stderr $ "signRepository=" ++ show signRepository
        --io $ exitWith ExitSuccess
@@ -157,11 +161,11 @@ runFlags flags =
        when install ((scanIncoming False keyname repo) >>= 
                      \ (ok, errors) -> (io (sendEmails emailAddrs (map (successEmail repo) ok)) >>
                                         io (sendEmails emailAddrs (map (\ (changes, error) -> failureEmail changes error) errors)) >>
-                                        (exitOnError (map snd errors))))
-       when expire  $ deleteTrumped keyname releases >> return ()
+                                        tio (exitOnError (map snd errors))))
+       when expire  $ tio (deleteTrumped keyname releases) >> return ()
        when cleanUp $ deleteGarbage repo >> return ()
        -- This flag says sign even if nothing changed
-       when signRepository $ signReleases keyname releases
+       when signRepository $ tio (signReleases keyname releases)
     where
 {-
       findReleaseByName :: [Release] -> ReleaseName -> Maybe Release
@@ -271,12 +275,12 @@ createAlias repo arg =
                _ -> error $ "Internal error 3"
       _ -> error $ "Invalid argument to --create-alias: " ++ arg
 
-exitOnError :: [InstallResult] -> AptIO ()
+exitOnError :: [InstallResult] -> TIO ()
 exitOnError [] = return ()
 exitOnError errors =
     do vBOL 0 >> vPutStrLn 0 (showErrors errors)
-       io $ IO.hFlush IO.stderr
-       io $ exitWith (ExitFailure 1)
+       lift $ IO.hFlush IO.stderr
+       lift $ exitWith (ExitFailure 1)
 
 -- |Return the list of releases in the repository at root, creating
 -- the ones in the dists list with the given components and

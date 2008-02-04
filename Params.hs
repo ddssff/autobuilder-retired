@@ -70,10 +70,12 @@ module Params
 
 import		 Config hiding (usageInfo)
 import		 Control.Exception
+--import		 Control.Monad.Trans
 import		 Data.List
 import		 Data.Maybe
 import		 Debian.Cache
-import		 Debian.IO hiding (verbosity)
+import		 Debian.IO
+import		 Debian.TIO
 import		 Debian.Slice
 import		 Debian.Types
 import		 Debian.Version
@@ -137,7 +139,7 @@ params verbosity appName flags =
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
        params <- mapM makeFlagSet flagMaps
-       mapM_ (vPutStrLn 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
+       mapM_ (tio  . vPutStrLn 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
        {- mapM verifySources params -}
        return params
     where
@@ -184,6 +186,7 @@ globalOpts =
      dryRunOpt,
      commentOpt,
      verbosityOpt,
+     quieterOpt,
      flushAllOpt,
      showParamsOpt,
      showSourcesOpt,
@@ -637,11 +640,11 @@ releaseAliasOpt = Param [] ["release-alias"] ["Release-Alias"] (ReqArg (Value "R
                   (text ["Use an alias for a release name when constructing the vendor tag,",
                          "for example, --release-alias etch=bpo40+"])
 
-style :: Params -> IOStyle -> IOStyle
+style :: Params -> TStyle -> TStyle
 style params =
     styleParams' . styleParams . defaultStyle
     where
-      styleParams' = setVerbosity (verbosity params) . setPrefixes "" ""
+      styleParams' = {- setVerbosity (verbosity params) . setPrefix "" -} id
       styleParams = foldl (.) id . map readStyle $ (values params styleOpt)
       defaultStyle = (setError (Just "failed.") .
                       setEcho False .
@@ -649,19 +652,19 @@ style params =
 styleOpt = Param [] ["style"] ["Style"] (ReqArg (Value "Style") "STYLE SPEC")
            "Add to or change the default output style"
 
-readStyle :: String -> IOStyle -> IOStyle
+readStyle :: String -> TStyle -> TStyle
 readStyle text =
     case (mapSnd tail . break (== '=')) text of
       ("Start", message) -> setStart . Just $ message
       ("Finish", message) -> setFinish . Just $ message
       ("Error", message) -> setError . Just $ message
-      ("Output", "Indented") -> addPrefixes "" ""
-      ("Output", "Dots") -> dotStyle IO.stdout . dotStyle IO.stderr
-      ("Output", "Quiet") -> quietStyle IO.stderr . quietStyle IO.stdout
+      --("Output", "Indented") -> {- addPrefix "" -} id
+      --("Output", "Dots") -> dotStyle IO.stdout . dotStyle IO.stderr
+      --("Output", "Quiet") -> quietStyle IO.stderr . quietStyle IO.stdout
       ("Echo", flag) -> setEcho (readFlag flag)
       ("Elapsed", flag) -> setElapsed (readFlag flag)
       ("Verbosity", value) -> setVerbosity (read value)
-      ("Indent", prefix) -> addPrefixes prefix prefix
+      ("Indent", prefix) -> appPrefix prefix
       _ -> id
     where
       readFlag "yes" = True
@@ -671,10 +674,12 @@ readStyle text =
       readFlag text = error ("Unrecognized bool: " ++ text)
 
 verbosity :: Params -> Int
-verbosity params = foldr (+) 0 (map read (values params verbosityOpt))
+verbosity params = foldr (+) 0 (map read (values params verbosityOpt)) - foldr (+) 0 (map read (values params quieterOpt))
 
 verbosityOpt = Param ['v'] [] ["Verbosity"] (OptArg (\ x -> Value "Verbosity" (maybe "1" id x)) "INCREMENT")
 	       "How chatty? (see also --style)"
+quieterOpt = Param ['q'] [] ["Quieter"] (OptArg (\ x -> Value "Quieter" (maybe "1" id x)) "DECREMENT")
+             "Decreases chattyness"
 
 -- | Flag: --sources, config: Sources
 sources :: Params -> [String]

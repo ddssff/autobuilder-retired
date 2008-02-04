@@ -5,6 +5,7 @@ module BuildTarget.Quilt where
 
 import Control.Exception
 import Control.Monad
+import Control.Monad.Trans
 import Data.List
 import Data.Maybe
 import Data.Time
@@ -13,12 +14,11 @@ import System.Directory
 --import System.Exit
 import Debian.Version
 import BuildTarget
-import Debian.IO
+import Debian.TIO
 import Debian.Shell
 import Linspire.Unix.Process
 import Debian.Types
 import Debian.Types.SourceTree
-import DryRun
 import Extra.List
 import Extra.Either
 --import Debian.Time(parseTimeRFC822)
@@ -71,13 +71,13 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b) => FilePath -> a -> b -> AptIO (Either String (SourceTree, EnvPath))
+makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b) => FilePath -> a -> b -> TIO (Either String (SourceTree, EnvPath))
 makeQuiltTree top base patch =
     do vPutStrLn 0 $ "Quilt base: " ++ outsidePath (getTop base)
        vPutStrLn 0 $ "Quilt patch: " ++ outsidePath (getTop patch)
        -- This will be the top directory of the quilt target
        let copyDir = rootEnvPath (top ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"))
-       createDirectoryIfMissingDR True (top ++ "/quilt")
+       lift (createDirectoryIfMissing True (top ++ "/quilt"))
        baseTree <- findSourceTree (getTop base) >>=
                    return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop base) ++ ": " ++ message) Right
        -- If this is already a DebianBuildTree we need to apply
@@ -107,24 +107,24 @@ makeQuiltTree top base patch =
          (Left message, _) -> return (Left message)
          (_, Left message) -> return (Left message)
     where
-      linkStyle = setStyle . vStyle 1 $ setStart (Just "Linking to quilt target")
+      linkStyle = setStyle $ setStart (Just "Linking to quilt target")
 
-prepareQuilt :: FilePath -> Bool -> Tgt -> Tgt -> AptIO (Either String Tgt)
+prepareQuilt :: FilePath -> Bool -> Tgt -> Tgt -> TIO (Either String Tgt)
 prepareQuilt top _flush (Tgt base) (Tgt patch) = 
     makeQuiltTree top base patch >>= either (return . Left) make
     where
       make (quiltTree, quiltDir) =
           do let cmd1a = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ outsidePath quiltDir ++ "' && quilt applied")
-             applied <- queryStyle1 $ runCommand cmd1a
+             applied <- lift (lazyCommand cmd1a []) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
-               (Just (ExitFailure 1), _, s)
-                   | s == "No patches applied\n" ->
+               (_, err, [ExitFailure 1])
+                   | err == "No patches applied\n" ->
                           do let cmd1b = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ outsidePath quiltDir ++ "' && quilt unapplied")
-                             unapplied <- queryStyle2 $ runCommand cmd1b
+                             unapplied <- lift (lazyCommand cmd1b []) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
                              --ePutStrLn ("unapplied: " ++ show unapplied)
                              let patches =
                                      case unapplied of
-                                       (Just ExitSuccess, text, _) -> lines text
+                                       (text, _, [ExitSuccess]) -> lines text
                                        _ -> error "No patches to apply"
                              -- Now apply all the unapplied patches, which should be all of
                              -- the patches.  This somewhat roundabout two step process is
@@ -134,32 +134,28 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
                                          " && cd '" ++ outsidePath quiltDir ++ "' && " ++
                                          consperse " && " (map ("quilt -v --leave-reject push " ++) patches))
                              --ePutStrLn cmd2
-                             result2 <- applyStyle $ runCommand cmd2
+                             result2 <- lift (lazyCommand cmd2 []) >>= vMessage 1 "Patching Quilt target" . collectOutput
                              case result2 of
-                               (Just ExitSuccess, _, _) -> return ()
-                               (_, _, _) -> error $ "Failed to apply quilt patches: " ++ cmd2
+                               (_, _, [ExitSuccess]) -> return ()
+                               _ -> error $ "Failed to apply quilt patches: " ++ cmd2
                              -- If there is a changelog file in the quilt directory,
                              -- interleave its entries with those in changelog of the base
                              -- tree by date.
-                             io (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog") >>=
-                                 (flip unless) (error ("Missing changelog file: " ++ show (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))))
-                             io (mergeChangelogs (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
+                             lift (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog") >>=
+                                   (flip unless) (error ("Missing changelog file: " ++ show (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))))
+                             lift (mergeChangelogs (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                              -- Return the target.
                              let cmd3 = ("cd '" ++ outsidePath quiltDir ++ "' && " ++
                                          "rm -rf '" ++ outsidePath quiltDir ++ "/.pc' '" ++ outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "'")
-                             result3 <- cleanStyle $ runCommand cmd3
+                             result3 <- lift (lazyCommand cmd3 []) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
                              case result3 of
-                               (Just ExitSuccess, _, _) -> return ()
-                               (_, _, _) -> error $ "Failure removing quilt directory: " ++ cmd3
+                               (_, _, [ExitSuccess]) -> return ()
+                               _ -> error $ "Failure removing quilt directory: " ++ cmd3
 	                     -- Re-read the build tree with the new changelog
                              findSourceTree (topdir quiltTree) >>= return . either (const . Left $ "Failed to find tree") (\ tree -> Right . Tgt $ Quilt (Tgt base) (Tgt patch) tree)
-               (Just (ExitFailure n), _, s) -> error ("Unexpected output from quilt applied: " ++ s)
-               (Just ExitSuccess, _, _) -> error "Unexpected result code from quilt applied"
-               (Nothing, _, _) -> error "No result code from quilt applied process"
-      queryStyle1 = setStyle . vStyle 1 $ setStart (Just "Checking for applied patches") . quietStyle IO.stderr
-      queryStyle2 = setStyle . vStyle 1 $ setStart (Just "Checking for unapplied patches")
-      applyStyle = setStyle . vStyle 1 $ setStart (Just "Patching Quilt target")
-      cleanStyle = setStyle . vStyle 2 $ setStart (Just "Cleaning Quilt target")
+               (_, err, [ExitFailure _]) -> error ("Unexpected output from quilt applied: " ++ err)
+               (_, _, [ExitSuccess]) -> error "Unexpected result code from quilt applied"
+               (_, _, other) -> error $ "Bad result code from quilt applied process: " ++ show other
 
 --myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x
 
@@ -230,7 +226,7 @@ partitionChangelog :: UTCTime -> String -> ([ChangeLogEntry], String)
 partitionChangelog date text =
     case parseEntry text of
       Nothing -> ([], "")
-      Just (Left message) -> ([], text)
+      Just (Left _) -> ([], text)
       Just (Right (entry, text')) ->
           if date >= (zonedTimeToUTC . myParseTimeRFC822 . logDate $ entry)
           then ([entry], text')

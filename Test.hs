@@ -14,6 +14,7 @@ import qualified System.IO as IO
 import Linspire.Unix.Directory
 import System.Directory
 import Debian.IO
+import Debian.TIO
 
 top = "/tmp/testrepo"
 
@@ -24,38 +25,38 @@ main =
     do
       removeRecursiveSafely top
       createDirectoryIfMissing True top
-      repo <- run (defStyle 0) repoTests
-      releases <- run (defStyle 0) $ releaseTests repo
-      run (defStyle 0) $ uploadTests releases
+      repo <- runTIO defStyle . run aptIOStyle $ repoTests
+      releases <- runTIO defStyle . run aptIOStyle $ releaseTests repo
+      runTIO defStyle . run aptIOStyle $ uploadTests releases
       return ()
 
 repoTests :: AptIO LocalRepo
 repoTests =
     do
-      vPutStr 0 "------------- Repo Tests -------------"
-      vPutStr 0 (" -> prepareRepository False \"" ++ top ++ "\" (Just Pool)")
+      tio $ vPutStr 0 "------------- Repo Tests -------------"
+      tio $ vPutStr 0 (" -> prepareRepository False \"" ++ top ++ "\" (Just Pool)")
       -- This fails when it tries to stat nonexistant directories
       -- prepareRepository True top (Just Pool)
       repo <- prepareLocalRepository (EnvPath (EnvRoot "") top) (Just Pool)
-      vPutStr 0 (" <- " ++ show repo)
+      tio $ vPutStr 0 (" <- " ++ show repo)
       return repo
 
 releaseTests :: LocalRepo -> AptIO [Release LocalRepo]
 releaseTests repo =
     do
-      vPutStr 0 "------------- Release Tests -------------"
+      tio $ vPutStr 0 "------------- Release Tests -------------"
       let dist = "testrelease"
       let aliases = ["skipjack-feisty"]
       let components = map Section ["main", "contrib", "non-free"]
       let archList = [Binary "i386", Binary "amd64"]
-      vPutStr 0 (" -> prepareRelease repo (ReleaseName " ++ show dist ++ ") (map ReleaseName " ++ show aliases ++ ") " ++ show components ++ " " ++ show archList)
+      tio $ vPutStr 0 (" -> prepareRelease repo (ReleaseName " ++ show dist ++ ") (map ReleaseName " ++ show aliases ++ ") " ++ show components ++ " " ++ show archList)
       -- prepareRelease True repo (ReleaseName dist) (map ReleaseName aliases) components archList
       release <- prepareRelease repo (ReleaseName dist) (map ReleaseName aliases) components archList
-      vPutStr 0 (" <- " ++ show release)
+      tio $ vPutStr 0 (" <- " ++ show release)
       let repo' = releaseRepo release
       releases <- findReleases repo'
-      vPutStr 0 "All releases:"
-      mapM_ (vPutStr 0) (map (("  " ++) . show) releases)
+      tio $ vPutStr 0 "All releases:"
+      mapM_ (tio . vPutStr 0) (map (("  " ++) . show) releases)
       return releases
 
 dir = "/home/david/.autobuilder/localpools/CNRUbuntu/"
@@ -67,23 +68,23 @@ files = ["freespire-build-specs_0.1-0r1cnr13_all.deb",
 uploadTests :: [Release LocalRepo] -> AptIO ()
 uploadTests [release]  =
     do
-      vPutStr 0 "------------- Upload Tests -------------"
+      tio $ vPutStr 0 "------------- Upload Tests -------------"
       let repo = releaseRepo release
       io $ mapM_ upload files
-      vPutStr 0 " -> dryRun $ scanIncoming repo' (Component \"main\")"
-      withStyle (dryRun $ defStyle 0) $ scanIncoming True Nothing repo
-      vPutStr 0 " -> realRun $ scanIncoming repo (Component \"main\")"
+      tio $ vPutStr 0 " -> dryRun $ scanIncoming repo' (Component \"main\")"
+      scanIncoming True Nothing repo
+      tio $ vPutStr 0 " -> realRun $ scanIncoming repo (Component \"main\")"
       (_, errors) <- scanIncoming True Nothing repo
       case errors of
-        [] -> vPutStr 0 " <- Ok"
-        _ -> vPutStr 0 (" <- " ++ show errors)
+        [] -> tio $ vPutStr 0 " <- Ok"
+        _ -> tio $ vPutStr 0 (" <- " ++ show errors)
       -- get some package info
       let (sourceIndexes :: [PackageIndexLocal]) =
               filter (\ index -> packageIndexComponent index == Section "main") (sourceIndexList release)
-      vPutStr 0 ("sourceIndexes: " ++ show sourceIndexes)
-      (packages :: [BinaryPackageLocal]) <- io $ getPackages (head sourceIndexes)
-      vPutStr 0 (" -> getPackages " ++ show (head sourceIndexes))
-      vPutStr 0 (" <- " ++ show (map (show . packageID) packages))
+      tio $ vPutStr 0 ("sourceIndexes: " ++ show sourceIndexes)
+      (packages :: (Either String [BinaryPackageLocal])) <- tio $ getPackages (head sourceIndexes)
+      tio $ vPutStr 0 (" -> getPackages " ++ show (head sourceIndexes))
+      tio $ vPutStr 0 (" <- " ++ show (either show (show . map packageID) packages))
       -- delete a source package
       -- Delete a source package that has a binary with a different version number
       return ()

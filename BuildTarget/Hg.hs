@@ -3,6 +3,7 @@ module BuildTarget.Hg where
 
 import Control.Exception
 import Control.Monad
+import Control.Monad.Trans
 import Data.Maybe
 import System.Directory
 import System.Exit
@@ -11,7 +12,7 @@ import System.Process
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
 import BuildTarget
-import Debian.IO
+import Debian.TIO
 import Debian.Shell
 import Debian.Types
 import Debian.Types.SourceTree
@@ -30,10 +31,10 @@ instance BuildTarget Hg where
     --setSpecTree (Hg s _) tree = Hg s tree
 
     revision (Hg _ tree) =
-        do (_, outh, _, handle) <- io $ runInteractiveCommand cmd
-           revision <- io (hGetContents outh) >>= return . listToMaybe . lines >>=
+        do (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
+           revision <- lift (hGetContents outh) >>= return . listToMaybe . lines >>=
                        return . maybe (Left $ "no revision info printed by '" ++ cmd ++ "'") Right
-           result <- io (try (waitForProcess handle))
+           result <- lift (try (waitForProcess handle))
            case (revision, result) of
              (Right revision, Right ExitSuccess) -> return . Right $ "hg:" ++ revision
              (Right _, Right (ExitFailure _)) -> return . Left $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
@@ -50,22 +51,22 @@ instance BuildTarget Hg where
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
-prepareHg :: Bool -> FilePath -> Bool -> String -> AptIO (Either String Tgt)
+prepareHg :: Bool -> FilePath -> Bool -> String -> TIO (Either String Tgt)
 prepareHg _debug top flush archive =
     do
-      when flush (io $ removeRecursiveSafely dir)
-      exists <- io $ doesDirectoryExist dir
+      when flush (lift $ removeRecursiveSafely dir)
+      exists <- lift $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of
         Left message -> return . Left $ "Failed to find HG source tree at " ++ show dir ++ ": " ++ message
         Right tree -> return . Right . Tgt $ Hg archive tree
     where
       verifySource dir =
-          tryAB (verifyStyle $ runCommandQuietly ("cd " ++ dir ++ " && hg status | grep -q .")) >>=
+          verifyStyle $ runCommandQuietly ("cd " ++ dir ++ " && hg status | grep -q .") >>=
           either (\ _ -> updateSource dir)	-- failure means there were no changes
                  (\ _ -> removeSource dir >> createSource dir)	-- success means there was a change
 
-      removeSource dir = io $ removeRecursiveSafely dir
+      removeSource dir = lift $ removeRecursiveSafely dir
 
       updateSource dir =
           updateStyle $ runCommandQuietly ("cd " ++ dir ++ " && hg pull -u") >>=
@@ -74,7 +75,7 @@ prepareHg _debug top flush archive =
 
       createSource dir =
           let (parent, _) = splitFileName dir in
-          io (try (createDirectoryIfMissing True parent)) >>=
+          lift (try (createDirectoryIfMissing True parent)) >>=
           either (return . Left . show) (const (createStyle $ runCommandQuietly ("hg clone " ++ archive ++ " " ++ dir))) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir)))
 

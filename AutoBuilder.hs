@@ -20,9 +20,11 @@
 --
 module Main where
 
+import		 Control.Monad.Trans
 import		 Debian.AptImage
 import		 Debian.Cache
 import		 Debian.IO
+import		 Debian.TIO
 import		 Debian.Shell
 import		 Debian.Local.Insert
 import		 Debian.Local.Release
@@ -37,13 +39,14 @@ import		 Control.Monad
 import		 Data.List
 import		 Data.Maybe
 import qualified Data.Set as Set
-import		 Extra.Bool
+--import		 Extra.Bool
 import		 Extra.Either
 import		 Extra.List
 import		 Extra.Lock
 import		 Extra.Misc
 import		 Debian.Version
 import		 Linspire.Unix.Directory hiding (find)
+import		 Linspire.Unix.Process
 import		 Network.URI
 import qualified Params
 import		 System.Directory
@@ -60,36 +63,40 @@ import qualified Version
 -- when more than one identifier appears on the right side of a /Use/.
 main :: IO ()
 main =
-    do verbosity <- getArgs >>= return . length . filter (== "-v")
-       run (Debian.IO.defStyle verbosity)
+    do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
+       (runTIO (setVerbosity verbosity defStyle)
+        (run (Debian.IO.aptIOStyle)
                (io getArgs >>=
                 return . Config.seedFlags appName Params.optSpecs >>=
-                doHelp >>= doVersion >>=
+                io . doHelp >>=
+                doVersion >>=
                 Params.params verbosity appName >>=
                 mapM doParams >>=
-                setStyle (normalStyle IO.stdout . normalStyle IO.stderr) . checkResults >>
-                vBOL 0)
+                {- setStyle (normalStyle IO.stdout . normalStyle IO.stderr) . -}
+                tio . checkResults >>
+                tio (vBOL 0))))
        IO.hFlush IO.stderr
     where
+      doHelp :: [Config.Flag] -> IO [Config.Flag]
       doHelp flags
-          | isJust (Config.findValue flags "Help") = do io (IO.putStrLn (Params.usage appName ++ targetDocumentation) >> exitWith ExitSuccess)
+          | isJust (Config.findValue flags "Help") = do IO.putStrLn (Params.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
           | True = return flags
       doVersion flags
           | isJust (Config.findValue flags "Version") = do io (IO.putStrLn Version.version >> exitWith ExitSuccess)
           | True = return flags
-      doParams params = withLock (lockFilePath params) (setStyle (Params.style params) . tryAB . runParams $ params)
+      doParams params = withLock (lockFilePath params) ({- setStyle (Params.style params) . -} tryAB . runParams $ params)
       lockFilePath params = Params.topDir params ++ "/lockfile"
       -- The result of processing a set of parameters is either an
       -- exception or a completion code, or, if we fail to get a lock,
       -- nothing.  For a single result we can print a simple message,
       -- for multiple paramter sets we need to print a summary.
-      checkResults :: [Either Exception (Either Exception (Either String TimeDiff))] -> AptIO ()
-      checkResults [Right (Left e)] = setStyle (normalStyle IO.stdout . normalStyle IO.stderr) (msgLn 0 (show e)) >> io (exitWith $ ExitFailure 1)
-      checkResults [Right (Right _)] = io $ exitWith ExitSuccess
-      checkResults [Left e] = msgLn 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> io (exitWith (ExitFailure 1))
+      checkResults :: [Either Exception (Either Exception (Either String ([Output], TimeDiff)))] -> TIO ()
+      checkResults [Right (Left e)] = {- setStyle (normalStyle IO.stdout . normalStyle IO.stderr) -} (msgLn 0 (show e)) >> lift (exitWith $ ExitFailure 1)
+      checkResults [Right (Right _)] = lift $ exitWith ExitSuccess
+      checkResults [Left e] = msgLn 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> lift (exitWith (ExitFailure 1))
       checkResults list =
           do mapM_ (\ (num, result) -> msgLn 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
-             case filter isLeft list of [] -> io (exitWith ExitSuccess); _ -> io (exitWith (ExitFailure 1))
+             case filter isLeft list of [] -> lift (exitWith ExitSuccess); _ -> lift (exitWith (ExitFailure 1))
              where showResult (Right (Left e)) = show e
                    showResult (Right (Right _)) = "Ok"
                    showResult (Left e) = "Ok (" ++ show e ++ ")"
@@ -103,26 +110,23 @@ main =
 appName :: String
 appName = "autobuilder"
 
-runParams :: Params.Params -> AptIO (Either String TimeDiff)
+runParams :: Params.Params -> AptIO (Either String ([Output], TimeDiff))
 runParams params =
     do
-      doRequiredVersion
-      doShowParams
+      io $ getArgs >>= return . show >>= IO.hPutStrLn IO.stderr
+      --io $ IO.hPutStrLn IO.stderr ("Params.targets params = " ++ show (Params.targets params))
+      tio doRequiredVersion
+      tio doShowParams
       doShowSources
       doFlush
       checkPermissions
       maybe (return ()) (verifyUploadURI (Params.doSSHExport $ params)) (Params.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
-      --msgLn ("Local repository: " ++ show localRepo)
       let baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
       let buildRepoSources = Params.buildRepoSources params
       let buildReleaseSources = releaseSlices (Params.buildRelease params) (inexactPathSlices buildRepoSources)
       let buildRelease = NamedSliceList { sliceListName = SliceName (relName (Params.buildRelease params))
                                         , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
-{-
-      buildRelease <-
-          releaseFromConfig UpdateSources top (SliceName buildRelease) (appendSliceLists [baseRelease, buildReleaseSources])
--}
       cleanOS <- (OSImage.prepareEnv
                          top
                          (Params.cleanRoot params)
@@ -150,13 +154,13 @@ runParams params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      vPutStrLn 1 $ "poolSources:\n  " ++ show (sliceList poolSources)
+      tio (vPutStrLn 1 "poolSources:" >> setStyle (appPrefix " ") (vPutStrLn 1 (show (sliceList poolSources))))
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      poolOS <- (iStyle . debugStyle) $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
+      poolOS <- iStyle $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)	-- Build all the targets
-      uploadResult <- uploadStyle . upload $ buildResult	-- If all targets succeed they may be uploaded to a remote repo
-      newdistStyle . newDist $ uploadResult		-- This processes the remote incoming dir
+      uploadResult <- {- uploadStyle . -} upload buildResult	-- If all targets succeed they may be uploaded to a remote repo
+      tio (newDist uploadResult)		-- This processes the remote incoming dir
     where
       ReleaseName buildRelease = Params.buildRelease params
       doRequiredVersion =
@@ -165,7 +169,7 @@ runParams params =
             reasons ->
                 do vPutStrLn 0 ("Version " ++ Version.version ++ " is too old:")
                    mapM_ printReason reasons
-                   io $ exitWith (ExitFailure 1)                    
+                   lift $ exitWith (ExitFailure 1)                    
           where
             printReason (v, s) =
                 vPutStr 0 (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
@@ -189,25 +193,24 @@ runParams params =
           do isRoot <- io $ checkSuperUser
              case isRoot of
                True -> return ()
-               False -> do vPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)"
+               False -> do tio (vPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
                            io $ exitWith (ExitFailure 1)
       prepareLocalRepo =
           do let path = EnvPath (EnvRoot "") (Params.localPoolDir params)
-             vPutStrLn 0 $ "Preparing local repository at " ++ outsidePath path
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if Params.flushPool params then flushLocalRepository else return)
-             vPutStrLn 0 $ "Preparing release main in local repository at " ++ outsidePath path
-             release <- runStyle $ prepareRelease repo (Params.buildRelease params) [] [Section "main"] (Params.archList params)
+             tio (vPutStrLn 0 $ "Preparing release main in local repository at " ++ outsidePath path)
+             release <- prepareRelease repo (Params.buildRelease params) [] [Section "main"] (Params.archList params)
              let repo' = releaseRepo release
              case Params.cleanUp params of
-               True -> runStyle $ deleteGarbage repo'
+               True -> deleteGarbage repo'
                False -> return repo'
       prepareTargetList =
-          do showTargets allTargets
-             msgLn 0 "Checking all source code out of the repositories:"
-             (setStyle (addPrefixes " " " ") $
-                       mapM (debugStyle . Target.readSpec (Params.debug params) top flush
-                                            (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
+          do tio (showTargets allTargets)
+             tio (msgLn 0 "Checking all source code out of the repositories:")
+             ({- setStyle (addPrefixes " " " ") $ -}
+                       mapM (Target.readSpec (Params.debug params) top flush
+                             (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
 {-
              case result of
                Left e -> eBOL >> io (IO.hPutStrLn IO.stderr "error!") >> error (show e)
@@ -216,7 +219,7 @@ runParams params =
           where
             allTargets = listDiff (Params.targets params) (Params.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
-      upload :: (LocalRepo, [Target]) -> AptIO [Either String TimeDiff]
+      upload :: (LocalRepo, [Target]) -> AptIO [Either String ([Output], TimeDiff)]
       upload (repo, [])
           | Params.doUpload params =
               case Params.uploadURI params of
@@ -225,12 +228,12 @@ runParams params =
           | True = return []
       upload (_, failed) =
           do
-            vPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n")
+            tio (vPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
             case Params.doUpload params of
-              True -> vPutStr 0 "Skipping upload."
+              True -> tio (vPutStr 0 "Skipping upload.")
               False -> return ()
             io $ exitWith (ExitFailure 1)
-      newDist :: [Either String TimeDiff] -> AptIO (Either String TimeDiff)
+      newDist :: [Either String ([Output], TimeDiff)] -> TIO (Either String ([Output], TimeDiff))
       newDist results
           | Params.doNewDist params =
               case Params.uploadURI params of
@@ -246,17 +249,17 @@ runParams params =
                              let cmd = "newdist --root " ++ uriPath uri in
                              iStyle $ runCommandQuietlyTimed cmd
                 _ -> error "Missing Upload-URI parameter"
-          | True = return (Right noTimeDiff)
-      iStyle = setStyle (addPrefixes " " " ")
+          | True = return (Right ([], noTimeDiff))
+      iStyle = id {- setStyle (addPrefixes " " " ") -}
       top = Params.topDir params
-      debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun debug)
-      debug = Params.debug params
-      uploadStyle = setStyle $ (setStart (Just "Uploading from local repository")) . (cond Debian.IO.dryRun Debian.IO.realRun dryRun)
+      --debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun debug)
+      --debug = Params.debug params
+      uploadStyle = setStyle $ (setStart (Just "Uploading from local repository")) -- . (cond Debian.IO.dryRun Debian.IO.realRun dryRun)
       newdistStyle = setStyle $ (setStart (Just "Running newdist on remote repository") .
-                                 (cond Debian.IO.dryRun Debian.IO.realRun dryRun) .
-                                 setPrefixes " " " " .
+                                 -- (cond Debian.IO.dryRun Debian.IO.realRun dryRun) .
+                                 -- setPrefixes " " " " .
                                  setEcho True)
-      runStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun dryRun)
+      --runStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun dryRun)
       dryRun = Params.dryRun params
       flush = Params.flushSource params
 

@@ -4,6 +4,7 @@ module Main where
 import		 Debian.Cache
 import		 Debian.Control
 import		 Debian.IO
+import		 Debian.TIO
 import		 Debian.Slice
 import		 Debian.Types
 import qualified Config
@@ -30,7 +31,7 @@ cgiMain =
     do
       name <- CGI.scriptName
       inputs <- CGI.getInputs
-      return (("SCRIPT_NAME", name) : inputs) >>= liftIO . run (defStyle 0) . application >>= CGI.output
+      return (("SCRIPT_NAME", name) : inputs) >>= liftIO . runTIO defStyle . run aptIOStyle . application >>= CGI.output
 
 application :: [(String,String)] -> AptIO String
 application cgivars =
@@ -85,7 +86,7 @@ heading params cgivars =
 
 topPage :: Params.Params -> [(String,String)] -> IO Html
 topPage params cgivars =
-    do dists <- Debian.IO.run (Debian.IO.defStyle 0) (distros params) >>= return . map (sliceName . sliceListName)
+    do dists <- runTIO defStyle (run aptIOStyle (distros params)) >>= return . map (sliceName . sliceListName)
        return (concatHtml
                [h3 (stringToHtml "Dists"),
                 ulist (concatHtml (map (li . linkToDist cgivars . show) dists)),
@@ -178,7 +179,7 @@ binaryPackagePage _ cgivars =
 sourcePackageInfo :: Params.Params -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIO Control
 sourcePackageInfo _ root uploadHost distro =
     do
-      msgLn 0 ("sourcePackageFiles: " ++ show sourcePackageFiles)
+      tio (msgLn 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
       filterM (io . doesFileExist) sourcePackageFiles >>=
               mapM (io . parseControlFromFile) >>=
               return . map (either (\ e -> error (show e)) id) >>=

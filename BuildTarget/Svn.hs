@@ -8,9 +8,9 @@ module BuildTarget.Svn
 import BuildTarget
 import Debian.Types
 import Debian.Types.SourceTree
-import System.Time
 import Control.Exception
 import Control.Monad
+import Control.Monad.Trans
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
 import Linspire.Unix.Process
@@ -20,9 +20,8 @@ import qualified Data.ByteString.Char8 as B
 import System.Directory
 import Network.URI
 import Debian.Control.ByteString
-import Debian.IO
+import Debian.TIO
 import Debian.Shell
-import DryRun
 
 -- | A Subversion archive
 data Svn = Svn URI SourceTree
@@ -33,9 +32,9 @@ instance Show Svn where
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: Maybe EnvPath -> [String] -> AptIO (Either String [Output])
+svn :: Maybe EnvPath -> [String] -> TIO (Either String [Output])
 svn path args =
-    io $ lazyProcess "svn" args (maybe Nothing (Just . outsidePath) path) Nothing [] >>= return . finish
+    lift $ lazyProcess "svn" args (maybe Nothing (Just . outsidePath) path) Nothing [] >>= return . finish
     where
       finish output = case exitCodeOnly output of
                         [ExitSuccess] -> Right output
@@ -57,7 +56,7 @@ instance BuildTarget Svn where
     getTop (Svn _ tree) = topdir tree
     -- We should recursively find and remove all the .svn directories in |dir source|
     cleanTarget (Svn _ _) path = 
-        dr' (return (Right noTimeDiff)) (cleanStyle path $ runCommandQuietlyTimed cmd)
+        cleanStyle path $ runCommandQuietlyTimed cmd
         where
           cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
           cleanStyle path = setStyle $ setStart (Just (" Copy and clean SVN target to " ++ show path))
@@ -95,10 +94,10 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
 
-prepareSvn ::  Bool -> FilePath -> Bool -> String -> AptIO (Either String Tgt)
+prepareSvn ::  Bool -> FilePath -> Bool -> String -> TIO (Either String Tgt)
 prepareSvn _debug top flush target =
-    do when flush (removeRecursiveSafelyDR dir)
-       exists <- io $ doesDirectoryExist dir
+    do when flush (lift (removeRecursiveSafely dir))
+       exists <- lift $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
        case tree of
          Left message -> return $ Left ("No source tree at " ++ show dir ++ ": " ++ message)
@@ -112,7 +111,7 @@ prepareSvn _debug top flush target =
                                              -- Failure - error code or output from status means changes have occured
                                              _ ->  removeSource dir >> createSource dir)
 
-      removeSource dir = io $ removeRecursiveSafely dir
+      removeSource dir = lift $ removeRecursiveSafely dir
 
       updateSource dir =
           do
@@ -122,8 +121,8 @@ prepareSvn _debug top flush target =
 
       createSource dir =
           let (parent, _) = splitFileName dir in
-          io (try (createDirectoryIfMissing True parent)) >>=
-          either (return . Left . show) (const (io checkout)) >>=
+          lift (try (createDirectoryIfMissing True parent)) >>=
+          either (return . Left . show) (const (lift checkout)) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir)))
       checkout :: IO (Either String [Output])
       checkout = lazyProcess "svn" args Nothing Nothing [] >>= return . finish
@@ -137,7 +136,7 @@ prepareSvn _debug top flush target =
 {-
           do
             -- Create parent dir and let tla create dir
-            io $ createDirectoryIfMissing True parent
+            lift $ createDirectoryIfMissing True parent
             createStyle $ runQuietlyTimed "svn" (lazyProcess "svn" ([ "co","--no-auth-cache","--non-interactive"] ++ 
                                                                     (username userInfo) ++ (password userInfo) ++ 
                                                                     [ (uriToString (const "") uri ""), dir ]) Nothing)

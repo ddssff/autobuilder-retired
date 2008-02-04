@@ -30,13 +30,14 @@ module BuildTarget
     , escapeForMake
     ) where
 
-import Debian.IO
+import Debian.TIO
 import Debian.Types.SourceTree
 import Debian.SourceTree
 import Debian.Types
 import Control.Monad
 import Data.Maybe
 import System.Time
+import Linspire.Unix.Process
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
@@ -56,8 +57,8 @@ class BuildTarget t where
     getTop :: BuildTarget t => t -> EnvPath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: BuildTarget t => t -> EnvPath -> AptIO (Either String TimeDiff)
-    cleanTarget _ _ = return . Right $ noTimeDiff
+    cleanTarget :: BuildTarget t => t -> EnvPath -> TIO (Either String ([Output], TimeDiff))
+    cleanTarget _ _ = return . Right $ ([], noTimeDiff)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
     -- is intended to characterize the build environment of the
@@ -66,9 +67,9 @@ class BuildTarget t where
     -- the build dependencies that were installed when the package was
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
-    revision :: t -> AptIO (Either String String)
+    revision :: t -> TIO (Either String String)
     -- |Copy 
-    prepareCopy :: (BuildTarget t) => t -> DebianBuildTree -> EnvPath -> AptIO (Either String DebianBuildTree)
+    prepareCopy :: (BuildTarget t) => t -> DebianBuildTree -> EnvPath -> TIO (Either String DebianBuildTree)
     prepareCopy _target buildTree dest = copyDebianBuildTree buildTree dest
 
     -- | Prepare a source tree for an actual build, run the function to do
@@ -79,7 +80,7 @@ class BuildTarget t where
 -}
 
     -- |Default function to build the package for this target.
-    buildPkg :: BuildTarget t => Bool -> [String] -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> AptIO (Either String TimeDiff)
+    buildPkg :: BuildTarget t => Bool -> [String] -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> TIO (Either String TimeDiff)
     buildPkg noClean setEnv buildOS buildTree status _target =
         buildDebs noClean setEnv buildOS buildTree status
     -- | Text to include in changelog entry.
@@ -101,7 +102,7 @@ instance BuildTarget Dir where
     logText (Dir tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
 
 -- |Prepare a Dir target
-prepareDir :: Bool -> FilePath -> Bool -> EnvPath -> AptIO (Either String Tgt)
+prepareDir :: Bool -> FilePath -> Bool -> EnvPath -> TIO (Either String Tgt)
 prepareDir _ _ _ path =
     findSourceTree path >>=
     return . either (\ message -> Left $ "No source tree at " ++ outsidePath path ++ ": " ++ message) (Right . Tgt . Dir)

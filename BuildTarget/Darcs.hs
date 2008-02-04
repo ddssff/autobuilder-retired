@@ -3,6 +3,7 @@ module BuildTarget.Darcs where
 import BuildTarget
 import Debian.Types
 import Debian.Types.SourceTree
+import Control.Monad.Trans
 import System.Directory
 import System.Process hiding (runCommand)
 import System.IO
@@ -12,9 +13,8 @@ import Control.Exception
 import Control.Monad
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
-import Debian.IO
+import Debian.TIO
 import Debian.Shell
-import DryRun
 
 -- | A Darcs archive
 data Darcs = Darcs { uri :: String
@@ -37,51 +37,51 @@ instance BuildTarget Darcs where
           cmd = "find " ++ outsidePath path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
           cleanStyle path = setStyle $ setStart (Just (" Copy and clean TLA target to " ++ show path))
     revision tgt =
-        do (_, outh, _, handle) <- io $ runInteractiveCommand cmd
-           revision <- io (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=
+        do (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
+           revision <- lift (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=
                            return . maybe (Left $ "could not find hash field in output of '" ++ cmd ++ "'") (Right . head))
            case revision of
              Left message -> return (Left message)
              Right revision ->
-                 do io $ evaluate (length revision)
-                    io $ waitForProcess handle
+                 do lift $ evaluate (length revision)
+                    lift $ waitForProcess handle
                     return . Right $ show tgt ++ "=" ++ revision
         where
           path = topdir (sourceTree tgt)
           cmd = "cd " ++ outsidePath path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ maybe "none" id revision
 
-prepareDarcs :: Bool -> FilePath -> Bool -> String -> AptIO (Either String Tgt)
+prepareDarcs :: Bool -> FilePath -> Bool -> String -> TIO (Either String Tgt)
 prepareDarcs _debug top flush uriAndTag =
     do
-      when flush (removeRecursiveSafelyDR dir)
-      exists <- io $ doesDirectoryExist dir
+      when flush (lift (removeRecursiveSafely dir))
+      exists <- lift $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of 
         Left message -> return (Left message)
         Right tree -> return . Right . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
-      verifySource :: FilePath -> AptIO (Either String SourceTree)
+      verifySource :: FilePath -> TIO (Either String SourceTree)
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
-          do result <- verifyStyle $ io (lazyCommand ("cd " ++ dir ++ " && darcs whatsnew") [] >>= return . discardOutput)
+          do result <- verifyStyle $ lift (lazyCommand ("cd " ++ dir ++ " && darcs whatsnew") [] >>= return . discardOutput)
              case result of
-               [Result (ExitFailure n)] -> updateSource dir				-- No Changes!
+               [Result (ExitFailure _)] -> updateSource dir				-- No Changes!
                [Result ExitSuccess] -> removeSource dir >> createSource dir		-- Yes changes
                _ -> error "Internal error"
-      removeSource :: FilePath -> AptIO ()
-      removeSource dir = io $ removeRecursiveSafely dir
+      removeSource :: FilePath -> TIO ()
+      removeSource dir = lift $ removeRecursiveSafely dir
 
-      updateSource :: FilePath -> AptIO (Either String SourceTree)
+      updateSource :: FilePath -> TIO (Either String SourceTree)
       updateSource dir =
           updateStyle (runCommandQuietly ("cd " ++ dir ++ " && darcs pull --all " ++ theUri)) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir))) >>=
           return . either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right
 
-      createSource :: FilePath -> AptIO (Either String SourceTree)
+      createSource :: FilePath -> TIO (Either String SourceTree)
       createSource dir =
           let (parent, _) = splitFileName dir in
-          do r1 <- io (try (createDirectoryIfMissing True parent))
+          do r1 <- lift (try (createDirectoryIfMissing True parent))
              r2 <- either (return . Left . show) (const (createStyle $ runCommandQuietly cmd)) r1
              r3 <- either (return . Left) (const (findSourceTree (rootEnvPath dir))) r2
              let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
@@ -92,18 +92,17 @@ prepareDarcs _debug top flush uriAndTag =
           do
             -- Create parent dir and let tla create dir
             let (parent, _) = splitFileName dir
-            io $ createDirectoryIfMissing True parent
+            lift $ createDirectoryIfMissing True parent
             createStyle . systemTask . unwords $ ["darcs", "get", "--partial", theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
             findSourceTree (rootEnvPath dir) >>= return . maybe (error ("Couldn't find sourceTree at " ++ dir)) id
 -}
       verifyStyle = setStyle (setStart (Just ("Verifying Darcs source archive " ++ theUri)) .
                               setError Nothing .
-                              quietStyle stderr .
                               setEcho True)
       updateStyle = setStyle (setStart (Just ("Updating Darcs source for " ++ theUri)) . setEcho True .
-                              addPrefixes " " " " . setError (Just "updateSource failed"))
+                              {- addPrefix " " . -} setError (Just "updateSource failed"))
       createStyle = setStyle (setStart (Just ("Retrieving Darcs source for " ++  theUri)) . setEcho True .
-                              addPrefixes " " " " . setError (Just ("darcs get failed in " ++ dir)))
+                              {- addPrefix " " . -} setError (Just ("darcs get failed in " ++ dir)))
       name = snd . splitFileName $ theUri
       (theUri, theTag) =
           case matchRegex (mkRegex "^(.*)(=([^=]*))?$") uriAndTag of

@@ -4,11 +4,13 @@
 module BuildTarget.SourceDeb where
 
 import BuildTarget
+import Control.Monad.Trans
 import Data.List
 import Data.Maybe
 import Control.Monad
 import System.Directory
-import Debian.IO
+--import Debian.IO
+import Debian.TIO
 import Debian.Types
 import Linspire.Unix.Process
 import qualified Debian.Control.String as S
@@ -35,16 +37,16 @@ instance BuildTarget SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: Tgt -> AptIO (Either String Tgt)
+prepareSourceDeb :: Tgt -> TIO (Either String Tgt)
 prepareSourceDeb (Tgt base) =
     do let top = getTop base
-       dscFiles <- io (getDirectoryContents (outsidePath top)) >>=
+       dscFiles <- lift (getDirectoryContents (outsidePath top)) >>=
                    return . filter (isSuffixOf ".dsc")
-       dscInfo <- mapM (\ name -> io (readFile (outsidePath top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
+       dscInfo <- mapM (\ name -> lift (readFile (outsidePath top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
          [] -> return . Left $ "Invalid sourcedeb base: no .dsc file in " ++ show base
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
-             do out <- io (lazyCommand (unpack top dscName) [])
+             do out <- lift (lazyCommand (unpack top dscName) [])
                 case exitCodeOnly out of
                   [ExitSuccess] -> return $ makeTarget top dscInfo dscName
                   _ -> return . Left $ ("*** FAILURE: " ++ unpack top dscName)

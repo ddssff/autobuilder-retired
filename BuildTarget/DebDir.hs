@@ -1,12 +1,13 @@
 module BuildTarget.DebDir where
 
 import Control.Exception
+import Control.Monad.Trans
 import BuildTarget
 import Prelude hiding (catch)
 import Debian.Types
 import Debian.Types.SourceTree
 import System.Directory
-import Debian.IO
+import Debian.TIO
 import Debian.Shell
 --import ChangeLog
 
@@ -34,15 +35,17 @@ instance BuildTarget DebDir where
                  return . Left $ "Unimplemented: no revision method for deb-dir upstream target: " ++ message
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ maybe "none" id revision
 
-prepareDebDir :: Bool -> FilePath -> Bool -> Tgt -> Tgt -> AptIO (Either String Tgt)
+prepareDebDir :: Bool -> FilePath -> Bool -> Tgt -> Tgt -> TIO (Either String Tgt)
 prepareDebDir _debug top _flush (Tgt upstream) (Tgt debian) = 
-    io  (try (createDirectoryIfMissing True (top ++ "/deb-dir"))) >>=
-    either (return . Left . show) (const (cleanStyle dest $ runCommandQuietly cmd1)) >>=
-    either (return . Left) (const (cleanStyle dest $ runCommandQuietly cmd2)) >>=
+    lift  (try (createDirectoryIfMissing True (top ++ "/deb-dir"))) >>=
+    either (return . Left . show) (const copyUpstream) >>=
+    either (return . Left) (const copyDebian) >>=
     either (return . Left) (const (findDebianSourceTree (rootEnvPath dest))) >>=
     either (\ message -> return $ Left ("Couldn't find source tree at " ++ show dest ++ ": " ++ message))
            (return . Right . Tgt . DebDir (Tgt upstream) (Tgt debian))
     where
+      copyUpstream = cleanStyle dest $ runCommandQuietly cmd1
+      copyDebian = cleanStyle dest $ runCommandQuietly cmd2
       upstreamDir = getTop upstream
       debianDir = getTop debian
       dest = top ++ "/deb-dir/" ++ escapeForMake ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 

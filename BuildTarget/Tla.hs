@@ -1,5 +1,6 @@
 module BuildTarget.Tla where
 
+import Control.Monad.Trans
 import BuildTarget
 import Debian.Types
 import Debian.Types.SourceTree
@@ -10,9 +11,8 @@ import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
 import Data.Maybe
 import System.Directory
-import Debian.IO
+import Debian.TIO
 import Debian.Shell
-import DryRun
 
 -- | A TLA archive
 data Tla = Tla String SourceTree
@@ -35,19 +35,19 @@ instance BuildTarget Tla where
         do let path = topdir tree
                cmd = "cd " ++ outsidePath path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
-           (_, outh, _, handle) <- io $ runInteractiveCommand cmd
-           revision <- io (hGetContents outh >>= return . listToMaybe . lines) >>=
+           (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
+           revision <- lift (hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           io $ waitForProcess handle
+           lift $ waitForProcess handle
            return . Right $ "tla:" ++ revision
 
     logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
 
-prepareTla :: FilePath -> Bool -> String -> AptIO (Either String Tgt)
+prepareTla :: FilePath -> Bool -> String -> TIO (Either String Tgt)
 prepareTla top flush version =
     do
-      when flush (removeRecursiveSafelyDR dir)
-      exists <- io $ doesDirectoryExist dir
+      when flush (lift (removeRecursiveSafely dir))
+      exists <- lift $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of
         Left message -> return . Left $ "failed to find source tree at " ++ dir ++ ": " ++ message
@@ -57,9 +57,9 @@ prepareTla top flush version =
           do result <- verifyStyle $ runCommandQuietly ("cd " ++ dir ++ " && tla changes")
              case result of
                Left message -> msgLn 0 message >> removeSource dir >> createSource dir	-- Failure means there is corruption
-               Right () -> updateSource dir						-- Success means no changes
+               Right output -> updateSource dir						-- Success means no changes
 
-      removeSource dir = io $ removeRecursiveSafely dir
+      removeSource dir = lift $ removeRecursiveSafely dir
 
       updateSource dir =
           do updateStyle $ runCommandQuietly ("cd " ++ dir ++ " && tla update " ++ version)
@@ -73,7 +73,7 @@ prepareTla top flush version =
           do
             -- Create parent dir and let tla create dir
             let (parent, _) = splitFileName dir
-            io $ createDirectoryIfMissing True parent
+            lift $ createDirectoryIfMissing True parent
             createStyle $ runCommandQuietly ("tla get " ++ version ++ " " ++ dir)
             findSourceTree (rootEnvPath dir)
 
