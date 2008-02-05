@@ -64,39 +64,47 @@ import qualified Version
 main :: IO ()
 main =
     do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
-       (runTIO (setVerbosity verbosity defStyle)
-        (run (Debian.IO.aptIOStyle)
-               (io getArgs >>=
-                return . Config.seedFlags appName Params.optSpecs >>=
-                io . doHelp >>=
-                doVersion >>=
-                Params.params verbosity appName >>=
-                mapM doParams >>=
-                {- setStyle (normalStyle IO.stdout . normalStyle IO.stderr) . -}
-                tio . checkResults >>
-                tio (vBOL 0))))
+       runTIO (setVerbosity verbosity defStyle) (tioMain verbosity)        
        IO.hFlush IO.stderr
     where
+      tioMain verbosity =
+          run Debian.IO.aptIOStyle (aptMain verbosity) >>=
+          checkResults
+      aptMain verbosity =
+          io getArgs >>=
+          return . Config.seedFlags appName Params.optSpecs >>=
+          io . doHelp >>=
+          doVersion >>=
+          Params.params verbosity appName >>=
+          mapM doParams
       doHelp :: [Config.Flag] -> IO [Config.Flag]
       doHelp flags
-          | isJust (Config.findValue flags "Help") = do IO.putStrLn (Params.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
+          | isJust (Config.findValue flags "Help") =
+              do IO.putStrLn (Params.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
           | True = return flags
       doVersion flags
-          | isJust (Config.findValue flags "Version") = do io (IO.putStrLn Version.version >> exitWith ExitSuccess)
+          | isJust (Config.findValue flags "Version") =
+              do io (IO.putStrLn Version.version >> exitWith ExitSuccess)
           | True = return flags
-      doParams params = withLock (lockFilePath params) ({- setStyle (Params.style params) . -} tryAB . runParams $ params)
+      -- Process one set of parameters.  Usually there is only one, but there
+      -- can be several which are run sequentially.
+      doParams :: Params.Params -> AptIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
+      doParams parameterSet = withLock (lockFilePath parameterSet) (tryAB . runParams $ parameterSet)
       lockFilePath params = Params.topDir params ++ "/lockfile"
       -- The result of processing a set of parameters is either an
       -- exception or a completion code, or, if we fail to get a lock,
       -- nothing.  For a single result we can print a simple message,
       -- for multiple paramter sets we need to print a summary.
       checkResults :: [Either Exception (Either Exception (Either String ([Output], TimeDiff)))] -> TIO ()
-      checkResults [Right (Left e)] = {- setStyle (normalStyle IO.stdout . normalStyle IO.stderr) -} (msgLn 0 (show e)) >> lift (exitWith $ ExitFailure 1)
-      checkResults [Right (Right _)] = lift $ exitWith ExitSuccess
+      checkResults [Right (Left e)] = (msgLn 0 (show e)) >> lift (exitWith $ ExitFailure 1)
+      checkResults [Right (Right _)] = hBOL IO.stderr >> (lift $ exitWith ExitSuccess)
       checkResults [Left e] = msgLn 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> lift (exitWith (ExitFailure 1))
       checkResults list =
           do mapM_ (\ (num, result) -> msgLn 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
-             case filter isLeft list of [] -> lift (exitWith ExitSuccess); _ -> lift (exitWith (ExitFailure 1))
+             hBOL IO.stderr
+             case filter isLeft list of
+               [] -> lift (exitWith ExitSuccess)
+               _ -> lift (exitWith (ExitFailure 1))
              where showResult (Right (Left e)) = show e
                    showResult (Right (Right _)) = "Ok"
                    showResult (Left e) = "Ok (" ++ show e ++ ")"
@@ -113,8 +121,6 @@ appName = "autobuilder"
 runParams :: Params.Params -> AptIO (Either String ([Output], TimeDiff))
 runParams params =
     do
-      io $ getArgs >>= return . show >>= IO.hPutStrLn IO.stderr
-      --io $ IO.hPutStrLn IO.stderr ("Params.targets params = " ++ show (Params.targets params))
       tio doRequiredVersion
       tio doShowParams
       doShowSources
@@ -154,20 +160,23 @@ runParams params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      tio (vPutStrLn 1 "poolSources:" >> setStyle (appPrefix " ") (vPutStrLn 1 (show (sliceList poolSources))))
+      tio (vPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vPutStrBl 1 (show (sliceList poolSources))))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
-      buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)	-- Build all the targets
-      uploadResult <- {- uploadStyle . -} upload buildResult	-- If all targets succeed they may be uploaded to a remote repo
-      tio (newDist uploadResult)		-- This processes the remote incoming dir
+      -- Build all the targets
+      buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)
+      -- If all targets succeed they may be uploaded to a remote repo
+      uploadResult <- upload buildResult
+      -- This processes the remote incoming dir
+      tio (newDist uploadResult)
     where
       ReleaseName buildRelease = Params.buildRelease params
       doRequiredVersion =
           case filter (\ (v, _) -> v > parseDebianVersion Version.version) (Params.requiredVersion params) of
             [] -> return ()
             reasons ->
-                do vPutStrLn 0 ("Version " ++ Version.version ++ " is too old:")
+                do vPutStrBl 0 ("Version " ++ Version.version ++ " is too old:")
                    mapM_ printReason reasons
                    lift $ exitWith (ExitFailure 1)                    
           where
@@ -199,7 +208,7 @@ runParams params =
           do let path = EnvPath (EnvRoot "") (Params.localPoolDir params)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if Params.flushPool params then flushLocalRepository else return)
-             tio (vPutStrLn 0 $ "Preparing release main in local repository at " ++ outsidePath path)
+             tio (vPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
              release <- prepareRelease repo (Params.buildRelease params) [] [Section "main"] (Params.archList params)
              let repo' = releaseRepo release
              case Params.cleanUp params of
@@ -208,14 +217,8 @@ runParams params =
       prepareTargetList =
           do tio (showTargets allTargets)
              tio (msgLn 0 "Checking all source code out of the repositories:")
-             ({- setStyle (addPrefixes " " " ") $ -}
-                       mapM (Target.readSpec (Params.debug params) top flush
-                             (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
-{-
-             case result of
-               Left e -> eBOL >> io (IO.hPutStrLn IO.stderr "error!") >> error (show e)
-               Right x -> return x
--}
+             mapM (Target.readSpec (Params.debug params) top flush
+                             (Params.ifSourcesChanged params) (Params.allSources params)) allTargets
           where
             allTargets = listDiff (Params.targets params) (Params.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
@@ -224,7 +227,7 @@ runParams params =
           | Params.doUpload params =
               case Params.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> uploadRemote repo uri
+                Just uri -> tio (vPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
@@ -238,29 +241,21 @@ runParams params =
           | Params.doNewDist params =
               case Params.uploadURI params of
                 Just uri ->
-                    do vPutStrLn 1 ("Upload results:\n  " ++ concat (intersperse "\n  " (map show results)))
+                    do vPutStrBl 1 ("Upload results:\n  " ++ concat (intersperse "\n  " (map show results)))
                        case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ Params.newDistProgram params ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . Params.createRelease $ params)) in
-                             iStyle $ runCommandQuietlyTimed cmd
+                             vPutStr 0 "Running newdist on remote repository" >> runCommandQuietlyTimed cmd
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
-                             iStyle $ runCommandQuietlyTimed cmd
+                             vPutStr 0 "Running newdist on a local repository" >> runCommandQuietlyTimed cmd
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Right ([], noTimeDiff))
       iStyle = id {- setStyle (addPrefixes " " " ") -}
       top = Params.topDir params
-      --debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun debug)
-      --debug = Params.debug params
-      uploadStyle = setStyle $ (setStart (Just "Uploading from local repository")) -- . (cond Debian.IO.dryRun Debian.IO.realRun dryRun)
-      newdistStyle = setStyle $ (setStart (Just "Running newdist on remote repository") .
-                                 -- (cond Debian.IO.dryRun Debian.IO.realRun dryRun) .
-                                 -- setPrefixes " " " " .
-                                 setEcho True)
-      --runStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun dryRun)
-      dryRun = Params.dryRun params
+      --dryRun = Params.dryRun params
       flush = Params.flushSource params
 
 -- | Return the sources.list for the union of all the dists in the

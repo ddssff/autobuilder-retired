@@ -15,7 +15,7 @@ module Params
      topDir,			-- Params -> TopDir
      debug,			-- Params -> Bool
      Params.dryRun,		-- Params -> Bool
-     style,			-- Params -> [Progress.Style]
+     --style,			-- Params -> [Progress.Style]
      requiredVersion,		-- Params -> [(DebianVersion, Maybe String)]
      showSources,		-- Params -> Bool
      showParams,		-- Params -> Bool
@@ -139,7 +139,7 @@ params verbosity appName flags =
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
        params <- mapM makeFlagSet flagMaps
-       mapM_ (tio  . vPutStrLn 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
+       mapM_ (tio  . vPutStrBl 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
        {- mapM verifySources params -}
        return params
     where
@@ -190,8 +190,8 @@ globalOpts =
      flushAllOpt,
      showParamsOpt,
      showSourcesOpt,
-     offlineOpt,
-     styleOpt]
+     --styleOpt,
+     offlineOpt]
 
 -- |Obtaining and preparing target source
 sourceOpts :: [ParamDescr]
@@ -640,29 +640,19 @@ releaseAliasOpt = Param [] ["release-alias"] ["Release-Alias"] (ReqArg (Value "R
                   (text ["Use an alias for a release name when constructing the vendor tag,",
                          "for example, --release-alias etch=bpo40+"])
 
+{-
 style :: Params -> TStyle -> TStyle
 style params =
-    styleParams' . styleParams . defaultStyle
+    styleParams' . styleParams
     where
       styleParams' = {- setVerbosity (verbosity params) . setPrefix "" -} id
       styleParams = foldl (.) id . map readStyle $ (values params styleOpt)
-      defaultStyle = (setError (Just "failed.") .
-                      setEcho False .
-                      setElapsed False)
 styleOpt = Param [] ["style"] ["Style"] (ReqArg (Value "Style") "STYLE SPEC")
-           "Add to or change the default output style"
+           "Add to or change the default output style."
 
 readStyle :: String -> TStyle -> TStyle
 readStyle text =
     case (mapSnd tail . break (== '=')) text of
-      ("Start", message) -> setStart . Just $ message
-      ("Finish", message) -> setFinish . Just $ message
-      ("Error", message) -> setError . Just $ message
-      --("Output", "Indented") -> {- addPrefix "" -} id
-      --("Output", "Dots") -> dotStyle IO.stdout . dotStyle IO.stderr
-      --("Output", "Quiet") -> quietStyle IO.stderr . quietStyle IO.stdout
-      ("Echo", flag) -> setEcho (readFlag flag)
-      ("Elapsed", flag) -> setElapsed (readFlag flag)
       ("Verbosity", value) -> setVerbosity (read value)
       ("Indent", prefix) -> appPrefix prefix
       _ -> id
@@ -672,7 +662,10 @@ readStyle text =
       readFlag "true" = True
       readFlag "false" = True
       readFlag text = error ("Unrecognized bool: " ++ text)
+-}
 
+-- This is not used, the verbosity is computed by inspecting getArgs directly
+-- because it is used during the construction of the Params value.
 verbosity :: Params -> Int
 verbosity params = foldr (+) 0 (map read (values params verbosityOpt)) - foldr (+) 0 (map read (values params quieterOpt))
 

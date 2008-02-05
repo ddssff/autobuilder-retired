@@ -25,7 +25,7 @@ instance BuildTarget Proc where
     revision (Proc (Tgt s)) =  
         BuildTarget.revision s >>= return . either Left (Right . ("proc:" ++))
     buildPkg noClean setEnv buildOS buildTree status _ =
-        do vBOL 0 >> vPutStrLn 0 "Mouting /proc during target build"
+        do vPutStrBl 0 "Mouting /proc during target build"
            lift $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 
            result <- buildDebs noClean setEnv buildOS buildTree status
            lift $ simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]

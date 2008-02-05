@@ -15,7 +15,7 @@ module Target
     ) where
 
 import		 Control.Exception
---import		 Control.Monad.Trans
+import		 Control.Monad.RWS hiding (All)
 import		 Debian.Cache
 import		 Debian.Control
 import qualified Debian.Control.ByteString as B
@@ -236,7 +236,7 @@ copy (Target (Tgt tgt) buildTree _ _ _ _) dest = prepareCopy tgt buildTree dest
 
 readSpec :: Bool -> FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIO (Either String Tgt)
 readSpec debug top flush ifSourcesChanged distros text =
-    tio (msgLn 0 (text ++ ":")) >> {- local (addPrefix " ") -} readSpec'
+    tio (vPutStrBl 0 (text ++ ":")) >> mapRWST (local (appPrefix " ")) readSpec'
     where
       readSpec' =
           case text of
@@ -304,16 +304,15 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
             targetGroups <- tio $ chooseNextTarget globalBuildDeps unbuilt
-            tio (vPutStrLn 1 ("\n\n" ++ makeTable targetGroups))
+            tio (vPutStrBl 1 ("\n\n" ++ makeTable targetGroups))
             case targetGroups of
               (group@(target : blocked) : other) ->
                   tio (vHBOL stderr 0 >>
                        vHPutStr stderr 0 (printf "[%2d of %2d] TARGET: %s\n" (count - length (concat targetGroups) + 1) count (show target))) >>
                   {- setStyle (addPrefix " ") -} (buildTarget' target) >>=
-                  either (\ e -> do tio $ vBOL 0
-                                    tio $ vPutStrLn 0 "Package build failed:"
-                                    tio $ {- indent "  " $ -} vPutStrLn 0 e
-                                    tio $ vPutStrLn 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
+                  either (\ e -> do tio $ vPutStrBl 0 "Package build failed:"
+                                    tio $ vPutStrBl 0 (" " ++ e)
+                                    tio $ vPutStrBl 0 (" Discarding " ++ show target ++ " and its dependencies:\n  " ++
                                                        concat (intersperse "\n  " (map show blocked)))
                                     buildLoop cleanOS globalBuildDeps count (concat other, group ++ failed))
                          (\ _ -> do cleanOS' <- updateEnv cleanOS
@@ -452,7 +451,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
         Right ((count, sourceDependencies) : _) ->
             do tio (vPutStr 0 ("Build dependency solution #" ++ show count))
                tio (vPutStr 1 (concat (map (("\n  " ++) . show) sourceDependencies)))
-               tio (vPutStrLn 0 "\n")
+               tio (vPutStrBl 0 "\n")
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
@@ -476,11 +475,13 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let sourceVersion = logVersion sourceLog
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
+{-
                tio (msgLn 0 ("Version number for new build: " ++ show sourceVersion ++ " -> " ++ show newVersion) >>
                     msgLn 0 ("Params.isDevelopmentRelease: " ++ show (Params.isDevelopmentRelease params)) >>
                     msgLn 0 ("sliceName (Params.baseRelease params): " ++ show (sliceName (Params.baseRelease params))) >>
                     msgLn 0 ("Params.extraReleaseTag params: " ++ show (Params.extraReleaseTag params)) >>
                     msgLn 0 ("Available versions: " ++ show (map (maybe Nothing (Just . parseDebianVersion . B.unpack) . (fieldValue "Version" . sourceParagraph)) sourcePackages)))
+-}
                let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
                        buildDecision (realSource target) (Params.vendorTag params)
@@ -633,7 +634,6 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
               [] -> return . Right $ repo
               _ -> return . Left $ "Local upload failed:\n" ++ showErrors (map snd errors)
       buildOS = Debian.OSImage.chrootEnv cleanOS (Params.dirtyRoot params)
-      iStyle = setStyle (appPrefix " ")
 
 {-
 withPreparedBuildImage :: BuildTarget t => OSImage -> [PkgVersion] -> OSImage -> Target -> Bool -> [String] -> Params.Strictness -> (t -> DebianBuildTree -> AptIO ()) -> AptIO ()
@@ -667,55 +667,37 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
                           case tree of
                             Nothing -> return . Left $ "No build tree at " ++ show newPath
                             Just tree -> return . Right $ tree
-               False -> syncStyle (Debian.OSImage.syncEnv cleanOS buildOS) >>=
-                        (const ({- debugStyle $ -} prepareCopy tgt (cleanSource target) newPath))
+               False -> vBOL 0 >>
+                        vPutStr 0 "Syncing buildOS" >>
+                        Debian.OSImage.syncEnv cleanOS buildOS >>=
+                        (const (prepareCopy tgt (cleanSource target) newPath))
     where
-      --debug = (Params.debug params)
       buildDepends = (Params.buildDepends params)
       noClean = Params.noClean params
       newPath = EnvPath {envRoot = rootDir buildOS, envPath = envPath oldPath}
       oldPath = topdir . cleanSource $ target
-      syncStyle = setStyle (setStart (Just "Syncing buildOS"))
-      --iStyle = setStyle (addPrefix " ")
-      -- debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun debug)
 prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _) _ =
     do
       buildTree <- 
           case noClean of
-            False -> {- debugStyle $ -} prepareCopy tgt (cleanSource target) newPath
+            False -> prepareCopy tgt (cleanSource target) newPath
             True -> findOneDebianBuildTree newPath >>= return . maybe (Left "build tree not found") Right
       case buildTree of
         Left message -> return (Left message)
         Right buildTree -> iStyle $ downloadDependencies cleanOS buildTree buildDepends sourceDependencies
       case noClean of
-        False -> syncStyle $ Debian.OSImage.syncEnv cleanOS buildOS
+        False -> vBOL 0 >> vPutStr 0 "Syncing buildOS" >>Debian.OSImage.syncEnv cleanOS buildOS
         True -> return buildOS
       case buildTree of
         Left message -> return (Left message)
         Right buildTree -> iStyle $ installDependencies buildOS buildTree buildDepends sourceDependencies
       return buildTree
     where
-      --debug = Params.debug params
       buildDepends = Params.buildDepends params
       noClean = Params.noClean params
       newPath = EnvPath {envRoot = rootDir buildOS, envPath = (envPath . topdir . cleanSource $ target)}
-      syncStyle = setStyle (setStart (Just "Syncing buildOS"))
       iStyle = setStyle (appPrefix " ")
-      --debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun debug)
             
-            
-
--- | This contains information fully identifying a package's build
--- environment: a string from the source code control system
--- identifying the exact version of the package's source code, and all
--- names and version number of the package's build dependencies.
--- This information used to decide whether to rebuild.
-{-
-data RevInfo = RevInfo { revVersion :: Maybe DebianVersion,
-                         depVersions :: [PkgVersion],
-                         revString :: Maybe String }
--}
-
 -- | Get the control info for the newest version of a source package
 -- available in a release.  Make sure that the files for this build
 -- architecture are available.
@@ -828,8 +810,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
         Right (_, relations, _) ->
             do let relations' = filterRelations arch (relations ++ globalBuildDeps)
                let relations'' = computeBuildDeps os arch relations'
-               vBOL 1
-               vPutStrLn 1 $ ("Build dependency relations:\n " ++
+               vPutStrBl 1 $ ("Build dependency relations:\n " ++
                               concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations''))))
                -- Do any of the dependencies require packages that simply don't
                -- exist?  If so we don't have to search for solutions, there
@@ -919,33 +900,31 @@ packagesOfRelations relations =
 downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
-       vPutStrLn 1 . ("versions: " ++) . show $! vers
-       runCommandQuietly command
+       vPutStrBl 1 . ("versions: " ++) . show $! vers
+       runTaskAndTest (builddepStyle (commandTask command))
     where
       command = ("chroot " ++ rootPath root ++ " bash -c " ++
                  "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install --download-only " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = setStyle (setStart (Just ("Downloading build dependencies into " ++ show (rootDir os))) .
-                                appPrefix " " .
-                                setError (Just "Could not satisfy build dependencies."))
+      builddepStyle = (setStart (Just ("Downloading build dependencies into " ++ show (rootDir os))) .
+                       setError (Just (\ _ -> "Could not satisfy build dependencies.")))
       path = envPath (topdir source)
       root = rootDir os
 
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
 installDependencies os source extra versions =
-    runCommandQuietly command
+    runTaskAndTest (builddepStyle (commandTask command))
     where
       command = ("chroot " ++ rootPath root ++ " bash -c " ++
                  "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = setStyle (setStart (Just ("Installing build dependencies into " ++ show (rootDir os))) .
-                                appPrefix " " .
-                                setError (Just "Could not satisfy build dependencies."))
+      builddepStyle = (setStart (Just ("Installing build dependencies into " ++ show (rootDir os))) .
+                       setError (Just (\ _ -> "Could not satisfy build dependencies.")))
       path = envPath (topdir source)
       root = rootDir os
 
@@ -1017,9 +996,9 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
                 "trumped by release version (" ++ (maybe "Nothing" show) (baseVersion oldVersion) ++ ")" ++
                 "(dropTag " ++ show vendorTag ++ " " ++ show oldVersion ++ " = " ++ show (dropTag vendorTag (fromJust oldVersion)) ++ ")" ++
                 "(dropTag " ++ show vendorTag ++ " " ++ show sourceVersion ++ " = " ++ show (dropTag vendorTag sourceVersion) ++ ")")
-      _ | sourceVersion > fromJust oldVersion ->
-            Yes ("Source version (" ++ show sourceVersion ++ ") " ++
-                 "is newer than release version (" ++ maybe "Nothing" show oldVersion ++ ")")
+      _ | compareSourceAndDist vendorTag sourceVersion (fromJust oldVersion) == GT ->
+            Yes ("Source version (" ++ show (parseTag vendorTag sourceVersion) ++ ") " ++
+                 "is newer than release version (" ++ maybe "Nothing" (show . parseTag vendorTag) oldVersion ++ ")")
       _ | buildDependencyChanges /= Set.empty ->
             Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
       _ | releaseStatus == Indep ->

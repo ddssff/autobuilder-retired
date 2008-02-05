@@ -44,10 +44,10 @@ instance BuildTarget Hg where
           path = topdir tree
           cmd = "cd " ++ outsidePath path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
     cleanTarget (Hg _ _) path =
-        cleanStyle path $ runCommandQuietlyTimed cmd
+        timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "rm -rf " ++ outsidePath path ++ "/.hg"
-          cleanStyle path = setStyle (setStart (Just ("Clean Hg target in " ++ show path)))
+          cleanStyle path = setStart (Just ("Clean Hg target in " ++ show path))
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
@@ -62,29 +62,28 @@ prepareHg _debug top flush archive =
         Right tree -> return . Right . Tgt $ Hg archive tree
     where
       verifySource dir =
-          verifyStyle $ runCommandQuietly ("cd " ++ dir ++ " && hg status | grep -q .") >>=
+          runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q ."))) >>=
           either (\ _ -> updateSource dir)	-- failure means there were no changes
                  (\ _ -> removeSource dir >> createSource dir)	-- success means there was a change
 
       removeSource dir = lift $ removeRecursiveSafely dir
 
       updateSource dir =
-          updateStyle $ runCommandQuietly ("cd " ++ dir ++ " && hg pull -u") >>=
+          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && hg pull -u"))) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir)))
             
 
       createSource dir =
           let (parent, _) = splitFileName dir in
           lift (try (createDirectoryIfMissing True parent)) >>=
-          either (return . Left . show) (const (createStyle $ runCommandQuietly ("hg clone " ++ archive ++ " " ++ dir))) >>=
+          either (return . Left . show) (const (runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))))) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir)))
 
-      verifyStyle = setStyle (setStart (Just ("Verifying Hg source archive " ++ archive)) .
-                              setError (Just ("tla changes failed in" ++ show dir)))
-      updateStyle = setStyle (setStart (Just ("Updating Hg source for " ++ archive)) .
-                              setError (Just ("Update Hg Source failed in " ++ show dir)))
-      createStyle = setStyle (setStart (Just ("Retrieving Hg source for " ++ archive)) .
-                              setError (Just ("hg clone failed in " ++ show dir)) .
-                              setEcho True)
+      verifyStyle = (setStart (Just ("Verifying Hg source archive " ++ archive)) .
+                     setError (Just (\ _ -> "tla changes failed in" ++ show dir)))
+      updateStyle = (setStart (Just ("Updating Hg source for " ++ archive)) .
+                     setError (Just (\ _ -> "Update Hg Source failed in " ++ show dir)))
+      createStyle = (setStart (Just ("Retrieving Hg source for " ++ archive)) .
+                     setError (Just (\ _ -> "hg clone failed in " ++ show dir)))
       dir = top ++ "/hg/" ++ archive
 

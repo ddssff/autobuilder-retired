@@ -31,11 +31,11 @@ instance Show Darcs where
 
 instance BuildTarget Darcs where
     getTop t = topdir (sourceTree t)
-    cleanTarget _ path = 
-        cleanStyle path $ runCommandQuietlyTimed cmd
+    cleanTarget _ path =
+        timeTaskAndTest (cleanStyle path (commandTask cmd))
         where 
           cmd = "find " ++ outsidePath path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
-          cleanStyle path = setStyle $ setStart (Just (" Copy and clean TLA target to " ++ show path))
+          cleanStyle path = setStart (Just (" Copy and clean TLA target to " ++ show path))
     revision tgt =
         do (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
            revision <- lift (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=
@@ -64,7 +64,7 @@ prepareDarcs _debug top flush uriAndTag =
       verifySource :: FilePath -> TIO (Either String SourceTree)
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
-          do result <- verifyStyle $ lift (lazyCommand ("cd " ++ dir ++ " && darcs whatsnew") [] >>= return . discardOutput)
+          do result <- runTask (verifyStyle (commandTask ("cd " ++ dir ++ " && darcs whatsnew"))) >>= return . discardOutput
              case result of
                [Result (ExitFailure _)] -> updateSource dir				-- No Changes!
                [Result ExitSuccess] -> removeSource dir >> createSource dir		-- Yes changes
@@ -74,7 +74,7 @@ prepareDarcs _debug top flush uriAndTag =
 
       updateSource :: FilePath -> TIO (Either String SourceTree)
       updateSource dir =
-          updateStyle (runCommandQuietly ("cd " ++ dir ++ " && darcs pull --all " ++ theUri)) >>=
+          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ theUri))) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir))) >>=
           return . either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right
 
@@ -82,7 +82,7 @@ prepareDarcs _debug top flush uriAndTag =
       createSource dir =
           let (parent, _) = splitFileName dir in
           do r1 <- lift (try (createDirectoryIfMissing True parent))
-             r2 <- either (return . Left . show) (const (createStyle $ runCommandQuietly cmd)) r1
+             r2 <- either (return . Left . show) (const (runTaskAndTest (createStyle (commandTask cmd)))) r1
              r3 <- either (return . Left) (const (findSourceTree (rootEnvPath dir))) r2
              let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
              return r4
@@ -96,13 +96,12 @@ prepareDarcs _debug top flush uriAndTag =
             createStyle . systemTask . unwords $ ["darcs", "get", "--partial", theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
             findSourceTree (rootEnvPath dir) >>= return . maybe (error ("Couldn't find sourceTree at " ++ dir)) id
 -}
-      verifyStyle = setStyle (setStart (Just ("Verifying Darcs source archive " ++ theUri)) .
-                              setError Nothing .
-                              setEcho True)
-      updateStyle = setStyle (setStart (Just ("Updating Darcs source for " ++ theUri)) . setEcho True .
-                              {- addPrefix " " . -} setError (Just "updateSource failed"))
-      createStyle = setStyle (setStart (Just ("Retrieving Darcs source for " ++  theUri)) . setEcho True .
-                              {- addPrefix " " . -} setError (Just ("darcs get failed in " ++ dir)))
+      verifyStyle = (setStart (Just ("Verifying Darcs source archive " ++ theUri)) .
+                     setError Nothing)
+      updateStyle = (setStart (Just ("Updating Darcs source for " ++ theUri)) .
+                     setError (Just (\ _ -> "updateSource failed")))
+      createStyle = (setStart (Just ("Retrieving Darcs source for " ++  theUri)) . 
+                     setError (Just (\ _ -> "darcs get failed in " ++ dir)))
       name = snd . splitFileName $ theUri
       (theUri, theTag) =
           case matchRegex (mkRegex "^(.*)(=([^=]*))?$") uriAndTag of

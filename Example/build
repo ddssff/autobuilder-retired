@@ -38,7 +38,7 @@ Targets:
   apt:sid:haskell-utils
   apt:sid:haskell-stream
   apt:sid:haskell-arrows
-  apt:sid:haskell-xhtml
+  quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskell-parsec
   apt:sid:haskell-mtl
   apt:sid:haskell-fgl

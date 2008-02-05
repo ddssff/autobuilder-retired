@@ -32,13 +32,11 @@ instance Show Svn where
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: Maybe EnvPath -> [String] -> TIO (Either String [Output])
-svn path args =
-    lift $ lazyProcess "svn" args (maybe Nothing (Just . outsidePath) path) Nothing [] >>= return . finish
+svn :: (FullTask -> FullTask) -> Maybe EnvPath -> [String] -> TIO (Either String [Output])
+svn style path args =
+    runTaskAndTest (style task) >>= return . either (Left . (("*** FAILURE: " ++ showCommand task ++ ": ") ++)) Right
     where
-      finish output = case exitCodeOnly output of
-                        [ExitSuccess] -> Right output
-                        _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
+      task = processTask "svn" args (maybe Nothing (Just . outsidePath) path) Nothing
 
 username userInfo = 
     let un = takeWhile (/= ':') userInfo in
@@ -55,14 +53,14 @@ password userInfo =
 instance BuildTarget Svn where
     getTop (Svn _ tree) = topdir tree
     -- We should recursively find and remove all the .svn directories in |dir source|
-    cleanTarget (Svn _ _) path = 
-        cleanStyle path $ runCommandQuietlyTimed cmd
+    cleanTarget (Svn _ _) path =
+        timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
-          cleanStyle path = setStyle $ setStart (Just (" Copy and clean SVN target to " ++ show path))
+          cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ show path))
 
     revision (Svn uri tree) =
-        svn (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
+        svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         return . either (const (Left "svn info failed")) readControl
         where
           readControl :: [Output] -> Either String String
@@ -104,7 +102,7 @@ prepareSvn _debug top flush target =
          Right tree -> return . Right . Tgt $ Svn uri tree
     where
       verifySource dir =
-          svn (Just (rootEnvPath dir)) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
+          svn verifyStyle (Just (rootEnvPath dir)) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
           either (return . Left) (\ out -> case (stdoutOnly out) ++ (stderrOnly out) of
                                              -- no output == nothing changed
                                              [] -> updateSource dir
@@ -116,16 +114,17 @@ prepareSvn _debug top flush target =
       updateSource dir =
           do
             -- if the original url contained a specific revision, this will do the wrong thing
-            updateStyle $ svn (Just (rootEnvPath dir)) (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
+            svn updateStyle (Just (rootEnvPath dir)) (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
             findSourceTree (rootEnvPath dir)
 
       createSource dir =
           let (parent, _) = splitFileName dir in
           lift (try (createDirectoryIfMissing True parent)) >>=
-          either (return . Left . show) (const (lift checkout)) >>=
+          either (return . Left . show) (const checkout) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir)))
-      checkout :: IO (Either String [Output])
-      checkout = lazyProcess "svn" args Nothing Nothing [] >>= return . finish
+      checkout :: TIO (Either String [Output])
+      --checkout = svn createStyle args 
+      checkout = runTask (createStyle (processTask "svn" args Nothing Nothing)) >>= return . finish
           where
             args = ([ "co","--no-auth-cache","--non-interactive"] ++ 
                     (username userInfo) ++ (password userInfo) ++ 
@@ -133,22 +132,12 @@ prepareSvn _debug top flush target =
             finish output = case exitCodeOnly output of
                               [ExitSuccess] -> Right output
                               _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
-{-
-          do
-            -- Create parent dir and let tla create dir
-            lift $ createDirectoryIfMissing True parent
-            createStyle $ runQuietlyTimed "svn" (lazyProcess "svn" ([ "co","--no-auth-cache","--non-interactive"] ++ 
-                                                                    (username userInfo) ++ (password userInfo) ++ 
-                                                                    [ (uriToString (const "") uri ""), dir ]) Nothing)
-            findSourceTree (rootEnvPath dir)
--}
-      _verifyStyle = setStyle (setStart (Just ("Verifying SVN source archive " ++ (show uri))) .
-                               setError (Just ("SVN diff failed in" ++ dir)) {- . Output Indented-})
-      updateStyle = setStyle (setStart (Just ("Updating SVN source for " ++ (show uri))) .
-                              setError (Just "updateSource failed") {-, Output Indented-} )
-      createStyle = setStyle (setStart (Just ("Retrieving SVN source for " ++ (show uri))) .
-                              setError (Just ("svn co failed in " ++ dir)) .
-                              setEcho True)
+      verifyStyle = (setStart (Just ("Verifying SVN source archive " ++ (show uri))) .
+                     setError (Just (\ _ -> "SVN diff failed in" ++ dir)))
+      updateStyle = (setStart (Just ("Updating SVN source for " ++ (show uri))) .
+                     setError (Just (\ _ -> "updateSource failed")))
+      createStyle = (setStart (Just ("Retrieving SVN source for " ++ (show uri))) .
+                     setError (Just (\ _ -> "svn co failed in " ++ dir)))
       uri = mustParseURI target
       userInfo = maybe "" uriUserInfo (uriAuthority uri)
       dir = top ++ "/svn/" ++ escapeForMake (maybe "" uriRegName (uriAuthority uri)) ++ (uriPath uri)

@@ -109,14 +109,14 @@ style flags = foldl (.) id . map readStyle $ findValues flags "Style"
 readStyle :: String -> TStyle -> TStyle
 readStyle text =
     case (mapSnd tail . break (== '=')) text of
-      ("Start", message) -> setStart . Just $ message
-      ("Finish", message) -> setFinish . Just $ message
-      ("Error", message) -> setError . Just $ message
+      --("Start", message) -> setStart . Just $ message
+      --("Finish", message) -> setFinish . Just $ message
+      --("Error", message) -> setError . Just $ message
       --("Output", "Indented") -> addPrefixes "" ""
       --("Output", "Dots") -> dotStyle IO.stdout . dotStyle IO.stderr
       --("Output", "Quiet") -> quietStyle IO.stderr . quietStyle IO.stdout
-      ("Echo", flag) -> setEcho (readFlag flag)
-      ("Elapsed", flag) -> setElapsed (readFlag flag)
+      --("Echo", flag) -> setEcho (readFlag flag)
+      --("Elapsed", flag) -> setElapsed (readFlag flag)
       ("Verbosity", value) -> setVerbosity (read value)
       --("Indent", prefix) -> addPrefixes prefix prefix
       _ -> id
@@ -137,12 +137,12 @@ main =
                (do -- Compute configuration options
                    let flags' = Config.seedFlags appName optSpecs args
                    flags <- io (computeConfig verbosity appName flags') >>= return . concat
-                   tio (vPutStrLn 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
+                   tio (vPutStrBl 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
                    let lockPath = outsidePath (root flags) ++ "/newdist.lock"
                    case findValues flags "Version" of
                      [] -> withLock lockPath (runFlags flags) >>=
                            either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . tio $ vBOL 0)
-                     _ -> tio (putStrLn Version.version) >>
+                     _ -> tio (putStrBl Version.version) >>
                           io (exitWith ExitSuccess)))
 
 runFlags :: [Flag] -> AptIO ()
@@ -154,8 +154,8 @@ runFlags flags =
        -- Get the Repository object, this will certainly be a singleton list.
        --let repos = nub $ map releaseRepo releases
        tio (deletePackages releases flags keyname)
-       --vPutStrLn 1 IO.stderr $ "newdist " ++ show (root flags)
-       --vPutStrLn 1 IO.stderr $ "signRepository=" ++ show signRepository
+       --vPutStrBl 1 IO.stderr $ "newdist " ++ show (root flags)
+       --vPutStrBl 1 IO.stderr $ "signRepository=" ++ show signRepository
        --io $ exitWith ExitSuccess
        io $ setRepositoryCompatibility repo
        when install ((scanIncoming False keyname repo) >>= 
@@ -278,7 +278,7 @@ createAlias repo arg =
 exitOnError :: [InstallResult] -> TIO ()
 exitOnError [] = return ()
 exitOnError errors =
-    do vBOL 0 >> vPutStrLn 0 (showErrors errors)
+    do vPutStrBl 0 (showErrors errors)
        lift $ IO.hFlush IO.stderr
        lift $ exitWith (ExitFailure 1)
 

@@ -26,10 +26,10 @@ documentation = [ "tla:<revision> - A target of this form retrieves the a TLA ar
 instance BuildTarget Tla where
     getTop (Tla _ tree) = topdir tree
     cleanTarget (Tla _ _) path =
-        cleanStyle path $ runCommandQuietlyTimed cmd
+        timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "find '" ++ outsidePath path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
-          cleanStyle path = setStyle $ setStart (Just ("Clean TLA target in " ++ outsidePath path))
+          cleanStyle path = setStart (Just ("Clean TLA target in " ++ outsidePath path))
 
     revision (Tla _ tree) =
         do let path = topdir tree
@@ -54,7 +54,7 @@ prepareTla top flush version =
         Right tree -> return . Right . Tgt $ Tla version tree
     where
       verifySource dir =
-          do result <- verifyStyle $ runCommandQuietly ("cd " ++ dir ++ " && tla changes")
+          do result <- runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes")))
              case result of
                Left message -> msgLn 0 message >> removeSource dir >> createSource dir	-- Failure means there is corruption
                Right output -> updateSource dir						-- Success means no changes
@@ -62,26 +62,25 @@ prepareTla top flush version =
       removeSource dir = lift $ removeRecursiveSafely dir
 
       updateSource dir =
-          do updateStyle $ runCommandQuietly ("cd " ++ dir ++ " && tla update " ++ version)
+          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && tla update " ++ version))) >>=
              -- At one point we did a tla undo here.  However, we are
              -- going to assume that the "clean" copies in the cache
              -- directory are clean, since some of the other target
              -- types have no way of doing this reversion.
-             findSourceTree (rootEnvPath dir)
+          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
 
       createSource dir =
           do
             -- Create parent dir and let tla create dir
             let (parent, _) = splitFileName dir
             lift $ createDirectoryIfMissing True parent
-            createStyle $ runCommandQuietly ("tla get " ++ version ++ " " ++ dir)
+            runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
             findSourceTree (rootEnvPath dir)
 
-      verifyStyle = setStyle (setStart (Just ("Verifying TLA source archive " ++ version)) .
-                              setError (Just ("tla changes failed in" ++ dir)) {- . Output Indented-})
-      updateStyle = setStyle (setStart (Just ("Updating TLA source for " ++ version)) .
-                              setError (Just "updateSource failed") {- . Output Indented -})
-      createStyle = setStyle (setStart (Just ("Retrieving TLA source for " ++ version)) .
-                              setError (Just ("tla get failed in " ++ dir)) .
-                              setEcho True)
+      verifyStyle = (setStart (Just ("Verifying TLA source archive " ++ version)) .
+                     setError (Just (\ _ -> "tla changes failed in" ++ dir)) {- . Output Indented-})
+      updateStyle = (setStart (Just ("Updating TLA source for " ++ version)) .
+                     setError (Just (\ _ -> "updateSource failed")) {- . Output Indented -})
+      createStyle = (setStart (Just ("Retrieving TLA source for " ++ version)) .
+                     setError (Just (\ _ -> "tla get failed in " ++ dir)))
       dir = top ++ "/tla/" ++ version

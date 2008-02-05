@@ -44,11 +44,11 @@ prepareDebDir _debug top _flush (Tgt upstream) (Tgt debian) =
     either (\ message -> return $ Left ("Couldn't find source tree at " ++ show dest ++ ": " ++ message))
            (return . Right . Tgt . DebDir (Tgt upstream) (Tgt debian))
     where
-      copyUpstream = cleanStyle dest $ runCommandQuietly cmd1
-      copyDebian = cleanStyle dest $ runCommandQuietly cmd2
+      copyUpstream = runTaskAndTest (cleanStyle dest (commandTask cmd1))
+      copyDebian = runTaskAndTest (cleanStyle dest (commandTask cmd2))
       upstreamDir = getTop upstream
       debianDir = getTop debian
       dest = top ++ "/deb-dir/" ++ escapeForMake ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ outsidePath upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ outsidePath debianDir ++ "/debian' '" ++ dest ++ "/'")
-      cleanStyle dest = setStyle (setStart (Just (" Prepare deb-dir target in " ++ show dest)))
+      cleanStyle dest = setStart (Just (" Prepare deb-dir target in " ++ show dest))

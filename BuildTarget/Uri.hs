@@ -11,10 +11,10 @@ import Control.Monad
 import Control.Exception
 import Linspire.Unix.Directory
 import Linspire.Unix.FilePath
-import Linspire.Unix.Process
+--import Linspire.Unix.Process
 import Data.Maybe
 import System.Directory
-import System.Time
+--import System.Time
 import Text.Regex
 import Debian.TIO
 import Debian.Shell
@@ -68,7 +68,7 @@ prepareUri _debug top flush target =
                True -> return (Right name)
                False ->
                    lift (try (createDirectoryIfMissing True tmp)) >>=
-                   either (return . Left . show) (const (createStyle name $ runCommand 1 ("curl -s '" ++ show uri ++ "' > '" ++ dest ++ "'"))) >>=
+                   either (return . Left . show) (const ({- createStyle name $ -} runCommand 1 ("curl -s '" ++ show uri ++ "' > '" ++ dest ++ "'"))) >>=
                    either (return . Left) (const . return . Right $ name)
       checkTarget _ (Left message) = return (Left message)
       checkTarget sum (Right name) =
@@ -87,6 +87,18 @@ prepareUri _debug top flush target =
             path = tmp ++ "/" ++ name
       unpackTarget _ (Left message) = return (Left message)
       unpackTarget uri (Right (sum, sumDir, name)) =
+          mkdir >>= untar >>= read >>= search >>= verify
+          where
+            mkdir = lift (try (createDirectoryIfMissing True sourceDir))
+            untar (Left e) = return . Left . show $ e
+            untar (Right ()) = {- unpackStyle name $ -} runCommandTimed 1 ("tar xfz " ++ tarball ++ " -C " ++ sourceDir)
+            read (Left message) = return . Left $ message
+            read (Right (output, elapsed)) = lift (getDir sourceDir)
+            search (Left message) = return . Left $ message
+            search (Right files) = checkContents (filter (not . flip elem [".", ".."]) files)
+            verify (Left message) = return . Left $ ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
+            verify (Right tree) = return . Right . Tgt $ Uri uri (Just sum) tree
+{-
           do (r1 :: Either Exception ())  <- lift (try (createDirectoryIfMissing True sourceDir))
              (r2 :: Either String ([Output], TimeDiff)) <- either (return . Left . show) (const (unpackStyle name $ runCommandTimed 1 ("tar xfz " ++ tarball ++ " -C " ++ sourceDir))) r1
              r3 <- either (return . Left) (const (lift (getDir sourceDir))) r2
@@ -94,32 +106,20 @@ prepareUri _debug top flush target =
              (r5 :: (Either String SourceTree)) <- either (return . Left) checkContents r4
              r6 <- return . checkSourceTree $ r5
              return r6
-{-
-          case contents of
-            [] -> 
-          do lift $ createDirectoryIfMissing True sourceDir
-             unpackStyle name $ runQuietlyTimed ("tar xfz " ++ tarball ++ " -C " ++ sourceDir)
-             contents <- lift (getDirectoryContents sourceDir) >>= return . filter (not . flip elem [".", ".."])
-             sourceTree <-
-                 case contents of
-                   [] -> error "Empty tarball?"
-                   [subdir] -> findSourceTree (rootEnvPath (sourceDir ++ "/" ++ subdir))
-                   _ -> findSourceTree (rootEnvPath sourceDir)
-             case sourceTree of
-               Nothing -> error ("Tarball does not contain a valid debian source tree: " ++ sumDir)
-               Just p -> return $ Tgt $ Uri uri (Just sum) p
--}
 	  where
+-}
             getDir dir = try (getDirectoryContents dir) >>=
                          either (return . Left . show) (return . Right . filter (not . flip elem [".", ".."]))
             checkContents :: [FilePath] -> TIO (Either String SourceTree)
             checkContents [] = return (Left "Empty tarball?")
             checkContents [subdir] = findSourceTree (rootEnvPath (sourceDir ++ "/" ++ subdir))
             checkContents _ = findSourceTree (rootEnvPath sourceDir)
+{-
             checkSourceTree :: Either String SourceTree -> Either String Tgt
             checkSourceTree (Left message) =
                 Left ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
             checkSourceTree (Right p) = Right . Tgt $ Uri uri (Just sum) p
+-}
             tarball = sumDir ++ "/" ++ name
             sourceDir = sumDir ++ "/unpack"
 
@@ -128,76 +128,13 @@ prepareUri _debug top flush target =
       md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
       stringToMaybe "" = Nothing
       stringToMaybe s = Just s
+{-
       createStyle name = setStyle (setStart (Just ("Retrieving URI for " ++ name)) .
                                    setError (Just "Curl failed") .
                                    setEcho True)
       unpackStyle name = setStyle (setStart (Just ("Unpacking " ++ name)) .
                                    setError (Just ("Failure unpacking " ++ name)) .
                                    setEcho True)
-{-        
-      let (uri, md5sum) =
-              case ms of
-                Just [uri, _, ""] -> (mustParseURI uri, Nothing)
-                Just [uri, _, md5sum] -> (mustParseURI uri, Just md5sum)
-                _ -> error ("failed parsing URI target: " ++ target)
-      -- If the md5sum is not given we accept whatever tarball is retrieved
-      -- from the URL.  If it is given we check whether it is already downloaded
-      -- and if not, we download it and verify its md5sum.
-      (finalPath, checksumDir) <-
-          case md5sum of
-            Nothing ->
-                do
-                  -- We assume that whatever file is already
-                  -- downloaded is correct and up-to-date.  This is
-                  -- not perfectly safe, but the uri target without a
-                  -- checksum is inherantly unsafe (and packages built
-                  -- from these targets are not allowed to be uploaded
-                  -- to a remote repository.)
-                  let downloadPath = download +/+ name uri
-                  realSum <- maybeDownload flush uri downloadPath
-                  let checksumDir = download +/+ realSum
-                  let finalPath = checksumDir +/+ name uri
-                  lift $ createDirectoryIfMissing True checksumDir
-                  -- Link the file into the checksum Directory.
-                  lift $ createLink downloadPath finalPath
-                  return (finalPath, checksumDir)
-            Just sum ->
-                do
-                  let checksumDir = download +/+ sum
-                  let finalPath = checksumDir +/+ name uri
-                  realSum <- maybeDownload flush uri finalPath
-                  if sum /= realSum then
-                      error ("MD5sum mismatch on " ++ finalPath ++ ": expected " ++ sum ++ ", actual " ++ realSum) else
-                      return (finalPath, checksumDir)
-      -- Make sure the tarball has a top directory and unpack
-      tardir <- lift $ tarDir finalPath
-      unpackStyle uri $ systemTask ("tar xfz " ++ finalPath ++ " -C " ++ checksumDir)
-      lift $ createDirectoryIfMissing True checksumDir
-      return $ Tgt $ Uri uri md5sum (DebianBuildTree checksumDir tardir)
-    where
-      ms = match uriRE target
-      match = matchRegex . mkRegex
-      uriRE = "([^:]+:[^:]+)" ++ "(:(" ++ md5sumRE ++ "))?"
-      md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
-      maybeDownload :: Bool -> URI -> FilePath -> TIO FilePath
-      maybeDownload flush uri downloadPath =
-          do
-            when flush (lift $ removeRecursiveSafely downloadPath)
-            exists <- lift $ doesFileExist downloadPath
-            if exists then
-                return (Right noTimeDiff) else
-                do
-                  lift $ createDirectoryIfMissing True download
-                  createStyle uri $ systemTask_ ("curl -s -g " ++ show uri ++ " > '" ++ downloadPath ++ "'")
-            (lift $ My.md5sum downloadPath) >>= return. either error id
-      createStyle uri = setStyle (setStart (Just ("Retrieving URI for " ++ show uri)) .
-                                  setError (Just "Curl failed") .
-                                  setEcho True)
-      unpackStyle uri = setStyle (setStart (Just ("Unpacking " ++ name uri)) .
-                                  setError (Just ("Failure unpacking " ++ name uri)) .
-                                  setEcho True)
-      download = top ++ "/download"
-      name uri = snd . splitFileName $ show uri
 -}
 
 mustParseURI :: String -> URI
