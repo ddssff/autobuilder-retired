@@ -3,7 +3,7 @@ Version:        2.0
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments
-Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra
+Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, Ugly
 Extensions:	ScopedTypeVariables
 Exposed-modules:
 	BuildTarget, BuildTarget.Apt, BuildTarget.Darcs, BuildTarget.DebDir, BuildTarget.Hg, BuildTarget.Proc, BuildTarget.Quilt, BuildTarget.SourceDeb, BuildTarget.Svn, BuildTarget.Tla, BuildTarget.Uri, Config, Target, Version

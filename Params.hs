@@ -81,7 +81,7 @@ import		 Debian.Types
 import		 Debian.Version
 --import	 Debian.VersionPolicy
 import		 Extra.Misc
-import		 Network.URI
+import		 Ugly.URI
 import qualified Config as P (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
 import qualified Data.Map as Map
 import qualified System.IO as IO
@@ -315,8 +315,8 @@ findSlice :: Params -> SliceName -> Either String NamedSliceList
 findSlice params dist =
     case filter ((== dist) . sliceListName) (allSources params) of
       [x] -> Right x
-      [] -> Left ("No sources.list found for " ++ show dist)
-      xs -> Left ("Multiple sources.lists found for " ++ show dist ++ "\n" ++ show (map (sliceName . sliceListName) xs))
+      [] -> Left ("No sources.list found for " ++ sliceName dist)
+      xs -> Left ("Multiple sources.lists found for " ++ sliceName dist ++ "\n" ++ show (map (sliceName . sliceListName) xs))
 
 -- |The string used to construct modified version numbers.  E.g.,
 -- Ubuntu uses "ubuntu", this should reflect the name of the repository
@@ -609,7 +609,7 @@ buildRelease :: Params -> ReleaseName
 buildRelease params =
     case values params buildReleaseOpt of
       [] -> error "Missing Build-Release parameter"
-      (x : _) -> ReleaseName x
+      (x : _) -> parseReleaseName x
 buildReleaseOpt = Param [] ["build-release"] ["Build-Release"] (ReqArg (Value "Build-Release") "NAME")
                   "The name of the release that the packages we build will be uploaded to."
 
@@ -762,14 +762,14 @@ cleanRoot params = cleanRootOfRelease params (Params.buildRelease params)
 
 dirtyRootOfRelease :: Params -> ReleaseName -> EnvRoot
 dirtyRootOfRelease params distro =
-    EnvRoot $ topDir params ++ "/dists/" ++ relName distro ++ "/build-" ++ (show (Params.strictness params))
+    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/build-" ++ (show (Params.strictness params))
     --ReleaseCache.dirtyRoot distro (show (Params.strictness params))
 
 cleanRootOfRelease :: Params -> ReleaseName -> EnvRoot
 cleanRootOfRelease params distro =
-    EnvRoot $ topDir params ++ "/dists/" ++ relName distro ++ "/clean-" ++ (show (Params.strictness params))
+    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/clean-" ++ (show (Params.strictness params))
     --ReleaseCache.cleanRoot distro (show (Params.strictness params))
 
 -- |Location of the local repository for uploaded packages.
 localPoolDir :: Params -> FilePath
-localPoolDir params = Params.topDir params ++ "/localpools/" ++ relName (buildRelease params)
+localPoolDir params = Params.topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)

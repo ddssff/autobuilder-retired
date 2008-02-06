@@ -42,7 +42,7 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
                 Just [release,package,_,""] -> (SliceName release, package, Nothing)
                 Just [release,package,_,version] -> (SliceName release, package, (Just $ parseDebianVersion version))
                 _ -> error ("failed parsing apt target: (expected dist:package[:version]): " ++ target)
-      let distro = maybe (error $ "Invalid dist: " ++ show dist) id (findRelease distros dist)
+      let distro = maybe (error $ "Invalid dist: " ++ sliceName dist) id (findRelease distros dist)
       os <- prepareAptEnv cacheDir sourcesChangedAction distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
       when flush (io . removeRecursiveSafely $ aptDir os package)
@@ -56,4 +56,4 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
           case filter ((== dist) . sliceListName) distros of
             [a] -> Just a
             [] -> Nothing
-            a -> error $ ("Multiple sources.lists found for " ++ show dist ++ "\n" ++ show (map sliceListName a))
+            a -> error $ ("Multiple sources.lists found for " ++ sliceName dist ++ ": " ++ show (map (sliceName . sliceListName) a))

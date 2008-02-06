@@ -203,8 +203,8 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
 -- lots of bizarre formats in the older entries that we can't parse.
 mergeChangelogs :: FilePath -> FilePath -> IO (Either String ())
 mergeChangelogs basePath patchPath =
-    do (patchText :: Either Exception String) <- try (readFile patchPath)
-       (baseText :: Either Exception String) <- try (readFile basePath)
+    do patchText <- try (readFile patchPath)
+       baseText <- try (readFile basePath)
        case (patchText, baseText) of
          (Right patchText, Right baseText) ->
              let patchEntries = parseLog patchText in

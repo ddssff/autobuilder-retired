@@ -190,14 +190,14 @@ runFlags flags =
       successEmail :: LocalRepository -> ChangesFile -> (String, [String])
       successEmail repo changesFile =
           let subject = ("newdist: " ++ changePackage changesFile ++ "-" ++ show (changeVersion changesFile) ++ 
-                         " now available in " ++ relName (changeRelease changesFile) ++
-                         " (" ++ show (changeArch changesFile) ++")")
+                         " now available in " ++ releaseName' (changeRelease changesFile) ++
+                         " (" ++ archName (changeArch changesFile) ++")")
               body = ("Repository " ++ envPath (repoRoot repo)) : [] : (lines $ show $ changeInfo changesFile) in
     	  (subject, body)
       failureEmail :: ChangesFile -> InstallResult -> (String, [String])
       failureEmail changesFile error =
           let subject = ("newdist failure: " ++ changePackage changesFile ++ "-" ++ show (changeVersion changesFile) ++ 
-                         " failed to install in " ++ relName (changeRelease changesFile))
+                         " failed to install in " ++ releaseName' (changeRelease changesFile))
               body = concat (map (lines . explainError) (resultToProblems error)) in
           (subject, body)
       --dists = map ReleaseName $ findValues flags "Create"
@@ -218,15 +218,15 @@ runFlags flags =
 createReleases flags =
     do repo <- prepareLocalRepository (root flags) (Just . layout $ flags)
        releases <- findReleases repo
-       mapM_ (createRelease repo (archList flags)) (map ReleaseName . findValues flags $ "Create-Release")
+       mapM_ (createRelease repo (archList flags)) (map parseReleaseName . findValues flags $ "Create-Release")
        mapM_ (createAlias repo) (findValues flags "Create-Alias")
        mapM_ (createSectionOfRelease releases repo) (findValues flags "Create-Section")
     where
       createSectionOfRelease releases repo arg =
           case break (== ',') arg of
             (relName, ',' : sectName) ->
-                case filter (\ release -> releaseName release == ReleaseName relName) releases of
-                  [release] -> createSection repo release (Section sectName)
+                case filter (\ release -> releaseName release == parseReleaseName relName) releases of
+                  [release] -> createSection repo release (parseSection' sectName)
                   [] -> error $ "createReleases: Invalid release name: " ++ relName
                   _ -> error "Internal error 1"
             _ ->
@@ -256,7 +256,7 @@ createRelease :: LocalRepository -> [Arch] -> ReleaseName -> AptIO Release
 createRelease repo archList name =
     do releases <- findReleases repo
        case filter (\release -> elem name (releaseName release : releaseAliases release)) releases of
-         [] -> prepareRelease repo name [] [Section "main"] archList
+         [] -> prepareRelease repo name [] [parseSection' "main"] archList
          [release] -> return release
          _ -> error "Internal error 2"
 
@@ -265,11 +265,11 @@ createAlias repo arg =
     case break (== '=') arg of
       (relName, ('=' : alias)) ->
           do releases <- findReleases repo
-             case filter ((==) (ReleaseName relName) . releaseName) releases of
+             case filter ((==) (parseReleaseName relName) . releaseName) releases of
                [] -> error $ "Attempt to create alias in non-existant release: " ++ relName
                [release] -> 
-                   case elem (ReleaseName alias) (releaseAliases release) of
-                     False -> prepareRelease repo (ReleaseName relName) (releaseAliases release ++ [ReleaseName alias])
+                   case elem (parseReleaseName alias) (releaseAliases release) of
+                     False -> prepareRelease repo (parseReleaseName relName) (releaseAliases release ++ [parseReleaseName alias])
                                (releaseComponents release) (releaseArchitectures release)
                      True -> return release
                _ -> error $ "Internal error 3"
@@ -301,12 +301,12 @@ deletePackages releases flags keyname =
           case splitRegex (mkRegex "[,=]") s of
             [dist, component, name, version] ->
                 maybe (error ("Can't find release: " ++ dist))
-                      (\ release -> PackageID (PackageIndex release (Section component) Source) name (parseDebianVersion version))
-                      (findReleaseByName releases (ReleaseName dist)) 
+                      (\ release -> PackageID (PackageIndex release (parseSection' component) Source) name (parseDebianVersion version))
+                      (findReleaseByName releases (parseReleaseName dist)) 
             x -> error ("Invalid remove spec: " ++ show x)
       findReleaseByName :: [Release] -> ReleaseName -> Maybe Release
       findReleaseByName releases dist =
           case filter (\ release -> releaseName release == dist) releases of
             [] -> Nothing
             [release] -> (Just release)
-            _ -> error ("Multiple releases with name " ++ relName dist)
+            _ -> error ("Multiple releases with name " ++ releaseName' dist)

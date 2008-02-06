@@ -15,7 +15,7 @@ import qualified Data.Map as Map
 import		 Data.Maybe
 import qualified MyHtml
 import qualified Network.CGI as CGI
-import		 Network.URI
+import		 Ugly.URI
 import qualified Params
 import		 System.Directory
 import		 System.Environment
@@ -59,7 +59,7 @@ appName = "autobuilder"
 aptGetUpdate :: Params.Params -> [(String,String)] -> IO Html
 aptGetUpdate params cgivars =
     do
-      let dist = ReleaseName . fromJust . lookup "dist" $ cgivars
+      let dist = parseReleaseName . fromJust . lookup "dist" $ cgivars
       let dir = Params.cleanRootOfRelease params dist
       let cmd = "sudo chroot " ++ rootPath dir ++ " apt-get update"
       -- Can't do this until we convince Apache it is ok
@@ -122,16 +122,16 @@ distPage params cgivars =
     do distro <- distros params >>= return . find (isDist dist)
        case distro of
          Nothing ->
-             error ("Unknown dist: " ++ show dist)
+             error ("Unknown dist: " ++ sliceName dist)
          Just distro ->
              do (Control sourcePackages) <- sourcePackageInfo params root (Params.uploadHost params) distro
                 return (form
                         (concatHtml
                          [input ! [strAttr "type" "submit",  strAttr "name" "page", strAttr "value" "apt-get-update"],
-                          hidden "dist" (show dist),
-                          h3 (center (stringToHtml ("ReleaseName " ++ show dist ++ " source packages"))),
+                          hidden "dist" (sliceName dist),
+                          h3 (center (stringToHtml ("ReleaseName " ++ sliceName dist ++ " source packages"))),
 		          sourcePackageTable sourcePackages,
-                          h3 (stringToHtml ("ReleaseName " ++ show dist ++ " - Sources")),
+                          h3 (stringToHtml ("ReleaseName " ++ sliceName dist ++ " - Sources")),
                           ulist (concatHtml (map (li . showSource params) (map sliceSource (slices . sliceList $ distro)))),
 		          h3 (stringToHtml "Binary Package Lists"),
                           ulist (concatHtml (map (li . stringToHtml . ((rootPath root) ++))
@@ -151,9 +151,9 @@ distPage params cgivars =
                       (td . stringToHtml . fromJust) (fieldValue "Version" info),
                       (td . concatHtml . intersperse br . map linkToBinaryPackage . splitCommaList . fromJust) (fieldValue "Binary" info)]
       linkToSourcePackage name =
-          MyHtml.linkTo cgivars (stringToHtml name) [("page", "source-package"), ("package", name), ("dist", show dist)]
+          MyHtml.linkTo cgivars (stringToHtml name) [("page", "source-package"), ("package", name), ("dist", sliceName dist)]
       linkToBinaryPackage name =
-          MyHtml.linkTo cgivars (stringToHtml name) [("page", "binary-package"), ("package", name), ("dist", show dist)]
+          MyHtml.linkTo cgivars (stringToHtml name) [("page", "binary-package"), ("package", name), ("dist", sliceName dist)]
       splitCommaList s = splitRegex (mkRegex "[, ]+") s
       cmpPackages a b = compare (fieldValue "Package" a) (fieldValue "Package" b)
       dist = maybe (error "No dist name") SliceName (lookup "dist" cgivars)
@@ -188,7 +188,7 @@ sourcePackageInfo _ root uploadHost distro =
       sourcePackageFiles = map ((rootPath root) ++) $ concat (map (archFiles Source) (map sliceSource . slices $ sourceSources))
       sourceSources = sourceSlices uploadSources
       uploadSources = releaseSlices dist (sliceList distro)
-      dist = ReleaseName (sliceName . sliceListName $ distro)
+      dist = parseReleaseName (sliceName . sliceListName $ distro)
 
 showSource :: Params.Params -> DebSource -> Html
 showSource params src@(DebSource DebSrc uri _)

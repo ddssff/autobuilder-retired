@@ -47,11 +47,11 @@ releaseTests repo =
       tio $ vPutStr 0 "------------- Release Tests -------------"
       let dist = "testrelease"
       let aliases = ["skipjack-feisty"]
-      let components = map Section ["main", "contrib", "non-free"]
+      let components = map parseSection' ["main", "contrib", "non-free"]
       let archList = [Binary "i386", Binary "amd64"]
-      tio $ vPutStr 0 (" -> prepareRelease repo (ReleaseName " ++ show dist ++ ") (map ReleaseName " ++ show aliases ++ ") " ++ show components ++ " " ++ show archList)
+      tio $ vPutStr 0 (" -> prepareRelease repo (ReleaseName " ++ show dist ++ ") (map ReleaseName " ++ show aliases ++ ") " ++ show (map sectionName' components) ++ " " ++ show (map archName archList))
       -- prepareRelease True repo (ReleaseName dist) (map ReleaseName aliases) components archList
-      release <- prepareRelease repo (ReleaseName dist) (map ReleaseName aliases) components archList
+      release <- prepareRelease repo (parseReleaseName dist) (map parseReleaseName aliases) components archList
       tio $ vPutStr 0 (" <- " ++ show release)
       case releaseRepo release of
         LocalRepo repo' ->
@@ -82,7 +82,7 @@ uploadTests [release]  =
         _ -> tio $ vPutStr 0 (" <- " ++ show errors)
       -- get some package info
       let (sourceIndexes :: [PackageIndexLocal]) =
-              filter (\ index -> packageIndexComponent index == Section "main") (sourceIndexList release)
+              filter (\ index -> packageIndexComponent index == parseSection' "main") (sourceIndexList release)
       tio $ vPutStr 0 ("sourceIndexes: " ++ show sourceIndexes)
       (packages :: (Either String [BinaryPackageLocal])) <- tio $ getPackages (head sourceIndexes)
       tio $ vPutStr 0 (" -> getPackages " ++ show (head sourceIndexes))

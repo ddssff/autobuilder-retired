@@ -610,7 +610,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
           let info' = map (setDist name) fields in
           changes { Debian.Local.Changes.changeInfo = Paragraph info'
                   , Debian.Local.Changes.changeRelease = name }
-          where setDist name (Field ("Distribution", _)) = Field ("Distribution", ' ' : relName name)
+          where setDist name (Field ("Distribution", _)) = Field ("Distribution", ' ' : releaseName' name)
                 setDist _ other = other
       doLocalUpload :: TimeDiff -> ChangesFile -> AptIO (Either String LocalRepository)
       doLocalUpload elapsed changesFile =
@@ -908,7 +908,7 @@ downloadDependencies os source extra versions =
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install --download-only " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = (setStart (Just ("Downloading build dependencies into " ++ show (rootDir os))) .
+      builddepStyle = (setStart (Just ("Downloading build dependencies into " ++ rootPath (rootDir os))) .
                        setError (Just (\ _ -> "Could not satisfy build dependencies.")))
       path = envPath (topdir source)
       root = rootDir os
@@ -923,7 +923,7 @@ installDependencies os source extra versions =
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = (setStart (Just ("Installing build dependencies into " ++ show (rootDir os))) .
+      builddepStyle = (setStart (Just ("Installing build dependencies into " ++ rootPath (rootDir os))) .
                        setError (Just (\ _ -> "Could not satisfy build dependencies.")))
       path = envPath (topdir source)
       root = rootDir os

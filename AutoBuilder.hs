@@ -40,7 +40,6 @@ import qualified Data.Map as Map
 import		 Data.List
 import		 Data.Maybe
 import qualified Data.Set as Set
---import		 Extra.Bool
 import		 Extra.Either
 import		 Extra.List
 import		 Extra.Lock
@@ -48,7 +47,7 @@ import		 Extra.Misc
 import		 Debian.Version
 import		 Linspire.Unix.Directory hiding (find)
 import		 Linspire.Unix.Process
-import		 Network.URI
+import		 Ugly.URI
 import qualified Params
 import		 System.Directory
 import		 System.Environment
@@ -132,7 +131,7 @@ runParams params =
       let baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
       let buildRepoSources = Params.buildRepoSources params
       let buildReleaseSources = releaseSlices (Params.buildRelease params) (inexactPathSlices buildRepoSources)
-      let buildRelease = NamedSliceList { sliceListName = SliceName (relName (Params.buildRelease params))
+      let buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (Params.buildRelease params))
                                         , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       cleanOS <- (OSImage.prepareEnv
                          top
@@ -171,10 +170,10 @@ runParams params =
       uploadResult <- upload buildResult
       -- This processes the remote incoming dir
       result <- tio (newDist uploadResult)
-      --updateRepoCache params
+      updateRepoCache params
       return result
     where
-      ReleaseName buildRelease = Params.buildRelease params
+      buildRelease = Params.buildRelease params
       doRequiredVersion =
           case filter (\ (v, _) -> v > parseDebianVersion Version.version) (Params.requiredVersion params) of
             [] -> return ()
@@ -188,7 +187,7 @@ runParams params =
       doShowParams = when (Params.showParams params) (vPutStr 0 $ "Configuration parameters:\n" ++ Params.prettyPrint params)
       doShowSources =
           if (Params.showSources params) then
-              either (error . show) doShow (Params.findSlice params (SliceName buildRelease)) else
+              either (error . show) doShow (Params.findSlice params (SliceName (releaseName' buildRelease))) else
               return ()
           where
             doShow sources =
@@ -212,7 +211,7 @@ runParams params =
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if Params.flushPool params then flushLocalRepository else return)
              tio (vPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
-             release <- prepareRelease repo (Params.buildRelease params) [] [Section "main"] (Params.archList params)
+             release <- prepareRelease repo (Params.buildRelease params) [] [parseSection' "main"] (Params.archList params)
              let repo' = releaseRepo release
              case repo' of
                LocalRepo repo'' ->
@@ -262,7 +261,6 @@ runParams params =
       top = Params.topDir params
       --dryRun = Params.dryRun params
       flush = Params.flushSource params
-{-
       updateRepoCache params =
           do let path = Params.topDir params  ++ "/repoCache"
              cache <- io $ loadCache path
@@ -276,9 +274,11 @@ runParams params =
                 do text <- try (readFile path)
                    pairs <- try . return . either (const []) read $ text
                    let (pairs' :: [(String, Maybe Repository)]) = either (const []) id pairs
-                   let (pairs'' :: [(URI, Maybe Repository)]) = catMaybes (map (\ (s, x) -> maybe Nothing (\ uri -> (uri, s)) (parseURI s)) pairs')
-                   return . Map.fromList . filter isRemote . either (const []) id $ pairs''
--}
+                   let (pairs'' :: [(URI, Maybe Repository)]) =
+                           catMaybes (map (\ (s, x) -> case parseURI s of
+                                                         Nothing -> Nothing
+                                                         Just uri -> Just (uri, x)) pairs')
+                   return . Map.fromList . filter isRemote $ pairs''
 
 -- | Return the sources.list for the union of all the dists in the
 -- upload repository plus the local repository.  This is used to

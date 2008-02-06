@@ -6,7 +6,7 @@ import Control.Monad.Trans
 import BuildTarget
 import Debian.Types
 import Debian.Types.SourceTree
-import Network.URI (URI, parseURI, uriPath)
+import Ugly.URI
 import Control.Monad
 import Control.Exception
 import Linspire.Unix.Directory
@@ -26,7 +26,7 @@ import Extra.Misc
 data Uri = Uri URI (Maybe String) SourceTree
 
 instance Show Uri where
-    show (Uri s c _) = "uri:" ++ show s ++ (maybe "" (":" ++) c)
+    show (Uri s c _) = "uri:" ++ uriToString' s ++ (maybe "" (":" ++) c)
 
 documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the file at the"
                 , "given URI, which is assumed to be a gzipped tarball.  The optional md5sum"
@@ -42,7 +42,7 @@ instance BuildTarget Uri where
     revision (Uri _ (Just c) _) = return (Right c)
     revision (Uri _ Nothing _) = return (Left "Uri targets with no checksum do not have revision strings")
 
-    logText (Uri s _ _) _ = "Built from URI download " ++ show s
+    logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
 prepareUri :: Bool -> FilePath -> Bool -> String -> TIO (Either String Tgt)
@@ -68,7 +68,7 @@ prepareUri _debug top flush target =
                True -> return (Right name)
                False ->
                    lift (try (createDirectoryIfMissing True tmp)) >>=
-                   either (return . Left . show) (const ({- createStyle name $ -} runCommand 1 ("curl -s '" ++ show uri ++ "' > '" ++ dest ++ "'"))) >>=
+                   either (return . Left . show) (const ({- createStyle name $ -} runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'"))) >>=
                    either (return . Left) (const . return . Right $ name)
       checkTarget _ (Left message) = return (Left message)
       checkTarget sum (Right name) =

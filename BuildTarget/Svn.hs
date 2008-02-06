@@ -18,7 +18,7 @@ import Data.List
 import Data.Maybe
 import qualified Data.ByteString.Char8 as B
 import System.Directory
-import Network.URI
+import Ugly.URI
 import Debian.Control.ByteString
 import Debian.TIO
 import Debian.Shell
@@ -132,11 +132,11 @@ prepareSvn _debug top flush target =
             finish output = case exitCodeOnly output of
                               [ExitSuccess] -> Right output
                               _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
-      verifyStyle = (setStart (Just ("Verifying SVN source archive " ++ (show uri))) .
+      verifyStyle = (setStart (Just ("Verifying SVN source archive " ++ uriToString' uri)) .
                      setError (Just (\ _ -> "SVN diff failed in" ++ dir)))
-      updateStyle = (setStart (Just ("Updating SVN source for " ++ (show uri))) .
+      updateStyle = (setStart (Just ("Updating SVN source for " ++ uriToString' uri)) .
                      setError (Just (\ _ -> "updateSource failed")))
-      createStyle = (setStart (Just ("Retrieving SVN source for " ++ (show uri))) .
+      createStyle = (setStart (Just ("Retrieving SVN source for " ++ uriToString' uri)) .
                      setError (Just (\ _ -> "svn co failed in " ++ dir)))
       uri = mustParseURI target
       userInfo = maybe "" uriUserInfo (uriAuthority uri)

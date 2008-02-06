@@ -20,7 +20,8 @@ Targets:
   darcs:http://src.seereason.com/build-env
   darcs:http://src.seereason.com/autobuilder
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
-Comment: Already built
+  apt:sid:haskell-cgi
+Comment: haskell-cgi depends on xhtml
 Comment:
   We need the latest hugs because haskell-unixutils builds a hugs library.
   Unfortunately, the lastest version still doesn't include System.Posix.Files,
