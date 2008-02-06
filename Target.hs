@@ -450,7 +450,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
         Right [] -> error "Internal error"
         Right ((count, sourceDependencies) : _) ->
             do tio (vPutStr 0 ("Build dependency solution #" ++ show count))
-               tio (vPutStr 1 (concat (map (("\n  " ++) . show) sourceDependencies)))
+               tio (vPutStr 2 (concat (map (("\n  " ++) . show) sourceDependencies)))
                tio (vPutStrBl 0 "\n")
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All

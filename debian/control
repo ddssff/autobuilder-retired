@@ -1,7 +1,7 @@
 Source: autobuilder
 Priority: optional
 Maintainer: David Fox <david.fox@linspire.com>
-Build-Depends: debhelper (>= 4.0.0), ghc6 (>= 6.6), ghc6-prof, haskell-devscripts (>= 0.5.6), cpphs, libghc6-mtl-dev, libghc6-mtl-prof, libghc6-debian-dev (>= 2.10), libghc6-debian-prof (>= 2.10), libghc6-extra-prof, libghc6-extra-prof, libghc6-unixutils-prof (>= 1.8), libghc6-html-dev, libghc6-cgi-dev, libghc6-xhtml-dev, libghc6-network-dev, libghc6-network-prof, libghc6-time-dev, libghc6-time-prof, haddock, libgmp3c2, libghc6-mime-prof (>= 1.2), libghc6-ugly-dev, libghc6-ugly-prof
+Build-Depends: debhelper (>= 4.0.0), ghc6 (>= 6.6), ghc6-prof, haskell-devscripts (>= 0.5.6), cpphs, libghc6-mtl-dev, libghc6-mtl-prof, libghc6-debian-dev (>= 2.10), libghc6-debian-prof (>= 2.10), libghc6-extra-prof, libghc6-extra-prof, libghc6-unixutils-prof (>= 1.8), libghc6-html-dev, libghc6-cgi-dev, libghc6-xhtml-dev, libghc6-network-dev, libghc6-network-prof, libghc6-time-dev, libghc6-time-prof, haddock, libgmp3c2, libghc6-mime-prof (>= 1.2), libghc6-ugly-dev (>= 1.10), libghc6-ugly-prof (>= 1.10)
 Standards-Version: 3.6.2.2
 Section: devel
 
