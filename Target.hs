@@ -279,7 +279,7 @@ readSpec debug top flush ifSourcesChanged distros text =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => Params.Params -> OSImage -> Relations -> LocalRepo -> t -> [Tgt] -> AptIO (LocalRepo, [Target])
+buildTargets :: (AptCache t) => Params.Params -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIO (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
@@ -430,12 +430,12 @@ buildTarget ::
     Params.Params ->			-- configuration info
     OSImage ->				-- cleanOS
     Relations ->			-- The build-essential relations
-    LocalRepo ->			-- The local repository the packages will be uploaded to
+    LocalRepository ->			-- The local repository the packages will be uploaded to
     t ->
     Target ->				-- what to build.  The first element is the original target,
 					--   the second is the same with any source code control
 					--   files cleaned out (so the .diff.gz will look good.)
-    AptIO (Either String LocalRepo)	-- The local repository after the upload, or an error message
+    AptIO (Either String LocalRepository)	-- The local repository after the upload, or an error message
 buildTarget params cleanOS globalBuildDeps repo poolOS target =
     do
       tio (syncPool cleanOS)
@@ -456,7 +456,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
                tio (msgLn 2 message)
-               tio (msgLn 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
+               tio (vPutStrBl 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
                              ": " ++ explainSourcePackageStatus releaseStatus))
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
                -- Get the revision info of the package currently in the dist
@@ -516,7 +516,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       iStyle = setStyle (appPrefix " ")
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepo -> ChangeLogEntry -> AptIO (Either String LocalRepo)
+buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIO (Either String LocalRepository)
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >> (tio prepareImage) >>= (tio . logEntry) >>= (tio . build) >>= (tio . find) >>= upload
     where
@@ -539,7 +539,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                           Right elapsed -> return (Right (buildTree, elapsed))
       find (Left message) = return (Left message)
       find (Right (buildTree, elapsed)) = lift $ Debian.SourceTree.findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
-      upload :: Either String (ChangesFile, TimeDiff) -> AptIO (Either String LocalRepo)
+      upload :: Either String (ChangesFile, TimeDiff) -> AptIO (Either String LocalRepository)
       upload (Left message) = return . Left $ "Upload failed: " ++ message
       upload (Right (changesFile, elapsed)) = doLocalUpload elapsed changesFile
 
@@ -612,7 +612,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                   , Debian.Local.Changes.changeRelease = name }
           where setDist name (Field ("Distribution", _)) = Field ("Distribution", ' ' : relName name)
                 setDist _ other = other
-      doLocalUpload :: TimeDiff -> ChangesFile -> AptIO (Either String LocalRepo)
+      doLocalUpload :: TimeDiff -> ChangesFile -> AptIO (Either String LocalRepository)
       doLocalUpload elapsed changesFile =
           do
             (changesFile' :: ChangesFile) <-
@@ -701,7 +701,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
 -- | Get the control info for the newest version of a source package
 -- available in a release.  Make sure that the files for this build
 -- architecture are available.
-getReleaseControlInfo :: OSImage -> String -> (Maybe (SourcePackage Repository), SourcePackageStatus, String)
+getReleaseControlInfo :: OSImage -> String -> (Maybe SourcePackage, SourcePackageStatus, String)
 getReleaseControlInfo cleanOS packageName =
     case zip sourcePackages (map (isComplete binaryPackages) sourcePackagesWithBinaryNames) of
       (info, True) : _ -> (Just info, All, message)
@@ -735,7 +735,7 @@ getReleaseControlInfo cleanOS packageName =
       -- required binary packages are all available, either as debs or
       -- udebs.  Because it is easier to check for available debs, we
       -- do that first and only check for udebs if some names are missing.
-      isComplete :: Repo r => [BinaryPackage r] -> (SourcePackage r, [String]) -> Bool
+      isComplete :: [BinaryPackage] -> (SourcePackage, [String]) -> Bool
       isComplete binaryPackages (sourcePackage, requiredBinaryNames) =
           Set.difference required availableDebs == Set.empty
                  || unableToCheckUDebs
@@ -747,7 +747,7 @@ getReleaseControlInfo cleanOS packageName =
             availableUDebs = Set.fromList (availableUDebNames sourcePackage)
       -- A binary package is available either if it appears in the
       -- package index, or if it is an available udeb.
-      availableDebNames :: Repo r => [BinaryPackage r] -> SourcePackage r -> [String]
+      availableDebNames :: [BinaryPackage] -> SourcePackage -> [String]
       availableDebNames binaryPackages sourcePackage =
           map fst . map binaryPackageVersion . filter checkSourceVersion $ binaryPackages
           where checkSourceVersion binaryPackage = maybe False ((==) sourceVersion) (binaryPackageSourceVersion binaryPackage)
@@ -756,15 +756,15 @@ getReleaseControlInfo cleanOS packageName =
       -- server and has the correct filename.  There is no way to
       -- decide whether a package is a udeb from the package indexes.
       unableToCheckUDebs = True
-      availableUDebNames :: Repo r => SourcePackage r -> [String]
+      availableUDebNames :: SourcePackage -> [String]
       availableUDebNames _sourcePackage = undefined
 
 -- | Get the "old" package version number, the one that was already
 -- built and uploaded to the repository.
-getOldVersion :: Repo r => SourcePackage r -> DebianVersion
+getOldVersion :: SourcePackage -> DebianVersion
 getOldVersion package = packageVersion . sourcePackageID $ package
 
-getOldRevision :: Repo r => SourcePackage r -> (Maybe String, [PkgVersion])
+getOldRevision :: SourcePackage -> (Maybe String, [PkgVersion])
 getOldRevision package = 
     maybe (Nothing, []) (parseRevision . B.unpack) (S.fieldValue "Revision" . sourceParagraph $ package)
     where
@@ -776,7 +776,7 @@ getOldRevision package =
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
 -- dist, and distinct from versions in any other dist.
-computeNewVersion :: Repo r => Params.Params -> [SourcePackage r] -> Maybe (SourcePackage r) -> DebianVersion -> Either String DebianVersion
+computeNewVersion :: Params.Params -> [SourcePackage] -> Maybe SourcePackage -> DebianVersion -> Either String DebianVersion
 computeNewVersion params
                   available		-- All the versions that exist in the pool in any dist,
 					-- the new version number must not equal any of these.
@@ -810,7 +810,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
         Right (_, relations, _) ->
             do let relations' = filterRelations arch (relations ++ globalBuildDeps)
                let relations'' = computeBuildDeps os arch relations'
-               vPutStrBl 1 $ ("Build dependency relations:\n " ++
+               vPutStrBl 2 $ ("Build dependency relations:\n " ++
                               concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations''))))
                -- Do any of the dependencies require packages that simply don't
                -- exist?  If so we don't have to search for solutions, there

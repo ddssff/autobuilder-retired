@@ -30,7 +30,7 @@ main =
       runTIO defStyle . run aptIOStyle $ uploadTests releases
       return ()
 
-repoTests :: AptIO LocalRepo
+repoTests :: AptIO LocalRepository
 repoTests =
     do
       tio $ vPutStr 0 "------------- Repo Tests -------------"
@@ -41,7 +41,7 @@ repoTests =
       tio $ vPutStr 0 (" <- " ++ show repo)
       return repo
 
-releaseTests :: LocalRepo -> AptIO [Release LocalRepo]
+releaseTests :: LocalRepository -> AptIO [Release]
 releaseTests repo =
     do
       tio $ vPutStr 0 "------------- Release Tests -------------"
@@ -53,11 +53,13 @@ releaseTests repo =
       -- prepareRelease True repo (ReleaseName dist) (map ReleaseName aliases) components archList
       release <- prepareRelease repo (ReleaseName dist) (map ReleaseName aliases) components archList
       tio $ vPutStr 0 (" <- " ++ show release)
-      let repo' = releaseRepo release
-      releases <- findReleases repo'
-      tio $ vPutStr 0 "All releases:"
-      mapM_ (tio . vPutStr 0) (map (("  " ++) . show) releases)
-      return releases
+      case releaseRepo release of
+        LocalRepo repo' ->
+            do releases <- findReleases repo'
+               tio $ vPutStr 0 "All releases:"
+               mapM_ (tio . vPutStr 0) (map (("  " ++) . show) releases)
+               return releases
+        _ -> error "Expected local release"
 
 dir = "/home/david/.autobuilder/localpools/CNRUbuntu/"
 files = ["freespire-build-specs_0.1-0r1cnr13_all.deb",
@@ -65,11 +67,11 @@ files = ["freespire-build-specs_0.1-0r1cnr13_all.deb",
          "freespire-build-specs_0.1-0r1cnr13.dsc",
          "freespire-build-specs_0.1-0r1cnr13.tar.gz"]
 
-uploadTests :: [Release LocalRepo] -> AptIO ()
+uploadTests :: [Release] -> AptIO ()
 uploadTests [release]  =
     do
       tio $ vPutStr 0 "------------- Upload Tests -------------"
-      let repo = releaseRepo release
+      let (LocalRepo repo) = releaseRepo release
       io $ mapM_ upload files
       tio $ vPutStr 0 " -> dryRun $ scanIncoming repo' (Component \"main\")"
       scanIncoming True Nothing repo

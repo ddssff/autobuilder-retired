@@ -187,7 +187,7 @@ runFlags flags =
                         (user, ('@' : host)) -> Just (user, host)
                         _ -> Nothing
 
-      successEmail :: LocalRepo -> ChangesFile -> (String, [String])
+      successEmail :: LocalRepository -> ChangesFile -> (String, [String])
       successEmail repo changesFile =
           let subject = ("newdist: " ++ changePackage changesFile ++ "-" ++ show (changeVersion changesFile) ++ 
                          " now available in " ++ relName (changeRelease changesFile) ++
@@ -231,7 +231,7 @@ createReleases flags =
                   _ -> error "Internal error 1"
             _ ->
                 error $ "Invalid argument to --create-section: " ++ arg
-      createSection :: LocalRepo -> Release LocalRepo -> Section -> AptIO (Release LocalRepo)
+      createSection :: LocalRepository -> Release -> Section -> AptIO Release
       createSection repo release section =
           case filter ((==) section) (releaseComponents release) of
             [] -> prepareRelease repo (releaseName release) (releaseAliases release) 
@@ -252,7 +252,7 @@ layout flags =
       Just x -> error ("Unknown layout: " ++ x ++ "(use 'pool' or 'flat')")
       Nothing -> Pool
 
-createRelease :: LocalRepo -> [Arch] -> ReleaseName -> AptIO (Release LocalRepo)
+createRelease :: LocalRepository -> [Arch] -> ReleaseName -> AptIO Release
 createRelease repo archList name =
     do releases <- findReleases repo
        case filter (\release -> elem name (releaseName release : releaseAliases release)) releases of
@@ -260,7 +260,7 @@ createRelease repo archList name =
          [release] -> return release
          _ -> error "Internal error 2"
 
-createAlias :: LocalRepo -> String -> AptIO (Release LocalRepo)
+createAlias :: LocalRepository -> String -> AptIO Release
 createAlias repo arg =
     case break (== '=') arg of
       (relName, ('=' : alias)) ->
@@ -295,7 +295,7 @@ deletePackages releases flags keyname =
     do let toRemove = map (parsePackage releases) $ findValues flags "Remove"
        deleteSourcePackages keyname toRemove
     where             
-      parsePackage :: [Release LocalRepo] -> String -> PackageIDLocal
+      parsePackage :: [Release] -> String -> PackageIDLocal
       -- Parse a string in the form <dist>,<packagename>=<versionnumber>
       parsePackage releases s =
           case splitRegex (mkRegex "[,=]") s of
@@ -304,7 +304,7 @@ deletePackages releases flags keyname =
                       (\ release -> PackageID (PackageIndex release (Section component) Source) name (parseDebianVersion version))
                       (findReleaseByName releases (ReleaseName dist)) 
             x -> error ("Invalid remove spec: " ++ show x)
-      findReleaseByName :: [Release LocalRepo] -> ReleaseName -> Maybe (Release LocalRepo)
+      findReleaseByName :: [Release] -> ReleaseName -> Maybe Release
       findReleaseByName releases dist =
           case filter (\ release -> releaseName release == dist) releases of
             [] -> Nothing

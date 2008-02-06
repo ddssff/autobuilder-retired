@@ -36,6 +36,7 @@ import		 Debian.Types
 import qualified Config
 import		 Control.Exception
 import		 Control.Monad
+import qualified Data.Map as Map
 import		 Data.List
 import		 Data.Maybe
 import qualified Data.Set as Set
@@ -151,7 +152,7 @@ runParams params =
       -- Get a list of all sources for the local repository.
       localSources <-
           case localRepo of
-            LocalRepo path _ _ ->
+            LocalRepository path _ _ ->
                 case parseURI ("file://" ++ envPath path) of
                   Nothing -> error $ "Invalid local repo root: " ++ show path
                   Just uri -> repoSources (Just . envRoot $ path) uri
@@ -169,7 +170,9 @@ runParams params =
       -- If all targets succeed they may be uploaded to a remote repo
       uploadResult <- upload buildResult
       -- This processes the remote incoming dir
-      tio (newDist uploadResult)
+      result <- tio (newDist uploadResult)
+      --updateRepoCache params
+      return result
     where
       ReleaseName buildRelease = Params.buildRelease params
       doRequiredVersion =
@@ -211,9 +214,11 @@ runParams params =
              tio (vPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
              release <- prepareRelease repo (Params.buildRelease params) [] [Section "main"] (Params.archList params)
              let repo' = releaseRepo release
-             case Params.cleanUp params of
-               True -> deleteGarbage repo'
-               False -> return repo'
+             case repo' of
+               LocalRepo repo'' ->
+                   case Params.cleanUp params of
+                     True -> deleteGarbage repo''
+                     False -> return repo''
       prepareTargetList =
           do tio (showTargets allTargets)
              tio (msgLn 0 "Checking all source code out of the repositories:")
@@ -222,7 +227,7 @@ runParams params =
           where
             allTargets = listDiff (Params.targets params) (Params.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
-      upload :: (LocalRepo, [Target]) -> AptIO [Either String ([Output], TimeDiff)]
+      upload :: (LocalRepository, [Target]) -> AptIO [Either String ([Output], TimeDiff)]
       upload (repo, [])
           | Params.doUpload params =
               case Params.uploadURI params of
@@ -257,6 +262,23 @@ runParams params =
       top = Params.topDir params
       --dryRun = Params.dryRun params
       flush = Params.flushSource params
+{-
+      updateRepoCache params =
+          do let path = Params.topDir params  ++ "/repoCache"
+             cache <- io $ loadCache path
+             live <- getRepoMap
+             let new = Map.union live cache
+             io $ writeFile path (show (Map.toList new))
+          where
+            isRemote (uri, _) = uriScheme uri /= "file:"
+            loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
+            loadCache path =
+                do text <- try (readFile path)
+                   pairs <- try . return . either (const []) read $ text
+                   let (pairs' :: [(String, Maybe Repository)]) = either (const []) id pairs
+                   let (pairs'' :: [(URI, Maybe Repository)]) = catMaybes (map (\ (s, x) -> maybe Nothing (\ uri -> (uri, s)) (parseURI s)) pairs')
+                   return . Map.fromList . filter isRemote . either (const []) id $ pairs''
+-}
 
 -- | Return the sources.list for the union of all the dists in the
 -- upload repository plus the local repository.  This is used to
