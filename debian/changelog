@@ -1,3 +1,10 @@
+autobuilder (4.4) unstable; urgency=low
+
+  * Writing repository cache was failing because the read and write
+    functions were interfering with each other.  Patch haskell-regex-base.
+
+ -- David Fox <dsf@seereason.com>  Wed, 06 Feb 2008 22:15:45 -0800
+
 autobuilder (4.3) unstable; urgency=low
 
   * Implement Use-Repo-Cache, which loads the most recent repository

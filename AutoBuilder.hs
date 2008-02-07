@@ -53,6 +53,7 @@ import		 System.Directory
 import		 System.Environment
 import		 System.Exit
 import qualified System.IO as IO
+import		 System.Posix.Files (removeLink)
 import		 System.Time
 import		 Target
 import qualified Version
@@ -268,7 +269,8 @@ runParams params =
              --tio (hPutStrBl IO.stderr (show (Map.toList live)))
              let merged = show . Map.toList $ Map.union live cache
              --tio (hPutStrBl IO.stderr merged)
-             io $ evaluate merged >>= writeFile path
+             io (removeLink path) >> io (writeFile path merged)
+             return ()
           where
             isRemote (uri, _) = uriScheme uri /= "file:"
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))

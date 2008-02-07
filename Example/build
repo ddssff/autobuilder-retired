@@ -52,7 +52,7 @@ Targets:
   apt:sid:haskell-hunit
   apt:sid:haskell-parallel
   apt:sid:haskell-quickcheck
-  apt:sid:haskell-regex-base
+  quilt:(apt:sid:haskell-regex-base):(darcs:http://src.seereason.com/haskell-regex-base-quilt)
   apt:sid:haskell-regex-posix
   apt:sid:haskell-regex-compat
   apt:sid:haskell-stm
