@@ -141,20 +141,8 @@ prepareBuild os target =
          Nothing ->
              do debSource <- findDebianSourceTree (getTop target)
                 case debSource of
-                  Left message -> vPutStrBl 0 message >> return Nothing
+                  Left message -> vEPutStrBl 0 message >> return Nothing
                   Right tree -> copySource tree >>= return . either (const Nothing) Just
-{-
-    do -- First we need to locate the original tree and see if it is a DebianSourceTree
-       -- or a DebianBuildTree.
-       debSource <- findDebianSourceTree (getTop target)
-       vPutStrLn 2 stderr $ "debSource <- " ++ show debSource
-       debBuild <- maybe (findDebianBuildTree (getTop target)) (const $ return Nothing) debSource
-       vPutStrLn 2 stderr $ "debBuild <- " ++ show debBuild
-       --debBuild <- findDebianBuildTree (getTop target)
-       --debSource <- maybe (findDebianSourceTree (getTop target)) (return . Just . debTree) debBuild
-       -- Now we need to copy the tree so it is a DebianBuildTree.
-       maybe (maybe Nothing (Just . copySource) debSource) (Just . copyBuild) debBuild
--}
     where
       copySource :: DebianSourceTree -> TIO (Either String DebianBuildTree)
       copySource debSource =
@@ -231,7 +219,7 @@ _formatVersions buildDeps =
 
 readSpec :: Bool -> FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIO (Either String Tgt)
 readSpec debug top flush ifSourcesChanged distros text =
-    tio (vPutStrBl 0 (text ++ ":")) >> mapRWST (local (appPrefix " ")) readSpec'
+    tio (vEPutStrBl 0 (text ++ ":")) >> mapRWST (local (appPrefix " ")) readSpec'
     where
       readSpec' =
           case text of
@@ -280,7 +268,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
       targetList <- tio $ prepareAllTargetSource cleanOS
-      tio (vPutStrBl 0 "Building all targets:")
+      tio (vEPutStrBl 0 "Building all targets:")
       failed <- {- setStyle (addPrefix " ") $ -} buildLoop cleanOS globalBuildDeps (length targetList) (targetList, [])
       return (localRepo, failed)
       --buildAll cleanOS targetList globalBuildDeps
@@ -289,7 +277,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       --prepareAllTargetSource :: OSImage -> TIO [Target]
       prepareAllTargetSource cleanOS =
           do
-            vPutStrBl 0 "Assembling clean source tree for each target:"
+            vEPutStrBl 0 "Assembling clean source tree for each target:"
             ({- debugStyle . -} iStyle) $ countAndPrepareTargets cleanOS targetSpecs
           where
             iStyle = setStyle (appPrefix " ")
@@ -299,7 +287,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
             targetGroups <- tio $ chooseNextTarget globalBuildDeps unbuilt
-            tio (vPutStrBl 1 ("\n\n" ++ makeTable targetGroups))
+            tio (vEPutStrBl 1 ("\n\n" ++ makeTable targetGroups))
             case targetGroups of
               (group@(target : blocked) : other) ->
                   tio (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
@@ -363,7 +351,7 @@ chooseNextTarget globalBuildDeps targets =
       printErrors depInfo =
           do case filter (either (const True) (const False) . snd) depInfo of
                [] -> return ()
-               bad -> (vPutStrBl 0
+               bad -> (vEPutStrBl 0
                        ("Unable to retrieve build dependency info for some targets:\n  " ++
                         concat (intersperse "\n  " (map (\ (target, error) -> show target ++ ": " ++ either id (const "") error) bad))))
              return depInfo
@@ -387,20 +375,14 @@ chooseNextTarget globalBuildDeps targets =
       addRelations moreRels (name, relations, bins) = (name, relations ++ moreRels, bins)
       depends (_, depInfo1) (_, depInfo2) = GenBuildDeps.compareSource depInfo1 depInfo2
 
-{-
-showTargets targets =
-    hPutStrLn stderr (show (length targets) ++ " Targets:\n") >>
-    mapM_ (hPutStrLn stderr) (map ("  " ++) targets) >> hPutStrLn stderr ""
--}
-
 --showTargets :: Show a => [a] -> IO ()
 showTargets targets =
-    vPutStr 0 ("\n\n" ++ 
-               unlines
-	       (heading :
-                map (const '-') heading :
-                map (\ (n, name) -> printf "%4d. %s" n name) pairs) ++
-               "\n")
+    vEPutStrBl 0 ("\n" ++ 
+                  unlines
+	          (heading :
+                   map (const '-') heading :
+                   map (\ (n, name) -> printf "%4d. %s" n name) pairs) ++
+                  "\n")
     where
       (pairs :: [(Int, String)]) = zip [1..] targets
       heading = show (length targets) ++ " Targets:"
@@ -436,20 +418,19 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
-      tio (vPutStrBl 0 "Loading package lists and searching for build dependency solution...")
+      tio (vEPutStrBl 0 "Loading package lists and searching for build dependency solution...")
       solutions <- tio (iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl)
       case solutions of
-        Left excuse -> do tio (vPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
+        Left excuse -> do tio (vEPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error"
         Right ((count, sourceDependencies) : _) ->
-            do tio (vPutStr 0 ("Build dependency solution #" ++ show count))
-               tio (vPutStr 2 (concat (map (("\n  " ++) . show) sourceDependencies)))
-               tio (vPutStrBl 0 "\n")
+            do tio (vEPutStrBl 0 ("Build dependency solution #" ++ show count))
+               tio (vEPutStr 2 (concat (map (("\n  " ++) . show) sourceDependencies)))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
-               tio (vPutStrBl 2 message)
+               tio (vEPutStrBl 2 message)
                tio (vEPutStrBl 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
                              ": " ++ explainSourcePackageStatus releaseStatus))
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
@@ -469,20 +450,13 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let sourceVersion = logVersion sourceLog
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
-{-
-               tio (vPutStrBl 0 ("Version number for new build: " ++ show sourceVersion ++ " -> " ++ show newVersion) >>
-                    vPutStrBl 0 ("Params.isDevelopmentRelease: " ++ show (Params.isDevelopmentRelease params)) >>
-                    vPutStrBl 0 ("sliceName (Params.baseRelease params): " ++ show (sliceName (Params.baseRelease params))) >>
-                    vPutStrBl 0 ("Params.extraReleaseTag params: " ++ show (Params.extraReleaseTag params)) >>
-                    vPutStrBl 0 ("Available versions: " ++ show (map (maybe Nothing (Just . parseDebianVersion . B.unpack) . (fieldValue "Version" . sourceParagraph)) sourcePackages)))
--}
                let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
                        buildDecision (realSource target) (Params.vendorTag params)
                                          (Params.forceBuild params) ignoredBuildDeps sourceLog
                                          oldVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceRevision sourceDependencies
-               tio (vPutStrBl 0 ("Build decision: " ++ show decision))
+               tio (vEPutStrBl 0 ("Build decision: " ++ show decision))
                -- FIXME: incorporate the release status into the build decision
                case newVersion of
                  Left message ->
@@ -514,7 +488,7 @@ buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] 
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >> (tio prepareImage) >>= (tio . logEntry) >>= (tio . build) >>= (tio . find) >>= upload
     where
-      checkDryRun = when (Params.dryRun params)  (do tio (vPutStrBl 0 "Not proceeding due to -n option.")
+      checkDryRun = when (Params.dryRun params)  (do tio (vEPutStrBl 0 "Not proceeding due to -n option.")
                                                      io (exitWith ExitSuccess))
       prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
       logEntry :: Either String DebianBuildTree -> TIO (Either String DebianBuildTree)
@@ -598,7 +572,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
                             Nothing -> return . Left $ "No build tree at " ++ show newPath
                             Just tree -> return . Right $ tree
                False -> vBOL 0 >>
-                        vPutStr 0 "Syncing buildOS" >>
+                        vEPutStr 0 "Syncing buildOS" >>
                         Debian.OSImage.syncEnv cleanOS buildOS >>=
                         (const (prepareCopy tgt (cleanSource target) newPath))
     where
@@ -616,7 +590,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
         Left message -> return (Left message)
         Right buildTree -> iStyle $ downloadDependencies cleanOS buildTree buildDepends sourceDependencies
       case noClean of
-        False -> vBOL 0 >> vPutStr 0 "Syncing buildOS" >>Debian.OSImage.syncEnv cleanOS buildOS
+        False -> vBOL 0 >> vEPutStr 0 "Syncing buildOS" >>Debian.OSImage.syncEnv cleanOS buildOS
         True -> return buildOS
       case buildTree of
         Left message -> return (Left message)
@@ -740,7 +714,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
         Right (_, relations, _) ->
             do let relations' = filterRelations arch (relations ++ globalBuildDeps)
                let relations'' = computeBuildDeps os arch relations'
-               vPutStrBl 2 $ ("Build dependency relations:\n " ++
+               vEPutStrBl 2 $ ("Build dependency relations:\n " ++
                               concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations''))))
                -- Do any of the dependencies require packages that simply don't
                -- exist?  If so we don't have to search for solutions, there
@@ -764,8 +738,6 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
           where cmp a b = compare (packageName (packageID b), packageVersion (packageID b))
 				  (packageName (packageID a), packageVersion (packageID a))
 		eq a b = packageName (packageID a) == packageName (packageID b)
-      --printSoln rels = mapM_ printRel rels
-      --printRel x = vPutStrLn 0 (show x)
 
 parseProcCpuinfo :: IO [(String, String)]
 parseProcCpuinfo =
@@ -830,7 +802,7 @@ packagesOfRelations relations =
 downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
-       vPutStrBl 1 . ("versions: " ++) . show $! vers
+       vEPutStrBl 1 . ("versions: " ++) . show $! vers
        runTaskAndTest (builddepStyle (commandTask command))
     where
       command = ("chroot " ++ rootPath root ++ " bash -c " ++

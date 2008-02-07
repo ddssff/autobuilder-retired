@@ -98,11 +98,11 @@ main =
       -- nothing.  For a single result we can print a simple message,
       -- for multiple paramter sets we need to print a summary.
       checkResults :: [Either Exception (Either Exception (Either String ([Output], TimeDiff)))] -> TIO ()
-      checkResults [Right (Left e)] = (vPutStrBl 0 (show e)) >> lift (exitWith $ ExitFailure 1)
+      checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> lift (exitWith $ ExitFailure 1)
       checkResults [Right (Right _)] = eBOL >> (lift $ exitWith ExitSuccess)
-      checkResults [Left e] = vPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> lift (exitWith (ExitFailure 1))
+      checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> lift (exitWith (ExitFailure 1))
       checkResults list =
-          do mapM_ (\ (num, result) -> vPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
+          do mapM_ (\ (num, result) -> vEPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
              eBOL
              case filter isLeft list of
                [] -> lift (exitWith ExitSuccess)
@@ -157,7 +157,7 @@ runParams params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      tio (vPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vPutStrBl 1 (show (sliceList poolSources))))
+      tio (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
@@ -183,13 +183,13 @@ runParams params =
           case filter (\ (v, _) -> v > parseDebianVersion Version.version) (Params.requiredVersion params) of
             [] -> return ()
             reasons ->
-                do vPutStrBl 0 ("Version " ++ Version.version ++ " is too old:")
+                do vEPutStrBl 0 ("Version " ++ Version.version ++ " is too old:")
                    mapM_ printReason reasons
                    lift $ exitWith (ExitFailure 1)                    
           where
             printReason (v, s) =
-                vPutStr 0 (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
-      doShowParams = when (Params.showParams params) (vPutStr 0 $ "Configuration parameters:\n" ++ Params.prettyPrint params)
+                vEPutStr 0 (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
+      doShowParams = when (Params.showParams params) (vEPutStr 0 $ "Configuration parameters:\n" ++ Params.prettyPrint params)
       doShowSources =
           if (Params.showSources params) then
               either (error . show) doShow (Params.findSlice params (SliceName (releaseName' (Params.buildRelease params)))) else
@@ -209,13 +209,13 @@ runParams params =
           do isRoot <- io $ checkSuperUser
              case isRoot of
                True -> return ()
-               False -> do tio (vPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
+               False -> do tio (vEPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
                            io $ exitWith (ExitFailure 1)
       prepareLocalRepo =
           do let path = EnvPath (EnvRoot "") (Params.localPoolDir params)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if Params.flushPool params then flushLocalRepository else return)
-             tio (vPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
+             tio (vEPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
              release <- prepareRelease repo (Params.buildRelease params) [] [parseSection' "main"] (Params.archList params)
              let repo' = releaseRepo release
              case repo' of
@@ -225,7 +225,7 @@ runParams params =
                      False -> return repo''
       prepareTargetList =
           do tio (showTargets allTargets)
-             tio (vPutStrBl 0 "Checking all source code out of the repositories:")
+             tio (vEPutStrBl 0 "Checking all source code out of the repositories:")
              mapRWST (setStyle (appPrefix " "))
                          (mapM (Target.readSpec (Params.debug params) top flush
                                 (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
@@ -237,13 +237,13 @@ runParams params =
           | Params.doUpload params =
               case Params.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> tio (vPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
+                Just uri -> tio (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            tio (vPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
+            tio (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
             case Params.doUpload params of
-              True -> tio (vPutStr 0 "Skipping upload.")
+              True -> tio (vEPutStr 0 "Skipping upload.")
               False -> return ()
             io $ exitWith (ExitFailure 1)
       newDist :: [Either String ([Output], TimeDiff)] -> TIO (Either String ([Output], TimeDiff))
@@ -251,16 +251,16 @@ runParams params =
           | Params.doNewDist params =
               case Params.uploadURI params of
                 Just uri ->
-                    do vPutStrBl 1 ("Upload results:\n  " ++ concat (intersperse "\n  " (map show results)))
+                    do vEPutStrBl 1 ("Upload results:\n  " ++ concat (intersperse "\n  " (map show results)))
                        case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ Params.newDistProgram params ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . Params.createRelease $ params)) in
-                             vPutStr 0 "Running newdist on remote repository" >> runCommandQuietlyTimed cmd
+                             vEPutStr 0 "Running newdist on remote repository" >> runCommandQuietlyTimed cmd
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
-                             vPutStr 0 "Running newdist on a local repository" >> runCommandQuietlyTimed cmd
+                             vEPutStr 0 "Running newdist on a local repository" >> runCommandQuietlyTimed cmd
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Right ([], noTimeDiff))
       iStyle = id {- setStyle (addPrefixes " " " ") -}
