@@ -35,7 +35,7 @@ instance BuildTarget Darcs where
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where 
           cmd = "find " ++ outsidePath path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
-          cleanStyle path = setStart (Just (" Copy and clean TLA target to " ++ show path))
+          cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ outsidePath path))
     revision tgt =
         do (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
            revision <- lift (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=

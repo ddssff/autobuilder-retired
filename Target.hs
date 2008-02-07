@@ -302,13 +302,12 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             tio (vPutStrBl 1 ("\n\n" ++ makeTable targetGroups))
             case targetGroups of
               (group@(target : blocked) : other) ->
-                  tio (vHBOL stderr 0 >>
-                       vHPutStr stderr 0 (printf "[%2d of %2d] TARGET: %s\n" (count - length (concat targetGroups) + 1) count (show target))) >>
-                  {- setStyle (addPrefix " ") -} (buildTarget' target) >>=
-                  either (\ e -> do tio $ vPutStrBl 0 "Package build failed:"
-                                    tio $ vPutStrBl 0 (" " ++ e)
-                                    tio $ vPutStrBl 0 (" Discarding " ++ show target ++ " and its dependencies:\n  " ++
-                                                       concat (intersperse "\n  " (map show blocked)))
+                  tio (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
+                                     (count - length (concat targetGroups) + 1) count (show target))) >>
+                  mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
+                  either (\ e -> do tio $ vEPutStrBl 0 ("Package build failed: " ++ e)
+                                    tio $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
+                                                        concat (intersperse "\n  " (map show blocked)))
                                     buildLoop cleanOS globalBuildDeps count (concat other, group ++ failed))
                          (\ _ -> do cleanOS' <- updateEnv cleanOS
                                     case cleanOS' of

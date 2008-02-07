@@ -47,7 +47,7 @@ instance BuildTarget Hg where
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "rm -rf " ++ outsidePath path ++ "/.hg"
-          cleanStyle path = setStart (Just ("Clean Hg target in " ++ show path))
+          cleanStyle path = setStart (Just ("Clean Hg target in " ++ outsidePath path))
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 

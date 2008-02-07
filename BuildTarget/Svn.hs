@@ -57,7 +57,7 @@ instance BuildTarget Svn where
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
-          cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ show path))
+          cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ outsidePath path))
 
     revision (Svn uri tree) =
         svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
