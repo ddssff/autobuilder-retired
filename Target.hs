@@ -287,7 +287,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
             targetGroups <- tio $ chooseNextTarget globalBuildDeps unbuilt
-            tio (vEPutStrBl 1 ("\n\n" ++ makeTable targetGroups))
+            tio (vEPutStrBl 0 ("\n" ++ makeTable targetGroups ++ "\n"))
             case targetGroups of
               (group@(target : blocked) : other) ->
                   tio (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
@@ -418,20 +418,20 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
-      tio (vEPutStrBl 0 "Loading package lists and searching for build dependency solution...")
+      tio (vEPutStrBl 1 "Loading package lists and searching for build dependency solution...")
       solutions <- tio (iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl)
       case solutions of
         Left excuse -> do tio (vEPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error"
         Right ((count, sourceDependencies) : _) ->
-            do tio (vEPutStrBl 0 ("Build dependency solution #" ++ show count))
+            do tio (vEPutStrBl 1 ("Build dependency solution #" ++ show count))
                tio (vEPutStr 2 (concat (map (("\n  " ++) . show) sourceDependencies)))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
                tio (vEPutStrBl 2 message)
-               tio (vEPutStrBl 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
+               tio (vEPutStrBl 1 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
                              ": " ++ explainSourcePackageStatus releaseStatus))
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
                -- Get the revision info of the package currently in the dist
@@ -572,7 +572,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
                             Nothing -> return . Left $ "No build tree at " ++ show newPath
                             Just tree -> return . Right $ tree
                False -> vBOL 0 >>
-                        vEPutStr 0 "Syncing buildOS" >>
+                        vEPutStr 1 "Syncing buildOS" >>
                         Debian.OSImage.syncEnv cleanOS buildOS >>=
                         (const (prepareCopy tgt (cleanSource target) newPath))
     where
@@ -590,7 +590,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
         Left message -> return (Left message)
         Right buildTree -> iStyle $ downloadDependencies cleanOS buildTree buildDepends sourceDependencies
       case noClean of
-        False -> vBOL 0 >> vEPutStr 0 "Syncing buildOS" >>Debian.OSImage.syncEnv cleanOS buildOS
+        False -> vEPutStrBl 1 "Syncing buildOS" >>Debian.OSImage.syncEnv cleanOS buildOS
         True -> return buildOS
       case buildTree of
         Left message -> return (Left message)
