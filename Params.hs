@@ -149,7 +149,7 @@ params verbosity appName flags =
     where
       loadRepoCache :: FilePath -> AptIO ()
       loadRepoCache top =
-          tio (hPutStrBl IO.stderr "Loading repo cache...") >>
+          tio (ePutStrBl "Loading repo cache...") >>
           io (try (readFile (top ++ "/repoCache")) >>=
               try . evaluate . either (const []) read) >>=
           either (const (return ())) (setRepoMap . Map.fromList)

@@ -54,11 +54,12 @@ Targets:
   apt:sid:haskell-quickcheck
   quilt:(apt:sid:haskell-regex-base):(darcs:http://src.seereason.com/haskell-regex-base-quilt)
   apt:sid:haskell-regex-posix
-  apt:sid:haskell-regex-compat
+  quilt:(apt:sid:haskell-regex-compat):(darcs:http://src.seereason.com/haskell-regex-compat-quilt)
   apt:sid:haskell-stm
   apt:sid:haskell-time
   apt:sid:haskell-cgi
   apt:sid:haskell-haskell-src
+Comment: Waiting for a fix for these:
   apt:sid:haskell-opengl
   apt:sid:haskell-openal
   apt:sid:haskell-alut

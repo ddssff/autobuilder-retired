@@ -21,6 +21,7 @@
 module Main where
 
 import		 Control.Monad.State
+import		 Control.Monad.RWS
 import		 Debian.AptImage
 import		 Debian.Cache
 import		 Debian.IO
@@ -97,12 +98,12 @@ main =
       -- nothing.  For a single result we can print a simple message,
       -- for multiple paramter sets we need to print a summary.
       checkResults :: [Either Exception (Either Exception (Either String ([Output], TimeDiff)))] -> TIO ()
-      checkResults [Right (Left e)] = (msgLn 0 (show e)) >> lift (exitWith $ ExitFailure 1)
-      checkResults [Right (Right _)] = hBOL IO.stderr >> (lift $ exitWith ExitSuccess)
-      checkResults [Left e] = msgLn 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> lift (exitWith (ExitFailure 1))
+      checkResults [Right (Left e)] = (vPutStrBl 0 (show e)) >> lift (exitWith $ ExitFailure 1)
+      checkResults [Right (Right _)] = eBOL >> (lift $ exitWith ExitSuccess)
+      checkResults [Left e] = vPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> lift (exitWith (ExitFailure 1))
       checkResults list =
-          do mapM_ (\ (num, result) -> msgLn 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
-             hBOL IO.stderr
+          do mapM_ (\ (num, result) -> vPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
+             eBOL
              case filter isLeft list of
                [] -> lift (exitWith ExitSuccess)
                _ -> lift (exitWith (ExitFailure 1))
@@ -129,11 +130,6 @@ runParams params =
       checkPermissions
       maybe (return ()) (verifyUploadURI (Params.doSSHExport $ params)) (Params.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
-      let baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
-      let buildRepoSources = Params.buildRepoSources params
-      let buildReleaseSources = releaseSlices (Params.buildRelease params) (inexactPathSlices buildRepoSources)
-      let buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (Params.buildRelease params))
-                                        , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       cleanOS <- (OSImage.prepareEnv
                          top
                          (Params.cleanRoot params)
@@ -165,16 +161,24 @@ runParams params =
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
-      -- Build all the targets
-      buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)
-      -- If all targets succeed they may be uploaded to a remote repo
-      uploadResult <- upload buildResult
-      -- This processes the remote incoming dir
-      result <- tio (newDist uploadResult)
-      updateRepoCache params
-      return result
+      case partitionEithers targets of
+        ([], ok) ->
+            do -- Build all the targets
+               buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)
+               -- If all targets succeed they may be uploaded to a remote repo
+               uploadResult <- upload buildResult
+               -- This processes the remote incoming dir
+               result <- tio (newDist uploadResult)
+               updateRepoCache params
+               return result
+        (bad, _) ->
+            return . Left $ "Could not prepare source code of some targets: " ++ concat (intersperse ", " bad)
     where
-      buildRelease = Params.buildRelease params
+      baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
+      buildRepoSources = Params.buildRepoSources params
+      buildReleaseSources = releaseSlices (Params.buildRelease params) (inexactPathSlices buildRepoSources)
+      buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (Params.buildRelease params))
+                                    , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       doRequiredVersion =
           case filter (\ (v, _) -> v > parseDebianVersion Version.version) (Params.requiredVersion params) of
             [] -> return ()
@@ -188,7 +192,7 @@ runParams params =
       doShowParams = when (Params.showParams params) (vPutStr 0 $ "Configuration parameters:\n" ++ Params.prettyPrint params)
       doShowSources =
           if (Params.showSources params) then
-              either (error . show) doShow (Params.findSlice params (SliceName (releaseName' buildRelease))) else
+              either (error . show) doShow (Params.findSlice params (SliceName (releaseName' (Params.buildRelease params)))) else
               return ()
           where
             doShow sources =
@@ -221,9 +225,10 @@ runParams params =
                      False -> return repo''
       prepareTargetList =
           do tio (showTargets allTargets)
-             tio (msgLn 0 "Checking all source code out of the repositories:")
-             mapM (Target.readSpec (Params.debug params) top flush
-                             (Params.ifSourcesChanged params) (Params.allSources params)) allTargets
+             tio (vPutStrBl 0 "Checking all source code out of the repositories:")
+             mapRWST (setStyle (appPrefix " "))
+                         (mapM (Target.readSpec (Params.debug params) top flush
+                                (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
           where
             allTargets = listDiff (Params.targets params) (Params.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))

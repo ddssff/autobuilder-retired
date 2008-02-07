@@ -141,7 +141,7 @@ prepareBuild os target =
          Nothing ->
              do debSource <- findDebianSourceTree (getTop target)
                 case debSource of
-                  Left message -> msgLn 0 message >> return Nothing
+                  Left message -> vPutStrBl 0 message >> return Nothing
                   Right tree -> copySource tree >>= return . either (const Nothing) Just
 {-
     do -- First we need to locate the original tree and see if it is a DebianSourceTree
@@ -229,11 +229,6 @@ _formatVersions buildDeps =
     "\n"
     where prefix = "\n    "
 
-{-
-copy :: Target -> EnvPath -> AptIO DebianBuildTree
-copy (Target (Tgt tgt) buildTree _ _ _ _) dest = prepareCopy tgt buildTree dest
--}
-
 readSpec :: Bool -> FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIO (Either String Tgt)
 readSpec debug top flush ifSourcesChanged distros text =
     tio (vPutStrBl 0 (text ++ ":")) >> mapRWST (local (appPrefix " ")) readSpec'
@@ -285,7 +280,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
       targetList <- tio $ prepareAllTargetSource cleanOS
-      tio (msgLn 0 "Building all targets:")
+      tio (vPutStrBl 0 "Building all targets:")
       failed <- {- setStyle (addPrefix " ") $ -} buildLoop cleanOS globalBuildDeps (length targetList) (targetList, [])
       return (localRepo, failed)
       --buildAll cleanOS targetList globalBuildDeps
@@ -294,7 +289,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       --prepareAllTargetSource :: OSImage -> TIO [Target]
       prepareAllTargetSource cleanOS =
           do
-            msgLn 0 "Assembling clean source tree for each target:"
+            vPutStrBl 0 "Assembling clean source tree for each target:"
             ({- debugStyle . -} iStyle) $ countAndPrepareTargets cleanOS targetSpecs
           where
             iStyle = setStyle (appPrefix " ")
@@ -369,7 +364,7 @@ chooseNextTarget globalBuildDeps targets =
       printErrors depInfo =
           do case filter (either (const True) (const False) . snd) depInfo of
                [] -> return ()
-               bad -> (msgLn 0
+               bad -> (vPutStrBl 0
                        ("Unable to retrieve build dependency info for some targets:\n  " ++
                         concat (intersperse "\n  " (map (\ (target, error) -> show target ++ ": " ++ either id (const "") error) bad))))
              return depInfo
@@ -442,10 +437,10 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
-      tio (msgLn 0 "Loading package lists and searching for build dependency solution...")
+      tio (vPutStrBl 0 "Loading package lists and searching for build dependency solution...")
       solutions <- tio (iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl)
       case solutions of
-        Left excuse -> do tio (msgLn 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
+        Left excuse -> do tio (vPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error"
         Right ((count, sourceDependencies) : _) ->
@@ -455,8 +450,8 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
-               tio (msgLn 2 message)
-               tio (vPutStrBl 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
+               tio (vPutStrBl 2 message)
+               tio (vEPutStrBl 0 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
                              ": " ++ explainSourcePackageStatus releaseStatus))
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
                -- Get the revision info of the package currently in the dist
@@ -476,11 +471,11 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
 {-
-               tio (msgLn 0 ("Version number for new build: " ++ show sourceVersion ++ " -> " ++ show newVersion) >>
-                    msgLn 0 ("Params.isDevelopmentRelease: " ++ show (Params.isDevelopmentRelease params)) >>
-                    msgLn 0 ("sliceName (Params.baseRelease params): " ++ show (sliceName (Params.baseRelease params))) >>
-                    msgLn 0 ("Params.extraReleaseTag params: " ++ show (Params.extraReleaseTag params)) >>
-                    msgLn 0 ("Available versions: " ++ show (map (maybe Nothing (Just . parseDebianVersion . B.unpack) . (fieldValue "Version" . sourceParagraph)) sourcePackages)))
+               tio (vPutStrBl 0 ("Version number for new build: " ++ show sourceVersion ++ " -> " ++ show newVersion) >>
+                    vPutStrBl 0 ("Params.isDevelopmentRelease: " ++ show (Params.isDevelopmentRelease params)) >>
+                    vPutStrBl 0 ("sliceName (Params.baseRelease params): " ++ show (sliceName (Params.baseRelease params))) >>
+                    vPutStrBl 0 ("Params.extraReleaseTag params: " ++ show (Params.extraReleaseTag params)) >>
+                    vPutStrBl 0 ("Available versions: " ++ show (map (maybe Nothing (Just . parseDebianVersion . B.unpack) . (fieldValue "Version" . sourceParagraph)) sourcePackages)))
 -}
                let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
@@ -488,7 +483,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                                          (Params.forceBuild params) ignoredBuildDeps sourceLog
                                          oldVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceRevision sourceDependencies
-               tio (msgLn 0 ("Build decision: " ++ show decision))
+               tio (vPutStrBl 0 ("Build decision: " ++ show decision))
                -- FIXME: incorporate the release status into the build decision
                case newVersion of
                  Left message ->
@@ -520,7 +515,7 @@ buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] 
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >> (tio prepareImage) >>= (tio . logEntry) >>= (tio . build) >>= (tio . find) >>= upload
     where
-      checkDryRun = when (Params.dryRun params)  (do tio (msgLn 0 "Not proceeding due to -n option.")
+      checkDryRun = when (Params.dryRun params)  (do tio (vPutStrBl 0 "Not proceeding due to -n option.")
                                                      io (exitWith ExitSuccess))
       prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
       logEntry :: Either String DebianBuildTree -> TIO (Either String DebianBuildTree)
@@ -538,59 +533,11 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                           Left message -> return (Left message)
                           Right elapsed -> return (Right (buildTree, elapsed))
       find (Left message) = return (Left message)
-      find (Right (buildTree, elapsed)) = lift $ Debian.SourceTree.findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
+      find (Right (buildTree, elapsed)) =
+          lift $ Debian.SourceTree.findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
       upload :: Either String (ChangesFile, TimeDiff) -> AptIO (Either String LocalRepository)
       upload (Left message) = return . Left $ "Upload failed: " ++ message
       upload (Right (changesFile, elapsed)) = doLocalUpload elapsed changesFile
-
-{-
-    where
-      checkDryRun = case Params.dryRun params of
-                      True -> msgLn 0 "Not proceeding due to -n option." >> io (exitWith ExitSuccess)
-                      False -> return ()
-      prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
-      logEntry = either (return . Left) (\ buildTree -> case Params.noClean params of
-                                                          False -> maybeAddLogEntry buildTree newversion >>=
-                                                                   either (return . Left) (return (Right buildTree)))
-      build = either (return . Left) (\ buildTree ->
-                                          let Tgt t = realSource target in
-                                          buildPkg (Params.noClean params) (Params.setEnv params) buildOS buildTree status t >>=
-                                          return . Right . (buildTree (,)))
-      find = either (return . Left) (\ (buildTree, result) ->
-                                         Debian.SourceTree.findChanges buildTree >>=
-                                         (\ changesFile -> return (Right (buildTree, result, changesFile))))
-      upload = either (return . Left) (\ (buildTree, result, changesFile) ->
-                                           case result of
-                                             (ExitSucces, elapsed) -> either 
--}
-{-
-    do -- If this is a dry run we don't want to actually build any
-       -- packages, so we are done.
-       when (Params.dryRun params) 
-                (do msgLn 0 "Not proceeding due to -n option."
-                    io $ exitWith ExitSuccess)
-       -- Prepare a copy of the source code in the build environment
-       buildTree <- prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
-
-       -- If the noClean option is given we assume that a previous
-       -- build has left the build environment ready for another run
-       -- of dpkg-buildpackage -nc, so we mustn't sync the clean
-       -- environment to the build environment.  It could be argued
-       -- that we should still install the dependencies (which might
-       -- have changed) but we currently are skipping that too.
-       when (not (Params.noClean params))
-            (do -- Create the new changelog entry and add it to the file
-                io $ maybeAddLogEntry buildTree newVersion)
-       -- Build the binary debs
-       result <- case realSource target of
-                   Tgt t -> buildPkg (Params.noClean params) (Params.setEnv params) buildOS buildTree status t
-       -- Upload the results to the local repository
-       (changesFile :: Either String ChangesFile) <- io $ Debian.SourceTree.findChanges buildTree
-       case result of
-         Left message -> return . Left $ "Upload failed: " ++ message
-         Right elapsed -> either (return . Left) (doLocalUpload elapsed) changesFile
-    where
--}
       -- Depending on the strictness, build dependencies either
       -- get installed into the clean or the build environment.
       maybeAddLogEntry _ Nothing = return ()
@@ -634,22 +581,6 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
               [] -> return . Right $ repo
               _ -> return . Left $ "Local upload failed:\n" ++ showErrors (map snd errors)
       buildOS = Debian.OSImage.chrootEnv cleanOS (Params.dirtyRoot params)
-
-{-
-withPreparedBuildImage :: BuildTarget t => OSImage -> [PkgVersion] -> OSImage -> Target -> Bool -> [String] -> Params.Strictness -> (t -> DebianBuildTree -> AptIO ()) -> AptIO ()
-withPreparedBuildImage cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _) debug buildDepends strictness f =
-    case strictness of
-      Params.Lax ->
-          do iStyle $ installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies
-             syncStyle $ OSImage.syncEnv cleanOS buildOS
-             debugStyle $ prepareCopy tgt (cleanSource target) newPath
-             f tgt buildTree
-      _ ->
-          do syncStyle $ OSImage.syncEnv cleanOS buildOS
-             buildTree <- debugStyle $ prepareCopy tgt (cleanSource target) newPath
-             iStyle $ installDependencies buildOS buildTree buildDepends sourceDependencies
-             f tgt buildTree
--}
 
 -- |Prepare the build image by copying the clean image, installing
 -- dependencies, and copying the clean source tree.  For a lax build

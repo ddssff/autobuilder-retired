@@ -56,7 +56,7 @@ prepareTla top flush version =
       verifySource dir =
           do result <- runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes")))
              case result of
-               Left message -> msgLn 0 message >> removeSource dir >> createSource dir	-- Failure means there is corruption
+               Left message -> vPutStrBl 0 message >> removeSource dir >> createSource dir	-- Failure means there is corruption
                Right output -> updateSource dir						-- Success means no changes
 
       removeSource dir = lift $ removeRecursiveSafely dir

@@ -179,7 +179,7 @@ binaryPackagePage _ cgivars =
 sourcePackageInfo :: Params.Params -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIO Control
 sourcePackageInfo _ root uploadHost distro =
     do
-      tio (msgLn 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
+      tio (vPutStrBl 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
       filterM (io . doesFileExist) sourcePackageFiles >>=
               mapM (io . parseControlFromFile) >>=
               return . map (either (\ e -> error (show e)) id) >>=

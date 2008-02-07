@@ -2,6 +2,10 @@ autobuilder (4.4) unstable; urgency=low
 
   * Writing repository cache was failing because the read and write
     functions were interfering with each other.  Patch haskell-regex-base.
+  * Abort if we fail to prepare the source code of any of the targets.
+    Since we don't know what binary packages a source package will produce
+    we can't determine which subsequent packages might be affected.
+  * Progress reporting improvements.
 
  -- David Fox <dsf@seereason.com>  Wed, 06 Feb 2008 22:15:45 -0800
 
