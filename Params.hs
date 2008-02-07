@@ -20,6 +20,7 @@ module Params
      showSources,		-- Params -> Bool
      showParams,		-- Params -> Bool
      flushAll,
+     useRepoCache,		-- Params -> Bool
      -- * Obtaining and preparing target source
      Params.sources,		-- Params -> [String]	(Use distro)
      targets,			-- Params -> [String]
@@ -132,9 +133,12 @@ instance Show Strictness where
 params :: Int -> String -> [Flag] -> AptIO [Params]
 params verbosity appName flags =
     do flagLists <- io $ Config.computeConfig verbosity appName flags
-       --vPutStrLn 2 IO.stderr ("flagLists: " ++ show flagLists)
        flagMaps <- io (mapM computeTopDir (map (listMap . pairsFromFlags) flagLists))
-       --vPutStrLn 2 IO.stderr ("flagMaps: " ++ show flagMaps)
+       case listToMaybe flagMaps of
+         Nothing -> return ()
+         Just m -> case Map.findWithDefault [] "Use-Repo-Cache" m of
+                     [] -> return ()
+                     _ -> mapM_ loadRepoCache (Map.findWithDefault [] "Top-Dir" m)
        -- Make sure the topdir for each set of parameters exists and
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
@@ -143,6 +147,12 @@ params verbosity appName flags =
        {- mapM verifySources params -}
        return params
     where
+      loadRepoCache :: FilePath -> AptIO ()
+      loadRepoCache top =
+          tio (hPutStrBl IO.stderr "Loading repo cache...") >>
+          io (try (readFile (top ++ "/repoCache")) >>=
+              try . evaluate . either (const []) read) >>=
+          either (const (return ())) (setRepoMap . Map.fromList)
       makeFlagSet flags =
           do allSources <- allSourcesOfFlags flags
              buildRepoSources <- 
@@ -188,6 +198,7 @@ globalOpts =
      verbosityOpt,
      quieterOpt,
      flushAllOpt,
+     useRepoCacheOpt,
      showParamsOpt,
      showSourcesOpt,
      --styleOpt,
@@ -552,6 +563,13 @@ flushAll :: Params -> Bool
 flushAll params = values params flushAllOpt /= []
 flushAllOpt = Param [] ["flush-all"] ["Flush-All"] (NoArg (Value "Flush-All" "yes"))
               "Remove and re-create the entire autobuilder working directory."
+
+useRepoCache :: Params -> Bool
+useRepoCache params = values params useRepoCacheOpt /= []
+useRepoCacheOpt = Param [] ["use-repo-cache"] ["Use-Repo-Cache"] (NoArg (Value "Use-Repo-Cache" "yes"))
+              (text ["Load the most recent cached repository information from ~/.autobuilder/repoCache",
+                     "and assume that it is still good - that no releases have been added or removed",
+                     "from the repositories listed.  This is usually safe and saves some time."])
 
 preferred :: Params -> [String]
 preferred params = values params preferOpt

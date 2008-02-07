@@ -20,7 +20,7 @@
 --
 module Main where
 
-import		 Control.Monad.Trans
+import		 Control.Monad.State
 import		 Debian.AptImage
 import		 Debian.Cache
 import		 Debian.IO
@@ -263,22 +263,23 @@ runParams params =
       flush = Params.flushSource params
       updateRepoCache params =
           do let path = Params.topDir params  ++ "/repoCache"
-             cache <- io $ loadCache path
              live <- getRepoMap
-             let new = Map.union live cache
-             io $ writeFile path (show (Map.toList new))
+             cache <- io $ loadCache path
+             --tio (hPutStrBl IO.stderr (show (Map.toList live)))
+             let merged = show . Map.toList $ Map.union live cache
+             --tio (hPutStrBl IO.stderr merged)
+             io $ evaluate merged >>= writeFile path
           where
             isRemote (uri, _) = uriScheme uri /= "file:"
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
             loadCache path =
-                do text <- try (readFile path)
-                   pairs <- try . return . either (const []) read $ text
-                   let (pairs' :: [(String, Maybe Repository)]) = either (const []) id pairs
-                   let (pairs'' :: [(URI, Maybe Repository)]) =
+                do text <- try (readFile path) >>= return . either (const "") id 
+                   pairs <- try (evaluate (read text)) >>= return . either (const []) id
+                   let (pairs' :: [(URI, Maybe Repository)]) =
                            catMaybes (map (\ (s, x) -> case parseURI s of
                                                          Nothing -> Nothing
-                                                         Just uri -> Just (uri, x)) pairs')
-                   return . Map.fromList . filter isRemote $ pairs''
+                                                         Just uri -> Just (uri, x)) pairs)
+                   return . Map.fromList . filter isRemote $ pairs'
 
 -- | Return the sources.list for the union of all the dists in the
 -- upload repository plus the local repository.  This is used to
