@@ -10,12 +10,12 @@ Exposed-modules:
 
 Executable:     autobuilder
 Main-Is:        AutoBuilder.hs
-GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm
+GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm -threaded
 
 Executable:     webpage
 Main-Is:        WebPage.hs
-GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm
+GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm -threaded
 
 Executable:     newdist
 Main-Is:        NewDist.hs
-GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm
+GHC-Options:	-O2 -funbox-strict-fields -fglasgow-exts -fasm -threaded
