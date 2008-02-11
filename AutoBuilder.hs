@@ -54,6 +54,7 @@ import		 System.Directory
 import		 System.Environment
 import		 System.Exit
 import qualified System.IO as IO
+import 	         System.IO.Error (isDoesNotExistError)
 import		 System.Posix.Files (removeLink)
 import		 System.Time
 import		 Target
@@ -274,7 +275,7 @@ runParams params =
              --tio (hPutStrBl IO.stderr (show (Map.toList live)))
              let merged = show . Map.toList $ Map.union live cache
              --tio (hPutStrBl IO.stderr merged)
-             io (removeLink path) >> io (writeFile path merged)
+             io (removeLink path `Prelude.catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> io (writeFile path merged)
              return ()
           where
             isRemote (uri, _) = uriScheme uri /= "file:"
