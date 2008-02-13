@@ -1,3 +1,9 @@
+autobuilder (4.4.1) unstable; urgency=low
+
+  * Update build dependencies
+
+ -- Jeremy Shaw <jeremy@n-heptane.com>  Tue, 12 Feb 2008 17:30:38 -0800
+
 autobuilder (4.4) unstable; urgency=low
 
   * Writing repository cache was failing because the read and write

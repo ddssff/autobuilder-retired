@@ -132,7 +132,7 @@ main :: IO ()
 main =
     do args <- getArgs
        let verbosity = length $ filter (flip elem ["-v", "--verbose"]) args
-       runTIO defStyle
+       runTIO defStyle { verbosity = verbosity }
               (run aptIOStyle
                (do -- Compute configuration options
                    let flags' = Config.seedFlags appName optSpecs args
