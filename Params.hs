@@ -375,7 +375,12 @@ omitEssentialOpt = Param [] ["omit-essential"] ["Omit-Essential"] (ReqArg (Value
 extraPackages :: Params -> [String]
 extraPackages params = values params extraPackagesOpt
 extraPackagesOpt = Param [] ["extra-package"] ["Extra-Package"] (ReqArg (Value "Extra-Package") "PACKAGE")
-                   "Additional packages to include in the build environment."
+                   (text ["Additional packages to include in the clean build environment.",
+                          "This can speed things up when you are building many packages,",
+                          "because for each package it reverts the build environment to",
+                          "the clean environment and then installs all the build dependencies.",
+                          "This only affects newly created environments, so if you change",
+                          "this value use the --flush-root option to get it to take effect."])
 
 
 -- |Return the value of a strictness flag (--strict, --moderate, --lax)
