@@ -37,7 +37,7 @@ Relax-Depends: ghc6 hscolour
 Targets:
   apt:sid:haskell-devscripts
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-  apt:hardy:ghc6
+  quilt:(apt:hardy:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
   apt:sid:haskell-utils
   apt:sid:haskell-stream
   apt:sid:haskell-arrows
