@@ -1,3 +1,10 @@
+autobuilder (4.4.2) unstable; urgency=low
+
+  * Fix messaging when we fail to prepare the source code of a target,
+    it was just exiting silently.  (Closes case 37)
+
+ -- David Fox <ddssff@gmail.com>  Wed, 13 Feb 2008 22:16:59 -0800
+
 autobuilder (4.4.1) unstable; urgency=low
 
   * Update build dependencies

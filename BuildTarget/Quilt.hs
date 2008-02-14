@@ -6,6 +6,7 @@ module BuildTarget.Quilt where
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
+import qualified Data.ByteString.Char8 as B
 import Data.List
 import Data.Maybe
 import Data.Time
@@ -131,10 +132,12 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
                                                  _ -> return (Left "No patches to apply")
                             apply (Left message) = return (Left message)
                             apply (Right patches) =
-                                do result2 <- lift (lazyCommand (cmd2 patches) []) >>= vMessage 1 "Patching Quilt target" . collectOutput
+                                do result2 <- lift (lazyCommand (cmd2 patches) []) >>= vMessage 1 "Patching Quilt target" . collectOutput . mergeToStderr
                                    case result2 of
                                      (_, _, [ExitSuccess]) -> return (Right ())
-                                     _ -> return (Left $ "Failed to apply quilt patches: " ++ (cmd2 patches))
+                                     (_, err, _) ->
+                                         vEPutStrBl 0 ("Failed to apply quilt patches: " ++ cmd2 patches ++ " ->\n" ++ B.unpack (B.concat err)) >>
+                                         return (Left $ "Failed to apply quilt patches: " ++ (cmd2 patches))
                             buildLog (Left message) = return (Left message)
                             buildLog (Right ()) =
                                 -- If there is a changelog file in the quilt directory,

@@ -173,7 +173,8 @@ runParams params =
                updateRepoCache params
                return result
         (bad, _) ->
-            return . Left $ "Could not prepare source code of some targets: " ++ concat (intersperse ", " bad)
+            do tio (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ concat (intersperse "\n " bad)))
+               return . Left $ "Could not prepare source code of some targets: " ++ concat (intersperse "\n " bad)
     where
       baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
       buildRepoSources = Params.buildRepoSources params
