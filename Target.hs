@@ -194,10 +194,10 @@ escapeForBuild =
 -- entries.
 changelogText :: Tgt -> Maybe String -> [PkgVersion] -> [PkgVersion] -> String
 changelogText (Tgt spec) revision oldDeps newDeps =
-    ("  * " ++ logText spec revision ++
-     "\n  * Build dependency changes:" ++
-     prefix ++ consperse prefix padded ++ "\n")
+    ("  * " ++ logText spec revision ++ "\n" ++ depChanges changedDeps ++ "\n")
     where
+      depChanges [] = ""
+      depChanges _ = "  * Build dependency changes:" ++ prefix ++ consperse prefix padded ++ "\n"
       padded = map concat . columns . map showDepChange $ changedDeps
       changedDeps = Set.toList (Set.difference (Set.fromList newDeps) (Set.fromList oldDeps))
       showDepChange newDep =
