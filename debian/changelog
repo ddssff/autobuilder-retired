@@ -1,7 +1,7 @@
 autobuilder (4.4.3) unstable; urgency=low
 
   * Adds the Release-Alias option
-  * Ignore all but the newest version of each dependency
+  * Sort dependencies so newest version appears first in the list of OR relations
 
  -- David Fox <dsf@seereason.com>  Wed, 20 Feb 2008 11:50:34 -0800
 
