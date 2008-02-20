@@ -714,7 +714,8 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
         Right (_, relations, _) ->
             do let relations' = filterRelations arch (relations ++ globalBuildDeps)
                let relations'' = computeBuildDeps os arch relations'
-               let relations''' = map discardOlder relations''
+               let relations''' = map (reverse . sort) relations''
+               --let relations''' = map discardOlder relations''
                vEPutStrBl 2 $ ("Build dependency relations:\n " ++
                               concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations'''))))
                -- Do any of the dependencies require packages that simply don't
