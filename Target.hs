@@ -714,17 +714,18 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
         Right (_, relations, _) ->
             do let relations' = filterRelations arch (relations ++ globalBuildDeps)
                let relations'' = computeBuildDeps os arch relations'
+               let relations''' = map discardOlder relations''
                vEPutStrBl 2 $ ("Build dependency relations:\n " ++
-                              concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations''))))
+                              concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations'''))))
                -- Do any of the dependencies require packages that simply don't
                -- exist?  If so we don't have to search for solutions, there
                -- aren't any.
-               if any (== []) relations'' then
+               if any (== []) relations''' then
                    return $ Left ("Unsatisfiable dependencies: " ++
-                                  show (catMaybes (map unsatisfiable (zip relations' relations'')))) else
+                                  show (catMaybes (map unsatisfiable (zip relations' relations''')))) else
                    -- Do not stare directly into the solutions!  Your head will
                    -- explode (because there may be a lot of them.)
-                   return $ Debian.Dependencies.solutions (available relations'') relations'' preferred arch
+                   return $ Debian.Dependencies.solutions (available relations''') relations''' preferred arch
     where
       unsatisfiable (original, []) = Just original
       unsatisfiable _ = Nothing
@@ -738,6 +739,8 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
           where cmp a b = compare (packageName (packageID b), packageVersion (packageID b))
 				  (packageName (packageID a), packageVersion (packageID a))
 		eq a b = packageName (packageID a) == packageName (packageID b)
+      discardOlder :: [Relation] -> [Relation]
+      discardOlder alts = [last (sort alts)]
 
 parseProcCpuinfo :: IO [(String, String)]
 parseProcCpuinfo =
