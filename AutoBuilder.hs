@@ -79,7 +79,7 @@ main =
           io . doHelp >>=
           doVersion >>=
           Params.params verbosity appName >>=
-          mapM doParams
+          mapM doParameterSets
       doHelp :: [Config.Flag] -> IO [Config.Flag]
       doHelp flags
           | isJust (Config.findValue flags "Help") =
@@ -91,8 +91,8 @@ main =
           | True = return flags
       -- Process one set of parameters.  Usually there is only one, but there
       -- can be several which are run sequentially.
-      doParams :: Params.Params -> AptIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
-      doParams parameterSet = withLock (lockFilePath parameterSet) (tryAB . runParams $ parameterSet)
+      doParameterSets :: Params.Params -> AptIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
+      doParameterSets set = withLock (lockFilePath set) (tryAB . runParameterSet $ set)
       lockFilePath params = Params.topDir params ++ "/lockfile"
       -- The result of processing a set of parameters is either an
       -- exception or a completion code, or, if we fail to get a lock,
@@ -121,8 +121,8 @@ main =
 appName :: String
 appName = "autobuilder"
 
-runParams :: Params.Params -> AptIO (Either String ([Output], TimeDiff))
-runParams params =
+runParameterSet :: Params.Params -> AptIO (Either String ([Output], TimeDiff))
+runParameterSet params =
     do
       tio doRequiredVersion
       tio doShowParams
