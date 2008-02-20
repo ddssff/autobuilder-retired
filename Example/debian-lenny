@@ -6,8 +6,10 @@ Name: lenny-build
 Use: debian-build
 Use: lenny-common
 Use: lenny-local
-Extra-Essential: upstart
-Omit-Essential: initscripts
+Comment: If upstart was available you could uncomment this for an upstart
+	build.  But it isn't, so you can't.  But you should.
+  Extra-Essential: upstart
+  Omit-Essential: initscripts
 
 Name: lenny-ghc68-build
 Use: debian-build

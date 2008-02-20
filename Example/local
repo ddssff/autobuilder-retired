@@ -4,68 +4,64 @@ Comment:  The definitions in local specify particular hostnames to upload to,
 
 Name: common-local
 Use: common
+Comment:
+  These Let values above need to be adjusted for the repository you
+  will be uploading to.  If you are only building packages and don't
+  plan to upload them to a repository, you still need to set
+  upload-host and upload-repo.  This is necessary to ensure that
+  packages you build do not conflict with packages already in the
+  repository you are building against.
+Let: vendor=seereason
+Vendor-Tag: seereason
 Let: upload-host=deb.seereason.com
 Let: upload-user=upload
-Comment: The first value takes precedence over the second
+Comment:
+  These are some specific host names we use building the sources.list,
+  adjust according to your location.  When setting the same value more
+  than once, the first Let takes precedence over the second.
 Let: ubuntu-mirror-host=us.archive.ubuntu.com
 Let: ubuntu-mirror-host=sandbox.linspire.com
 Let: ubuntu-security-mirror-host=security.ubuntu.com
 Let: ubuntu-security-mirror-host=mirror.anl.gov
 Let: debian-mirror-host=mirror.anl.gov
-Vendor-Tag: seereason
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
+Comment: You can repeat the Extra-Essential directive with more package names
 Extra-Essential: seereason-keyring
-Comment:
-  The four Let values above need to be adjusted for the repository you
-  will be uploading to.  If you are only building packages and don't
-  plan to upload them to a repository, you only need to set
-  upload-host and upload-repo.  These are required to ensure that
-  packages build do not conflict with packages already in the
-  repository you are building against.
 
 Name: ubuntu-local
+Use: common-local
 Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
-Use: common-local
+Let: upload-release-suffix=seereason
 
 Name: feisty-local
 Let: upload-repo=ubuntu
-Let: upload-release-suffix=seereason
 Use: ubuntu-local
 
 Name: gutsy-local
 Let: upload-repo=ubuntu
-Let: upload-release-suffix=seereason
 Use: ubuntu-local
 
 Name: hardy-local
 Let: upload-repo=ubuntu
-Let: upload-release-suffix=seereason
 Use: ubuntu-local
 Development-Release: yes
 
 Name: debian-local
 Let: upload-repo=debian
+Let: upload-release-suffix=seereason
 Use: common-local
 
 Name: sarge-local
 Let: upload-repo=debian
-Let: upload-release-suffix=seereason
 Use: debian-local
 
 Name: etch-local
 Let: upload-repo=debian
-Let: upload-release-suffix=seereason
 Use: debian-local
 
 Name: lenny-local
 Let: upload-repo=debian
-Let: upload-release-suffix=seereason
-Use: debian-local
-
-Name: lenny-ghc68-local
-Let: upload-repo=debian
-Let: upload-release-suffix=seereason
 Use: debian-local
 
 Name: sid-local
