@@ -191,6 +191,7 @@ globalOpts =
     [helpOpt,
      debugOpt,
      versionOpt,
+     releaseAliasOpt,
      requiredVersionOpt,
      topDirOpt,
      dryRunOpt,
