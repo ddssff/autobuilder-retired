@@ -65,6 +65,14 @@ Comment: Waiting for a fix for these:
   apt:sid:haskell-alut
   apt:sid:haskell-glut
 
+Name: happs
+Targets:
+  quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
+  darcs:http://src.seereason.com/HAppS/syb-with-class
+  darcs:http://src.seereason.com/HAppS/HAppS-Util
+  darcs:http://src.seereason.com/HAppS/HAppS-Data
+  darcs:http://src.seereason.com/HAppS/HAppS-State
+
 Name: ghc-extra
 Relax-Depends: g++
 Relax-Depends: make
