@@ -1,3 +1,9 @@
+autobuilder (4.5.1) unstable; urgency=low
+
+  * Fix an order of operation error in the quilt patch.
+
+ -- David Fox <dsf@seereason.com>  Sun, 24 Feb 2008 14:47:23 -0800
+
 autobuilder (4.5) unstable; urgency=low
 
   * Record the version number from the source code changelog in the
