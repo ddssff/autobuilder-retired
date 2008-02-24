@@ -287,7 +287,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
             targetGroups <- tio $ chooseNextTarget globalBuildDeps unbuilt
-            tio (vEPutStrBl 0 ("\n" ++ makeTable targetGroups ++ "\n"))
+            tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
             case targetGroups of
               (group@(target : blocked) : other) ->
                   tio (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
@@ -425,18 +425,18 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error"
         Right ((count, sourceDependencies) : _) ->
-            do tio (vEPutStrBl 1 ("Build dependency solution #" ++ show count))
+            do tio (vEPutStrBl 2 ("Build dependency solution #" ++ show count))
                tio (vEPutStr 2 (concat (map (("\n  " ++) . show) sourceDependencies)))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
                tio (vEPutStrBl 2 message)
-               tio (vEPutStrBl 1 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
+               tio (vEPutStrBl 2 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
                              ": " ++ explainSourcePackageStatus releaseStatus))
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
                -- Get the revision info of the package currently in the dist
                let oldVersion = maybe Nothing (Just . getOldVersion) releaseControlInfo
-               let (oldRevision, oldDependencies) = maybe (Nothing, []) getOldRevision releaseControlInfo
+               let (oldRevision, oldSrcVersion, oldDependencies) = maybe (Nothing, Nothing, []) getOldRevision releaseControlInfo
                -- Compute the Revision: string for the source tree.  This
                -- string will appear in the .dsc file for the package, and will
                -- then be copied into the Sources.gz file of the distribution.
@@ -448,13 +448,16 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
+               tio (vEPutStrBl 1 ("Released source version: " ++ show oldSrcVersion))
+               tio (vEPutStrBl 1 ("Released version: " ++ show oldVersion))
+               tio (vEPutStrBl 1 ("Current source version: " ++ show sourceVersion))
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
                let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
                        buildDecision (realSource target) (Params.vendorTag params)
                                          (Params.forceBuild params) ignoredBuildDeps sourceLog
-                                         oldVersion oldRevision oldDependencies releaseStatus
+                                         oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceRevision sourceDependencies
                tio (vEPutStrBl 0 ("Build decision: " ++ show decision))
                -- FIXME: incorporate the release status into the build decision
@@ -543,7 +546,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                 io . updateChangesFile elapsed >>=
                 -- Insert the revision info into the .dsc file and update
                 -- the md5sum of the .dsc file in the .changes file.
-                io . setRevisionInfo newVersion sourceRevision sourceDependencies
+                io . setRevisionInfo (logVersion sourceLog) sourceRevision sourceDependencies
             -- Upload to the local apt repository
             tio (uploadLocal repo changesFile')
             -- The upload to the local repository is done even when
@@ -668,14 +671,17 @@ getReleaseControlInfo cleanOS packageName =
 getOldVersion :: SourcePackage -> DebianVersion
 getOldVersion package = packageVersion . sourcePackageID $ package
 
-getOldRevision :: SourcePackage -> (Maybe String, [PkgVersion])
+getOldRevision :: SourcePackage -> (Maybe String, Maybe DebianVersion, [PkgVersion])
 getOldRevision package = 
-    maybe (Nothing, []) (parseRevision . B.unpack) (S.fieldValue "Revision" . sourceParagraph $ package)
+    maybe (Nothing, Nothing, []) (parseRevision . B.unpack) (S.fieldValue "Revision" . sourceParagraph $ package)
     where
       parseRevision s =
           case words s of
-            [] -> (Nothing, [])
-            (revision : buildDeps) -> (Just revision, map readPkgVersion buildDeps)
+            [] -> (Nothing, Nothing, [])
+            (revision : sourceVersion : buildDeps)
+                | not (elem '=' sourceVersion) ->
+                    (Just revision, Just (parseDebianVersion sourceVersion), map readPkgVersion buildDeps)
+            (revision : buildDeps) -> (Just revision, Nothing, map readPkgVersion buildDeps)
 
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
@@ -715,6 +721,10 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
             do let relations' = filterRelations arch (relations ++ globalBuildDeps)
                let relations'' = computeBuildDeps os arch relations'
                let relations''' = map (reverse . sort) relations''
+               -- This would make things work more often, but makes it
+               -- impossible to find build dependency solutions that
+               -- involve any packages which are not the newest
+               -- available.
                --let relations''' = map discardOlder relations''
                vEPutStrBl 2 $ ("Build dependency relations:\n " ++
                               concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations'''))))
@@ -740,8 +750,8 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
           where cmp a b = compare (packageName (packageID b), packageVersion (packageID b))
 				  (packageName (packageID a), packageVersion (packageID a))
 		eq a b = packageName (packageID a) == packageName (packageID b)
-      discardOlder :: [Relation] -> [Relation]
-      discardOlder alts = [last (sort alts)]
+      --discardOlder :: [Relation] -> [Relation]
+      --discardOlder alts = [last (sort alts)]
 
 parseProcCpuinfo :: IO [(String, String)]
 parseProcCpuinfo =
@@ -786,7 +796,7 @@ updateChangesFile elapsed changes =
       let buildInfo' = buildInfo ++ maybe [] (\ name -> ["Host: " ++ name]) hostname
       let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ consperse "\n " buildInfo')])
       removeFile (Debian.Local.Changes.path changes)
-      writeFile (Debian.Local.Changes.path changes) (show (Control [fields']))
+      writeFile (Debian.Local.Changes.path changes) $! (show (Control [fields']))
       return changes
 
 -- |Move this to {-Debian.-} Control
@@ -840,15 +850,15 @@ installDependencies os source extra versions =
 -- included in the package's entry in the Sources.gz file.  Then we
 -- can compare the revision from the uploaded package with the current
 -- TLA revision to decide whether to build.
-setRevisionInfo :: Maybe DebianVersion -> Maybe String -> [PkgVersion] -> ChangesFile -> IO ChangesFile
-setRevisionInfo _ revision versions changes {- @(Changes dir name version arch fields files) -} =
+setRevisionInfo :: DebianVersion -> Maybe String -> [PkgVersion] -> ChangesFile -> IO ChangesFile
+setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name version arch fields files) -} =
     case partition isDscFile (changeFiles changes) of
       ([file], otherFiles) ->
           do
             let dscFilePath = changeDir changes ++ "/" ++ changedFileName file
             newDscFile <- parseControlFromFile dscFilePath >>= return . either (error . show) addField
             removeFile dscFilePath
-            writeFile dscFilePath (show newDscFile)
+            writeFile dscFilePath $! (show newDscFile)
             checksum <- md5sum dscFilePath
             case checksum of
               Left e -> error (show e)
@@ -867,7 +877,7 @@ setRevisionInfo _ revision versions changes {- @(Changes dir name version arch f
           where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [newField]))
       addField (Control []) = error "Invalid control file"
       newField = Field ("Revision", " " ++ newFieldValue)
-      newFieldValue = maybe invalidRevision id revision ++ " " ++ formatVersions versions
+      newFieldValue = maybe invalidRevision id revision ++ " " ++ show sourceVersion ++ " " ++ formatVersions versions
       formatVersions versions = consperse " " (map showPkgVersion versions)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 
@@ -881,6 +891,7 @@ buildDecision :: Tgt
               -> [String]
               -> ChangeLogEntry		-- The newest log entry from the source tree
               -> Maybe DebianVersion	-- oldVersion: the version already present in the repository
+              -> Maybe DebianVersion	-- oldSrcVersion: the version of the source code that oldVersion was built from
               -> Maybe String		-- oldRevision: that version's revision string
               -> [PkgVersion]		-- oldDependencies: the list of of dependencies for that version
               -> SourcePackageStatus	-- releaseStatus: the status of the version in the repository
@@ -890,49 +901,37 @@ buildDecision :: Tgt
               -> [PkgVersion]		-- sourceDependencies: the list of build dependency versions computed from the build environment
               -> BuildDecision
 buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
-                  oldVersion _oldRevision oldDependencies releaseStatus
+                  oldVersion oldSrcVersion _oldRevision oldDependencies releaseStatus
                   sourceVersion _sourceRevision sourceDependencies =
-    case () of
-      _ | forceBuild ->
-            Yes "--force-build option is set"
-      _ | oldVersion == Nothing ->
-            Yes ("Initial build of version " ++ show sourceVersion)
-      _ | sourceVersion < fromJust (baseVersion oldVersion) ->
-            No ("Source version (" ++ show sourceVersion ++ ") " ++
-                "trumped by release version (" ++ (maybe "Nothing" show) (baseVersion oldVersion) ++ ")" ++
-                "(dropTag " ++ show vendorTag ++ " " ++ show oldVersion ++ " = " ++ show (dropTag vendorTag (fromJust oldVersion)) ++ ")" ++
-                "(dropTag " ++ show vendorTag ++ " " ++ show sourceVersion ++ " = " ++ show (dropTag vendorTag sourceVersion) ++ ")")
-      _ | compareSourceAndDist vendorTag sourceVersion (fromJust oldVersion) == GT ->
-            Yes ("Source version (" ++ show (parseTag vendorTag sourceVersion) ++ ") " ++
-                 "is newer than release version (" ++ maybe "Nothing" (show . parseTag vendorTag) oldVersion ++ ")")
-      _ | buildDependencyChanges /= Set.empty ->
-            Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
-      _ | releaseStatus == Indep ->
-            Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
-      _ | releaseStatus == All ->
-            No ("Version " ++ show sourceVersion ++ " is already in release.")
-      _ -> 
-            error ("Unexpected releaseStatus: " ++ show releaseStatus)
+    case (forceBuild, oldVersion == Nothing) of
+      (True, _) -> Yes "--force-build option is set"
+      (False, True) -> Yes ("Initial build of version " ++ show sourceVersion)
+      (False, False) ->
+          case isJust oldSrcVersion of
+            True ->
+                case compare sourceVersion (fromJust oldSrcVersion) of
+                  GT -> Yes ("Source version (" ++ show sourceVersion ++ ") is newer than released source version (" ++ show (fromJust oldSrcVersion) ++ ")")
+                  LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldSrcVersion) ++ ")")
+                  EQ -> sameSourceTests
+            False ->
+                case compare (dropTag vendorTag sourceVersion) (dropTag vendorTag (fromJust oldVersion)) of
+                  GT -> Yes ("Source version (" ++ show sourceVersion ++ ") is newer than released source version (" ++ show (fromJust oldVersion) ++ ")")
+                  LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldSrcVersion) ++ ")")
+                  EQ ->
+                      case dropTag vendorTag sourceVersion == sourceVersion of
+                        False -> Yes ("Source version (" ++ show sourceVersion ++ ") is tagged, and old source version was not recorded")
+                        True -> sameSourceTests
     where
-      -- The autobuilder will add a suffix to a version number when it
-      -- needs to do an automated rebuild.  This suffixed version
-      -- number ends up as the release ("old") version number, and
-      -- should generally be stripped off to get back the source
-      -- version number for comparison.  However, it may be that the
-      -- source version also includes such a suffix, if the developer
-      -- chooses a version number of that format.  Consider:
-      -- 
-      --   sourceVersion = 1.1-0r1cnr1
-      --   oldVersion = Just (1.1-0r1cnr2)  (due to an automated rebuild)
-      -- 
-      -- If we need to do an arch-only build, we need to do it for
-      -- version 1.1-0r1cnr2.
-      baseVersion Nothing = Nothing
-      baseVersion (Just oldVersion) =
-          if strippedOldVersion == strippedSourceVersion then Just sourceVersion else Just strippedOldVersion
-          where 
-            strippedOldVersion = dropTag vendorTag oldVersion
-      strippedSourceVersion = dropTag vendorTag sourceVersion
+      sameSourceTests =
+          case () of
+            _ | buildDependencyChanges /= Set.empty ->
+                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
+            _ | releaseStatus == Indep ->
+                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
+            _ | releaseStatus == All ->
+                  No ("Version " ++ show sourceVersion ++ " is already in release.")
+            _ -> 
+                error ("Unexpected releaseStatus: " ++ show releaseStatus)
       buildDependencyChangeText =
           "  " ++ consperse "\n  " lines
           where

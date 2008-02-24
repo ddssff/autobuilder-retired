@@ -1,3 +1,17 @@
+autobuilder (4.5) unstable; urgency=low
+
+  * Record the version number from the source code changelog in the
+    "Revision:" string, which is added to the .dsc file.  This can then be
+    compared to the version number found in the changelog of the current
+    source code when making the build decision.  This will cause some
+    packages built with the old autobuilder to rebuild unnecessarily, but
+    only in the case where there is a vendor tag in the current source
+    code.  This makes some code in VersionPolicy obsolete.
+  * Use $! to try to avoid some "file is locked" errors.  This needs to be
+    addressed more systematically.
+
+ -- David Fox <dsf@seereason.com>  Sun, 24 Feb 2008 08:26:11 -0800
+
 autobuilder (4.4.3) unstable; urgency=low
 
   * Adds the Release-Alias option

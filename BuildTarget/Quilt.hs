@@ -275,7 +275,7 @@ partitionChangelog date text =
                  (entries, text'') -> (entry : entries, text'')
 
 replaceFile path text =
-    doesFileExist path >>= (flip when) (removeFile path) >> writeFile path text
+    doesFileExist path >>= (flip when) (removeFile path) >> (writeFile path $! text)
 
 -- |This function is a bit less stringent than the official one -
 -- e.g., it will accept "Wed, 10 Oct 2007 06:00:57 +0000", which the
