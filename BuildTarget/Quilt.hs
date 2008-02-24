@@ -74,8 +74,8 @@ quiltPatchesDir = "quilt-patches"
 
 makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b) => FilePath -> a -> b -> TIO (Either String (SourceTree, EnvPath))
 makeQuiltTree top base patch =
-    do vPutStrBl 0 $ "Quilt base: " ++ outsidePath (getTop base)
-       vPutStrBl 0 $ "Quilt patch: " ++ outsidePath (getTop patch)
+    do vPutStrBl 1 $ "Quilt base: " ++ outsidePath (getTop base)
+       vPutStrBl 1 $ "Quilt patch: " ++ outsidePath (getTop patch)
        -- This will be the top directory of the quilt target
        let copyDir = rootEnvPath (top ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"))
        lift (createDirectoryIfMissing True (top ++ "/quilt"))
@@ -94,8 +94,8 @@ makeQuiltTree top base patch =
                          debTree <- findOneDebianBuildTree copyDir
                          -- Compute the directory where the patches will be applied
                          let quiltDir = maybe {-copyDir-} (error "foo") debdir debTree
-                         vPutStrBl 0 $ "copyDir: " ++ outsidePath copyDir
-                         vPutStrBl 0 $ "quiltDir: " ++ outsidePath quiltDir
+                         vPutStrBl 2 $ "copyDir: " ++ outsidePath copyDir
+                         vPutStrBl 2 $ "quiltDir: " ++ outsidePath quiltDir
                          let patchDir = topdir patchTree
                          -- Set up links to the quilt directory, and use quilt to get a
                          -- list of the unapplied patches.
