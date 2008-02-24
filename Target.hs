@@ -718,7 +718,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
       case GenBuildDeps.buildDependencies debianControl of
         Left message -> return (Left message)
         Right (_, relations, _) ->
-            do let relations' = filterRelations arch (relations ++ globalBuildDeps)
+            do let relations' = mergeRelations (filterRelations arch (relations ++ globalBuildDeps))
                let relations'' = computeBuildDeps os arch relations'
                let relations''' = map (reverse . sort) relations''
                -- This would make things work more often, but makes it
@@ -752,6 +752,28 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
 		eq a b = packageName (packageID a) == packageName (packageID b)
       --discardOlder :: [Relation] -> [Relation]
       --discardOlder alts = [last (sort alts)]
+      -- Group and merge the relations by package.  This can only be done
+      -- to AND relations that include a single OR element, but these are
+      -- extremely common.  (Not yet implemented.)
+      mergeRelations :: Relations -> Relations
+      mergeRelations relations = relations
+{-
+          let pairs = zip (map namesOf relations) relations in
+          let pairs' = sortBy ((==) . fst) pairs in
+          let pairs'' = groupBy (\ a b -> fst a == fst b) pairs' in
+          map concat (map merge pairs'')
+          where
+            merge ([name], rels) = ([name], [rel])
+            mergeAnds ([name], (Rel _ (Just v1) a) : (Rel _ Nothing _) : more) = merge ([name], (Rel _ (Just v1) a) : more)
+            mergeAnds ([name], (Rel _ Nothing a) : (Rel _ Nothing _) : more) = merge ([name], (Rel _ Nothing a) : more)
+          let (simple, compound) = partition ((== 1) . length . fst) pairs in
+          
+          let (simple, compound) = partition ((== 1) . length . nub . map nameOf) relations in
+          undefined
+          where
+            namesOf relation = nub (map nameOf)
+            nameOf (Rel name _ _) = name
+-}
 
 parseProcCpuinfo :: IO [(String, String)]
 parseProcCpuinfo =

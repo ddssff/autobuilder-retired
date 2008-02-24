@@ -81,11 +81,6 @@ makeQuiltTree top base patch =
        lift (createDirectoryIfMissing True (top ++ "/quilt"))
        baseTree <- findSourceTree (getTop base) >>=
                    return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop base) ++ ": " ++ message) Right
-       -- If this is already a DebianBuildTree we need to apply
-       -- the patch to the subdirectory containing the DebianSourceTree.
-       debTree <- findOneDebianBuildTree copyDir
-       -- Compute the directory where the patches will be applied
-       let quiltDir = maybe copyDir debdir debTree
        patchTree <- findSourceTree (getTop patch) >>=
                     return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop base) ++ ": " ++ message) Right
        case (baseTree, patchTree) of
@@ -94,7 +89,14 @@ makeQuiltTree top base patch =
                 case copyTree of
                   Left message -> return (Left message)
                   Right copyTree ->
-                      do let patchDir = topdir patchTree
+                      do -- If this is already a DebianBuildTree we need to apply
+                         -- the patch to the subdirectory containing the DebianSourceTree.
+                         debTree <- findOneDebianBuildTree copyDir
+                         -- Compute the directory where the patches will be applied
+                         let quiltDir = maybe {-copyDir-} (error "foo") debdir debTree
+                         vPutStrBl 0 $ "copyDir: " ++ outsidePath copyDir
+                         vPutStrBl 0 $ "quiltDir: " ++ outsidePath quiltDir
+                         let patchDir = topdir patchTree
                          -- Set up links to the quilt directory, and use quilt to get a
                          -- list of the unapplied patches.
                          let cmd1 = ("set -x && cd '" ++ outsidePath quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++

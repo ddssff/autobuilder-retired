@@ -67,6 +67,7 @@ Comment: Waiting for a fix for these:
 
 Name: happs
 Targets:
+  quilt:(apt:hardy:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
   darcs:http://src.seereason.com/HAppS/syb-with-class
   darcs:http://src.seereason.com/HAppS/HAppS-Util
