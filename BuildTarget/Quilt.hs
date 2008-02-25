@@ -11,20 +11,21 @@ import Data.List
 import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime
-import System.Directory
-import System.Exit
-import Debian.Version
-import BuildTarget
+import Debian.Local.Changes
 import Debian.TIO
 import Debian.Shell
-import Linspire.Unix.Process
 import Debian.Types
 import Debian.Types.SourceTree
-import Extra.List
+import Debian.Version
 import Extra.Either
+import Extra.Files
+import Extra.List
+import System.Directory
+import System.Exit
+import BuildTarget
+import Linspire.Unix.Process
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
-import Debian.Local.Changes
 
 import qualified System.IO as IO
 
@@ -93,7 +94,7 @@ makeQuiltTree top base patch =
                          -- the patch to the subdirectory containing the DebianSourceTree.
                          debTree <- findOneDebianBuildTree copyDir
                          -- Compute the directory where the patches will be applied
-                         let quiltDir = maybe {-copyDir-} (error "foo") debdir debTree
+                         let quiltDir = maybe copyDir debdir debTree
                          vPutStrBl 2 $ "copyDir: " ++ outsidePath copyDir
                          vPutStrBl 2 $ "quiltDir: " ++ outsidePath quiltDir
                          let patchDir = topdir patchTree
@@ -119,7 +120,7 @@ debug e =
 
 prepareQuilt :: FilePath -> Bool -> Tgt -> Tgt -> TIO (Either String Tgt)
 prepareQuilt top _flush (Tgt base) (Tgt patch) = 
-    tryTIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (lift . debug) return -- >>= either (\ e -> lift (IO.hPutStrLn IO.stderr "Missed exception: " ++ show e) >> return (Left "foo")) (return . Right)
+    tryTIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (lift . debug) return
     where
       make (quiltTree, quiltDir) =
           do applied <- lift (lazyCommand cmd1a []) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
@@ -275,9 +276,6 @@ partitionChangelog date text =
           then ([entry], text')
           else case partitionChangelog date text' of
                  (entries, text'') -> (entry : entries, text'')
-
-replaceFile path text =
-    doesFileExist path >>= (flip when) (removeFile path) >> (writeFile path $! text)
 
 -- |This function is a bit less stringent than the official one -
 -- e.g., it will accept "Wed, 10 Oct 2007 06:00:57 +0000", which the

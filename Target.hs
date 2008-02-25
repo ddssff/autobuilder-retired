@@ -35,8 +35,8 @@ import		 Debian.Types
 import		 Debian.Types.SourceTree
 import		 Debian.SourceTree
 import		 Debian.VersionPolicy
---import		 Extra.Bool
 import		 Extra.Either
+import		 Extra.Files
 import		 Extra.List
 import		 Extra.Misc
 import		 BuildTarget
@@ -817,8 +817,7 @@ updateChangesFile elapsed changes =
                       maybe [] ((: []) . ("CPU cache: " ++)) (lookup "cache size" cpuInfo)
       let buildInfo' = buildInfo ++ maybe [] (\ name -> ["Host: " ++ name]) hostname
       let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ consperse "\n " buildInfo')])
-      removeFile (Debian.Local.Changes.path changes)
-      writeFile (Debian.Local.Changes.path changes) $! (show (Control [fields']))
+      replaceFile (Debian.Local.Changes.path changes) (show (Control [fields']))
       return changes
 
 -- |Move this to {-Debian.-} Control
@@ -879,8 +878,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
           do
             let dscFilePath = changeDir changes ++ "/" ++ changedFileName file
             newDscFile <- parseControlFromFile dscFilePath >>= return . either (error . show) addField
-            removeFile dscFilePath
-            writeFile dscFilePath $! (show newDscFile)
+            replaceFile dscFilePath (show newDscFile)
             checksum <- md5sum dscFilePath
             case checksum of
               Left e -> error (show e)
