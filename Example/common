@@ -40,7 +40,9 @@ Relax-Depends: module-init-tools linux-2.6
 
 Name: all-sources
 Use: debian-sources
+Extra-Package: debian-archive-keyring
 Use: ubuntu-sources
+Extra-Package: ubuntu-keyring
 Use: extra-sources
 
 Name: build
