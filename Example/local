@@ -25,14 +25,17 @@ Let: ubuntu-security-mirror-host=security.ubuntu.com
 Let: ubuntu-security-mirror-host=mirror.anl.gov
 Let: debian-mirror-host=mirror.anl.gov
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
-Comment: You can repeat the Extra-Essential directive with more package names
-Extra-Essential: seereason-keyring
 
 Name: ubuntu-local
 Use: common-local
 Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
 Let: upload-release-suffix=seereason
+Extra-Package: seereason-keyring
+Comment: When initializing a new release, this extra package may need to be
+	 commented out until it has been built and uploaded.  At that point
+	 the build environment can be recreated with --flush-root, or it can
+	 be installed by hand using chroot and apt-get.
 
 Name: feisty-local
 Let: upload-repo=ubuntu

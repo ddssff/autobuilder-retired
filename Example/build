@@ -7,7 +7,6 @@ Comment:
 
 Name: autobuilder-targets
 Targets:
-  apt:sid:hugs98
   apt:sid:haskell-devscripts
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   darcs:http://src.seereason.com/haskell-mime
@@ -21,6 +20,8 @@ Targets:
   darcs:http://src.seereason.com/autobuilder
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskell-cgi
+Comment: This is not really useful any more
+  apt:sid:hugs98
 Comment: haskell-cgi depends on xhtml
 Comment:
   We need the latest hugs because haskell-unixutils builds a hugs library.
@@ -34,16 +35,32 @@ Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
 Relax-Depends: ghc6 hscolour
+Comment: Once haskell-mtl builds, the build dependencies look like this:
+	Ready		    Blocked
+	-----		    -------
+	haskell-regex-base  haskell-regex-posix haskell-regex-compat
+	haskell-fgl         
+	haskell-xhtml       haskell-parsec haskell-network haskell-cgi
+	haskell-haskell-src 
+	haskell-x11         haskell-hgl
+	haskell-html        
+	haskell-hunit       
+	haskell-parallel    
+	haskell-quickcheck  
+	haskell-stm         
+	haskell-stream      haskell-arrows
+	haskell-time        
+	haskell-opengl      haskell-glut haskell-openal haskell-alut
 Targets:
   apt:sid:haskell-devscripts
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
   quilt:(apt:hardy:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
   apt:sid:haskell-utils
+  apt:sid:haskell-mtl
   apt:sid:haskell-stream
   apt:sid:haskell-arrows
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskell-parsec
-  apt:sid:haskell-mtl
   apt:sid:haskell-fgl
   apt:sid:haskell-network
   apt:sid:haskell-x11
@@ -59,11 +76,10 @@ Targets:
   apt:sid:haskell-time
   apt:sid:haskell-cgi
   apt:sid:haskell-haskell-src
-Comment: Waiting for a fix for these:
-  apt:sid:haskell-opengl
-  apt:sid:haskell-openal
-  apt:sid:haskell-alut
-  apt:sid:haskell-glut
+  apt:hardy:haskell-opengl
+  apt:hardy:haskell-openal
+  apt:hardy:haskell-alut
+  apt:hardy:haskell-glut
 
 Name: happs
 Targets:
