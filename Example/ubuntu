@@ -4,6 +4,10 @@ Let: ubuntu=ubuntu
 Comment:
   We use a variable for ubuntu so we can set it to point to a dated archive
   when we need to use an older or newer snapshot.
+Extra-Package: ubuntu-keyring
+Comment: This is useful for downloading Ubuntu source into any build environment,
+	 but it is not installable from a debian build environment, so we just do
+	 without.
 
 Name: ubuntu-build
 Use: build

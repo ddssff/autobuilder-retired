@@ -10,6 +10,7 @@ Base-Release: ${base}
 Build-Release: ${base}-${upload-release-suffix}
 Relax-Depends: autoconf
 Relax-Depends: base-files
+Relax-Depends: base-passwd
 Relax-Depends: bsdutils
 Relax-Depends: debhelper
 Relax-Depends: bash
@@ -23,15 +24,20 @@ Relax-Depends: coreutils
 Relax-Depends: dpkg
 Relax-Depends: dpkg-dev
 Relax-Depends: gcc
+Relax-Depends: g++
 Relax-Depends: grep
 Relax-Depends: gs
 Relax-Depends: gzip
 Relax-Depends: hostname
 Relax-Depends: intltool
+Relax-Depends: make
+Relax-Depends: mktemp
 Relax-Depends: mount
 Relax-Depends: ncurses-base
 Relax-Depends: ncurses-bin
+Relax-Depends: perl
 Relax-Depends: perl-base
+Relax-Depends: sed
 Relax-Depends: tar
 Relax-Depends: sysvinit
 Relax-Depends: util-linux
@@ -42,7 +48,6 @@ Name: all-sources
 Use: debian-sources
 Extra-Package: debian-archive-keyring
 Use: ubuntu-sources
-Extra-Package: ubuntu-keyring
 Use: extra-sources
 
 Name: build

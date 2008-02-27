@@ -8,6 +8,9 @@ Use: common
 Name: debian-build
 Use: build
 Set-Env: DEBIAN_KERNEL_JOBS=5
+Extra-Package: man-db
+Comment: This package takes a long time to install, so install it into
+	 the clean environment once and for all.
 
 Name: debian-sources
 Use: debian-local
