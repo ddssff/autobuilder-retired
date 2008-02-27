@@ -944,7 +944,16 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
     where
       sameSourceTests =
           case () of
-            _ | buildDependencyChanges /= Set.empty ->
+            _ | buildDependencyChanges /= Set.empty && isJust oldSrcVersion ->
+                  -- If oldSrcVersion is nothing, the autobuilder didn't make the previous build
+                  -- and there are no recorded build dependencies.  In that case we don't really
+                  -- know whether a build is required, so we could go either way.  As I write this,
+                  -- I have added the isJust oldSrcVersion clause, which makes the new assumption
+                  -- that the package does *not* need to be rebuilt.
+                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
+            _ | buildDependencyChanges /= Set.empty && any isTagged (Set.toList buildDependencyChanges) ->
+                  -- However, if any of the build dependencies have tags that appear to have been
+                  -- added by the autobuilder, then we *do* want to build.
                   Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
             _ | releaseStatus == Indep ->
                   Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
@@ -952,6 +961,8 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
                   No ("Version " ++ show sourceVersion ++ " is already in release.")
             _ -> 
                 error ("Unexpected releaseStatus: " ++ show releaseStatus)
+      isTagged :: PkgVersion -> Bool
+      isTagged dep = isJust . snd . parseTag vendorTag . getVersion $ dep
       buildDependencyChangeText =
           "  " ++ consperse "\n  " lines
           where
