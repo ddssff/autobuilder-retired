@@ -936,7 +936,7 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
             False ->
                 case compare (dropTag vendorTag sourceVersion) (dropTag vendorTag (fromJust oldVersion)) of
                   GT -> Yes ("Source version (" ++ show sourceVersion ++ ") is newer than released source version (" ++ show (fromJust oldVersion) ++ ")")
-                  LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldSrcVersion) ++ ")")
+                  LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldVersion) ++ ")")
                   EQ ->
                       case dropTag vendorTag sourceVersion == sourceVersion of
                         False -> Yes ("Source version (" ++ show sourceVersion ++ ") is tagged, and old source version was not recorded")
