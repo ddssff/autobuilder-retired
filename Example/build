@@ -20,6 +20,7 @@ Targets:
   darcs:http://src.seereason.com/autobuilder
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskell-cgi
+  apt:sid:haddock
 Comment: This is not really useful any more
   apt:sid:hugs98
 Comment: haskell-cgi depends on xhtml
