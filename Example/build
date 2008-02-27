@@ -35,7 +35,10 @@ Comment: Probably don't need these
 Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
+Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
+	 it breaks the circular build dependency loop.
 Relax-Depends: ghc6 hscolour
+Relax-Depends: ghc6 haddock
 Comment: Once haskell-mtl builds, the build dependencies look like this:
 	Ready		    Blocked
 	-----		    -------
@@ -52,6 +55,8 @@ Comment: Once haskell-mtl builds, the build dependencies look like this:
 	haskell-stream      haskell-arrows
 	haskell-time        
 	haskell-opengl      haskell-glut haskell-openal haskell-alut
+Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
+	 The version in Ubuntu (6.8.2-1ubuntu1) will.
 Targets:
   apt:sid:haskell-devscripts
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
