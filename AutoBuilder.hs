@@ -46,8 +46,8 @@ import		 Extra.List
 import		 Extra.Lock
 import		 Extra.Misc
 import		 Debian.Version
-import		 Linspire.Unix.Directory hiding (find)
-import		 Linspire.Unix.Process
+import		 System.Unix.Directory hiding (find)
+import		 System.Unix.Process
 import		 Ugly.URI
 import qualified Params
 import		 System.Directory

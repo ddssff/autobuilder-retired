@@ -12,7 +12,7 @@ import System.Directory
 --import Debian.IO
 import Debian.TIO
 import Debian.Types
-import Linspire.Unix.Process
+import System.Unix.Process
 import qualified Debian.Control.String as S
 import qualified Debian.Version as V
 

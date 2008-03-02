@@ -9,8 +9,8 @@ import System.Directory
 import System.Exit
 import System.IO
 import System.Process
-import Linspire.Unix.Directory
-import Linspire.Unix.FilePath
+import System.Unix.Directory
+import System.Unix.FilePath
 import BuildTarget
 import Debian.TIO
 import Debian.Shell

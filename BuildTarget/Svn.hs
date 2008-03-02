@@ -11,9 +11,9 @@ import Debian.Types.SourceTree
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
-import Linspire.Unix.Directory
-import Linspire.Unix.FilePath
-import Linspire.Unix.Process
+import System.Unix.Directory
+import System.Unix.FilePath
+import System.Unix.Process
 import Data.List
 import Data.Maybe
 import qualified Data.ByteString.Char8 as B

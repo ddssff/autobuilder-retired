@@ -9,9 +9,9 @@ import Debian.Types.SourceTree
 import Ugly.URI
 import Control.Monad
 import Control.Exception
-import Linspire.Unix.Directory
-import Linspire.Unix.FilePath
---import Linspire.Unix.Process
+import System.Unix.Directory
+import System.Unix.FilePath
+--import System.Unix.Process
 import Data.Maybe
 import System.Directory
 --import System.Time

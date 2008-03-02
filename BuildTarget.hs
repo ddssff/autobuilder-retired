@@ -37,7 +37,7 @@ import Debian.Types
 import Control.Monad
 import Data.Maybe
 import System.Time
-import Linspire.Unix.Process
+import System.Unix.Process
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.

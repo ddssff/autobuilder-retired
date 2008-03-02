@@ -12,7 +12,7 @@ import BuildTarget
 import Control.Monad
 import Data.Maybe
 import Debian.Version
-import Linspire.Unix.Directory
+import System.Unix.Directory
 import Text.Regex
 
 -- | A package retrieved via apt-get in the given slice

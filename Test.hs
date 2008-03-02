@@ -11,7 +11,7 @@ import Debian.Local.Insert
 import Data.List
 --import Repository
 import qualified System.IO as IO
-import Linspire.Unix.Directory
+import System.Unix.Directory
 import System.Directory
 import Debian.IO
 import Debian.TIO

@@ -28,7 +28,8 @@ Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
 Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
 Let: upload-release-suffix=seereason
-Extra-Package: seereason-keyring
+Comment:
+  Extra-Package: seereason-keyring
 Comment: When initializing a new release, this extra package may need to be
 	 commented out until it has been built and uploaded.  At that point
 	 the build environment can be recreated with --flush-root, or it can

@@ -7,12 +7,12 @@ import Control.Monad.Trans
 import System.Directory
 import System.Process hiding (runCommand)
 import System.IO
-import Linspire.Unix.Process
+import System.Unix.Process
 import Text.Regex
 import Control.Exception
 import Control.Monad
-import Linspire.Unix.Directory
-import Linspire.Unix.FilePath
+import System.Unix.Directory
+import System.Unix.FilePath
 import Debian.TIO
 import Debian.Shell
 

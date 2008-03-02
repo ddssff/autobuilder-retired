@@ -52,7 +52,7 @@ import		 BuildTarget.Tla
 import		 BuildTarget.Uri
 --import		 Control.Monad
 import		 Control.Monad.Reader
-import		 Linspire.Unix.Process hiding (processOutput)
+import		 System.Unix.Process hiding (processOutput)
 import qualified Data.ByteString.Char8 as B
 import		 Data.List
 import		 Data.Maybe

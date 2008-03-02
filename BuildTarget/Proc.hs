@@ -2,7 +2,7 @@
 module BuildTarget.Proc where
 
 import BuildTarget
-import Linspire.Unix.Process
+import System.Unix.Process
 import Debian.TIO
 import Debian.SourceTree
 import Debian.Types

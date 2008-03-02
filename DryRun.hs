@@ -17,8 +17,8 @@ module DryRun
 import qualified Data.ByteString.Char8 as B
 import System.Directory
 import System.Posix.Files
-import Linspire.Unix.Directory
-import Linspire.Unix.Process
+import System.Unix.Directory
+import System.Unix.Process
 import Debian.TIO
 import Debian.IO
 import qualified System.IO as IO

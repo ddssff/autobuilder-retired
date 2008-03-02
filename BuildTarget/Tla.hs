@@ -7,8 +7,8 @@ import Debian.Types.SourceTree
 import System.IO
 import Control.Monad
 import System.Process
-import Linspire.Unix.Directory
-import Linspire.Unix.FilePath
+import System.Unix.Directory
+import System.Unix.FilePath
 import Data.Maybe
 import System.Directory
 import Debian.TIO

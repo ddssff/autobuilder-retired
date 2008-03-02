@@ -23,7 +23,7 @@ import Extra.List
 import System.Directory
 import System.Exit
 import BuildTarget
-import Linspire.Unix.Process
+import System.Unix.Process
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 
