@@ -12,7 +12,7 @@ import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime
 import Debian.Local.Changes
-import Debian.TIO
+import Extra.TIO
 import Debian.Shell
 import Debian.Types
 import Debian.Types.SourceTree

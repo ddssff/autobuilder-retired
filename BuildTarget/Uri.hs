@@ -16,7 +16,7 @@ import Data.Maybe
 import System.Directory
 --import System.Time
 import Text.Regex
-import Debian.TIO
+import Extra.TIO
 import Debian.Shell
 import Extra.Misc
 

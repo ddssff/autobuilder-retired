@@ -4,7 +4,7 @@ module Main where
 import		 Debian.Cache
 import		 Debian.Control
 import		 Debian.IO
-import		 Debian.TIO
+import		 Extra.TIO
 import		 Debian.Slice
 import		 Debian.Types
 import qualified Config

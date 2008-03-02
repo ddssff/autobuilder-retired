@@ -3,7 +3,7 @@ module BuildTarget.Proc where
 
 import BuildTarget
 import System.Unix.Process
-import Debian.TIO
+import Extra.TIO
 import Debian.SourceTree
 import Debian.Types
 import Control.Monad.Trans

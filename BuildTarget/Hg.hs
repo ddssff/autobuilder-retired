@@ -12,7 +12,7 @@ import System.Process
 import System.Unix.Directory
 import System.Unix.FilePath
 import BuildTarget
-import Debian.TIO
+import Extra.TIO
 import Debian.Shell
 import Debian.Types
 import Debian.Types.SourceTree

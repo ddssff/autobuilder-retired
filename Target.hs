@@ -22,7 +22,7 @@ import qualified Debian.Control.ByteString as B
 import qualified Debian.Control.String as S(fieldValue)
 import		 Debian.Dependencies
 import qualified Debian.GenBuildDeps as GenBuildDeps
-import		 Debian.TIO
+import		 Extra.TIO
 import		 Debian.IO
 import		 Debian.Shell
 import		 Debian.Local.Changes

@@ -13,7 +13,7 @@ import Control.Exception
 import Control.Monad
 import System.Unix.Directory
 import System.Unix.FilePath
-import Debian.TIO
+import Extra.TIO
 import Debian.Shell
 
 -- | A Darcs archive

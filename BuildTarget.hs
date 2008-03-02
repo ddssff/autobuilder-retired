@@ -30,7 +30,7 @@ module BuildTarget
     , escapeForMake
     ) where
 
-import Debian.TIO
+import Extra.TIO
 import Debian.Types.SourceTree
 import Debian.SourceTree
 import Debian.Types

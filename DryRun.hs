@@ -19,7 +19,7 @@ import System.Directory
 import System.Posix.Files
 import System.Unix.Directory
 import System.Unix.Process
-import Debian.TIO
+import Extra.TIO
 import Debian.IO
 import qualified System.IO as IO
 import System.Exit

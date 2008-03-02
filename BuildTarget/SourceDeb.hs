@@ -9,8 +9,7 @@ import Data.List
 import Data.Maybe
 import Control.Monad
 import System.Directory
---import Debian.IO
-import Debian.TIO
+import Extra.TIO
 import Debian.Types
 import System.Unix.Process
 import qualified Debian.Control.String as S

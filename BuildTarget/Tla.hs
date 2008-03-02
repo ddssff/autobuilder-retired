@@ -11,7 +11,7 @@ import System.Unix.Directory
 import System.Unix.FilePath
 import Data.Maybe
 import System.Directory
-import Debian.TIO
+import Extra.TIO
 import Debian.Shell
 
 -- | A TLA archive

@@ -7,7 +7,7 @@ import Prelude hiding (catch)
 import Debian.Types
 import Debian.Types.SourceTree
 import System.Directory
-import Debian.TIO
+import Extra.TIO
 import Debian.Shell
 --import ChangeLog
 

@@ -4,7 +4,7 @@ module Main where
 import		 Prelude hiding (putStr, putStrLn, putChar)
 import		 Control.Monad.Trans
 import		 Debian.IO
-import		 Debian.TIO
+import		 Extra.TIO
 import		 Debian.Local.Changes
 import		 Debian.Local.Insert
 import		 Debian.Local.Package

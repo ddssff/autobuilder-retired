@@ -25,7 +25,7 @@ import		 Control.Monad.RWS
 import		 Debian.AptImage
 import		 Debian.Cache
 import		 Debian.IO
-import		 Debian.TIO
+import		 Extra.TIO
 import		 Debian.Shell
 import		 Debian.Local.Insert
 import		 Debian.Local.Release

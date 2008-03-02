@@ -20,7 +20,9 @@ Targets:
   darcs:http://src.seereason.com/autobuilder
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskell-cgi
+Comment:
   apt:sid:haddock
+Relax-Depends: haddock ghc6
 Comment: This is not really useful any more
   apt:sid:hugs98
 Comment: haskell-cgi depends on xhtml
@@ -39,6 +41,8 @@ Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
 	 it breaks the circular build dependency loop.
 Relax-Depends: ghc6 hscolour
 Relax-Depends: ghc6 haddock
+Relax-Depends: haddock ghc6
+Relax-Depends: hscolour ghc6
 Comment: Once haskell-mtl builds, the build dependencies look like this:
 	Ready		    Blocked
 	-----		    -------

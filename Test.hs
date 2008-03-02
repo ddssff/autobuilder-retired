@@ -14,7 +14,7 @@ import qualified System.IO as IO
 import System.Unix.Directory
 import System.Directory
 import Debian.IO
-import Debian.TIO
+import Extra.TIO
 
 top = "/tmp/testrepo"
 

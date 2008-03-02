@@ -20,7 +20,7 @@ import qualified Data.ByteString.Char8 as B
 import System.Directory
 import Ugly.URI
 import Debian.Control.ByteString
-import Debian.TIO
+import Extra.TIO
 import Debian.Shell
 
 -- | A Subversion archive
