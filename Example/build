@@ -7,6 +7,8 @@ Comment:
 
 Name: autobuilder-targets
 Targets:
+  quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
+  quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/haskell-cgi-quilt)
   apt:sid:haskell-devscripts
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   darcs:http://src.seereason.com/haskell-mime
@@ -19,7 +21,6 @@ Targets:
   darcs:http://src.seereason.com/build-env
   darcs:http://src.seereason.com/autobuilder
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
-  apt:sid:haskell-cgi
 Comment:
   apt:sid:haddock
 Relax-Depends: haddock ghc6
