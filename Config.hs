@@ -145,18 +145,8 @@ computeConfig verbosity appName commandLineFlags =
        configFlags <- configPath verbosity (commandLineFlags ++ defaultIncludes) >>=
                       tryPaths . maybeToList >>= expandIncludes verbosity
        when (verbosity > 2) (hPutStrLn stderr $ "computeConfig: configFlags=" ++ show commandLineFlags)
-       -- If there are any "Use" flags in the command line options,
-       -- we need to expand them using the configFlags.  
-       case filter isUse commandLineFlags of
-         -- If there are no Use flags in the command line, just merge
-         -- the command line flags with the flags from the
-         -- configuration file.
-         [] -> return [expandLets (commandLineFlags ++ concat configFlags)]
-         -- If we see a Use flag, take the command line options and
-         -- expand them using the Name/Use mechanism.  When a name is
-         -- expanded the expansions are inserted.
-         _ -> do sequence <- expandSections [commandLineFlags] configFlags
-                 return $ map expandLets sequence
+       -- Expand the command line flags using the Use/Name mechanism, and then expand the lets.
+       expandSections [commandLineFlags] configFlags >>= return . map expandLets
     where
       -- Load a list of configuration files.
       expandIncludes :: Int -> [[Flag]] -> IO [[Flag]]
@@ -330,6 +320,8 @@ expandSections toExpand expansions =
                          (consperse "\n  " . map show . concat . map (filter isName) $ expansions))
             isName (Name _) = True
             isName _ = False
+
+--ePut = hPutStrLn stderr
 
 -- |Command line option specifications.  The caller passes in a list of
 -- options, and three additional standard options are added here:
