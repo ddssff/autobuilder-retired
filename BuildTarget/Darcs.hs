@@ -68,7 +68,7 @@ prepareDarcs _debug top flush uriAndTag =
              case result of
                [Result (ExitFailure _)] -> updateSource dir				-- No Changes!
                [Result ExitSuccess] -> removeSource dir >> createSource dir		-- Yes changes
-               _ -> error "Internal error"
+               _ -> error "Internal error 5"
       removeSource :: FilePath -> TIO ()
       removeSource dir = lift $ removeRecursiveSafely dir
 
@@ -107,5 +107,5 @@ prepareDarcs _debug top flush uriAndTag =
           case matchRegex (mkRegex "^(.*)(=([^=]*))?$") uriAndTag of
             Just [uri, "", _] -> (uri, Nothing)
             Just [uri, _, tag] -> (uri, Just tag)
-            _ -> error "Internal error"	-- That regex should always match
+            _ -> error "Internal error 6"	-- That regex should always match
       dir = top ++ "/darcs/" ++ name

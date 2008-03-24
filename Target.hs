@@ -423,7 +423,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       case solutions of
         Left excuse -> do tio (vEPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
-        Right [] -> error "Internal error"
+        Right [] -> error "Internal error 4"
         Right ((count, sourceDependencies) : _) ->
             do tio (vEPutStrBl 2 ("Build dependency solution #" ++ show count))
                tio (vEPutStr 2 (concat (map (("\n  " ++) . show) sourceDependencies)))
