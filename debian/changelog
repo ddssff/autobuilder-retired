@@ -1,3 +1,11 @@
+autobuilder (4.5.5) unstable; urgency=low
+
+  * Prohibit parameter sets that try to "Let" the same variable more
+    than once.  Remove any instances of this from the example config.
+  * Changes for recent versions of hardy.
+
+ -- David Fox <dsf@seereason.com>  Mon, 24 Mar 2008 15:15:18 -0700
+
 autobuilder (4.5.4) unstable; urgency=low
 
   * Fix for case 52.
