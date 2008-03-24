@@ -146,7 +146,7 @@ computeConfig verbosity appName commandLineFlags =
                       tryPaths . maybeToList >>= expandIncludes verbosity
        when (verbosity > 2) (hPutStrLn stderr $ "computeConfig: configFlags=" ++ show commandLineFlags)
        -- Expand the command line flags using the Use/Name mechanism, and then expand the lets.
-       expandSections [commandLineFlags] configFlags >>= return . map expandLets
+       expandSections [commandLineFlags] configFlags >>= return . map (expandLets . checkLets)
     where
       -- Load a list of configuration files.
       expandIncludes :: Int -> [[Flag]] -> IO [[Flag]]
@@ -162,6 +162,19 @@ computeConfig verbosity appName commandLineFlags =
                    do newflags <- tryPaths paths
                       when (verbosity > 2) (hPutStrLn stderr ("expandIncludes: newflags=" ++ show newflags))
                       return (flags ++ newflags)
+      checkLets :: [Flag] -> [Flag]
+      checkLets flags =
+          concat (map checkLetGroup (groupBy sameLetName (sortBy compareLetName flags)))
+          where
+            compareLetName (Let a _) (Let b _) = compare a b
+            compareLetName (Let _ _) _ = LT
+            compareLetName _ (Let _ _) = GT
+            compareLetName _ _ = EQ
+            sameLetName a b = compareLetName a b == EQ
+            checkLetGroup :: [Flag] -> [Flag]
+            checkLetGroup x@[Let _ _] = x
+            checkLetGroup xs@(Let a _ : _) = error $ "Multiple definitions of " ++ a ++ ": " ++ show xs
+            checkLetGroup xs = xs
       -- Find the Let flags and use them to perform expansions on
       -- all the flags in the list.
       expandLets :: [Flag] -> [Flag]

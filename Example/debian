@@ -13,7 +13,6 @@ Comment: This package takes a long time to install, so install it into
 	 the clean environment once and for all.
 
 Name: debian-sources
-Use: debian-local
 Use: sid-sources
 Use: etch-sources
 Use: sarge-sources
