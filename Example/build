@@ -94,8 +94,9 @@ Targets:
 
 Name: happs
 Targets:
-  quilt:(apt:hardy:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
+  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
+  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
   darcs:http://src.seereason.com/HAppS/syb-with-class
   darcs:http://src.seereason.com/HAppS/HAppS-Util
   darcs:http://src.seereason.com/HAppS/HAppS-Data

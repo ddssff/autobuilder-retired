@@ -4,6 +4,7 @@ Comment:
 
 Name: debian-common
 Use: common
+Let: head=sid
 
 Name: debian-build
 Use: build

@@ -1,6 +1,7 @@
 Name: ubuntu-common
 Use: common
 Let: ubuntu=ubuntu
+Let: head=hardy
 Comment:
   We use a variable for ubuntu so we can set it to point to a dated archive
   when we need to use an older or newer snapshot.
