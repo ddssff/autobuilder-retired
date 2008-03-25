@@ -1,4 +1,4 @@
-autobuilder (4.5.5) unstable; urgency=low
+autobuilder (4.6) unstable; urgency=low
 
   * Prohibit parameter sets that try to "Let" the same variable more
     than once.  Remove any instances of this from the example config.
