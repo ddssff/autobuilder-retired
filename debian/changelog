@@ -1,3 +1,9 @@
+autobuilder (4.7) unstable; urgency=low
+
+  * Allow multiple identical lets.
+
+ -- David Fox <dsf@seereason.com>  Wed, 26 Mar 2008 18:54:52 -0700
+
 autobuilder (4.6) unstable; urgency=low
 
   * Prohibit parameter sets that try to "Let" the same variable more
