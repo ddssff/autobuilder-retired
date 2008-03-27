@@ -164,7 +164,7 @@ computeConfig verbosity appName commandLineFlags =
                       return (flags ++ newflags)
       checkLets :: [Flag] -> [Flag]
       checkLets flags =
-          concat (map checkLetGroup (groupBy sameLetName (sortBy compareLetName flags)))
+          concat (map (checkLetGroup . nub) (groupBy sameLetName (sortBy compareLetName flags)))
           where
             compareLetName (Let a _) (Let b _) = compare a b
             compareLetName (Let _ _) _ = LT
