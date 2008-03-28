@@ -66,7 +66,7 @@ Targets:
   apt:sid:haskell-devscripts
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
-  apt:sid:haskell-utils
+  quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
   apt:sid:haskell-mtl
   apt:sid:haskell-stream
   apt:sid:haskell-arrows
@@ -85,7 +85,7 @@ Targets:
   quilt:(apt:sid:haskell-regex-compat):(darcs:http://src.seereason.com/haskell-regex-compat-quilt)
   apt:sid:haskell-stm
   apt:sid:haskell-time
-  apt:sid:haskell-cgi
+  quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/haskell-cgi-quilt)
   apt:sid:haskell-haskell-src
   apt:hardy:haskell-opengl
   apt:hardy:haskell-openal

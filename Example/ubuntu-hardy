@@ -9,7 +9,7 @@ Name: hardy-build
 Use: ubuntu-build
 Use: hardy-common
 Use: hardy-local
-Extra-Essential: belocs-locales-bin upstart-sysv-compat
+Extra-Essential: belocs-locales-bin upstart-compat-sysv
 
 Name: hardy-sources
 Sources: hardy
