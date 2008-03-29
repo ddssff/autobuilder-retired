@@ -69,13 +69,13 @@ Targets:
   quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
   apt:sid:haskell-mtl
   apt:sid:haskell-stream
-  apt:sid:haskell-arrows
+  quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   apt:sid:haskell-parsec
-  apt:sid:haskell-fgl
-  apt:sid:haskell-network
+  quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/haskell-fgl-quilt)
+  quilt:(apt:sid:haskell-network):(darcs:http://src.seereason.com/haskell-network-quilt)
   apt:sid:haskell-x11
-  apt:sid:haskell-hgl
+  quilt:(apt:sid:haskell-hgl):(darcs:http://src.seereason.com/haskell-hgl-quilt)
   apt:sid:haskell-html
   apt:sid:haskell-hunit
   apt:sid:haskell-parallel
