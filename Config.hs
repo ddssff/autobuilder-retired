@@ -132,18 +132,19 @@ seedFlags appName options args =
 --
 -- > > computeConfig "autobuilder" Nothing [Include "/home/build/.autobuilder.d"]
 -- > [[Name "common",Value "Vendor-Tag" "cnr",Value "Release-Tag" "1", ...
-computeConfig :: Int		-- ^ Preliminary verbosity level, before we have obtained the verbosity parameter
-              -> String		-- ^ The application name, used to construct candidate configuration file names.
-              -> [Flag]		-- ^ The set of flags read from the configuration
-              -> IO [[Flag]]	-- ^ The result is a list of flag lists.  See 'Use' for an explanation of how you would get
-				-- more than one flag list here.
-computeConfig verbosity appName commandLineFlags =	
+computeConfig :: Int			-- ^ Preliminary verbosity level, before we have obtained the verbosity parameter
+              -> String			-- ^ The application name, used to construct candidate configuration file names.
+              -> [Flag]			-- ^ The set of flags read from the configuration
+              -> ([[Flag]] -> [[Flag]])	-- ^ Final preparation of the configuration file contents
+              -> IO [[Flag]]		-- ^ The result is a list of flag lists.  See 'Use' for an explanation of how you would get
+					-- more than one flag list here.
+computeConfig verbosity appName commandLineFlags prepare =	
     do when (verbosity > 2) (hPutStrLn stderr $ "computeConfig: commandLineFlags=" ++ show commandLineFlags)
        -- Compute the configuration file path and then load and expand it.
        defaultIncludes <- defaultConfigPaths appName
        --hPutStrLn stderr $ "defaultIncludes " ++ show defaultIncludes
        configFlags <- configPath verbosity (commandLineFlags ++ defaultIncludes) >>=
-                      tryPaths . maybeToList >>= expandIncludes verbosity
+                      tryPaths . maybeToList >>= expandIncludes verbosity >>= return . prepare
        when (verbosity > 2) (hPutStrLn stderr $ "computeConfig: configFlags=" ++ show commandLineFlags)
        -- Expand the command line flags using the Use/Name mechanism, and then expand the lets.
        expandSections [commandLineFlags] configFlags >>= return . map (expandLets . checkLets)

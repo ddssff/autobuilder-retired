@@ -1,3 +1,10 @@
+autobuilder (4.8) unstable; urgency=low
+
+  * Fix a newdist bug introduced in 4.5.4 where it ignores its
+    configuration file.
+
+ -- David Fox <dsf@seereason.com>  Tue, 01 Apr 2008 16:16:36 -0700
+
 autobuilder (4.7) unstable; urgency=low
 
   * Allow multiple identical lets.

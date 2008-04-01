@@ -22,9 +22,9 @@ Sources: hardy
   deb http://${ubuntu-security-mirror-host}/ubuntu/ hardy-security main restricted universe multiverse
   deb-src http://${ubuntu-security-mirror-host}/ubuntu/ hardy-security main restricted universe multiverse
 
-Name: gutsy-ghc682
+Name: hardy-ghc682
 Use: ghc682
-Use: gutsy-build
+Use: hardy-build
 
 Name: hardy-autobuilder
 Use: autobuilder-targets

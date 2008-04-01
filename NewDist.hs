@@ -135,8 +135,8 @@ main =
        runTIO defStyle { verbosity = verbosity }
               (run aptIOStyle
                (do -- Compute configuration options
-                   let flags' = Config.seedFlags appName optSpecs args
-                   flags <- io (computeConfig verbosity appName flags') >>= return . concat
+                   let flags' = useMain (Config.seedFlags appName optSpecs args)
+                   flags <- io (computeConfig verbosity appName flags' nameFirstSection) >>= return . concat
                    tio (vPutStrBl 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
                    let lockPath = outsidePath (root flags) ++ "/newdist.lock"
                    case findValues flags "Version" of
@@ -144,6 +144,19 @@ main =
                            either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . tio $ vBOL 0)
                      _ -> tio (putStrBl Version.version) >>
                           io (exitWith ExitSuccess)))
+    where
+      nameFirstSection (flags : more) = nameSection "Main" flags : more
+      nameSection name flags = case any isName flags of
+                                 False -> (Name name : flags)
+                                 True -> flags
+      isName (Name _) = True
+      isName _ = False
+      useMain flags =
+          case any isUse flags of
+            False -> (Use ["Main"] : flags)
+            True -> flags
+      isUse (Use _) = True
+      isUse _ = False
 
 runFlags :: [Flag] -> AptIO ()
 runFlags flags =

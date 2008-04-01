@@ -132,7 +132,7 @@ instance Show Strictness where
 -- candidates for the configuration directory path.
 params :: Int -> String -> [Flag] -> AptIO [Params]
 params verbosity appName flags =
-    do flagLists <- io $ Config.computeConfig verbosity appName flags
+    do flagLists <- io $ Config.computeConfig verbosity appName flags id
        flagMaps <- io (mapM computeTopDir (map (listMap . pairsFromFlags) flagLists))
        case listToMaybe flagMaps of
          Nothing -> return ()

@@ -22,6 +22,10 @@ Sources: lenny
  deb http://${debian-mirror-host}/debian lenny main contrib non-free
  deb-src http://${debian-mirror-host}/debian lenny main contrib non-free
 
+Name: lenny-ghc682
+Use: ghc682
+Use: lenny-build
+
 Name: lenny-extra
 Use: lenny-build
 Use: autobuilder-targets
