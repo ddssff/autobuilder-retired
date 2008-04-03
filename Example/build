@@ -66,6 +66,7 @@ Targets:
   apt:sid:haskell-devscripts
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
+  apt:sid:cpphs
   quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
   apt:sid:haskell-mtl
   apt:sid:haskell-stream
@@ -114,7 +115,6 @@ Targets:
   apt:sid:arch2darcs
   apt:sid:bnfc
   apt:sid:c2hs
-  apt:sid:cpphs
   apt:sid:darcs
   apt:sid:darcs-buildpackage
   apt:sid:darcs-monitor
