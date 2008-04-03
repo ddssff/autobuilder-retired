@@ -29,6 +29,8 @@ Use: hardy-build
 Name: hardy-autobuilder
 Use: autobuilder-targets
 Use: hardy-build
+Targets:
+  quilt:(apt:hardy:rsync):(darcs:http://src.seereason.com/rsync-quilt)
 
 Name: hardy-ghc-base
 Use: ghc-base
