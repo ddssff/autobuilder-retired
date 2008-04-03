@@ -55,6 +55,7 @@ import		 Control.Monad.Reader
 import		 System.Unix.Process hiding (processOutput)
 import qualified Data.ByteString.Char8 as B
 import		 Data.List
+import qualified Data.Map as Map
 import		 Data.Maybe
 import qualified Data.Set as Set
 import		 Debian.Relation.ByteString as B
@@ -393,12 +394,14 @@ data BuildDecision
     | No String
     | Arch String	-- Needs a -B build, architecture dependent files only
     | Auto String	-- Needs a 'automated' rebuild, with a generated version number and log entry
+    | Error String	-- A fatal condition was encountered - e.g. a build dependency became older since last build
 
 instance Show BuildDecision where
     show (Yes reason) = "Yes - " ++ reason
     show (No reason) = "No - " ++ reason
     show (Arch reason) = "Yes - " ++ reason
     show (Auto reason) = "Yes - " ++ reason
+    show (Error reason) = "Error - " ++ reason
 
 -- Decide whether a target needs to be built and, if so, build it.
 buildTarget ::
@@ -425,8 +428,8 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error 4"
         Right ((count, sourceDependencies) : _) ->
-            do tio (vEPutStrBl 2 ("Build dependency solution #" ++ show count))
-               tio (vEPutStr 2 (concat (map (("\n  " ++) . show) sourceDependencies)))
+            do tio (vEPutStrBl 2 ("Using build dependency solution #" ++ show count))
+               tio (vEPutStr 3 (concat (map (("\n  " ++) . show) sourceDependencies)))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
@@ -466,6 +469,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                     return (Left message)
                  Right version ->
                     case decision of
+                      Error message -> return (Left message)
                       No _ -> return (Right repo)
                       Yes _ ->  buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
                       Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies target releaseStatus repo sourceLog
@@ -615,6 +619,19 @@ getReleaseControlInfo cleanOS packageName =
       (info, False) : _ -> (Just info, Indep, message)
       _ -> (Nothing, None, message)
     where
+{-
+      message =
+          let results = (map (isComplete binaryPackages) sourcePackagesWithBinaryNames) in
+          concat . intersperse "\n" $
+                     (map (\ ((sp, bn), flag) ->
+                               "  isComplete " ++ show (map binaryPackageVersion binaryPackages) ++ " " ++
+                               show (sourcePackageVersion sp) ++ " " ++ show bn ++ " -> " ++
+                               show flag ++ "\n" ++
+                               "  availableDebNames " ++ show (map binaryPackageVersion binaryPackages) ++ " " ++
+                               show (sourcePackageVersion sp) ++ " -> " ++ show (availableDebNames binaryPackages sp)
+                          )
+                      (zip sourcePackagesWithBinaryNames results))
+-}
       message =
           concat
           . intersperse "\n"
@@ -645,8 +662,8 @@ getReleaseControlInfo cleanOS packageName =
       isComplete :: [BinaryPackage] -> (SourcePackage, [String]) -> Bool
       isComplete binaryPackages (sourcePackage, requiredBinaryNames) =
           Set.difference required availableDebs == Set.empty
-                 || unableToCheckUDebs
-                        || Set.difference required (Set.union availableDebs availableUDebs) == Set.empty
+                 && (unableToCheckUDebs
+                        || Set.difference required (Set.union availableDebs availableUDebs) == Set.empty)
           where
             required = Set.fromList requiredBinaryNames
             -- Which binary packages produced from this source package are available?
@@ -726,7 +743,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
                -- involve any packages which are not the newest
                -- available.
                --let relations''' = map discardOlder relations''
-               vEPutStrBl 2 $ ("Build dependency relations:\n " ++
+               vEPutStrBl 3 $ ("Build dependency relations:\n " ++
                               concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations'''))))
                -- Do any of the dependencies require packages that simply don't
                -- exist?  If so we don't have to search for solutions, there
@@ -910,10 +927,10 @@ buildDecision :: Tgt
               -> Bool
               -> [String]
               -> ChangeLogEntry		-- The newest log entry from the source tree
-              -> Maybe DebianVersion	-- oldVersion: the version already present in the repository
-              -> Maybe DebianVersion	-- oldSrcVersion: the version of the source code that oldVersion was built from
-              -> Maybe String		-- oldRevision: that version's revision string
-              -> [PkgVersion]		-- oldDependencies: the list of of dependencies for that version
+              -> Maybe DebianVersion	-- builtVersion: the version already present in the repository
+              -> Maybe DebianVersion	-- builtSrcVersion: the version of the source code that builtVersion was built from
+              -> Maybe String		-- builtRevision: that version's revision string
+              -> [PkgVersion]		-- builtDependencies: the list of of dependencies for that version
               -> SourcePackageStatus	-- releaseStatus: the status of the version in the repository
               -> DebianVersion		-- sourceVersion: the version number in the newest changelog entry of the source code
               -> Maybe String		-- sourceRevision: the revision string generated for the source package.  This will only be
@@ -921,7 +938,7 @@ buildDecision :: Tgt
               -> [PkgVersion]		-- sourceDependencies: the list of build dependency versions computed from the build environment
               -> BuildDecision
 buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
-                  oldVersion oldSrcVersion _oldRevision oldDependencies releaseStatus
+                  oldVersion oldSrcVersion _oldRevision builtDependencies releaseStatus
                   sourceVersion _sourceRevision sourceDependencies =
     case (forceBuild, oldVersion == Nothing) of
       (True, _) -> Yes "--force-build option is set"
@@ -943,22 +960,24 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
                         True -> sameSourceTests
     where
       sameSourceTests =
-          case () of
-            _ | buildDependencyChanges /= Set.empty && isJust oldSrcVersion ->
-                  -- If oldSrcVersion is nothing, the autobuilder didn't make the previous build
-                  -- and there are no recorded build dependencies.  In that case we don't really
-                  -- know whether a build is required, so we could go either way.  As I write this,
-                  -- I have added the isJust oldSrcVersion clause, which makes the new assumption
-                  -- that the package does *not* need to be rebuilt.
-                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
-            _ | buildDependencyChanges /= Set.empty && any isTagged (Set.toList buildDependencyChanges) ->
-                  -- However, if any of the build dependencies have tags that appear to have been
-                  -- added by the autobuilder, then we *do* want to build.
-                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
+          case buildDependencyChanges of
+            (bad@(_ : _), _) -> 
+                Error ("Missing build dependencies: " ++ concat (intersperse ", " (map (\ ver -> getName ver ++ " >= " ++ show (getVersion ver)) bad)) ++ " (use --relax-depends to ignore.)")
+            ([], new@(_ : _)) | isJust oldSrcVersion ->
+		-- If oldSrcVersion is nothing, the autobuilder didn't make the previous build
+                -- and there are no recorded build dependencies.  In that case we don't really
+                -- know whether a build is required, so we could go either way.  As I write this,
+                -- I have added the isJust oldSrcVersion clause, which makes the new assumption
+                -- that the package does *not* need to be rebuilt.
+                Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
+            ([], new@(_ : _)) | any isTagged new ->
+                -- However, if any of the build dependencies have tags that appear to have been
+                -- added by the autobuilder, then we *do* want to build.
+                Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
             _ | releaseStatus == Indep ->
-                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
+                Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
             _ | releaseStatus == All ->
-                  No ("Version " ++ show sourceVersion ++ " is already in release.")
+                No ("Version " ++ show sourceVersion ++ " is already in release.")
             _ -> 
                 error ("Unexpected releaseStatus: " ++ show releaseStatus)
       isTagged :: PkgVersion -> Bool
@@ -966,15 +985,26 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
       buildDependencyChangeText =
           "  " ++ consperse "\n  " lines
           where
-            lines = map (\ (old, new) -> show old ++ " -> " ++ show new) (zip oldVersions newDependencies)
-            oldVersions = map (findDepByName oldDependencies) newDependencies
-            newDependencies = Set.toList $ buildDependencyChanges
-            findDepByName oldDependencies new = find (\ old -> getName new == getName old) oldDependencies
+            lines = map (\ (built, new) -> show built ++ " -> " ++ show new) (zip builtVersions newDependencies)
+            builtVersions = map (findDepByName builtDependencies) newDependencies
+            (badDependencies, newDependencies) = buildDependencyChanges
+            findDepByName builtDependencies new = find (\ old -> getName new == getName old) builtDependencies
+      -- If we are deciding whether to rebuild the same version of the source package,
+      -- this function checks the status of the build dependencies.  If any are older
+      -- now than when the package was built previously, it is a fatal error.  Probably
+      -- the sources.list changed so that build dependency versions are no longer
+      -- available, or some of the build dependencies were never built for the current
+      -- build architecture.  If any are younger, we need to rebuild the package.
       buildDependencyChanges =
-          -- Remove the current package and any package in the relaxDepends list
-          -- from the list of build dependencies which can trigger a rebuild.
-          Set.difference (Set.fromList sourceDependencies') (Set.fromList oldDependencies)
-          where sourceDependencies' = filterDepends (logPackage sourceLog : relaxDepends) sourceDependencies
+          (map (fromJust . builtVersion) (filter isOlder sourceDependencies'), filter isNewer sourceDependencies')
+         where
+           isNewer new = maybe False (\ built -> getVersion built < getVersion new) (builtVersion new)
+           isOlder new = maybe False (\ built -> getVersion built > getVersion new) (builtVersion new)
+           builtVersion new = maybe Nothing (\ ver -> Just (PkgVersion (getName new) ver)) (Map.findWithDefault Nothing (getName new) builtDeps)
+	   builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
+           -- Remove the current package and any package in the relaxDepends list
+           -- from the list of build dependencies which can trigger a rebuild.
+           sourceDependencies' = filterDepends (logPackage sourceLog : relaxDepends) sourceDependencies
       filterDepends :: [String] -> [PkgVersion] -> [PkgVersion]
       filterDepends relaxDepends sourceDependencies =
           filter (\ ver -> not (elem (getName ver) relaxDepends)) sourceDependencies

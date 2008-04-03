@@ -1,3 +1,10 @@
+autobuilder (4.9) unstable; urgency=low
+
+  * Fix a bug which prevented arch-only builds - that is, building a package
+    for amd64 when it had already been built for i386.
+
+ -- David Fox <dsf@seereason.com>  Thu, 03 Apr 2008 09:09:39 -0700
+
 autobuilder (4.8) unstable; urgency=low
 
   * Fix a newdist bug introduced in 4.5.4 where it ignores its
