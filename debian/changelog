@@ -1,3 +1,15 @@
+autobuilder (4.10) unstable; urgency=low
+
+  * Check for package name mismatches when creating the merged quilt
+    changelog.
+  * Make sure we finish computing the new changelog before overwriting
+    the old one.
+  * Don't die if there are entries in the patch changelog that are older
+    than the oldest entry in the base changelog.  Just ignore them.
+  * Update HAppS targets and others.
+
+ -- David Fox <dsf@seereason.com>  Fri, 11 Apr 2008 06:00:12 -0700
+
 autobuilder (4.9) unstable; urgency=low
 
   * Fix a bug which prevented arch-only builds - that is, building a package

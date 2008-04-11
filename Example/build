@@ -97,7 +97,7 @@ Name: happs
 Targets:
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
-  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
+  apt:sid:haskell-http
   darcs:http://src.seereason.com/HAppS/syb-with-class
   darcs:http://src.seereason.com/HAppS/HAppS-Util
   darcs:http://src.seereason.com/HAppS/HAppS-Data
@@ -112,6 +112,10 @@ Relax-Depends: base-passwd
 Relax-Depends: mktemp
 Relax-Depends: sed
 Targets:
+  apt:hardy:gtk2hs
+  apt:hardy:haskell-hsql
+  apt:hardy:hs-plugins
+  apt:hardy:hat
   apt:sid:arch2darcs
   apt:sid:bnfc
   apt:sid:c2hs
@@ -122,30 +126,25 @@ Targets:
   apt:sid:drift
   apt:sid:frown
   apt:sid:ftphs
-  apt:sid:ghc-cvs
-  apt:sid:gtk2hs
   apt:sid:gtkrsync
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Data):(darcs:http://src.seereason.com/happs-data-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-IxSet):(darcs:http://src.seereason.com/happs-ixset-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Server):(darcs:http://src.seereason.com/happs-server-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-State):(darcs:http://src.seereason.com/happs-state-quilt)
+  quilt:(apt:sid:haskell-happs-util):(darcs:http://src.seereason.com/happs-util-quilt)
+  quilt:(apt:sid:haskell-happs-data):(darcs:http://src.seereason.com/happs-data-quilt)
+  quilt:(apt:sid:haskell-happs-ixset):(darcs:http://src.seereason.com/happs-ixset-quilt)
+  quilt:(apt:sid:haskell-happs-server):(darcs:http://src.seereason.com/happs-server-quilt)
+  quilt:(apt:sid:haskell-happs-state):(darcs:http://src.seereason.com/happs-state-quilt)
+  quilt:(apt:sid:haskell-syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   apt:sid:haskell-anydbm
-  apt:sid:haskell-binary
+  quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
   apt:sid:haskell-configfile
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   apt:sid:haskell-doc
   apt:sid:haskell-edison
   apt:sid:haskell-hlist
   apt:sid:haskell-hsh
-  apt:hardy:haskell-hsql
-  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
+  apt:sid:haskell-http
   apt:sid:haskell-mode
-  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   apt:sid:haskell-uulib
-  apt:sid:haskell-x11-extras
   apt:sid:haskelldb
-  apt:sid:hat
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   apt:sid:hdbc
   apt:sid:hdbc-missingh
@@ -154,9 +153,7 @@ Targets:
   apt:sid:hdbc-sqlite3
   apt:sid:helium
   apt:sid:hg-buildpackage
-  quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
   apt:sid:hpodder
-  apt:sid:hs-plugins
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
   apt:sid:ldap-haskell
   apt:sid:lhs2tex
@@ -164,23 +161,27 @@ Targets:
   apt:sid:magic-haskell
   apt:sid:missingh
   apt:sid:pandoc
-  apt:hardy:pugs
   apt:sid:washngo
   darcs:http://src.seereason.com/mirror
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
-  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/haskell-http-quilt)
-  quilt:(darcs:http://happs.org/HAppS/syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
-  quilt:(darcs:http://happs.org/HAppS/HAppS-Util):(darcs:http://src.seereason.com/happs-util-quilt)
+  apt:sid:haskell-http
   apt:sid:pandoc
-  apt:sid:pugs
   apt:sid:srcinst
   apt:sid:uuagc
   apt:sid:washngo
   apt:sid:whitespace
-  apt:sid:xmonad
 Comment:
+  Dependencies too tight:
+    apt:sid:xmonad
+  Can't find System.Directory.Internals:
+    apt:sid:ghc-cvs
+  Gerboa svn broken?
+    quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
+  Not available
+    apt:hardy:pugs
+    apt:sid:haskell-x11-extras
   Depends on directory, which is hidden:
     apt:sid:haddock
   http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=460388
