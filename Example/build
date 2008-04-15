@@ -127,11 +127,11 @@ Targets:
   apt:sid:frown
   apt:sid:ftphs
   apt:sid:gtkrsync
-  quilt:(apt:sid:haskell-happs-util):(darcs:http://src.seereason.com/happs-util-quilt)
-  quilt:(apt:sid:haskell-happs-data):(darcs:http://src.seereason.com/happs-data-quilt)
-  quilt:(apt:sid:haskell-happs-ixset):(darcs:http://src.seereason.com/happs-ixset-quilt)
-  quilt:(apt:sid:haskell-happs-server):(darcs:http://src.seereason.com/happs-server-quilt)
-  quilt:(apt:sid:haskell-happs-state):(darcs:http://src.seereason.com/happs-state-quilt)
+  apt:sid:haskell-happs-util
+  apt:sid:haskell-happs-data
+  apt:sid:haskell-happs-ixset
+  apt:sid:haskell-happs-server
+  apt:sid:haskell-happs-state
   quilt:(apt:sid:haskell-syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
@@ -147,7 +147,6 @@ Targets:
   apt:sid:haskelldb
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   apt:sid:hdbc
-  apt:sid:hdbc-missingh
   apt:sid:hdbc-odbc
   apt:sid:hdbc-postgresql
   apt:sid:hdbc-sqlite3
@@ -173,6 +172,8 @@ Targets:
   apt:sid:washngo
   apt:sid:whitespace
 Comment:
+  Still depends on ghc 6.6:
+    apt:sid:hdbc-missingh
   Dependencies too tight:
     apt:sid:xmonad
   Can't find System.Directory.Internals:
