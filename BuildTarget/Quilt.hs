@@ -146,11 +146,11 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
                                 -- If there is a changelog file in the quilt directory,
                                 -- interleave its entries with those in changelog of the base
                                 -- tree by date.
-                                do exists <- lift (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
+                                do vEPutStrBl 1 "Merging changelogs"
+                                   exists <- lift (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                                    case exists of
                                      False -> return (Left ("Missing changelog file: " ++ show (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")))
-                                     True -> do lift (mergeChangelogs (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
-                                                return (Right ())
+                                     True -> mergeChangelogs' (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource (Left message) = return (Left message)
                             cleanSource (Right ()) =
                                 do result3 <- lift (lazyCommand cmd3 []) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
@@ -203,40 +203,42 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
              
 --myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x
 
+mergeChangelogs' :: FilePath -> FilePath -> TIO (Either String ())
+mergeChangelogs' basePath patchPath =
+    do patchText <- lift (try (readFile patchPath))
+       baseText <- lift (try (readFile basePath))
+       case (patchText, baseText) of
+         (Right patchText, Right baseText) ->
+             do -- vEPutStrBl 1 $ "Merging changelogs: " ++ baseText ++ "\npatch:\n\n" ++ patchText
+                either (return . Left) replace (mergeChangelogs baseText patchText)
+         (Left e, _) -> return $ Left (show e)
+         (_, Left e) -> return $ Left (show e)
+    where
+      replace newText = lift (try (replaceFile basePath $! newText)) >>= return. either (Left . show) Right
+
 -- Merge the entries in the patch changelog into the base changelog,
 -- merging the base and patch version numbers as we go.  It is
 -- important that we read the base changelog lazily since there are
 -- lots of bizarre formats in the older entries that we can't parse.
-mergeChangelogs :: FilePath -> FilePath -> IO (Either String ())
-mergeChangelogs basePath patchPath =
-    do patchText <- try (readFile patchPath)
-       baseText <- try (readFile basePath)
-       case (patchText, baseText) of
-         (Right patchText, Right baseText) ->
-             let patchEntries = parseLog patchText in
-             case lefts patchEntries of
-               [] -> let patchEntries' = map Patch (rights patchEntries) in
-                     let oldest = zonedTimeToUTC . myParseTimeRFC822 . logDate . getEntry . head . reverse $ patchEntries' in
-                     let (baseEntries, baseText') = partitionChangelog oldest baseText in
-                     let baseEntries' = map Base baseEntries in
-                     let mergedEntries = third . appendVersionNumbers . sortBy compareDate $ baseEntries' ++ patchEntries' in
-                     let newText = (concat . map show $ mergedEntries) ++ baseText' in
-                     try (replaceFile basePath newText) >>= return . either (Left . show) Right
-               bad -> return . Left $ "Error(s) in patch changelog:\n  " ++ concat (intersperse "\n  " bad)
-         (Left e, _) -> return $ Left (show e)
-         (_, Left e) -> return $ Left (show e)
-{-
-    do (patchEntries :: Either String [Either String EntryType]) <- readFile patchPath >>= return . {- either Left (Right . map Patch) . -} parseLog
-       -- FIXME: the changelog dates should already be parsed here
-       let oldest = zonedTimeToUTC . myParseTimeRFC822 . logDate . getEntry . head . reverse $ patchEntries
-       -- Parse the base changelog to the point where the oldest entry
-       -- is older than the oldest patch changelog entry.
-       (baseEntries, baseText') <- readFile basePath >>= return . partitionChangelog oldest
-       let baseEntries' = map Base baseEntries
-       let mergedEntries = third . appendVersionNumbers . sortBy compareDate $ baseEntries' ++ patchEntries
-       let newText = (concat . map show $ mergedEntries) ++ baseText'
-       replaceFile basePath newText
--}
+mergeChangelogs :: String -> String -> Either String String
+mergeChangelogs baseText patchText =
+    case partitionEithers (parseLog patchText) of
+      (bad@(_ : _), _) ->
+          Left $ "Error(s) in patch changelog:\n  " ++ concat (intersperse "\n  " bad)
+      ([], patchEntries) ->
+          let patchEntries' = map Patch patchEntries in
+          let oldest = zonedTimeToUTC . myParseTimeRFC822 . logDate . getEntry . head . reverse $ patchEntries' in
+          let (baseEntries, baseText') = partitionChangelog oldest baseText in
+          let basePackage = maybe Nothing (Just . logPackage) (listToMaybe baseEntries) in
+          let patchPackage = maybe Nothing (Just . logPackage) (listToMaybe patchEntries) in
+          case basePackage == patchPackage of
+            True ->
+                let baseEntries' = map Base baseEntries in
+                let mergedEntries = third . appendVersionNumbers . sortBy compareDate $ baseEntries' ++ patchEntries' in
+                Right $ (concat . map show $ mergedEntries) ++ baseText'
+            False ->
+                Left $ "Package name mismatch between base and patch changelogs: " ++
+                       maybe "?" id basePackage ++ " /= " ++ maybe "?" id patchPackage
     where
       third (_, _, c) = c
       compareDate a b = compare (zonedTimeToUTC . myParseTimeRFC822 . getDate $ a) (zonedTimeToUTC . myParseTimeRFC822 . getDate $ b)
@@ -251,8 +253,10 @@ mergeChangelogs basePath patchPath =
       -- A base entry before the first patch entry, do nothing
       modifyVersion (_, Nothing, modified) (Base entry) = (Just (logVersion entry), Nothing, entry : modified)
       -- A patch entry before the first base entry, an error
-      modifyVersion (Nothing, _, _modified) (Patch _entry) =
-          error "Patch changelog entry is older than older than oldest base entry"
+      modifyVersion x@(Nothing, _, _modified) (Patch _entry) =
+          -- This used to be an error:
+          -- error "Patch changelog entry is older than oldest base entry"
+          x
       -- Prefix a patch entry with the base version
       modifyVersion (Just baseVersion, _, modified) (Patch entry) =
           (Just baseVersion, (Just . logVersion $ entry), (newEntry : modified))
