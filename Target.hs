@@ -49,6 +49,7 @@ import		 BuildTarget.Quilt
 import		 BuildTarget.SourceDeb
 import		 BuildTarget.Svn
 import		 BuildTarget.Tla
+import           BuildTarget.Bzr
 import		 BuildTarget.Uri
 --import		 Control.Monad
 import		 Control.Monad.Reader
@@ -242,6 +243,7 @@ readSpec debug top flush ifSourcesChanged distros text =
                 readSpec debug top flush ifSourcesChanged distros target >>= tio . either (return . Left) prepareSourceDeb
             's':'v':'n':':' : target -> tio $ prepareSvn debug top flush target
             't':'l':'a':':' : target -> tio $ prepareTla top flush target
+            'b':'z':'r':':' : target -> tio $ prepareBzr top flush target
             'u':'r':'i':':' : target -> tio $ prepareUri debug top flush target
             'p':'r':'o':'c':':' : target ->
                 readSpec debug top flush ifSourcesChanged distros target >>=
