@@ -132,6 +132,7 @@ Targets:
   apt:sid:haskell-happs-ixset
   apt:sid:haskell-happs-server
   apt:sid:haskell-happs-state
+  deb-dir:(darcs:http://code.haskell.org/utf8-string):(darcs:http://src.seereason.com/haskell-utf8-string-debian)
   quilt:(apt:sid:haskell-syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
