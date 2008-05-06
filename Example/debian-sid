@@ -9,6 +9,7 @@ Name: sid-build
 Use: debian-build
 Use: sid-common
 Use: sid-local
+Extra-Essential: perl-modules
 
 Name: sid-sources
 Sources: sid
