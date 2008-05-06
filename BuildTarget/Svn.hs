@@ -17,6 +17,7 @@ import System.Unix.Process
 import Data.List
 import Data.Maybe
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as L
 import System.Directory
 import Ugly.URI
 import Debian.Control.ByteString
@@ -65,7 +66,7 @@ instance BuildTarget Svn where
         where
           readControl :: [Output] -> Either String String
           readControl out = 
-              case parseControl "svn info" (B.concat (stdoutOnly out)) of
+              case parseControl "svn info" (B.concat (L.toChunks (stdoutOnly out))) of
                 (Right (Control (c:_))) ->
                     -- JAS, I don't know why I did not just use the uri that was passed in
                     case (lookupP "URL" c, lookupP "Revision" c) of
@@ -103,11 +104,11 @@ prepareSvn _debug top flush target =
     where
       verifySource dir =
           svn verifyStyle (Just (rootEnvPath dir)) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
-          either (return . Left) (\ out -> case (stdoutOnly out) ++ (stderrOnly out) of
+          either (return . Left) (\ out -> case L.append (stdoutOnly out) (stderrOnly out) == L.empty of
                                              -- no output == nothing changed
-                                             [] -> updateSource dir
+                                             True -> updateSource dir
                                              -- Failure - error code or output from status means changes have occured
-                                             _ ->  removeSource dir >> createSource dir)
+                                             False ->  removeSource dir >> createSource dir)
 
       removeSource dir = lift $ removeRecursiveSafely dir
 

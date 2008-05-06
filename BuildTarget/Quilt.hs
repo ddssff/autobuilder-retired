@@ -7,6 +7,7 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Data.Time
@@ -123,23 +124,23 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
     tryTIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (lift . debug) return
     where
       make (quiltTree, quiltDir) =
-          do applied <- lift (lazyCommand cmd1a []) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
+          do applied <- lift (lazyCommand cmd1a L.empty) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
                (_, err, [ExitFailure 1])
                    | err == "No patches applied\n" ->
                           findUnapplied >>= apply >>= buildLog >>= cleanSource
                           where
-                            findUnapplied = do unapplied <- lift (lazyCommand cmd1b []) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
+                            findUnapplied = do unapplied <- lift (lazyCommand cmd1b L.empty) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
                                                case unapplied of
                                                  (text, _, [ExitSuccess]) -> return (Right (lines text))
                                                  _ -> return (Left "No patches to apply")
                             apply (Left message) = return (Left message)
                             apply (Right patches) =
-                                do result2 <- lift (lazyCommand (cmd2 patches) []) >>= vMessage 1 "Patching Quilt target" . collectOutput . mergeToStderr
+                                do result2 <- lift (lazyCommand (cmd2 patches) L.empty) >>= vMessage 1 "Patching Quilt target" . collectOutput . mergeToStderr
                                    case result2 of
                                      (_, _, [ExitSuccess]) -> return (Right ())
                                      (_, err, _) ->
-                                         vEPutStrBl 0 ("Failed to apply quilt patches: " ++ cmd2 patches ++ " ->\n" ++ B.unpack (B.concat err)) >>
+                                         vEPutStrBl 0 ("Failed to apply quilt patches: " ++ cmd2 patches ++ " ->\n" ++ L.unpack err) >>
                                          return (Left $ "Failed to apply quilt patches: " ++ (cmd2 patches))
                             buildLog (Left message) = return (Left message)
                             buildLog (Right ()) =
@@ -153,20 +154,20 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
                                      True -> mergeChangelogs' (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource (Left message) = return (Left message)
                             cleanSource (Right ()) =
-                                do result3 <- lift (lazyCommand cmd3 []) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
+                                do result3 <- lift (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
                                    case result3 of
                                      (_, _, [ExitSuccess]) ->
                                          findSourceTree (topdir quiltTree) >>= return . either (const . Left $ "Failed to find tree") (\ tree -> Right . Tgt $ Quilt (Tgt base) (Tgt patch) tree)
                                      _ -> return (Left $ "Failure removing quilt directory: " ++ cmd3)
 {-
-                          do unapplied <- lift (lazyCommand cmd1b []) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
+                          do unapplied <- lift (lazyCommand cmd1b L.empty) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
                              --ePutStrLn ("unapplied: " ++ show unapplied)
                              let patches =
                                      case unapplied of
                                        (text, _, [ExitSuccess]) -> lines text
                                        _ -> error "No patches to apply"
                              --ePutStrLn cmd2
-                             result2 <- lift (lazyCommand (cmd2 patches) []) >>= vMessage 1 "Patching Quilt target" . collectOutput
+                             result2 <- lift (lazyCommand (cmd2 patches) L.empty) >>= vMessage 1 "Patching Quilt target" . collectOutput
                              case result2 of
                                (_, _, [ExitSuccess]) -> return ()
                                _ -> error $ "Failed to apply quilt patches: " ++ (cmd2 patches)
@@ -177,7 +178,7 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
                                    (flip unless) (error ("Missing changelog file: " ++ show (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))))
                              lift (mergeChangelogs (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                              -- Return the target.
-                             result3 <- lift (lazyCommand cmd3 []) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
+                             result3 <- lift (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
                              case result3 of
                                (_, _, [ExitSuccess]) -> return ()
                                _ -> error $ "Failure removing quilt directory: " ++ cmd3

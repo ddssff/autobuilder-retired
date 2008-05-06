@@ -15,7 +15,7 @@ import System.Directory
 import Ugly.URI
 import Extra.TIO
 import Debian.Shell
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as L
 import qualified System.Unix.Process as P
 
 -- | A Bazaar archive
@@ -74,7 +74,7 @@ prepareBzr top flush version = do
             runTaskAndTest (style (commandTask cmd)) >>= \result ->
             case result of
                 Left  a -> return (Left a)
-                Right b -> if isInfixOf "Nothing to do." (B.unpack (B.concat (P.outputOnly b)))
+                Right b -> if isInfixOf "Nothing to do." (L.unpack (P.outputOnly b))
                            then findSourceTree (rootEnvPath dir)
                            else commitSource dir
             where

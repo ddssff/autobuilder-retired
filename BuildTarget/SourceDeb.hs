@@ -5,6 +5,7 @@ module BuildTarget.SourceDeb where
 
 import BuildTarget
 import Control.Monad.Trans
+import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Control.Monad
@@ -45,7 +46,7 @@ prepareSourceDeb (Tgt base) =
        case sortBy compareVersions (zip dscFiles dscInfo) of
          [] -> return . Left $ "Invalid sourcedeb base: no .dsc file in " ++ show base
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
-             do out <- lift (lazyCommand (unpack top dscName) [])
+             do out <- lift (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of
                   [ExitSuccess] -> return $ makeTarget top dscInfo dscName
                   _ -> return . Left $ ("*** FAILURE: " ++ unpack top dscName)
