@@ -1,3 +1,11 @@
+autobuilder (4.11) unstable; urgency=low
+
+  * Using lazy bytestrings in System.Unix.Process now
+  * Bazaar support
+  * Extra essential for sid: perl-modules
+
+ -- David Fox <dsf@seereason.com>  Tue, 06 May 2008 10:42:33 -0700
+
 autobuilder (4.10) unstable; urgency=low
 
   * Check for package name mismatches when creating the merged quilt
