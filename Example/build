@@ -5,36 +5,6 @@ Comment:
   build the autobuilder, so in the 'etch' file we pull in the one
   from feisty, the next oldest release.
 
-Name: autobuilder-targets
-Targets:
-  quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
-  quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/haskell-cgi-quilt)
-  apt:sid:haskell-devscripts
-  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
-  darcs:http://src.seereason.com/haskell-mime
-  darcs:http://src.seereason.com/haskell-unixutils
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/haskell-bzlib-debian)
-  darcs:http://src.seereason.com/haskell-extra
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
-  darcs:http://src.seereason.com/haskell-debian
-  darcs:http://src.seereason.com/haskell-ugly
-  darcs:http://src.seereason.com/build-env
-  darcs:http://src.seereason.com/autobuilder
-  quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
-Comment:
-  apt:sid:haddock
-Relax-Depends: haddock ghc6
-Comment: This is not really useful any more
-  apt:sid:hugs98
-Comment: haskell-cgi depends on xhtml
-Comment:
-  We need the latest hugs because haskell-unixutils builds a hugs library.
-  Unfortunately, the lastest version still doesn't include System.Posix.Files,
-  so I am disabling the hugs library in haskell-unixutils.
-Comment: Probably don't need these
-  proc:apt:gutsy:neko
-  proc:apt:gutsy:haxe
-
 Name: ghc682
 Relax-Depends: g++
 Relax-Depends: make
@@ -62,48 +32,69 @@ Comment: Once haskell-mtl builds, the build dependencies look like this:
 	haskell-opengl      haskell-glut haskell-openal haskell-alut
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
+Comment: Please keep targets alphabetized by source package name!
 Targets:
-  apt:sid:haskell-devscripts
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
-  quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
   apt:sid:cpphs
-  quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
-  apt:sid:haskell-mtl
-  apt:sid:haskell-stream
+  quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
+  apt:hardy:haskell-alut
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/haskell-arrows-quilt)
-  quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
-  apt:sid:haskell-parsec
+  quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/haskell-cgi-quilt)
+  apt:sid:haskell-devscripts
   quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/haskell-fgl-quilt)
-  quilt:(apt:sid:haskell-network):(darcs:http://src.seereason.com/haskell-network-quilt)
-  apt:sid:haskell-x11
+  apt:sid:haskell-glut
   quilt:(apt:sid:haskell-hgl):(darcs:http://src.seereason.com/haskell-hgl-quilt)
   apt:sid:haskell-html
   apt:sid:haskell-hunit
+  apt:sid:haskell-mtl
+  quilt:(apt:sid:haskell-network):(darcs:http://src.seereason.com/haskell-network-quilt)
+  apt:sid:haskell-openal
+  apt:hardy:haskell-opengl
   apt:sid:haskell-parallel
+  apt:sid:haskell-parsec
   apt:sid:haskell-quickcheck
   quilt:(apt:sid:haskell-regex-base):(darcs:http://src.seereason.com/haskell-regex-base-quilt)
-  apt:sid:haskell-regex-posix
   quilt:(apt:sid:haskell-regex-compat):(darcs:http://src.seereason.com/haskell-regex-compat-quilt)
-  apt:sid:haskell-stm
-  apt:sid:haskell-time
-  quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/haskell-cgi-quilt)
+  apt:sid:haskell-regex-posix
   apt:sid:haskell-haskell-src
-  apt:hardy:haskell-opengl
-  apt:hardy:haskell-openal
-  apt:hardy:haskell-alut
-  apt:hardy:haskell-glut
+  apt:sid:haskell-stm
+  apt:sid:haskell-stream
+  apt:sid:haskell-time
+  quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
+  apt:sid:haskell-x11
+  quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
+  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
+Comment:
+  sourcedeb:file:///home/david/darcs/haddock-source-deb
 
-Name: happs
+Name: seereason-targets
+Comment: Some targets are duplicates of targets in haskell-extra
 Targets:
-  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
-  quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
-  apt:sid:haskell-http
-  darcs:http://src.seereason.com/HAppS/syb-with-class
-  darcs:http://src.seereason.com/HAppS/HAppS-Util
-  darcs:http://src.seereason.com/HAppS/HAppS-Data
-  darcs:http://src.seereason.com/HAppS/HAppS-State
-  darcs:http://src.seereason.com/HAppS/HAppS-IxSet
-  darcs:http://src.seereason.com/HAppS/HAppS-Server
+  darcs:http://src.seereason.com/haskell-debian
+  darcs:http://src.seereason.com/haskell-ugly
+  darcs:http://src.seereason.com/build-env
+  darcs:http://src.seereason.com/autobuilder
+  darcs:http://src.seereason.com/haskell-mime
+  darcs:http://src.seereason.com/haskell-unixutils
+  darcs:http://src.seereason.com/haskell-extra
+  darcs:http://src.seereason.com/mirror
+  darcs:http://src.seereason.com/tree-widget
+  quilt:(apt:sid:xtla):(darcs:http://src.seereason.com/xtla-quilt)
+Relax-Depends: haddock ghc6
+Comment: This is not really useful any more
+  apt:sid:hugs98
+Comment: haskell-cgi depends on xhtml
+Comment:
+  We need the latest hugs because haskell-unixutils builds a hugs library.
+  Unfortunately, the lastest version still doesn't include System.Posix.Files,
+  so I am disabling the hugs library in haskell-unixutils.
+Comment: Probably don't need these
+  proc:apt:gutsy:neko
+  proc:apt:gutsy:haxe
+
+Name: seereason-private-targets
+Comment: These depend on haskell-extra
+Targets:
+  darcs:http://src.seereason.com/haskell-appraisal
 
 Name: ghc-extra
 Relax-Depends: g++
@@ -111,11 +102,9 @@ Relax-Depends: make
 Relax-Depends: base-passwd
 Relax-Depends: mktemp
 Relax-Depends: sed
+Comment: Please keep targets alphabetized by source package name!
 Targets:
-  apt:hardy:gtk2hs
-  apt:hardy:haskell-hsql
-  apt:hardy:hs-plugins
-  apt:hardy:hat
+  apt:sid:alex
   apt:sid:arch2darcs
   apt:sid:bnfc
   apt:sid:c2hs
@@ -126,146 +115,88 @@ Targets:
   apt:sid:drift
   apt:sid:frown
   apt:sid:ftphs
+  apt:hardy:gtk2hs
   apt:sid:gtkrsync
-  apt:sid:haskell-happs-util
+  apt:sid:happy
+  apt:sid:haskell98-report
+  apt:sid:haskell-anydbm
+  quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/haskell-bzlib-debian)
+  apt:sid:haskell-configfile
+  apt:sid:haskelldb
+  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
+  apt:sid:haskell-doc
+  apt:sid:haskell-edison
   apt:sid:haskell-happs-data
   apt:sid:haskell-happs-ixset
   apt:sid:haskell-happs-server
   apt:sid:haskell-happs-state
-  deb-dir:(darcs:http://code.haskell.org/utf8-string):(darcs:http://src.seereason.com/haskell-utf8-string-debian)
-  quilt:(apt:sid:haskell-syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
-  apt:sid:haskell-anydbm
-  quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
-  apt:sid:haskell-configfile
-  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
-  apt:sid:haskell-doc
-  apt:sid:haskell-edison
+  apt:sid:haskell-happs-util
   apt:sid:haskell-hlist
   apt:sid:haskell-hsh
+  apt:hardy:haskell-hsql
+  apt:sid:haskell-http
   apt:sid:haskell-http
   apt:sid:haskell-mode
+  quilt:(apt:sid:haskell-syb-with-class):(darcs:http://src.seereason.com/haskell-syb-with-class-quilt)
+  deb-dir:(darcs:http://code.haskell.org/utf8-string):(darcs:http://src.seereason.com/haskell-utf8-string-debian)
   apt:sid:haskell-uulib
-  apt:sid:haskelldb
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
+  apt:hardy:hat
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   apt:sid:hdbc
   apt:sid:hdbc-odbc
   apt:sid:hdbc-postgresql
   apt:sid:hdbc-sqlite3
-  apt:sid:helium
   apt:sid:hg-buildpackage
+  apt:hardy:hmake
   apt:sid:hpodder
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
+  apt:hardy:hs-plugins
   apt:sid:ldap-haskell
   apt:sid:lhs2tex
   apt:sid:listlike
   apt:sid:magic-haskell
   apt:sid:missingh
   apt:sid:pandoc
-  apt:sid:washngo
-  darcs:http://src.seereason.com/mirror
-  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
-  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
-  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
-  apt:sid:haskell-http
   apt:sid:pandoc
   apt:sid:srcinst
-  apt:sid:uuagc
+  apt:sid:washngo
   apt:sid:washngo
   apt:sid:whitespace
-Comment:
-  Still depends on ghc 6.6:
-    apt:sid:hdbc-missingh
-  Dependencies too tight:
-    apt:sid:xmonad
-  Can't find System.Directory.Internals:
-    apt:sid:ghc-cvs
-  Gerboa svn broken?
-    quilt:(apt:sid:hmake):(svn:http://gerboa.com/svn/hmake-quilt)
-  Not available
-    apt:hardy:pugs
-    apt:sid:haskell-x11-extras
-  Depends on directory, which is hidden:
-    apt:sid:haddock
-  http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=460388
-    apt:sid:alex
-    apt:sid:happy
-  Now part of ghc6
-    apt:sid:haskell-cabal
-    apt:sid:haskell-filepath
-  Replaced by happs-data, happs-ixset, etc.
-    apt:sid:happs
-  LaTeX couldn't find times.ttf: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=420479
-    apt:sid:haskell98-report
-  Error parsing build depends (unexpected #):
-    apt:sid:haskell-src-exts
-    apt:sid:kaya
-    apt:sid:missingpy
-Comment: Old comments
-  Patches won't apply:
-    quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
-  Disabled due to flaw in the autobuilder's build dependency parser:
-    apt:sid:missingpy
-  Depends on hugs libraries which don't exist:
-    apt:sid:hdbc-sqlite3
-    apt:sid:missingh
-    apt:sid:ftphs
-    apt:sid:haskell-anydbm
-    apt:sid:haskell-configfile
-  Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
-    apt:sid:hdbc-missingh
-  Depends on libghc6-hslogger-dev, libghc6-missingh-dev
-    apt:sid:haskell-hsh
-  Trumped:
-    apt:sid:hs-plugins
 
-Name: ghc-sid
-Comment: Now part of ghc6
-Comment: GHC core 
-  apt:sid:hscolour
-  apt:sid:ghc6
-  apt:sid:haskell-alut
-  apt:sid:haskell-arrows
-  apt:sid:haskell-cgi
-  apt:sid:haskell-fgl
-  apt:sid:haskell-glut
-  apt:sid:haskell-haskell-src
-  apt:sid:haskell-hgl
-  apt:sid:haskell-html
-  apt:sid:haskell-hunit
-  apt:sid:haskell-mtl
-  apt:sid:haskell-network
-  apt:sid:haskell-openal
-  apt:sid:haskell-opengl
-  apt:sid:haskell-parallel
-  apt:sid:haskell-parsec
-  apt:sid:haskell-quickcheck
-  apt:sid:haskell-regex-base
-  apt:sid:haskell-regex-compat
-  apt:sid:haskell-regex-posix
-  apt:sid:haskell-stm
-  apt:sid:haskell-stream
-  apt:sid:haskell-time
-  apt:sid:haskell-utils
-  apt:sid:haskell-x11
-  apt:sid:haskell-xhtml
-Targets:
-
-Name: ghc-seereason
+Name: ghc-extra-broken
 Relax-Depends: g++
 Relax-Depends: make
+Relax-Depends: base-passwd
+Relax-Depends: mktemp
+Relax-Depends: sed
+Comment: Please keep targets alphabetized by source package name!
 Targets:
-  darcs:http://src.seereason.com/haskell-ugly
-
-Name: ghc-base
-Relax-Depends: g++
-Relax-Depends: make
-Targets:
+  apt:sid:ghc-cvs
   apt:sid:haddock
-  apt:sid:haskell-devscripts
-  apt:sid:ghc6
-  apt:sid:c2hs
-  quilt:(darcs:http://darcs.haskell.org/cabal):(darcs:http://src.seereason.com/cabal-quilt)
-  apt:sid:cpphs
+  apt:sid:haskell-src-exts
+  apt:sid:hdbc-missingh
+  apt:sid:helium
+  apt:sid:hs-plugins
+  apt:sid:kaya
+  apt:sid:missingpy
+  apt:sid:uuagc
+  apt:sid:xmonad
+Comment:
+  apt:sid:ghc-cvs		- Can't find System.Directory.Internals:
+  apt:sid:haddock		- Depends on directory, which is hidden:
+  quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)	- Patches won't apply:
+  apt:sid:haskell-src-exts	- Error parsing build depends (unexpected #):
+  apt:sid:haskell-x11-extras	- Not available
+  apt:sid:hdbc-missingh		- Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
+  apt:sid:helium		- Failed due to failure of uuagc
+  apt:sid:hs-plugins
+  apt:sid:kaya		- Error parsing build depends (unexpected #):
+  apt:sid:missingpy		- Disabled due to flaw in the autobuilder's build dependency parser:
+  apt:hardy:pugs		- Not available
+  apt:sid:uuagc			- missing dependency on uulib
+  apt:sid:xmonad		- Dependencies too tight:
 
 Name: yhc-targets
 Targets:
@@ -290,4 +221,3 @@ Targets:
   darcs:http://src.seereason.com/tree-widget
   quilt:(apt:sid:xtla):(darcs:http://src.seereason.com/xtla-quilt)
   remove this
-
