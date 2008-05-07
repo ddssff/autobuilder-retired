@@ -1,11 +1,49 @@
-Comment:
-  Release-independent target lists.  For a given release there
-  may be additional targets which need to be built.  For example
-  Debian Etch has a version of haskell-cabal which is too old to
-  build the autobuilder, so in the 'etch' file we pull in the one
-  from feisty, the next oldest release.
+Comment: ========== RELEASE-INDEPENDENT TARGET LISTS ===============
+  .
+  For a given release there may be additional targets which need to be
+  built.  For example Debian Etch has a version of haskell-cabal which
+  is too old to build the autobuilder, so in the 'etch' file we pull
+  in the one from feisty, the next oldest release.
+
+Comment: =========== TIGHT BUILD DEPENDENCIES ================
+  Because of Ian's new code to generate equals dependencies for all
+  the packages used while building, it is necessary to create quilt
+  targets for most new source packages.  These patches do two things:
+  .
+	1. Add a call to update-generated-files following the build-stamp: target
+        2. Change ocurrences of cabal:deps:ghc6:* in the Build-Depends line of
+	   debian/control.in to cabal:bdeps:ghc6:*.
+	3. Change the equals releations in the list of build dependencies to
+	   greater-or-equal relations.  Without doing this it is impossible to
+	   build the package unless you use all the exact versions that Ian used.
+  .
+  The packages currently patched in this way include:
+  .
+	haskell-alut
+	haskell-arrows
+	haskell-cgi
+	haskell-fgl
+	haskell-glut
+	haskell-network
+	haskell-openal
+  .
+  It is also desirable that the build dependencies that are added by
+  running update-generated-files be >= dependencies rather than =
+  dependencies.  There is a patch in haskell-utils-quilt called
+  build-deps.patch which modifies the update-haskell-control.lhs script
+  to make this change.
+
+Comment: ============ HAPPY BOOSTRAPPING ==================
+  .
+  The happy program has a build dependency on itself.  There is a
+  quilt patch which changes this dependency to "happy | ghc6".  This
+  allows you to drop a working /usr/bin/happy and /usr/share/happy-1.17
+  into the clean build environment of a distribution that doesn't have
+  a working happy package (such as Debian Lenny.)
 
 Name: ghc682
+Comment: Let's assume that new versions of utilities like make and g++ won't
+	affect the ghc6 build.  Everyone else does...
 Relax-Depends: g++
 Relax-Depends: make
 Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
@@ -14,40 +52,25 @@ Relax-Depends: ghc6 hscolour
 Relax-Depends: ghc6 haddock
 Relax-Depends: haddock ghc6
 Relax-Depends: hscolour ghc6
-Comment: Once haskell-mtl builds, the build dependencies look like this:
-	Ready		    Blocked
-	-----		    -------
-	haskell-regex-base  haskell-regex-posix haskell-regex-compat
-	haskell-fgl         
-	haskell-xhtml       haskell-parsec haskell-network haskell-cgi
-	haskell-haskell-src 
-	haskell-x11         haskell-hgl
-	haskell-html        
-	haskell-hunit       
-	haskell-parallel    
-	haskell-quickcheck  
-	haskell-stm         
-	haskell-stream      haskell-arrows
-	haskell-time        
-	haskell-opengl      haskell-glut haskell-openal haskell-alut
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
 Comment: Please keep targets alphabetized by source package name!
 Targets:
   apt:sid:cpphs
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
-  apt:hardy:haskell-alut
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
+  quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/haskell-cgi-quilt)
   apt:sid:haskell-devscripts
   quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/haskell-fgl-quilt)
-  apt:sid:haskell-glut
+  quilt:(apt:sid:haskell-glut):(darcs:http://src.seereason.com/haskell-glut-quilt)
   quilt:(apt:sid:haskell-hgl):(darcs:http://src.seereason.com/haskell-hgl-quilt)
   apt:sid:haskell-html
   apt:sid:haskell-hunit
   apt:sid:haskell-mtl
   quilt:(apt:sid:haskell-network):(darcs:http://src.seereason.com/haskell-network-quilt)
-  apt:sid:haskell-openal
+  quilt:(apt:sid:haskell-openal):(darcs:http://src.seereason.com/haskell-openal-quilt)
   apt:hardy:haskell-opengl
   apt:sid:haskell-parallel
   apt:sid:haskell-parsec
@@ -117,7 +140,6 @@ Targets:
   apt:sid:ftphs
   apt:hardy:gtk2hs
   apt:sid:gtkrsync
-  apt:sid:happy
   apt:sid:haskell98-report
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
