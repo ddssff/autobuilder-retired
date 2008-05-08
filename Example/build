@@ -35,11 +35,17 @@ Comment: =========== TIGHT BUILD DEPENDENCIES ================
 
 Comment: ============ HAPPY BOOSTRAPPING ==================
   .
-  The happy program has a build dependency on itself.  There is a
-  quilt patch which changes this dependency to "happy | ghc6".  This
-  allows you to drop a working /usr/bin/happy and /usr/share/happy-1.17
-  into the clean build environment of a distribution that doesn't have
-  a working happy package (such as Debian Lenny.)
+  The happy program has a build dependency on itself.  The target
+  below applies a quilt patch which changes this dependency to
+  "happy | ghc6".  This allows you to drop a working /usr/bin/happy
+  and /usr/share/happy-1.17 into the clean build environment of a
+  distribution that doesn't have a working happy package (such as
+  Debian Lenny.)  Once the bootstrap has been done, the dummy target
+  should be used to restored the original dependencies while keeping
+  the modified version number.
+  .
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
 
 Name: ghc682
 Comment: Let's assume that new versions of utilities like make and g++ won't
@@ -58,7 +64,7 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   apt:sid:cpphs
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
-  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/haskell-cgi-quilt)
@@ -101,10 +107,11 @@ Targets:
   darcs:http://src.seereason.com/haskell-extra
   darcs:http://src.seereason.com/mirror
   darcs:http://src.seereason.com/tree-widget
-  quilt:(apt:sid:xtla):(darcs:http://src.seereason.com/xtla-quilt)
 Relax-Depends: haddock ghc6
 Comment: This is not really useful any more
   apt:sid:hugs98
+Comment: Missing build deps under lenny
+  quilt:(apt:sid:xtla):(darcs:http://src.seereason.com/xtla-quilt)
 Comment: haskell-cgi depends on xhtml
 Comment:
   We need the latest hugs because haskell-unixutils builds a hugs library.
@@ -138,9 +145,8 @@ Targets:
   apt:sid:drift
   apt:sid:frown
   apt:sid:ftphs
-  apt:hardy:gtk2hs
+  apt:sid:gtk2hs
   apt:sid:gtkrsync
-  apt:sid:haskell98-report
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/haskell-bzlib-debian)
@@ -174,7 +180,6 @@ Targets:
   apt:hardy:hmake
   apt:sid:hpodder
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/hslogger-quilt)
-  apt:hardy:hs-plugins
   apt:sid:ldap-haskell
   apt:sid:lhs2tex
   apt:sid:listlike
@@ -186,6 +191,10 @@ Targets:
   apt:sid:washngo
   apt:sid:washngo
   apt:sid:whitespace
+Comment: Broken packages
+  apt:sid:haskell98-report - dvips: ! Couldn't find header file times.ttf.
+  apt:hardy:hs-plugins - depends on haskell-src-exts
+  apt:sid:haskell-src-exts - Syntax error in build dependencies
 
 Name: ghc-extra-broken
 Relax-Depends: g++
@@ -197,10 +206,8 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   apt:sid:ghc-cvs
   apt:sid:haddock
-  apt:sid:haskell-src-exts
   apt:sid:hdbc-missingh
   apt:sid:helium
-  apt:sid:hs-plugins
   apt:sid:kaya
   apt:sid:missingpy
   apt:sid:uuagc
@@ -209,12 +216,10 @@ Comment:
   apt:sid:ghc-cvs		- Can't find System.Directory.Internals:
   apt:sid:haddock		- Depends on directory, which is hidden:
   quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)	- Patches won't apply:
-  apt:sid:haskell-src-exts	- Error parsing build depends (unexpected #):
   apt:sid:haskell-x11-extras	- Not available
   apt:sid:hdbc-missingh		- Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
   apt:sid:helium		- Failed due to failure of uuagc
-  apt:sid:hs-plugins
-  apt:sid:kaya		- Error parsing build depends (unexpected #):
+  apt:sid:kaya			- Error parsing build depends (unexpected #):
   apt:sid:missingpy		- Disabled due to flaw in the autobuilder's build dependency parser:
   apt:hardy:pugs		- Not available
   apt:sid:uuagc			- missing dependency on uulib

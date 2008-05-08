@@ -10,8 +10,6 @@ Comment: If upstart was available you could uncomment this for an upstart
 	build.  But it isn't, so you can't.  But you should.
   Extra-Essential: upstart
   Omit-Essential: initscripts
-Comment: HAPPY BOOTSTRAP - It is necessary to copy a happy binary from some
-  other distribution into /usr/bin of the clean build root.
 
 Name: lenny-ghc68-build
 Use: debian-build
