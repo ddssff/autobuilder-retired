@@ -240,7 +240,8 @@ readSpec debug top flush ifSourcesChanged distros text =
                      Left message -> return (Left message)
                      Right (base, patch) -> tio $ prepareQuilt top flush base patch
             's':'o':'u':'r':'c':'e':'d':'e':'b':':' : target ->
-                readSpec debug top flush ifSourcesChanged distros target >>= tio . either (return . Left) prepareSourceDeb
+                readSpec debug top flush ifSourcesChanged distros target >>=
+                tio . either (return . Left . ((text ++ ": ") ++)) prepareSourceDeb
             's':'v':'n':':' : target -> tio $ prepareSvn debug top flush target
             't':'l':'a':':' : target -> tio $ prepareTla top flush target
             'b':'z':'r':':' : target -> tio $ prepareBzr top flush target
