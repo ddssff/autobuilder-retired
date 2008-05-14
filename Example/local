@@ -19,10 +19,10 @@ Comment:
   These are some specific host names we use building the sources.list,
   adjust according to your location.  When setting the same value more
   than once, the first Let takes precedence over the second.
-Let: ubuntu-mirror-host=us.archive.ubuntu.com
-Comment: Let: ubuntu-mirror-host=sandbox.linspire.com
-Let: ubuntu-security-mirror-host=security.ubuntu.com
-Comment: Let: ubuntu-security-mirror-host=mirror.anl.gov
+Comment: Let: ubuntu-mirror-host=us.archive.ubuntu.com
+Comment: Let: ubuntu-security-mirror-host=security.ubuntu.com
+Let: ubuntu-mirror-host=mirror.anl.gov
+Let: ubuntu-security-mirror-host=mirror.anl.gov
 Let: debian-mirror-host=mirror.anl.gov
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
 Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}

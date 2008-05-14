@@ -1,3 +1,9 @@
+autobuilder (4.12) unstable; urgency=low
+
+  * Changes in haskell-debian API.
+
+ -- David Fox <dsf@seereason.com>  Wed, 14 May 2008 12:55:30 -0700
+
 autobuilder (4.11) unstable; urgency=low
 
   * Using lazy bytestrings in System.Unix.Process now

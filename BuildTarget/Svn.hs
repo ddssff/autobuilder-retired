@@ -19,7 +19,7 @@ import Data.Maybe
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import System.Directory
-import Ugly.URI
+import Debian.URI
 import Debian.Control.ByteString
 import Extra.TIO
 import Debian.Shell

@@ -15,7 +15,7 @@ import qualified Data.Map as Map
 import		 Data.Maybe
 import qualified MyHtml
 import qualified Network.CGI as CGI
-import		 Ugly.URI
+import		 Debian.URI
 import qualified Params
 import		 System.Directory
 import		 System.Environment

@@ -82,7 +82,7 @@ import		 Debian.Types
 import		 Debian.Version
 --import	 Debian.VersionPolicy
 import		 Extra.Misc
-import		 Ugly.URI
+import		 Debian.URI
 import qualified Config as P (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
 import qualified Data.Map as Map
 import qualified System.IO as IO
@@ -152,7 +152,8 @@ params verbosity appName flags =
           tio (ePutStrBl "Loading repo cache...") >>
           io (try (readFile (top ++ "/repoCache")) >>=
               try . evaluate . either (const []) read) >>=
-          either (const (return ())) (setRepoMap . Map.fromList)
+          either (const (return ())) (setRepoMap . Map.fromList . map fixURI)
+      fixURI (s, x) = (fromJust (parseURI s), x)
       makeFlagSet flags =
           do allSources <- allSourcesOfFlags flags
              buildRepoSources <- 

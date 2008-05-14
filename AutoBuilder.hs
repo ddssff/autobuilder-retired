@@ -48,7 +48,7 @@ import		 Extra.Misc
 import		 Debian.Version
 import		 System.Unix.Directory hiding (find)
 import		 System.Unix.Process
-import		 Ugly.URI
+import		 Debian.URI
 import qualified Params
 import		 System.Directory
 import		 System.Environment

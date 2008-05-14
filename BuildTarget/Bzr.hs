@@ -12,7 +12,7 @@ import System.Unix.FilePath
 import Data.Maybe
 import Data.List
 import System.Directory
-import Ugly.URI
+import Debian.URI
 import Extra.TIO
 import Debian.Shell
 import qualified Data.ByteString.Lazy.Char8 as L

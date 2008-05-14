@@ -6,7 +6,7 @@ import Control.Monad.Trans
 import BuildTarget
 import Debian.Types
 import Debian.Types.SourceTree
-import Ugly.URI
+import Debian.URI
 import Control.Monad
 import Control.Exception
 import System.Unix.Directory
