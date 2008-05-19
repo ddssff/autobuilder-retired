@@ -1,9 +1,6 @@
 module BuildTarget.Apt where
 
-import Debian.Repo.AptImage
-import Debian.Repo.Cache
-import Debian.Repo.IO
-import Debian.Repo.Types
+import Debian.Repo
 import Debian.Version
 
 import BuildTarget
@@ -43,7 +40,7 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
       os <- prepareAptEnv cacheDir sourcesChangedAction distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
       when flush (io . removeRecursiveSafely $ aptDir os package)
-      tree <- tio $ Debian.Repo.AptImage.aptGetSource (rootEnvPath (aptDir os package)) os package version
+      tree <- tio $ Debian.Repo.aptGetSource (rootEnvPath (aptDir os package)) os package version
       let version' = logVersion . entry $ tree
       return . Right . Tgt $ Apt distro package (Just version') tree
     where

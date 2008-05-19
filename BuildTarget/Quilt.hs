@@ -3,9 +3,7 @@
 -- a build target with the patches applied to the source directory.
 module BuildTarget.Quilt where
 
-import Debian.Repo.Changes
-import Debian.Repo.SourceTree
-import Debian.Repo.Types
+import Debian.Repo
 import Debian.Shell
 import Debian.Version
 

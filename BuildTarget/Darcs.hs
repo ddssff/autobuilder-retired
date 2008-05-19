@@ -1,7 +1,6 @@
 module BuildTarget.Darcs where
 
-import Debian.Repo.Types
-import Debian.Repo.SourceTree
+import Debian.Repo
 import Debian.Shell
 
 import BuildTarget

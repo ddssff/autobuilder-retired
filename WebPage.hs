@@ -2,10 +2,7 @@
 module Main where
 
 import		 Debian.Control
-import		 Debian.Repo.IO
-import		 Debian.Repo.Cache
-import		 Debian.Repo.Slice
-import		 Debian.Repo.Types
+import		 Debian.Repo
 import		 Debian.URI
 
 import qualified Config

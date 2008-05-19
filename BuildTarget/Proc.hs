@@ -1,8 +1,7 @@
 -- |Modify a target so that \/proc is mounted while it builds.
 module BuildTarget.Proc where
 
-import Debian.Repo.SourceTree
-import Debian.Repo.Types
+import Debian.Repo
 
 import BuildTarget
 import System.Unix.Process

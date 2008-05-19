@@ -2,8 +2,7 @@
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
 module BuildTarget.Uri where
 
-import Debian.Repo.Types
-import Debian.Repo.SourceTree
+import Debian.Repo
 import Debian.Shell
 import Debian.URI
 

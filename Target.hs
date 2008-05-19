@@ -19,19 +19,9 @@ import qualified Debian.Control.ByteString as B
 import qualified Debian.Control.String as S(fieldValue)
 import qualified Debian.GenBuildDeps as GenBuildDeps
 import		 Debian.Relation.ByteString as B
-import		 Debian.Repo.Cache
-import		 Debian.Repo.Changes
-import		 Debian.Repo.Dependencies
-import		 Debian.Repo.SourceTree
-import		 Debian.Repo.Insert
-import		 Debian.Repo.IO
-import		 Debian.Repo.OSImage
-import		 Debian.Repo.Package
-import		 Debian.Repo.Repository
-import		 Debian.Repo.SourceTree
+import		 Debian.Repo
 import		 Debian.Shell
 import		 Debian.Time
-import		 Debian.Repo.Types
 import		 Debian.Version
 import		 Debian.VersionPolicy
 
@@ -564,7 +554,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
             case errors of
               [] -> return . Right $ repo
               _ -> return . Left $ "Local upload failed:\n" ++ showErrors (map snd errors)
-      buildOS = Debian.Repo.OSImage.chrootEnv cleanOS (Params.dirtyRoot params)
+      buildOS = Debian.Repo.chrootEnv cleanOS (Params.dirtyRoot params)
 
 -- |Prepare the build image by copying the clean image, installing
 -- dependencies, and copying the clean source tree.  For a lax build
@@ -584,7 +574,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
                             Just tree -> return . Right $ tree
                False -> vBOL 0 >>
                         vEPutStr 1 "Syncing buildOS" >>
-                        Debian.Repo.OSImage.syncEnv cleanOS buildOS >>=
+                        Debian.Repo.syncEnv cleanOS buildOS >>=
                         (const (prepareCopy tgt (cleanSource target) newPath))
     where
       buildDepends = (Params.buildDepends params)
@@ -601,7 +591,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
         Left message -> return (Left message)
         Right buildTree -> iStyle $ downloadDependencies cleanOS buildTree buildDepends sourceDependencies
       case noClean of
-        False -> vEPutStrBl 1 "Syncing buildOS" >>Debian.Repo.OSImage.syncEnv cleanOS buildOS
+        False -> vEPutStrBl 1 "Syncing buildOS" >> Debian.Repo.syncEnv cleanOS buildOS
         True -> return buildOS
       case buildTree of
         Left message -> return (Left message)
@@ -646,8 +636,8 @@ getReleaseControlInfo cleanOS packageName =
                     "  Available Binary Packages of Source Package:"] ++
                    map (("   " ++) . show) (zip (map sourcePackageVersion sourcePackages) (map (availableDebNames binaryPackages) sourcePackages)))
       sourcePackagesWithBinaryNames = zip sourcePackages (map sourcePackageBinaryNames sourcePackages)
-      binaryPackages = Debian.Repo.OSImage.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
-      sourcePackages = sortBy compareVersion . Debian.Repo.OSImage.sourcePackages cleanOS $ [packageName]
+      binaryPackages = Debian.Repo.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
+      sourcePackages = sortBy compareVersion . Debian.Repo.sourcePackages cleanOS $ [packageName]
       sourcePackageVersion package =
           case ((fieldValue "Package" . sourceParagraph $ package), (fieldValue "Version" . sourceParagraph $ package)) of
             (Just name, Just version) -> (B.unpack name, parseDebianVersion (B.unpack version))
@@ -757,12 +747,12 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
                                   show (catMaybes (map unsatisfiable (zip relations' relations''')))) else
                    -- Do not stare directly into the solutions!  Your head will
                    -- explode (because there may be a lot of them.)
-                   return $ Debian.Repo.Dependencies.solutions (available relations''') relations''' preferred arch
+                   return $ Debian.Repo.solutions (available relations''') relations''' preferred arch
     where
       unsatisfiable (original, []) = Just original
       unsatisfiable _ = Nothing
 
-      available relations = uniquify (Debian.Repo.OSImage.binaryPackages os (packagesOfRelations relations))
+      available relations = uniquify (Debian.Repo.binaryPackages os (packagesOfRelations relations))
       -- If the same package/version appears more than once, we can
       -- ignore all but one since there is an assumption in Debian
       -- that packages with the same name and version are the same.
@@ -838,7 +828,7 @@ updateChangesFile elapsed changes =
                       maybe [] ((: []) . ("CPU cache: " ++)) (lookup "cache size" cpuInfo)
       let buildInfo' = buildInfo ++ maybe [] (\ name -> ["Host: " ++ name]) hostname
       let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ consperse "\n " buildInfo')])
-      replaceFile (Debian.Repo.Changes.path changes) (show (Control [fields']))
+      replaceFile (Debian.Repo.path changes) (show (Control [fields']))
       return changes
 
 -- |Move this to {-Debian.-} Control
@@ -907,7 +897,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
                   do
                     size <- getFileStatus dscFilePath >>= return . fileSize
                     let changes' = changes {changeFiles = (otherFiles ++ [file {changedFileMD5sum = s, changedFileSize = size}])}
-                    Debian.Repo.Changes.save changes'
+                    Debian.Repo.save changes'
                     return changes'
       -- A binary only build will have no .dsc file
       ([], _) -> return changes

@@ -4,13 +4,7 @@ module Main where
 import		 Prelude hiding (putStr, putStrLn, putChar)
 import		 Control.Monad.Trans
 import		 Extra.TIO
-import		 Debian.Repo.Changes
-import		 Debian.Repo.Insert
-import		 Debian.Repo.IO
-import		 Debian.Repo.Package
-import		 Debian.Repo.Release
-import		 Debian.Repo.LocalRepository
-import		 Debian.Repo.Types
+import		 Debian.Repo
 import		 Config
 import		 Control.Monad
 import		 Data.List

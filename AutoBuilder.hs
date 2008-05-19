@@ -20,16 +20,7 @@
 --
 module Main where
 
-import		 Debian.Repo.AptImage
-import		 Debian.Repo.Cache
-import		 Debian.Repo.Insert
-import		 Debian.Repo.IO
-import		 Debian.Repo.LocalRepository
-import qualified Debian.Repo.OSImage as OSImage
-import		 Debian.Repo.Release
-import		 Debian.Repo.Repository
-import		 Debian.Repo.Slice
-import		 Debian.Repo.Types
+import		 Debian.Repo
 import		 Debian.Shell
 import		 Debian.Version
 import		 Debian.URI
@@ -72,7 +63,7 @@ main =
        IO.hFlush IO.stderr
     where
       tioMain verbosity =
-          run Debian.Repo.IO.aptIOStyle (aptMain verbosity) >>=
+          run aptIOStyle (aptMain verbosity) >>=
           checkResults
       aptMain verbosity =
           io getArgs >>=
@@ -132,7 +123,7 @@ runParameterSet params =
       checkPermissions
       maybe (return ()) (verifyUploadURI (Params.doSSHExport $ params)) (Params.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
-      cleanOS <- (OSImage.prepareEnv
+      cleanOS <- (prepareEnv
                          top
                          (Params.cleanRoot params)
                          buildRelease
@@ -146,7 +137,7 @@ runParameterSet params =
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
-      globalBuildDeps <- io $ OSImage.buildEssential cleanOS (Params.omitBuildEssential params)
+      globalBuildDeps <- io $ buildEssential cleanOS (Params.omitBuildEssential params)
       -- Get a list of all sources for the local repository.
       localSources <-
           case localRepo of

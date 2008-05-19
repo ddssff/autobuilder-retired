@@ -69,10 +69,7 @@ module Params
      findSlice
     ) where
 
-import		 Debian.Repo.Cache
-import		 Debian.Repo.IO
-import		 Debian.Repo.Slice
-import		 Debian.Repo.Types
+import		 Debian.Repo
 import		 Debian.Version
 import		 Debian.URI
 

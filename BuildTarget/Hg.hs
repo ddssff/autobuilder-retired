@@ -2,8 +2,7 @@
 module BuildTarget.Hg where
 
 import Debian.Shell
-import Debian.Repo.SourceTree
-import Debian.Repo.Types
+import Debian.Repo
 
 import Control.Exception
 import Control.Monad

@@ -6,8 +6,7 @@ module BuildTarget.Svn
     ) where
 
 import Debian.Control.ByteString
-import Debian.Repo.SourceTree
-import Debian.Repo.Types
+import Debian.Repo
 import Debian.Shell
 import Debian.URI
 

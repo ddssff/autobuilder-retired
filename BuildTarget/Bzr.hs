@@ -1,7 +1,6 @@
 module BuildTarget.Bzr where
 
-import Debian.Repo.Types
-import Debian.Repo.SourceTree
+import Debian.Repo
 import Debian.Shell
 import Debian.URI
 
