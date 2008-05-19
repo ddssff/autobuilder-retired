@@ -4,8 +4,8 @@ import Control.Exception
 import Control.Monad.Trans
 import BuildTarget
 import Prelude hiding (catch)
-import Debian.Types
-import Debian.Types.SourceTree
+import Debian.Repo.Types
+import Debian.Repo.SourceTree
 import System.Directory
 import Extra.TIO
 import Debian.Shell

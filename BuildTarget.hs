@@ -31,9 +31,8 @@ module BuildTarget
     ) where
 
 import Extra.TIO
-import Debian.Types.SourceTree
-import Debian.SourceTree
-import Debian.Types
+import Debian.Repo.SourceTree
+import Debian.Repo.Types
 import Control.Monad
 import Data.Maybe
 import System.Time

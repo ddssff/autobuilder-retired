@@ -1,8 +1,10 @@
 module BuildTarget.Darcs where
 
+import Debian.Repo.Types
+import Debian.Repo.SourceTree
+import Debian.Shell
+
 import BuildTarget
-import Debian.Types
-import Debian.Types.SourceTree
 import Control.Monad.Trans
 import System.Directory
 import System.Process hiding (runCommand)
@@ -14,7 +16,6 @@ import Control.Monad
 import System.Unix.Directory
 import System.Unix.FilePath
 import Extra.TIO
-import Debian.Shell
 
 -- | A Darcs archive
 data Darcs = Darcs { uri :: String

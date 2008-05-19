@@ -1,9 +1,11 @@
 module BuildTarget.Tla where
 
+import Debian.Repo.Types
+import Debian.Repo.SourceTree
+import Debian.Shell
+
 import Control.Monad.Trans
 import BuildTarget
-import Debian.Types
-import Debian.Types.SourceTree
 import System.IO
 import Control.Monad
 import System.Process
@@ -12,7 +14,6 @@ import System.Unix.FilePath
 import Data.Maybe
 import System.Directory
 import Extra.TIO
-import Debian.Shell
 
 -- | A TLA archive
 data Tla = Tla String SourceTree

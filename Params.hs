@@ -69,20 +69,19 @@ module Params
      findSlice
     ) where
 
+import		 Debian.Repo.Cache
+import		 Debian.Repo.IO
+import		 Debian.Repo.Slice
+import		 Debian.Repo.Types
+import		 Debian.Version
+import		 Debian.URI
+
 import		 Config hiding (usageInfo)
 import		 Control.Exception
---import		 Control.Monad.Trans
 import		 Data.List
 import		 Data.Maybe
-import		 Debian.Cache
-import		 Debian.IO
 import		 Extra.TIO
-import		 Debian.Slice
-import		 Debian.Types
-import		 Debian.Version
---import	 Debian.VersionPolicy
 import		 Extra.Misc
-import		 Debian.URI
 import qualified Config as P (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
 import qualified Data.Map as Map
 import qualified System.IO as IO

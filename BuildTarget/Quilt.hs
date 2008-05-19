@@ -3,6 +3,12 @@
 -- a build target with the patches applied to the source directory.
 module BuildTarget.Quilt where
 
+import Debian.Repo.Changes
+import Debian.Repo.SourceTree
+import Debian.Repo.Types
+import Debian.Shell
+import Debian.Version
+
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
@@ -11,12 +17,7 @@ import Data.List
 import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime
-import Debian.Local.Changes
 import Extra.TIO
-import Debian.Shell
-import Debian.Types
-import Debian.Types.SourceTree
-import Debian.Version
 import Extra.Either
 import Extra.Files
 import Extra.List

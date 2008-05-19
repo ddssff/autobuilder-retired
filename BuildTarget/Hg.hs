@@ -1,6 +1,10 @@
 -- | A Mercurial archive.
 module BuildTarget.Hg where
 
+import Debian.Shell
+import Debian.Repo.SourceTree
+import Debian.Repo.Types
+
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
@@ -13,9 +17,6 @@ import System.Unix.Directory
 import System.Unix.FilePath
 import BuildTarget
 import Extra.TIO
-import Debian.Shell
-import Debian.Types
-import Debian.Types.SourceTree
 
 data Hg = Hg String SourceTree
 

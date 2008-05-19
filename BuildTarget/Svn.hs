@@ -5,9 +5,13 @@ module BuildTarget.Svn
     , documentation
     ) where
 
+import Debian.Control.ByteString
+import Debian.Repo.SourceTree
+import Debian.Repo.Types
+import Debian.Shell
+import Debian.URI
+
 import BuildTarget
-import Debian.Types
-import Debian.Types.SourceTree
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
@@ -19,10 +23,7 @@ import Data.Maybe
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import System.Directory
-import Debian.URI
-import Debian.Control.ByteString
 import Extra.TIO
-import Debian.Shell
 
 -- | A Subversion archive
 data Svn = Svn URI SourceTree

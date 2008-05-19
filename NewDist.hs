@@ -3,15 +3,14 @@ module Main where
 
 import		 Prelude hiding (putStr, putStrLn, putChar)
 import		 Control.Monad.Trans
-import		 Debian.IO
 import		 Extra.TIO
-import		 Debian.Local.Changes
-import		 Debian.Local.Insert
-import		 Debian.Local.Package
-import		 Debian.Local.Release
-import		 Debian.Local.Repo
-import		 Debian.Release
-import		 Debian.Types
+import		 Debian.Repo.Changes
+import		 Debian.Repo.Insert
+import		 Debian.Repo.IO
+import		 Debian.Repo.Package
+import		 Debian.Repo.Release
+import		 Debian.Repo.LocalRepository
+import		 Debian.Repo.Types
 import		 Config
 import		 Control.Monad
 import		 Data.List
@@ -247,7 +246,7 @@ createReleases flags =
       createSection :: LocalRepository -> Release -> Section -> AptIO Release
       createSection repo release section =
           case filter ((==) section) (releaseComponents release) of
-            [] -> prepareRelease repo (releaseName release) (releaseAliases release) 
+            [] -> prepareRelease repo (releaseName release) (releaseInfoAliases . releaseInfo $ release) 
                     (releaseComponents release ++ [section])  (releaseArchitectures release)
             _ -> return release
 
@@ -268,7 +267,7 @@ layout flags =
 createRelease :: LocalRepository -> [Arch] -> ReleaseName -> AptIO Release
 createRelease repo archList name =
     do releases <- findReleases repo
-       case filter (\release -> elem name (releaseName release : releaseAliases release)) releases of
+       case filter (\release -> elem name (releaseName release : (releaseInfoAliases . releaseInfo) release)) releases of
          [] -> prepareRelease repo name [] [parseSection' "main"] archList
          [release] -> return release
          _ -> error "Internal error 2"
@@ -281,8 +280,8 @@ createAlias repo arg =
              case filter ((==) (parseReleaseName relName) . releaseName) releases of
                [] -> error $ "Attempt to create alias in non-existant release: " ++ relName
                [release] -> 
-                   case elem (parseReleaseName alias) (releaseAliases release) of
-                     False -> prepareRelease repo (parseReleaseName relName) (releaseAliases release ++ [parseReleaseName alias])
+                   case elem (parseReleaseName alias) ((releaseInfoAliases . releaseInfo) release) of
+                     False -> prepareRelease repo (parseReleaseName relName) ((releaseInfoAliases . releaseInfo) release ++ [parseReleaseName alias])
                                (releaseComponents release) (releaseArchitectures release)
                      True -> return release
                _ -> error $ "Internal error 3"

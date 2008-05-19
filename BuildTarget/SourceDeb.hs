@@ -3,6 +3,10 @@
 -- @.tar.gz@ file, and an optional @.diff.gz@ file.
 module BuildTarget.SourceDeb where
 
+import qualified Debian.Control.String as S
+import Debian.Repo.Types
+import qualified Debian.Version as V
+
 import BuildTarget
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -11,10 +15,7 @@ import Data.Maybe
 import Control.Monad
 import System.Directory
 import Extra.TIO
-import Debian.Types
 import System.Unix.Process
-import qualified Debian.Control.String as S
-import qualified Debian.Version as V
 
 -- | Treat the data returned by a target as a source deb.
 data SourceDeb = SourceDeb Tgt EnvPath String

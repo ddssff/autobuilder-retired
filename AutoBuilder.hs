@@ -20,20 +20,23 @@
 --
 module Main where
 
+import		 Debian.Repo.AptImage
+import		 Debian.Repo.Cache
+import		 Debian.Repo.Insert
+import		 Debian.Repo.IO
+import		 Debian.Repo.LocalRepository
+import qualified Debian.Repo.OSImage as OSImage
+import		 Debian.Repo.Release
+import		 Debian.Repo.Repository
+import		 Debian.Repo.Slice
+import		 Debian.Repo.Types
+import		 Debian.Shell
+import		 Debian.Version
+import		 Debian.URI
+
 import		 Control.Monad.State
 import		 Control.Monad.RWS
-import		 Debian.AptImage
-import		 Debian.Cache
-import		 Debian.IO
 import		 Extra.TIO
-import		 Debian.Shell
-import		 Debian.Local.Insert
-import		 Debian.Local.Release
-import		 Debian.Local.Repo
-import qualified Debian.OSImage as OSImage
-import		 Debian.Repo
-import		 Debian.Slice
-import		 Debian.Types
 import qualified Config
 import		 Control.Exception
 import		 Control.Monad
@@ -45,10 +48,8 @@ import		 Extra.Either
 import		 Extra.List
 import		 Extra.Lock
 import		 Extra.Misc
-import		 Debian.Version
 import		 System.Unix.Directory hiding (find)
 import		 System.Unix.Process
-import		 Debian.URI
 import qualified Params
 import		 System.Directory
 import		 System.Environment
@@ -71,7 +72,7 @@ main =
        IO.hFlush IO.stderr
     where
       tioMain verbosity =
-          run Debian.IO.aptIOStyle (aptMain verbosity) >>=
+          run Debian.Repo.IO.aptIOStyle (aptMain verbosity) >>=
           checkResults
       aptMain verbosity =
           io getArgs >>=

@@ -14,27 +14,30 @@ module Target
     , targetDocumentation
     ) where
 
-import		 Control.Exception
-import		 Control.Monad.RWS hiding (All)
-import		 Debian.Cache
 import		 Debian.Control
 import qualified Debian.Control.ByteString as B
 import qualified Debian.Control.String as S(fieldValue)
-import		 Debian.Dependencies
 import qualified Debian.GenBuildDeps as GenBuildDeps
-import		 Extra.TIO
-import		 Debian.IO
+import		 Debian.Relation.ByteString as B
+import		 Debian.Repo.Cache
+import		 Debian.Repo.Changes
+import		 Debian.Repo.Dependencies
+import		 Debian.Repo.SourceTree
+import		 Debian.Repo.Insert
+import		 Debian.Repo.IO
+import		 Debian.Repo.OSImage
+import		 Debian.Repo.Package
+import		 Debian.Repo.Repository
+import		 Debian.Repo.SourceTree
 import		 Debian.Shell
-import		 Debian.Local.Changes
-import		 Debian.Local.Insert
-import		 Debian.OSImage
-import		 Debian.Package
-import		 Debian.Repo
 import		 Debian.Time
-import		 Debian.Types
-import		 Debian.Types.SourceTree
-import		 Debian.SourceTree
+import		 Debian.Repo.Types
+import		 Debian.Version
 import		 Debian.VersionPolicy
+
+import		 Control.Exception
+import		 Control.Monad.RWS hiding (All)
+import		 Extra.TIO
 import		 Extra.Either
 import		 Extra.Files
 import		 Extra.List
@@ -59,8 +62,6 @@ import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
 import qualified Data.Set as Set
-import		 Debian.Relation.ByteString as B
-import		 Debian.Version
 import		 Params
 import		 System.Directory
 --import		 System.Locale
@@ -517,7 +518,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                           Right elapsed -> return (Right (buildTree, elapsed))
       find (Left message) = return (Left message)
       find (Right (buildTree, elapsed)) =
-          lift $ Debian.SourceTree.findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
+          lift $ findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
       upload :: Either String (ChangesFile, TimeDiff) -> AptIO (Either String LocalRepository)
       upload (Left message) = return . Left $ "Upload failed: " ++ message
       upload (Right (changesFile, elapsed)) = doLocalUpload elapsed changesFile
@@ -536,10 +537,10 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                                          ("  * Automatic build due to dependency changes.\n" ++
                                           changelogText (realSource target) sourceRevision oldDependencies sourceDependencies)}
       setDistribution name changes =
-          let (Paragraph fields) = Debian.Local.Changes.changeInfo changes in
+          let (Paragraph fields) = changeInfo changes in
           let info' = map (setDist name) fields in
-          changes { Debian.Local.Changes.changeInfo = Paragraph info'
-                  , Debian.Local.Changes.changeRelease = name }
+          changes { changeInfo = Paragraph info'
+                  , changeRelease = name }
           where setDist name (Field ("Distribution", _)) = Field ("Distribution", ' ' : releaseName' name)
                 setDist _ other = other
       doLocalUpload :: TimeDiff -> ChangesFile -> AptIO (Either String LocalRepository)
@@ -563,7 +564,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
             case errors of
               [] -> return . Right $ repo
               _ -> return . Left $ "Local upload failed:\n" ++ showErrors (map snd errors)
-      buildOS = Debian.OSImage.chrootEnv cleanOS (Params.dirtyRoot params)
+      buildOS = Debian.Repo.OSImage.chrootEnv cleanOS (Params.dirtyRoot params)
 
 -- |Prepare the build image by copying the clean image, installing
 -- dependencies, and copying the clean source tree.  For a lax build
@@ -583,7 +584,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
                             Just tree -> return . Right $ tree
                False -> vBOL 0 >>
                         vEPutStr 1 "Syncing buildOS" >>
-                        Debian.OSImage.syncEnv cleanOS buildOS >>=
+                        Debian.Repo.OSImage.syncEnv cleanOS buildOS >>=
                         (const (prepareCopy tgt (cleanSource target) newPath))
     where
       buildDepends = (Params.buildDepends params)
@@ -600,7 +601,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
         Left message -> return (Left message)
         Right buildTree -> iStyle $ downloadDependencies cleanOS buildTree buildDepends sourceDependencies
       case noClean of
-        False -> vEPutStrBl 1 "Syncing buildOS" >>Debian.OSImage.syncEnv cleanOS buildOS
+        False -> vEPutStrBl 1 "Syncing buildOS" >>Debian.Repo.OSImage.syncEnv cleanOS buildOS
         True -> return buildOS
       case buildTree of
         Left message -> return (Left message)
@@ -645,8 +646,8 @@ getReleaseControlInfo cleanOS packageName =
                     "  Available Binary Packages of Source Package:"] ++
                    map (("   " ++) . show) (zip (map sourcePackageVersion sourcePackages) (map (availableDebNames binaryPackages) sourcePackages)))
       sourcePackagesWithBinaryNames = zip sourcePackages (map sourcePackageBinaryNames sourcePackages)
-      binaryPackages = Debian.OSImage.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
-      sourcePackages = sortBy compareVersion . Debian.OSImage.sourcePackages cleanOS $ [packageName]
+      binaryPackages = Debian.Repo.OSImage.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
+      sourcePackages = sortBy compareVersion . Debian.Repo.OSImage.sourcePackages cleanOS $ [packageName]
       sourcePackageVersion package =
           case ((fieldValue "Package" . sourceParagraph $ package), (fieldValue "Version" . sourceParagraph $ package)) of
             (Just name, Just version) -> (B.unpack name, parseDebianVersion (B.unpack version))
@@ -756,12 +757,12 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
                                   show (catMaybes (map unsatisfiable (zip relations' relations''')))) else
                    -- Do not stare directly into the solutions!  Your head will
                    -- explode (because there may be a lot of them.)
-                   return $ Debian.Dependencies.solutions (available relations''') relations''' preferred arch
+                   return $ Debian.Repo.Dependencies.solutions (available relations''') relations''' preferred arch
     where
       unsatisfiable (original, []) = Just original
       unsatisfiable _ = Nothing
 
-      available relations = uniquify (Debian.OSImage.binaryPackages os (packagesOfRelations relations))
+      available relations = uniquify (Debian.Repo.OSImage.binaryPackages os (packagesOfRelations relations))
       -- If the same package/version appears more than once, we can
       -- ignore all but one since there is an assumption in Debian
       -- that packages with the same name and version are the same.
@@ -837,7 +838,7 @@ updateChangesFile elapsed changes =
                       maybe [] ((: []) . ("CPU cache: " ++)) (lookup "cache size" cpuInfo)
       let buildInfo' = buildInfo ++ maybe [] (\ name -> ["Host: " ++ name]) hostname
       let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ consperse "\n " buildInfo')])
-      replaceFile (Debian.Local.Changes.path changes) (show (Control [fields']))
+      replaceFile (Debian.Repo.Changes.path changes) (show (Control [fields']))
       return changes
 
 -- |Move this to {-Debian.-} Control
@@ -906,7 +907,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
                   do
                     size <- getFileStatus dscFilePath >>= return . fileSize
                     let changes' = changes {changeFiles = (otherFiles ++ [file {changedFileMD5sum = s, changedFileSize = size}])}
-                    Debian.Local.Changes.save changes'
+                    Debian.Repo.Changes.save changes'
                     return changes'
       -- A binary only build will have no .dsc file
       ([], _) -> return changes

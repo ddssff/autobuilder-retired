@@ -1,21 +1,22 @@
 -- |Web interface to control autobuilder.
 module Main where
 
-import		 Debian.Cache
 import		 Debian.Control
-import		 Debian.IO
-import		 Extra.TIO
-import		 Debian.Slice
-import		 Debian.Types
+import		 Debian.Repo.IO
+import		 Debian.Repo.Cache
+import		 Debian.Repo.Slice
+import		 Debian.Repo.Types
+import		 Debian.URI
+
 import qualified Config
 import		 Control.Monad
 import		 Control.Monad.Trans(liftIO)	-- required despite warning
 import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
+import		 Extra.TIO
 import qualified MyHtml
 import qualified Network.CGI as CGI
-import		 Debian.URI
 import qualified Params
 import		 System.Directory
 import		 System.Environment

@@ -1,17 +1,14 @@
 module BuildTarget.Apt where
 
---import Control.Monad.Trans
-import Debian.AptImage
-import Debian.Cache
-import Debian.IO
---import Extra.TIO
-import Debian.Local.Changes
-import Debian.Types
-import Debian.Types.SourceTree
+import Debian.Repo.AptImage
+import Debian.Repo.Cache
+import Debian.Repo.IO
+import Debian.Repo.Types
+import Debian.Version
+
 import BuildTarget
 import Control.Monad
 import Data.Maybe
-import Debian.Version
 import System.Unix.Directory
 import Text.Regex
 
@@ -46,7 +43,7 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
       os <- prepareAptEnv cacheDir sourcesChangedAction distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
       when flush (io . removeRecursiveSafely $ aptDir os package)
-      tree <- tio $ Debian.AptImage.aptGetSource (rootEnvPath (aptDir os package)) os package version
+      tree <- tio $ Debian.Repo.AptImage.aptGetSource (rootEnvPath (aptDir os package)) os package version
       let version' = logVersion . entry $ tree
       return . Right . Tgt $ Apt distro package (Just version') tree
     where

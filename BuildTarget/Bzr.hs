@@ -1,9 +1,12 @@
 module BuildTarget.Bzr where
 
+import Debian.Repo.Types
+import Debian.Repo.SourceTree
+import Debian.Shell
+import Debian.URI
+
 import Control.Monad.Trans
 import BuildTarget
-import Debian.Types
-import Debian.Types.SourceTree
 import System.IO
 import Control.Monad
 import System.Process
@@ -12,9 +15,7 @@ import System.Unix.FilePath
 import Data.Maybe
 import Data.List
 import System.Directory
-import Debian.URI
 import Extra.TIO
-import Debian.Shell
 import qualified Data.ByteString.Lazy.Char8 as L
 import qualified System.Unix.Process as P
 

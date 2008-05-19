@@ -2,22 +2,21 @@
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
 module BuildTarget.Uri where
 
+import Debian.Repo.Types
+import Debian.Repo.SourceTree
+import Debian.Shell
+import Debian.URI
+
 import Control.Monad.Trans
 import BuildTarget
-import Debian.Types
-import Debian.Types.SourceTree
-import Debian.URI
 import Control.Monad
 import Control.Exception
 import System.Unix.Directory
 import System.Unix.FilePath
---import System.Unix.Process
 import Data.Maybe
 import System.Directory
---import System.Time
 import Text.Regex
 import Extra.TIO
-import Debian.Shell
 import Extra.Misc
 
 -- | A URI that returns a tarball, with an optional md5sum which must
