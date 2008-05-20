@@ -422,8 +422,9 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error 4"
         Right ((count, sourceDependencies) : _) ->
-            do tio (vEPutStrBl 2 ("Using build dependency solution #" ++ show count))
-               tio (vEPutStr 3 (concat (map (("\n  " ++) . show) sourceDependencies)))
+            do let sourceDependencies' = map makeVersion sourceDependencies
+               tio (vEPutStrBl 2 ("Using build dependency solution #" ++ show count))
+               tio (vEPutStr 3 (concat (map (("\n  " ++) . show) sourceDependencies')))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
@@ -455,7 +456,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                        buildDecision (realSource target) (Params.vendorTag params)
                                          (Params.forceBuild params) ignoredBuildDeps sourceLog
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
-                                         sourceVersion sourceRevision sourceDependencies
+                                         sourceVersion sourceRevision sourceDependencies'
                tio (vEPutStrBl 0 ("Build decision: " ++ show decision))
                -- FIXME: incorporate the release status into the build decision
                case newVersion of
@@ -465,9 +466,9 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                     case decision of
                       Error message -> return (Left message)
                       No _ -> return (Right repo)
-                      Yes _ ->  buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
-                      Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies target releaseStatus repo sourceLog
-                      Auto _ -> buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies target None repo sourceLog
+                      Yes _ ->  buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
+                      Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies' target releaseStatus repo sourceLog
+                      Auto _ -> buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
     where
       --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
       packageName = Target.targetName target
@@ -483,6 +484,13 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       filterPair name (x, Just y) | (y == name) = Just x	-- Omit a dependency on a particular package
       filterPair _ (_, Just _) = Nothing			-- Omit if the package name doesn't match
       iStyle = setStyle (appPrefix " ")
+
+-- |Convert to a simple name and version record to interface with older
+-- code.
+makeVersion :: BinaryPackage -> PkgVersion
+makeVersion package =
+    PkgVersion { getName = packageName (packageID package)
+               , getVersion = packageVersion (packageID package) }
 
 -- | Build a package and upload it to the local repository.
 buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIO (Either String LocalRepository)
@@ -723,47 +731,24 @@ computeNewVersion params
           maybe Nothing (Just . parseDebianVersion . B.unpack) (maybe Nothing (fieldValue "Version" . sourceParagraph) current)
 
 -- FIXME: Most of this code should move into Debian.Repo.Dependencies
-buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> TIO (Either String [(Int, [PkgVersion])])
+buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> TIO (Either String [(Int, [BinaryPackage])])
 buildDepSolutions' preferred os globalBuildDeps debianControl =
     do
       arch <- lift $ buildArchOfEnv (rootDir os)
       case GenBuildDeps.buildDependencies debianControl of
         Left message -> return (Left message)
         Right (_, relations, _) ->
-            do let relations' = mergeRelations (filterRelations arch (relations ++ globalBuildDeps))
-               let relations'' = computeBuildDeps os arch relations'
-               let relations''' = map (reverse . sort) relations''
-               -- This would make things work more often, but makes it
-               -- impossible to find build dependency solutions that
-               -- involve any packages which are not the newest
-               -- available.
-               --let relations''' = map discardOlder relations''
-               vEPutStrBl 3 $ ("Build dependency relations:\n " ++
-                              concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b) (zip relations' relations'''))))
-               -- Do any of the dependencies require packages that simply don't
-               -- exist?  If so we don't have to search for solutions, there
-               -- aren't any.
-               if any (== []) relations''' then
-                   return $ Left ("Unsatisfiable dependencies: " ++
-                                  show (catMaybes (map unsatisfiable (zip relations' relations''')))) else
-                   -- Do not stare directly into the solutions!  Your head will
-                   -- explode (because there may be a lot of them.)
-                   return $ Debian.Repo.solutions (available relations''') relations''' preferred arch 100000
+            do let relations' = mergeRelations . filterRelationsByArch arch $ relations ++ globalBuildDeps
+               case Debian.Repo.solutions (aptBinaryPackages os) relations' preferred arch 100000 of
+                 Left message -> return (Left message)
+                 Right (relations'', solutions) ->
+                     vEPutStrBl 2 ("Build dependency relations:\n " ++
+                                   concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b)
+                                                              (zip relations' relations'')))) >>
+                     -- Do not stare directly into the solutions!  Your head will
+                     -- explode (because there may be a lot of them.)
+                     return (Right solutions)
     where
-      unsatisfiable (original, []) = Just original
-      unsatisfiable _ = Nothing
-
-      available relations = uniquify (Debian.Repo.binaryPackages os (packagesOfRelations relations))
-      -- If the same package/version appears more than once, we can
-      -- ignore all but one since there is an assumption in Debian
-      -- that packages with the same name and version are the same.
-      uniquify versions =
-          map head . groupBy eq . sortBy cmp $ versions
-          where cmp a b = compare (packageName (packageID b), packageVersion (packageID b))
-				  (packageName (packageID a), packageVersion (packageID a))
-		eq a b = packageName (packageID a) == packageName (packageID b)
-      --discardOlder :: [Relation] -> [Relation]
-      --discardOlder alts = [last (sort alts)]
       -- Group and merge the relations by package.  This can only be done
       -- to AND relations that include a single OR element, but these are
       -- extremely common.  (Not yet implemented.)
