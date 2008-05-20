@@ -1,19 +1,11 @@
 module Main where
 
-import Debian.Types
-import Debian.Index
-import Debian.Package
-import Debian.Local.Repo
-import Debian.Local.Release
-import Debian.Local.Index
-import Debian.Local.Package
-import Debian.Local.Insert
+import Debian.Repo
 import Data.List
 --import Repository
 import qualified System.IO as IO
 import System.Unix.Directory
 import System.Directory
-import Debian.IO
 import Extra.TIO
 
 top = "/tmp/testrepo"
