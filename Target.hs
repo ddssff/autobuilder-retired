@@ -722,6 +722,7 @@ computeNewVersion params
       currentVersion =
           maybe Nothing (Just . parseDebianVersion . B.unpack) (maybe Nothing (fieldValue "Version" . sourceParagraph) current)
 
+-- FIXME: Most of this code should move into Debian.Repo.Dependencies
 buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> TIO (Either String [(Int, [PkgVersion])])
 buildDepSolutions' preferred os globalBuildDeps debianControl =
     do
@@ -747,7 +748,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
                                   show (catMaybes (map unsatisfiable (zip relations' relations''')))) else
                    -- Do not stare directly into the solutions!  Your head will
                    -- explode (because there may be a lot of them.)
-                   return $ Debian.Repo.solutions (available relations''') relations''' preferred arch
+                   return $ Debian.Repo.solutions (available relations''') relations''' preferred arch 100000
     where
       unsatisfiable (original, []) = Just original
       unsatisfiable _ = Nothing
