@@ -266,7 +266,7 @@ runParameterSet params =
              live <- getRepoMap
              cache <- io $ loadCache path
              --tio (hPutStrBl IO.stderr (show (Map.toList live)))
-             let merged = show . Map.toList $ Map.union live cache
+             let merged = show . map (\ (uri, x) -> (show uri, x)) . Map.toList $ Map.union live cache
              --tio (hPutStrBl IO.stderr merged)
              io (removeLink path `Prelude.catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> io (writeFile path merged)
              return ()
