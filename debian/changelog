@@ -1,3 +1,9 @@
+autobuilder (4.13) unstable; urgency=low
+
+  * Fix bug in formatting of repoCache file.
+
+ -- David Fox <dsf@seereason.com>  Wed, 21 May 2008 16:23:25 -0700
+
 autobuilder (4.12) unstable; urgency=low
 
   * Changes in haskell-debian API.
