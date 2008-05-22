@@ -1,3 +1,10 @@
+autobuilder (4.14) unstable; urgency=low
+
+  * Ignore _darcs when it appears in the configuration directory.
+  * Build dependency computation code cleanups.
+
+ -- David Fox <dsf@seereason.com>  Thu, 22 May 2008 10:32:59 -0700
+
 autobuilder (4.13) unstable; urgency=low
 
   * Fix bug in formatting of repoCache file.

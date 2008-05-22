@@ -274,7 +274,7 @@ tryPaths paths = do
                       mapM tryPath >>=
                       return . mergeControls
       isConfigPart "" = False
-      isConfigPart s | {- isDigit (head s) && -} head s /= '.' && last s /= '~' = True
+      isConfigPart s | {- isDigit (head s) && -} head s /= '.' && last s /= '~' && s /= "_darcs" = True
       isConfigPart _ = False
 
 -- |Expand occurrences of @--use@ in a list of flag lists.  The

@@ -738,23 +738,25 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
       case GenBuildDeps.buildDependencies debianControl of
         Left message -> return (Left message)
         Right (_, relations, _) ->
-            do let relations' = mergeRelations . filterRelationsByArch arch $ relations ++ globalBuildDeps
-               case Debian.Repo.solutions (aptBinaryPackages os) relations' preferred arch 100000 of
-                 Left message -> return (Left message)
-                 Right (relations'', solutions) ->
-                     vEPutStrBl 2 ("Build dependency relations:\n " ++
-                                   concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b)
-                                                              (zip relations' relations'')))) >>
-                     -- Do not stare directly into the solutions!  Your head will
-                     -- explode (because there may be a lot of them.)
-                     return (Right solutions)
+            do let relations' = relations ++ globalBuildDeps
+               let relations'' = simplifyRelations packages relations' preferred arch
+               -- Do not stare directly into the solutions!  Your head will
+               -- explode (because there may be a lot of them.)
+               case Debian.Repo.solutions packages relations'' 100000 of
+                 Left error -> message 0 relations' relations'' >> return (Left error)
+                 Right solutions -> message 2 relations' relations'' >> return (Right solutions)
     where
+      packages = aptBinaryPackages os
+      message n relations' relations'' =
+          vEPutStrBl n ("Build dependency relations:\n " ++
+                        concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b)
+                                                   (zip relations' relations''))))
       -- Group and merge the relations by package.  This can only be done
       -- to AND relations that include a single OR element, but these are
       -- extremely common.  (Not yet implemented.)
+{-
       mergeRelations :: Relations -> Relations
       mergeRelations relations = relations
-{-
           let pairs = zip (map namesOf relations) relations in
           let pairs' = sortBy ((==) . fst) pairs in
           let pairs'' = groupBy (\ a b -> fst a == fst b) pairs' in
@@ -823,12 +825,6 @@ sinkFields f (Paragraph fields) =
     let (a, b) = partition f' fields in Paragraph (b ++ a)
     where f' (Field (name, _)) = f name
           f' (Comment _) = False
-
--- |Extract the packages named in a dependency relation
-packagesOfRelations :: Relations -> [PkgName]
-packagesOfRelations relations =
-    map packageOfRelation (concat relations)
-    where packageOfRelation (Rel name _ _) = name
 
 -- |Download the package's build dependencies into /var/cache
 downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
