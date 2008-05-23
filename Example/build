@@ -172,6 +172,18 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/haskell-zlib-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/hinotify/0.2/hinotify-0.2.tar.gz):(darcs:http://src.seereason.com/hinotify-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/plugins/1.2/plugins-1.2.tar.gz):(darcs:http://src.seereason.com/plugins-debian)
+  deb-dir:(darcs:http://code.haskell.org/HSP/happs-hsp-template):(darcs:http://src.seereason.com/happs-hsp-template)
+  deb-dir:(darcs:http://code.haskell.org/HSP/happs-hsp):(darcs:http://src.seereason.com/happs-hsp)
+  deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/harp)
+  deb-dir:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/haskell-src-exts)
+  deb-dir:(darcs:http://code.haskell.org/HSP/hjavascript):(darcs:http://src.seereason.com/hjavascript)
+  deb-dir:(darcs:http://code.haskell.org/HSP/hjscript):(darcs:http://src.seereason.com/hjscript)
+  deb-dir:(darcs:http://code.haskell.org/HSP/hsp-cgi):(darcs:http://src.seereason.com/hsp-cgi)
+  deb-dir:(darcs:http://code.haskell.org/HSP/hsp-xml):(darcs:http://src.seereason.com/hsp-xml)
+  deb-dir:(darcs:http://code.haskell.org/HSP/hsp):(darcs:http://src.seereason.com/hsp)
+  deb-dir:(darcs:http://code.haskell.org/HSP/hsx-xhtml):(darcs:http://src.seereason.com/hsx-xhtml)
+  deb-dir:(darcs:http://code.haskell.org/HSP/hsx):(darcs:http://src.seereason.com/hsx)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/RJson/0.3.4/RJson-0.3.4.tar.gz:42591b36ca60a2449a030aa8522791b0):(darcs:http://src.seereason.com/RJson)
   apt:hardy:hat
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/haxml-quilt)
   apt:sid:hdbc
