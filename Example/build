@@ -178,8 +178,6 @@ Targets:
   deb-dir:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/haskell-src-exts-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hjavascript):(darcs:http://src.seereason.com/hjavascript-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hjscript):(darcs:http://src.seereason.com/hjscript-debian)
-  deb-dir:(darcs:http://code.haskell.org/HSP/hsp-cgi):(darcs:http://src.seereason.com/hsp-cgi-debian)
-  deb-dir:(darcs:http://code.haskell.org/HSP/hsp-xml):(darcs:http://src.seereason.com/hsp-xml-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hsp):(darcs:http://src.seereason.com/hsp-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hsx-xhtml):(darcs:http://src.seereason.com/hsx-xhtml-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hsx):(darcs:http://src.seereason.com/hsx-debian)
