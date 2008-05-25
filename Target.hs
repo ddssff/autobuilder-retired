@@ -282,27 +282,32 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
             targetGroups <- tio $ chooseNextTarget globalBuildDeps unbuilt
-            tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
+            --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
             case targetGroups of
-              (group@(target : blocked) : other) ->
+              (target, blocked, other) ->
                   tio (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
-                                     (count - length (concat targetGroups) + 1) count (show target))) >>
+                                     (count - length unbuilt + 1) count (show target))) >>
                   mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
                   either (\ e -> do tio $ vEPutStrBl 0 ("Package build failed: " ++ e)
                                     tio $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
                                                         concat (intersperse "\n  " (map show blocked)))
-                                    buildLoop cleanOS globalBuildDeps count (concat other, group ++ failed))
+                                    buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
                          (\ _ -> do cleanOS' <- updateEnv cleanOS
                                     case cleanOS' of
                                       Left e -> error ("Failed to update clean OS: " ++ e)
                                       Right cleanOS'' ->
-                                          buildLoop cleanOS'' globalBuildDeps count (blocked ++ concat other, failed))
+                                          buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed))
               _ -> return failed
           where
+{-
             makeTable groups =
                 unlines . map (consperse " ") . columns $ ["Ready", "Blocked"] : ["-----", "-------"] : map makeRow groups
             makeRow :: [Target] -> [String]
-            makeRow group = [(targetName . head $ group), (consperse " " . map targetName . tail $ group)]
+            makeRow group =
+                [(targetName . head $ group), (consperse " " . map targetNameAndDeps . tail $ group)]
+                where targetNameAndDeps x = targetName x ++ " (" ++ intercalate " " (map (show . depends x) group) ++ ")"
+            depends (_, depInfo1) (_, depInfo2) = GenBuildDeps.compareSource depInfo1 depInfo2
+-}
             buildTarget' target =
                 do tio (vBOL 0)
                    {- showElapsed "Total elapsed for target: " $ -} 
@@ -329,9 +334,15 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: Relations -> [Target] -> TIO [[Target]]
+chooseNextTarget :: Relations -> [Target] -> TIO (Target, [Target], [Target])
 chooseNextTarget globalBuildDeps targets =
-    getDependencyInfo targets >>= return . buildGroups
+    getDependencyInfo targets >>=
+    -- Compute the list of build dependency groups, each of which
+    -- starts with a target that is ready to build followed by
+    -- targets which are blocked by the first target.
+    return . GenBuildDeps.buildable depends >>=
+    (\ (ready, blocked, other) -> (vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other))) >>=
+    (\ (ready, blocked, other) -> return (fst ready, map fst blocked, map fst other))
     where
       -- retrieve the dependency information for each target
       getDependencyInfo :: [Target] -> TIO [(Target, GenBuildDeps.DepInfo)]
@@ -350,14 +361,6 @@ chooseNextTarget globalBuildDeps targets =
                        ("Unable to retrieve build dependency info for some targets:\n  " ++
                         concat (intersperse "\n  " (map (\ (target, error) -> show target ++ ": " ++ either id (const "") error) bad))))
              return depInfo
-
-      -- Return the set of build dependency groups, each of which
-      -- starts with a target that is ready to build followed by
-      -- targets which are blocked by the first target.
-      buildGroups :: [(Target, GenBuildDeps.DepInfo)] -> [[Target]]
-      buildGroups pairs =
-          let buildable = GenBuildDeps.buildable depends pairs in
-          map (map fst) buildable
       getDepInfo :: Relations -> DebianBuildTree -> TIO (Either String GenBuildDeps.DepInfo)
       getDepInfo globalBuildDeps buildTree =
           do
@@ -368,8 +371,25 @@ chooseNextTarget globalBuildDeps targets =
             return $ either Left (Right . addRelations globalBuildDeps) info
       addRelations :: Relations -> GenBuildDeps.DepInfo -> GenBuildDeps.DepInfo
       addRelations moreRels (name, relations, bins) = (name, relations ++ moreRels, bins)
+      makeTable :: ((Target, GenBuildDeps.DepInfo), [(Target, GenBuildDeps.DepInfo)], [(Target, GenBuildDeps.DepInfo)]) -> String
+      makeTable (target, blocked, other) =
+          unlines . map (consperse " ") . columns $ [["Ready:", targetName (fst target)],
+                                                     ["Blocked:", (intercalate " " . map (targetName . fst) $ blocked)],
+                                                     ["Other:", (intercalate " " . map (targetName . fst) $ other)]]
+{-
+      makeRow :: (Target, GenBuildDeps.DepInfo) -> [(Target, GenBuildDeps.DepInfo)] -> [String]
+      makeRow ready blocked =
+          [(targetName . fst $ ready), (intercalate " " . map (targetName . fst) $ blocked)]
+          --[(targetNameAndDeps . head $ group), (intercalate " " . map targetNameAndDeps . tail $ group)]
+          where
+            targetNameAndDeps p@(t, _) = targetName t ++ " (" ++ targetDeps p ++ ")"
+            targetDeps p =
+                intercalate " " (catMaybes (map (\ p'@(t', _) ->
+                                                 case depends p p' of 
+                                                   EQ -> Nothing
+                                                   x -> Just (show x ++ " " ++ targetName t')) group))
+-}
       depends (_, depInfo1) (_, depInfo2) = GenBuildDeps.compareSource depInfo1 depInfo2
-
 --showTargets :: Show a => [a] -> IO ()
 showTargets targets =
     vEPutStrBl 0 ("\n" ++ 
