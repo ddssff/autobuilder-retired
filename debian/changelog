@@ -1,3 +1,9 @@
+autobuilder (4.15) unstable; urgency=low
+
+  * Improved messaging when installation of build dependencies fails.
+
+ -- David Fox <dsf@seereason.com>  Thu, 29 May 2008 22:04:48 +0000
+
 autobuilder (4.14) unstable; urgency=low
 
   * Ignore _darcs when it appears in the configuration directory.
