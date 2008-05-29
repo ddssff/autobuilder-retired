@@ -48,6 +48,7 @@ import		 BuildTarget.Uri
 import		 Control.Monad.Reader
 import		 System.Unix.Process hiding (processOutput)
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as L
 import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
@@ -287,7 +288,8 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
               (target, blocked, other) ->
                   tio (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
                                      (count - length unbuilt + 1) count (show target))) >>
-                  mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
+                  -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
+                  buildTarget' target >>=
                   either (\ e -> do tio $ vEPutStrBl 0 ("Package build failed: " ++ e)
                                     tio $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
                                                         concat (intersperse "\n  " (map show blocked)))
@@ -297,7 +299,6 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                                       Left e -> error ("Failed to update clean OS: " ++ e)
                                       Right cleanOS'' ->
                                           buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed))
-              _ -> return failed
           where
 {-
             makeTable groups =
@@ -515,31 +516,32 @@ makeVersion package =
 -- | Build a package and upload it to the local repository.
 buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIO (Either String LocalRepository)
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
-    checkDryRun >> (tio prepareImage) >>= (tio . logEntry) >>= (tio . build) >>= (tio . find) >>= upload
+    checkDryRun >>
+    (tio prepareImage) >>=
+    either (return . Left) (tio . logEntry) >>=
+    either (return . Left) (tio . build) >>=
+    either (return . Left) (tio . find) >>=
+    either (return . Left) upload
     where
       checkDryRun = when (Params.dryRun params)  (do tio (vEPutStrBl 0 "Not proceeding due to -n option.")
                                                      io (exitWith ExitSuccess))
       prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
-      logEntry :: Either String DebianBuildTree -> TIO (Either String DebianBuildTree)
-      logEntry (Left message) = return (Left message)
-      logEntry (Right buildTree) = 
+      logEntry :: DebianBuildTree -> TIO (Either String DebianBuildTree)
+      logEntry buildTree = 
           case Params.noClean params of
             False -> lift $ maybeAddLogEntry buildTree newVersion >> return (Right buildTree)
             True -> return (Right buildTree)
-      build :: Either String DebianBuildTree -> TIO (Either String (DebianBuildTree, TimeDiff))
-      build (Left message) = return (Left message) 
-      build (Right buildTree) =
+      build :: DebianBuildTree -> TIO (Either String (DebianBuildTree, TimeDiff))
+      build buildTree =
           case realSource target of
             Tgt t -> do result <- buildPkg (Params.noClean params) (Params.setEnv params) buildOS buildTree status t
                         case result of
                           Left message -> return (Left message)
                           Right elapsed -> return (Right (buildTree, elapsed))
-      find (Left message) = return (Left message)
-      find (Right (buildTree, elapsed)) =
+      find (buildTree, elapsed) =
           lift $ findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
-      upload :: Either String (ChangesFile, TimeDiff) -> AptIO (Either String LocalRepository)
-      upload (Left message) = return . Left $ "Upload failed: " ++ message
-      upload (Right (changesFile, elapsed)) = doLocalUpload elapsed changesFile
+      upload :: (ChangesFile, TimeDiff) -> AptIO (Either String LocalRepository)
+      upload (changesFile, elapsed) = doLocalUpload elapsed changesFile
       -- Depending on the strictness, build dependencies either
       -- get installed into the clean or the build environment.
       maybeAddLogEntry _ Nothing = return ()
@@ -591,25 +593,43 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
 -- copy.  For other: image copy, then source copy, then dependencies.
 prepareBuildImage :: Params.Params -> OSImage -> [PkgVersion] -> OSImage -> Target -> Params.Strictness -> TIO (Either String DebianBuildTree)
 prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _) Params.Lax =
-    do result <- installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies
-       case result of
-         Left message -> return (Left message)
-         Right _ ->
-             case noClean of
-               True -> do tree <- findOneDebianBuildTree newPath
-                          case tree of
-                            Nothing -> return . Left $ "No build tree at " ++ show newPath
-                            Just tree -> return . Right $ tree
-               False -> vBOL 0 >>
-                        vEPutStr 1 "Syncing buildOS" >>
-                        Debian.Repo.syncEnv cleanOS buildOS >>=
-                        (const (prepareCopy tgt (cleanSource target) newPath))
+    -- Install dependencies directly into the clean environment
+    installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies >>=
+    either (return . Left) (prepareTree noClean)
     where
+      prepareTree True _ =
+          findOneDebianBuildTree newPath >>=
+          return . maybe (Left $ "No build tree at " ++ show newPath) Right 
+      prepareTree False _ =
+          vBOL 0 >>
+          vEPutStr 1 "Syncing buildOS" >>
+          Debian.Repo.syncEnv cleanOS buildOS >>=
+          const (prepareCopy tgt (cleanSource target) newPath)
       buildDepends = (Params.buildDepends params)
       noClean = Params.noClean params
       newPath = EnvPath {envRoot = rootDir buildOS, envPath = envPath oldPath}
       oldPath = topdir . cleanSource $ target
 prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _) _ =
+    -- Install dependencies directly into the build environment
+    findTree noClean >>=
+    either (return . Left) downloadDeps >>=
+    either (return . Left) (syncEnv noClean) >>=
+    either (return . Left) installDeps
+    where
+      findTree :: Bool -> TIO (Either String DebianBuildTree)
+      findTree False = prepareCopy tgt (cleanSource target) newPath
+      findTree True = findOneDebianBuildTree newPath >>= return . maybe (Left "build tree not found") Right
+      downloadDeps :: DebianBuildTree -> TIO (Either String DebianBuildTree)
+      downloadDeps buildTree = iStyle (downloadDependencies cleanOS buildTree buildDepends sourceDependencies) >>=
+                               either (return . Left) (const (return (Right buildTree)))
+      syncEnv :: Bool -> DebianBuildTree -> TIO (Either String (OSImage, DebianBuildTree))
+      syncEnv False buildTree = vEPutStrBl 1 "Syncing buildOS" >>
+                                Debian.Repo.syncEnv cleanOS buildOS >>= (\ os -> return (Right (os, buildTree)))
+      syncEnv True buildTree = return (Right (buildOS, buildTree))
+      installDeps :: (OSImage, DebianBuildTree) -> TIO (Either String DebianBuildTree)
+      installDeps (buildOS, buildTree) = iStyle (installDependencies buildOS buildTree buildDepends sourceDependencies) >>=
+                                         either (return . Left) (const (return (Right buildTree)))
+{-
     do
       buildTree <- 
           case noClean of
@@ -626,6 +646,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
         Right buildTree -> iStyle $ installDependencies buildOS buildTree buildDepends sourceDependencies
       return buildTree
     where
+-}
       buildDepends = Params.buildDepends params
       noClean = Params.noClean params
       newPath = EnvPath {envRoot = rootDir buildOS, envPath = (envPath . topdir . cleanSource $ target)}
@@ -863,18 +884,35 @@ downloadDependencies os source extra versions =
       path = envPath (topdir source)
       root = rootDir os
 
+partitionResult :: [Output] -> ([Output], [ExitCode])
+partitionResult output =
+    foldr f ([], []) output
+    where
+      f (Result r) (out, codes) = (out, (r : codes))
+      f x (out, codes) = (x : out, codes)
+
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
 installDependencies os source extra versions =
-    runTaskAndTest (builddepStyle (commandTask command))
+    do (out, codes) <- liftIO (lazyCommand command L.empty) >>=
+                       vMessage 0 ("Installing build dependencies into " ++ rootPath (rootDir os)) >>=
+                       dotOutput 100 >>= return . partitionResult
+       case codes of
+         [ExitSuccess] -> vMessage 0 ("Success: " ++ command ++ " -> " ++ show codes) out >>= return . Right
+         codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ toString out) () >>
+                  return (Left ("FAILURE: " ++ command ++ " -> " ++ show codes))
     where
+      toString [] = ""
+      toString (Stdout s : out) = B.unpack s ++ toString out
+      toString (Stderr s : out) = B.unpack s ++ toString out
+      toString (Result r : out) = show r ++ toString out
       command = ("chroot " ++ rootPath root ++ " bash -c " ++
                  "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = (setStart (Just ("Installing build dependencies into " ++ rootPath (rootDir os))) .
-                       setError (Just (\ _ -> "Could not satisfy build dependencies.")))
+{-    builddepStyle = (setStart (Just ("Installing build dependencies into " ++ rootPath (rootDir os))) .
+                       setError (Just (\ _ -> "Could not satisfy build dependencies."))) -}
       path = envPath (topdir source)
       root = rootDir os
 
