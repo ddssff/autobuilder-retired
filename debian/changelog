@@ -1,3 +1,13 @@
+autobuilder (4.16) unstable; urgency=low
+
+  * Fully implement Relax-Depends.  This directive takes a binary package name
+    and an optional source package name, and says not to rebuild the source
+    package even when the binary package is newer and is a build dependency of
+    the source package.  This must now be used to break curcular dependencies
+    such as ghc6 -> haskell-haddock -> ghc6.
+
+ -- David Fox <dsf@seereason.com>  Sat, 31 May 2008 07:37:07 +0000
+
 autobuilder (4.15) unstable; urgency=low
 
   * Improved messaging when installation of build dependencies fails.

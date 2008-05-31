@@ -55,13 +55,14 @@ Relax-Depends: make
 Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
 	 it breaks the circular build dependency loop.
 Relax-Depends: ghc6 hscolour
-Relax-Depends: ghc6 haddock
-Relax-Depends: haddock ghc6
+Relax-Depends: ghc6 haskell-haddock
 Relax-Depends: hscolour ghc6
+Relax-Depends: haddock haskell-haddock
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
 Comment: Please keep targets alphabetized by source package name!
 Targets:
+  deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/haddock-debian)
   apt:sid:cpphs
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/ghc6-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
@@ -107,7 +108,6 @@ Targets:
   darcs:http://src.seereason.com/haskell-extra
   darcs:http://src.seereason.com/mirror
   darcs:http://src.seereason.com/tree-widget
-Relax-Depends: haddock ghc6
 Comment: This is not really useful any more
   apt:sid:hugs98
 Comment: Missing build deps under lenny
@@ -138,12 +138,12 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/hspread/0.3/hspread-0.3.tar.gz):(darcs:http://src.seereason.com/hspread-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/happs-hsp-template):(darcs:http://src.seereason.com/happs-hsp-template-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/harp-debian)
-  deb-dir:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/haskell-src-exts-debian)
+  quilt:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/haskell-src-exts-quilt)
   deb-dir:(darcs:http://code.haskell.org/HSP/hjavascript):(darcs:http://src.seereason.com/hjavascript-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hjscript):(darcs:http://src.seereason.com/hjscript-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hsp):(darcs:http://src.seereason.com/hsp-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hsx-xhtml):(darcs:http://src.seereason.com/hsx-xhtml-debian)
-  deb-dir:(darcs:http://code.haskell.org/HSP/hsx):(darcs:http://src.seereason.com/hsx-debian)
+  quilt:(darcs:http://code.haskell.org/HSP/hsx):(darcs:http://src.seereason.com/hsx-quilt)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/RJson/0.3.4/RJson-0.3.4.tar.gz:42591b36ca60a2449a030aa8522791b0):(darcs:http://src.seereason.com/RJson-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/iconv/0.4/iconv-0.4.tar.gz):(darcs:http://src.seereason.com/iconv-debian)
   darcs:http://src.seereason.com/HAppS/HAppS-Data
