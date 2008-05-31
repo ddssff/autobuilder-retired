@@ -282,7 +282,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop _ _ _ ([], failed) = return failed
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
-            targetGroups <- tio $ chooseNextTarget globalBuildDeps unbuilt
+            targetGroups <- tio $ chooseNextTarget globalBuildDeps (Params.relaxDepends params) unbuilt
             --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
             case targetGroups of
               (target, blocked, other) ->
@@ -335,14 +335,15 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: Relations -> [Target] -> TIO (Target, [Target], [Target])
-chooseNextTarget globalBuildDeps targets =
+chooseNextTarget :: Relations -> [(String, Maybe String)] -> [Target] -> TIO (Target, [Target], [Target])
+chooseNextTarget globalBuildDeps relaxed targets =
     getDependencyInfo targets >>=
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
     -- targets which are blocked by the first target.
     return . GenBuildDeps.buildable depends >>=
-    (\ (ready, blocked, other) -> (vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other))) >>=
+    either (error . show . map (\ (pkg, deps) -> (targetName (fst pkg), map (targetName . fst) deps)))
+	   (\ (ready, blocked, other) -> (vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other))) >>=
     (\ (ready, blocked, other) -> return (fst ready, map fst blocked, map fst other))
     where
       -- retrieve the dependency information for each target
@@ -364,12 +365,11 @@ chooseNextTarget globalBuildDeps targets =
              return depInfo
       getDepInfo :: Relations -> DebianBuildTree -> TIO (Either String GenBuildDeps.DepInfo)
       getDepInfo globalBuildDeps buildTree =
-          do
-            --let sourceTree = debTree buildTree
-            let controlPath = appendPath "/debian/control" (debdir buildTree)
-            info <- lift $ GenBuildDeps.genDep (outsidePath controlPath)
-            -- My.ePutStr ("getDepInfo " ++ show target ++ ": " ++ show info)
-            return $ either Left (Right . addRelations globalBuildDeps) info
+          do --let sourceTree = debTree buildTree
+             let controlPath = appendPath "/debian/control" (debdir buildTree)
+             info <- lift $ parseControlFromFile (outsidePath controlPath) >>= return . either (Left . show) (GenBuildDeps.genDep relaxed)
+             -- My.ePutStr ("getDepInfo " ++ show target ++ ": " ++ show info)
+             return $ either Left (Right . addRelations globalBuildDeps) info
       addRelations :: Relations -> GenBuildDeps.DepInfo -> GenBuildDeps.DepInfo
       addRelations moreRels (name, relations, bins) = (name, relations ++ moreRels, bins)
       makeTable :: ((Target, GenBuildDeps.DepInfo), [(Target, GenBuildDeps.DepInfo)], [(Target, GenBuildDeps.DepInfo)]) -> String
@@ -776,7 +776,11 @@ buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> TIO (Either
 buildDepSolutions' preferred os globalBuildDeps debianControl =
     do
       arch <- lift $ buildArchOfEnv (rootDir os)
-      case GenBuildDeps.buildDependencies debianControl of
+      -- We don't discard any dependencies here even if they are
+      -- mentioned in Relax-Depends, that only applies to deciding
+      -- whether to build, once we are building we need to install all
+      -- the dependencies.  Hence this empty list.
+      case GenBuildDeps.buildDependencies [] debianControl of
         Left message -> return (Left message)
         Right (_, relations, _) ->
             do let relations' = relations ++ globalBuildDeps
@@ -872,24 +876,21 @@ downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        vEPutStrBl 1 . ("versions: " ++) . show $! vers
-       runTaskAndTest (builddepStyle (commandTask command))
+       (out, codes) <- liftIO (lazyCommand command L.empty) >>=
+                       vMessage 0 ("Downloading build dependencies into " ++ rootPath (rootDir os)) >>=
+                       dotOutput 100 >>= return . partitionResult
+       case codes of
+         [ExitSuccess] -> return (Right out)
+         codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
+                  return (Left ("FAILURE: " ++ command ++ " -> " ++ show codes))
     where
       command = ("chroot " ++ rootPath root ++ " bash -c " ++
                  "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install --download-only " ++ consperse " " (map showPkgVersion versions ++ extra)
-      builddepStyle = (setStart (Just ("Downloading build dependencies into " ++ rootPath (rootDir os))) .
-                       setError (Just (\ _ -> "Could not satisfy build dependencies.")))
       path = envPath (topdir source)
       root = rootDir os
-
-partitionResult :: [Output] -> ([Output], [ExitCode])
-partitionResult output =
-    foldr f ([], []) output
-    where
-      f (Result r) (out, codes) = (out, (r : codes))
-      f x (out, codes) = (x : out, codes)
 
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
@@ -898,23 +899,30 @@ installDependencies os source extra versions =
                        vMessage 0 ("Installing build dependencies into " ++ rootPath (rootDir os)) >>=
                        dotOutput 100 >>= return . partitionResult
        case codes of
-         [ExitSuccess] -> vMessage 0 ("Success: " ++ command ++ " -> " ++ show codes) out >>= return . Right
-         codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ toString out) () >>
+         [ExitSuccess] -> return (Right out)
+         codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
                   return (Left ("FAILURE: " ++ command ++ " -> " ++ show codes))
     where
-      toString [] = ""
-      toString (Stdout s : out) = B.unpack s ++ toString out
-      toString (Stderr s : out) = B.unpack s ++ toString out
-      toString (Result r : out) = show r ++ toString out
       command = ("chroot " ++ rootPath root ++ " bash -c " ++
                  "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install " ++ consperse " " (map showPkgVersion versions ++ extra)
-{-    builddepStyle = (setStart (Just ("Installing build dependencies into " ++ rootPath (rootDir os))) .
-                       setError (Just (\ _ -> "Could not satisfy build dependencies."))) -}
       path = envPath (topdir source)
       root = rootDir os
+
+-- These two belongs in System.Unix.Process
+partitionResult :: [Output] -> ([Output], [ExitCode])
+partitionResult output =
+    foldr f ([], []) output
+    where
+      f (Result r) (out, codes) = (out, (r : codes))
+      f x (out, codes) = (x : out, codes)
+
+outputToString [] = ""
+outputToString (Stdout s : out) = B.unpack s ++ outputToString out
+outputToString (Stderr s : out) = B.unpack s ++ outputToString out
+outputToString (Result r : out) = show r ++ outputToString out
 
 -- |Set a "Revision" line in the .dsc file, and update the .changes
 -- file to reflect the .dsc file's new md5sum.  By using our newdist
