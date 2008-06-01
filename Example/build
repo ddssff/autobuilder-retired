@@ -54,9 +54,13 @@ Relax-Depends: g++
 Relax-Depends: make
 Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
 	 it breaks the circular build dependency loop.
+Relax-Depends: ghc6-doc
 Relax-Depends: ghc6 hscolour
 Relax-Depends: ghc6 haskell-haddock
+Relax-Depends: ghc6-prof haskell-haddock
 Relax-Depends: hscolour ghc6
+Comment: We really need to relax any self dependencies or they will be built every run.
+   The same is true for cycles.  We should detect these and print a warning.
 Relax-Depends: haddock haskell-haddock
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
@@ -72,25 +76,25 @@ Targets:
   apt:sid:haskell-devscripts
   quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/haskell-fgl-quilt)
   quilt:(apt:sid:haskell-glut):(darcs:http://src.seereason.com/haskell-glut-quilt)
+  quilt:(apt:sid:haskell-haskell-src):(darcs:http://src.seereason.com/haskell-src-quilt)
   quilt:(apt:sid:haskell-hgl):(darcs:http://src.seereason.com/haskell-hgl-quilt)
-  apt:sid:haskell-html
-  apt:sid:haskell-hunit
-  apt:sid:haskell-mtl
+  quilt:(apt:sid:haskell-html):(darcs:http://src.seereason.com/haskell-html-quilt)
+  quilt:(apt:sid:haskell-hunit):(darcs:http://src.seereason.com/haskell-hunit-quilt)
+  quilt:(apt:sid:haskell-mtl):(darcs:http://src.seereason.com/haskell-mtl-quilt)
   quilt:(apt:sid:haskell-network):(darcs:http://src.seereason.com/haskell-network-quilt)
   quilt:(apt:sid:haskell-openal):(darcs:http://src.seereason.com/haskell-openal-quilt)
-  apt:hardy:haskell-opengl
-  apt:sid:haskell-parallel
-  apt:sid:haskell-parsec
-  apt:sid:haskell-quickcheck
+  quilt:(apt:sid:haskell-opengl):(darcs:http://src.seereason.com/haskell-opengl-quilt)
+  quilt:(apt:sid:haskell-parallel):(darcs:http://src.seereason.com/haskell-parallel-quilt)
+  quilt:(apt:sid:haskell-parsec):(darcs:http://src.seereason.com/haskell-parsec-quilt)
+  quilt:(apt:sid:haskell-quickcheck):(darcs:http://src.seereason.com/haskell-quickcheck-quilt)
   quilt:(apt:sid:haskell-regex-base):(darcs:http://src.seereason.com/haskell-regex-base-quilt)
   quilt:(apt:sid:haskell-regex-compat):(darcs:http://src.seereason.com/haskell-regex-compat-quilt)
-  apt:sid:haskell-regex-posix
-  apt:sid:haskell-haskell-src
-  apt:sid:haskell-stm
-  apt:sid:haskell-stream
-  apt:sid:haskell-time
+  quilt:(apt:sid:haskell-regex-posix):(darcs:http://src.seereason.com/haskell-regex-posix-quilt)
+  quilt:(apt:sid:haskell-stm):(darcs:http://src.seereason.com/haskell-stm-quilt)
+  quilt:(apt:sid:haskell-stream):(darcs:http://src.seereason.com/haskell-stream-quilt)
+  quilt:(apt:sid:haskell-time):(darcs:http://src.seereason.com/haskell-time-quilt)
   quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/haskell-utils-quilt)
-  apt:sid:haskell-x11
+  quilt:(apt:sid:haskell-x11):(darcs:http://src.seereason.com/haskell-x11-quilt)
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/haskell-xhtml-quilt)
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/hscolour-quilt)
 Comment:
@@ -173,7 +177,7 @@ Targets:
   apt:sid:drift
   apt:sid:frown
   apt:sid:ftphs
-  apt:sid:gtk2hs
+  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/gtk2hs-quilt)
   apt:sid:gtkrsync
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/haskell-binary-quilt)
@@ -182,7 +186,6 @@ Targets:
   apt:sid:haskelldb
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   apt:sid:haskell-doc
-  apt:sid:haskell-edison
   apt:sid:haskell-hlist
   apt:sid:haskell-hsh
   apt:hardy:haskell-hsql
@@ -207,13 +210,15 @@ Targets:
   apt:sid:lhs2tex
   apt:sid:listlike
   apt:sid:magic-haskell
-  apt:sid:missingh
+  quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/missingh-quilt)
   apt:sid:pandoc
   apt:sid:pandoc
   apt:sid:srcinst
   apt:sid:washngo
   apt:sid:washngo
   apt:sid:whitespace
+Comment: Broken quilt patch
+  quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/edison-quilt)
 Comment: Broken packages
   apt:sid:haskell98-report - dvips: ! Couldn't find header file times.ttf.
   apt:hardy:hs-plugins - depends on haskell-src-exts
