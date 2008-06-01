@@ -57,6 +57,8 @@ optSpecs =
                   "This is normally an error.")
     , Param [] ["notify-email"] ["Notify-Email"] (ReqArg (Value "Notify-Email") "USER@HOST, USER@HOST...")
                  "Email address to send notifications about success and failure of uploads."
+    , Param [] ["sender-email"] ["Sender-Email"] (ReqArg (Value "Sender-Email") "USER@HOST")
+                 "Sender address for notifications."
     , Param [] ["verify"] ["Verify"]	(NoArg (Value "Verify" "yes"))
                  "Verify the structure and contents of the repository."
     , Param [] ["reject-revision"] ["Reject-Revision"] (ReqArg (Value "Reject-Revision") "STRING")
@@ -188,11 +190,9 @@ runFlags flags =
       remove = findValues flags "Remove"
       emailAddrs :: [(String, String)]
       emailAddrs =
-          catMaybes . map f . concat . map (splitRegex (mkRegex "[ \t]*,[ \t]*")) . findValues flags $ "Notify-Email"
-          where f s = case break (== '@') s of
-                        (user, ('@' : host)) -> Just (user, host)
-                        _ -> Nothing
-
+          catMaybes . map parseEmail . concat . map (splitRegex (mkRegex "[ \t]*,[ \t]*")) . findValues flags $ "Notify-Email"
+      senderAddr :: (String, String)
+      senderAddr = maybe ("autobuilder", "somewhere") id parseEmail . findValues flags $ "Sender-Email"
       successEmail :: LocalRepository -> ChangesFile -> (String, [String])
       successEmail repo changesFile =
           let subject = ("newdist: " ++ changePackage changesFile ++ "-" ++ show (changeVersion changesFile) ++ 
@@ -220,6 +220,10 @@ runFlags flags =
             ([], False) -> Just Extra.GPGSign.Default
             (x:[], False) -> Just (Extra.GPGSign.Key x)
             (_:_, False) -> error "Too many Key-Name values."
+      parseEmail s = case break (== '@') s of
+                       (user, ('@' : host)) -> Just (user, host)
+                       _ -> Nothing
+
 
 createReleases flags =
     do repo <- prepareLocalRepository (root flags) (Just . layout $ flags)
