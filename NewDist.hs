@@ -141,6 +141,7 @@ main =
                           io (exitWith ExitSuccess)))
     where
       nameFirstSection (flags : more) = nameSection "Main" flags : more
+      nameFirstSection [] = []
       nameSection name flags = case any isName flags of
                                  False -> (Name name : flags)
                                  True -> flags
@@ -167,8 +168,8 @@ runFlags flags =
        --io $ exitWith ExitSuccess
        io $ setRepositoryCompatibility repo
        when install ((scanIncoming False keyname repo) >>= 
-                     \ (ok, errors) -> (io (sendEmails emailAddrs (map (successEmail repo) ok)) >>
-                                        io (sendEmails emailAddrs (map (\ (changes, error) -> failureEmail changes error) errors)) >>
+                     \ (ok, errors) -> (io (sendEmails senderAddr emailAddrs (map (successEmail repo) ok)) >>
+                                        io (sendEmails senderAddr emailAddrs (map (\ (changes, error) -> failureEmail changes error) errors)) >>
                                         tio (exitOnError (map snd errors))))
        when expire  $ tio (deleteTrumped keyname releases) >> return ()
        when cleanUp $ deleteGarbage repo >> return ()
@@ -192,7 +193,7 @@ runFlags flags =
       emailAddrs =
           catMaybes . map parseEmail . concat . map (splitRegex (mkRegex "[ \t]*,[ \t]*")) . findValues flags $ "Notify-Email"
       senderAddr :: (String, String)
-      senderAddr = maybe ("autobuilder", "somewhere") id parseEmail . findValues flags $ "Sender-Email"
+      senderAddr = maybe ("autobuilder", "somewhere") id . maybe Nothing parseEmail . findValues flags $ "Sender-Email"
       successEmail :: LocalRepository -> ChangesFile -> (String, [String])
       successEmail repo changesFile =
           let subject = ("newdist: " ++ changePackage changesFile ++ "-" ++ show (changeVersion changesFile) ++ 
