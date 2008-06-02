@@ -193,7 +193,7 @@ runFlags flags =
       emailAddrs =
           catMaybes . map parseEmail . concat . map (splitRegex (mkRegex "[ \t]*,[ \t]*")) . findValues flags $ "Notify-Email"
       senderAddr :: (String, String)
-      senderAddr = maybe ("autobuilder", "somewhere") id . maybe Nothing parseEmail . findValues flags $ "Sender-Email"
+      senderAddr = maybe ("autobuilder", "somewhere") id . maybe Nothing parseEmail . listToMaybe . findValues flags $ "Sender-Email"
       successEmail :: LocalRepository -> ChangesFile -> (String, [String])
       successEmail repo changesFile =
           let subject = ("newdist: " ++ changePackage changesFile ++ "-" ++ show (changeVersion changesFile) ++ 
