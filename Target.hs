@@ -33,17 +33,17 @@ import		 Extra.Files
 import		 Extra.List
 import		 Extra.Misc
 import		 BuildTarget
-import		 BuildTarget.Apt
-import		 BuildTarget.Darcs
-import		 BuildTarget.DebDir
-import		 BuildTarget.Hg
-import		 BuildTarget.Proc
-import		 BuildTarget.Quilt
-import		 BuildTarget.SourceDeb
-import		 BuildTarget.Svn
-import		 BuildTarget.Tla
-import           BuildTarget.Bzr
-import		 BuildTarget.Uri
+import qualified BuildTarget.Apt as Apt
+import qualified BuildTarget.Darcs as Darcs
+import qualified BuildTarget.DebDir as DebDir
+import qualified BuildTarget.Hg as Hg
+import qualified BuildTarget.Proc as Proc
+import qualified BuildTarget.Quilt as Quilt
+import qualified BuildTarget.SourceDeb as SourceDeb
+import qualified BuildTarget.Svn as Svn
+import qualified BuildTarget.Tla as Tla
+import qualified BuildTarget.Bzr as Bzr
+import qualified BuildTarget.Uri as Uri
 --import		 Control.Monad
 import		 Control.Monad.Reader
 import		 System.Unix.Process hiding (processOutput)
@@ -73,16 +73,16 @@ targetDocumentation =
               , "the local machine at the given path as the debian source tree."
               , "Packages built using this targets are not allowed to be uploaded"
               , "since they include no revision control information." ]
-            , BuildTarget.Apt.documentation
-            , BuildTarget.Darcs.documentation
-            , BuildTarget.DebDir.documentation
-            , BuildTarget.Hg.documentation
-            , BuildTarget.Proc.documentation
-            , BuildTarget.Quilt.documentation
-            , BuildTarget.SourceDeb.documentation
-            , BuildTarget.Svn.documentation
-            , BuildTarget.Tla.documentation
-            , BuildTarget.Uri.documentation ])
+            , Apt.documentation
+            , Darcs.documentation
+            , DebDir.documentation
+            , Hg.documentation
+            , Proc.documentation
+            , Quilt.documentation
+            , SourceDeb.documentation
+            , Svn.documentation
+            , Tla.documentation
+            , Uri.documentation ])
 
 -- | Build target info.
 data Target
@@ -217,30 +217,30 @@ readSpec debug top flush ifSourcesChanged distros text =
     where
       readSpec' =
           case text of
-            'a':'p':'t':':' : target -> prepareApt top flush ifSourcesChanged distros target
-            'd':'a':'r':'c':'s':':' : target -> tio $ prepareDarcs debug top flush target
+            'a':'p':'t':':' : target -> Apt.prepareApt top flush ifSourcesChanged distros target
+            'd':'a':'r':'c':'s':':' : target -> tio $ Darcs.prepareDarcs debug top flush target
             'd':'e':'b':'-':'d':'i':'r':':' : target ->
                 do pair <- parsePair debug target
                    case pair of
                      Left message -> return (Left message)
-                     Right (upstream, debian) -> tio $ prepareDebDir debug top flush upstream debian
+                     Right (upstream, debian) -> tio $ DebDir.prepareDebDir debug top flush upstream debian
             'd':'i':'r':':' : target -> tio $ prepareDir debug top flush (rootEnvPath target)
-            'h':'g':':' : target -> tio $ prepareHg debug top flush target
+            'h':'g':':' : target -> tio $ Hg.prepareHg debug top flush target
             'q':'u':'i':'l':'t':':' : target ->
                 do pair <- parsePair debug target
                    case pair of
                      Left message -> return (Left message)
-                     Right (base, patch) -> tio $ prepareQuilt top flush base patch
+                     Right (base, patch) -> tio $ Quilt.prepareQuilt top flush base patch
             's':'o':'u':'r':'c':'e':'d':'e':'b':':' : target ->
                 readSpec debug top flush ifSourcesChanged distros target >>=
-                tio . either (return . Left . ((text ++ ": ") ++)) prepareSourceDeb
-            's':'v':'n':':' : target -> tio $ prepareSvn debug top flush target
-            't':'l':'a':':' : target -> tio $ prepareTla top flush target
-            'b':'z':'r':':' : target -> tio $ prepareBzr top flush target
-            'u':'r':'i':':' : target -> tio $ prepareUri debug top flush target
+                tio . either (return . Left . ((text ++ ": ") ++)) SourceDeb.prepareSourceDeb
+            's':'v':'n':':' : target -> tio $ Svn.prepareSvn debug top flush target
+            't':'l':'a':':' : target -> tio $ Tla.prepareTla top flush target
+            'b':'z':'r':':' : target -> tio $ Bzr.prepareBzr top flush target
+            'u':'r':'i':':' : target -> tio $ Uri.prepareUri debug top flush target
             'p':'r':'o':'c':':' : target ->
                 readSpec debug top flush ifSourcesChanged distros target >>=
-                tio . either (return . Left) (prepareProc top flush)
+                tio . either (return . Left) (Proc.prepareProc top flush)
             _ -> error ("Error in target specification: " ++ text)
       parsePair :: Bool -> String -> AptIO (Either String (Tgt, Tgt))
       parsePair debug text =
