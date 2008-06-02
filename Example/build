@@ -186,6 +186,7 @@ Targets:
   apt:sid:haskelldb
   quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/haskell-crypto-quilt)
   apt:sid:haskell-doc
+  quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/edison-quilt)
   apt:sid:haskell-hlist
   apt:sid:haskell-hsh
   apt:hardy:haskell-hsql
@@ -217,8 +218,6 @@ Targets:
   apt:sid:washngo
   apt:sid:washngo
   apt:sid:whitespace
-Comment: Broken quilt patch
-  quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/edison-quilt)
 Comment: Broken packages
   apt:sid:haskell98-report - dvips: ! Couldn't find header file times.ttf.
   apt:hardy:hs-plugins - depends on haskell-src-exts
