@@ -38,7 +38,7 @@ doc: doc/index.html
 doc/index.html: $(DOCHS) AutoBuilder.hs NewDist.hs WebPage.hs Makefile
 	#rm -rf doc; mkdir -p doc
 	mkdir -p doc
-	haddock -v --html -o doc $(DOCHS) 2>/tmp/haddock.out || { cat /tmp/haddock.out && exit 1; }
+	haddock -B $(shell ghc --print-libdir) --optghc=-cpp -v --html -o doc $(DOCHS) 2>/tmp/haddock.out || { cat /tmp/haddock.out && exit 1; }
 
 little: little.hs
 	$(GHC) -o $@ little.hs
