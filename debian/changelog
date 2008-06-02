@@ -1,3 +1,9 @@
+autobuilder (4.18) unstable; urgency=low
+
+  * Fix the package names of the documentation dependencies.
+
+ -- David Fox <dsf@seereason.com>  Mon, 02 Jun 2008 17:49:09 +0000
+
 autobuilder (4.17) unstable; urgency=low
 
   * Re-debianize using cabal-debian.

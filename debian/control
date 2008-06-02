@@ -93,15 +93,15 @@ Package: haskell-autobuilder-doc
 Architecture: all
 Section: libdevel
 Depends: ${haskell:Depends},
-         haskell-parsec-doc,
+         libghc6-parsec-doc,
          haskell-regex-compat-doc,
-         haskell-network-doc,
+         libghc6-network-doc,
          haskell-unixutils-doc,
          haskell-debian-doc,
-         haskell-xhtml-doc,
-         haskell-cgi-doc,
-         haskell-mtl-doc,
-         haskell-time-doc,
+         libghc6-xhtml-doc,
+         libghc6-cgi-doc,
+         libghc6-mtl-doc,
+         libghc6-time-doc,
          haskell-mime-doc (>= 1.1),
          haskell-extra-doc
 Description: Build Debian source packages in suitable environments
