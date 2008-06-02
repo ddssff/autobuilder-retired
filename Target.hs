@@ -89,9 +89,9 @@ data Target
     = Target { realSource :: Tgt		-- ^ The source code obtained from the SCCS
              , cleanSource :: DebianBuildTree	-- ^ The source code stripped of SCCS info
              , targetEntry :: ChangeLogEntry	-- ^ The contents of the most recent changelog entry
-             , targetControl :: Control		-- ^ The contents of debian\/control
-             , targetVersion :: DebianVersion	-- ^ The version number in debian\/changelog
-             , targetRevision :: Maybe String	-- ^ The value computed by 'revision'
+             , targetControl :: Control		-- ^ The contents of debian/control
+             , targetVersion :: DebianVersion	-- ^ The version number in debian/changelog
+             , targetRevision :: Maybe String	-- ^ The value computed by 'BuildTarget.revision'
              }
 
 instance Show Target where

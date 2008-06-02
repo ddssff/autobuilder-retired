@@ -1,26 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, ExistentialQuantification, FlexibleContexts #-}
 -- |Various ways of obtaining a Debian source code tree.
---
--- * "BuildTarget.Tla"
---
--- * "BuildTarget.Svn"
---
--- * "BuildTarget.SourceDeb"
---
--- * "BuildTarget.Hg"
---
--- * "BuildTarget.DebDir"
---
--- * "BuildTarget.Darcs"
---
--- * "BuildTarget.Apt"
---
--- * "BuildTarget.Proc"
---
--- * "BuildTarget.Uri"
---
--- * "BuildTarget.Quilt"
---
 module BuildTarget 
     ( BuildTarget(..)
     , Tgt(Tgt)

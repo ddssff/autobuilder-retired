@@ -1,42 +1,68 @@
 Source: autobuilder
 Priority: optional
 Maintainer: David Fox <david.fox@linspire.com>
-Build-Depends: debhelper (>= 4.0.0), ghc6 (>= 6.6), ghc6-prof, haskell-devscripts (>= 0.5.6), cpphs, libghc6-mtl-dev, libghc6-mtl-prof, libghc6-debian-dev (>= 3.3), libghc6-debian-prof (>= 3.3), libghc6-extra-dev, libghc6-extra-prof (>= 1.9), libghc6-unixutils-prof (>= 1.8), libghc6-html-dev, libghc6-cgi-dev, libghc6-xhtml-dev, libghc6-network-dev, libghc6-network-prof, libghc6-time-dev, libghc6-time-prof, haddock, libgmp3c2, libghc6-mime-prof (>= 1.2)
-Standards-Version: 3.6.2.2
+Build-Depends: debhelper (>= 5.0),
+               haskell-devscripts (>= 0.5.6),
+               cdbs,
+               ghc6 (>= 6.8),
+               ghc6-doc,
+               haddock,
+               ghc6-prof,
+               cpphs,
+               libghc6-parsec-prof,
+               libghc6-parsec-doc,
+               libghc6-regex-compat-prof,
+               haskell-regex-compat-doc,
+               libghc6-network-prof,
+               libghc6-network-doc,
+               libghc6-unixutils-prof,
+               libghc6-unixutils-prof (>= 1.8),
+               haskell-unixutils-doc,
+               libghc6-debian-prof,
+               libghc6-debian-prof (>= 3.3),
+               haskell-debian-doc,
+               libghc6-xhtml-prof,
+               libghc6-xhtml-doc,
+               libghc6-cgi-prof,
+               libghc6-cgi-doc,
+               libghc6-mtl-prof,
+               libghc6-mtl-doc,
+               libghc6-time-prof,
+               libghc6-time-doc,
+               libghc6-mime-prof (>= 1.1),
+               libghc6-mime-prof (>= 1.2),
+               haskell-mime-doc (>= 1.1),
+               libghc6-extra-prof,
+               libghc6-extra-prof (>= 1.9),
+               haskell-extra-doc,
+               libghc6-debian-dev (>= 3.3),
+               libghc6-debian-prof (>= 3.3),
+               libghc6-extra-dev,
+               libghc6-extra-prof (>= 1.9),
+               libghc6-html-dev,
+               libghc6-cgi-dev,
+               libghc6-time-dev,
+               libghc6-time-prof,
+               libgmp3c2,
+               libghc6-mime-prof (>= 1.2)
+Standards-Version: 3.7.2.2
 Section: devel
-
-Package: autobuilder
-Section: devel
-Architecture: any
-Recommends: subversion
-Depends: ${shlibs:Depends}, ${haskell:Depends}, build-env (>= 2.8), rsync, dupload, darcs, tla, mercurial, apt, build-essential, quilt, curl
-Description: Build and upload debian packages in clean enviroments
-
-Package: autobuilder-web-client
-Section: devel
-Architecture: any
-Depends: ${shlibs:Depends}, ${haskell:Depends}, autobuilder, apache | httpd-cgi
-Description: Web client for autobuilder
-
-Package: newdist
-Replaces: autobuilder-newdist
-Conflicts: autobuilder-newdist
-Section: devel
-Architecture: any
-Depends: ${shlibs:Depends}, ${haskell:Depends}
-Suggests: freespire-archive-keyring
-Description: Debian pool manager
-
-Package: autobuilder-doc
-Section: devel
-Architecture: all
-Depends: haskell-debian-doc
-Description: Autobuilder documentation
 
 Package: libghc6-autobuilder-dev
 Section: libdevel
 Architecture: any
-Depends: ${haskell:Depends}
+Depends: ${haskell:Depends},
+         libghc6-parsec-dev,
+         libghc6-regex-compat-dev,
+         libghc6-network-dev,
+         libghc6-unixutils-dev,
+         libghc6-debian-dev,
+         libghc6-xhtml-dev,
+         libghc6-cgi-dev,
+         libghc6-mtl-dev,
+         libghc6-time-dev,
+         libghc6-mime-dev (>= 1.1),
+         libghc6-extra-dev
 Description: A library version of the autobuilder
  A Haskell library providing an autobuilder for Debian packages.
  .
@@ -45,8 +71,76 @@ Description: A library version of the autobuilder
 Package: libghc6-autobuilder-prof
 Section: libdevel
 Architecture: any
-Depends: ${haskell:Depends}
+Depends: ${haskell:Depends},
+         libghc6-autobuilder-dev,
+         libghc6-parsec-prof,
+         libghc6-regex-compat-prof,
+         libghc6-network-prof,
+         libghc6-unixutils-prof,
+         libghc6-debian-prof,
+         libghc6-xhtml-prof,
+         libghc6-cgi-prof,
+         libghc6-mtl-prof,
+         libghc6-time-prof,
+         libghc6-mime-prof (>= 1.1),
+         libghc6-extra-prof
 Description: A library version of the autobuilder
  A Haskell library providing an autobuilder for Debian packages.
  .
  This package contains the libraries compiled for GHC 6 with profiling enabled.
+
+Package: haskell-autobuilder-doc
+Architecture: all
+Section: libdevel
+Depends: ${haskell:Depends},
+         haskell-parsec-doc,
+         haskell-regex-compat-doc,
+         haskell-network-doc,
+         haskell-unixutils-doc,
+         haskell-debian-doc,
+         haskell-xhtml-doc,
+         haskell-cgi-doc,
+         haskell-mtl-doc,
+         haskell-time-doc,
+         haskell-mime-doc (>= 1.1),
+         haskell-extra-doc
+Description: Build Debian source packages in suitable environments
+  .
+  This package contains the documentation files.
+
+Package: autobuilder
+Section: devel
+Architecture: any
+Recommends: subversion
+Depends: ${shlibs:Depends},
+         ${haskell:Depends},
+         build-env (>= 2.8),
+         rsync,
+         dupload,
+         darcs,
+         tla,
+         mercurial,
+         apt,
+         build-essential,
+         quilt,
+         curl
+Description: Build and upload debian packages in clean enviroments
+
+Package: newdist
+Replaces: autobuilder-newdist
+Conflicts: autobuilder-newdist
+Section: devel
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${haskell:Depends}
+Suggests: freespire-archive-keyring
+Description: Debian pool manager
+
+Package: autobuilder-web-client
+Section: devel
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${haskell:Depends},
+         autobuilder,
+         apache | httpd-cgi
+Description: Web client for autobuilder (Unimplemented)

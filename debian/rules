@@ -1,98 +1,22 @@
 #!/usr/bin/make -f
+include $(CURDIR)/debian/hlibrary.mk
 
-# Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+binary-fixup/libghc6-autobuilder-dev::
+	mkdir -p debian/autobuilder/usr/bin
+	mv debian/libghc6-autobuilder-dev/usr/lib/haskell-packages/ghc6/bin/autobuilder debian/autobuilder/usr/bin
+	mkdir -p debian/autobuilder-web-client/usr/bin
+	mv debian/libghc6-autobuilder-dev/usr/lib/haskell-packages/ghc6/bin/autobuilder-web-client debian/autobuilder-web-client/usr/bin
+	mkdir -p debian/newdist/usr/bin
+	mv debian/libghc6-autobuilder-dev/usr/lib/haskell-packages/ghc6/bin/newdist debian/newdist/usr/bin
 
-build: build-stamp
-build-stamp:
-	dh_testdir
+binary-fixup/libghc6-autobuilder-prof::
+	rm debian/libghc6-autobuilder-prof/usr/lib/haskell-packages/ghc6/bin/autobuilder
+	rm debian/libghc6-autobuilder-prof/usr/lib/haskell-packages/ghc6/bin/autobuilder-web-client
+	rm debian/libghc6-autobuilder-prof/usr/lib/haskell-packages/ghc6/bin/newdist
 
-	# Add here commands to compile the package.
-	make autobuilder webpage newdist	# dsf
-	touch build-stamp
+Version.hs: debian/changelog Makefile
+	/bin/echo -e "module Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
 
-clean:
-	dh_testdir
-	dh_testroot
-	rm -f build-stamp
-
-	# Add here commands to clean up after the build process.
-	if [ -x setup ] && [ -e .setup-config ] ; then ./setup clean ; fi
-	rm -rf setup Setup.hi Setup.ho Setup.o .*config* dist html
-	make clean
-
-	dh_clean 
-
-install: build
-	dh_testdir
-	dh_testroot
-	dh_clean -k 
-	dh_installdirs -a 
-
-	# Add here commands to install the package into debian/tmp
-	dh_haskell -a
-	install -D autobuilder debian/autobuilder/usr/bin/autobuilder
-	install -D webpage debian/autobuilder-web-client/usr/lib/cgi-bin/autobuilder
-	install -D newdist debian/newdist/usr/bin/newdist
-
-
-build-indep: build-indep-stamp
-build-indep-stamp:
-	make doc	# dsf
-	dh_testdir
-
-install-indep: build-indep
-	dh_testdir
-	dh_testroot
-	dh_clean -k
-	dh_installdirs -i
-
-	make test
-	# Add here commands to install the package into debian/tmp
-	dh_haskell -i
-	rm -rf debian/autobuilder-doc/usr/share/doc/autobuilder-doc/html; \
-	mkdir -p debian/autobuilder-doc/usr/share/doc/autobuilder-doc; \
-	cp -apx doc debian/autobuilder-doc/usr/share/doc/autobuilder-doc/html
-#	cp -apx dist/doc/html debian/autobuilder-doc/usr/share/doc/autobuilder-doc/
-	# Use the contents of freespire-build-specs to create an example config directory.
-#	mkdir -p debian/autobuilder-doc/usr/share/doc/autobuilder/autobuilder.d-example
-#	install /etc/autobuilder.d/* debian/autobuilder-doc/usr/share/doc/autobuilder/autobuilder.d-example
-
-# Build architecture-independent files here.
-binary-indep: build-indep install-indep
-	dh_testdir
-	dh_testroot
-	dh_installchangelogs -i
-	dh_installdocs -i
-	dh_installexamples -i
-	dh_installman -i
-	dh_link -i
-	dh_strip -i
-	dh_compress -i
-	dh_fixperms -i
-	dh_installdeb -i
-	dh_shlibdeps -i
-	dh_gencontrol -i
-	dh_md5sums -i
-	dh_builddeb -i
-
-# Build architecture-dependent files here.
-binary-arch: build install
-	dh_testdir
-	dh_testroot
-	dh_installchangelogs -a
-	dh_installdocs -a
-	dh_installexamples -a
-	dh_installman -a
-	dh_link -a
-	dh_strip -a
-	dh_compress -a
-	dh_fixperms -a
-	dh_installdeb -a
-	dh_shlibdeps -a
-	dh_gencontrol -a
-	dh_md5sums -a
-	dh_builddeb -a
-
-binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install build-indep install-indep
+clean::
+	rm -f *.o *.hi */*.o */*.hi Version.hs
+	/bin/echo -e "module Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > Version.hs

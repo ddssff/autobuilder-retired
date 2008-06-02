@@ -1,3 +1,11 @@
+autobuilder (4.17) unstable; urgency=low
+
+  * Re-debianize using cabal-debian.
+  * Fixes for haddock 2.1, re-enable documentation package.
+  * Newdist now takes a --sender-email or Sender-Email: parameter.
+
+ -- David Fox <dsf@seereason.com>  Mon, 02 Jun 2008 15:55:51 +0000
+
 autobuilder (4.16) unstable; urgency=low
 
   * Fully implement Relax-Depends.  This directive takes a binary package name
