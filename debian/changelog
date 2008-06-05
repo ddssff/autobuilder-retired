@@ -1,3 +1,10 @@
+autobuilder (4.19) unstable; urgency=low
+
+  * Fix bug in build decision code - we now build when a new build
+    dependency appears.
+
+ -- David Fox <dsf@seereason.com>  Thu, 05 Jun 2008 12:14:39 +0000
+
 autobuilder (4.18) unstable; urgency=low
 
   * Fix the package names of the documentation dependencies.

@@ -1001,40 +1001,46 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
                         False -> Yes ("Source version (" ++ show sourceVersion ++ ") is tagged, and old source version was not recorded")
                         True -> sameSourceTests
     where
+      -- Build decision tests for when the version number of the
+      -- source hasn't changed.  Note that the source itself may have
+      -- changed, but we don't ask the SCCS whether that has happened.
+      -- This is a design decision which avoids building from source
+      -- that might have been checked in but isn't ready to be
+      -- uploaded to the repository.  Note that if the build
+      -- dependencies change the package will be built anyway, so we
+      -- are not completely protected from this possibility.
       sameSourceTests =
           case () of
             _ | badDependencies /= [] ->
                   Error ("Missing build dependencies: " ++ 
                          concat (intersperse ", " (map (\ ver -> getName ver ++ " >= " ++ show (getVersion ver)) badDependencies)) ++
                          " (use --relax-depends to ignore.)")
-              | (revvedDependencies /= [] || newDependencies /= []) && isJust oldSrcVersion ->
-		  -- If oldSrcVersion is nothing, the autobuilder didn't make the previous build
-                  -- and there are no recorded build dependencies.  In that case we don't really
-                  -- know whether a build is required, so we could go either way.  As I write this,
-                  -- I have added the isJust oldSrcVersion clause, which makes the new assumption
-                  -- that the package does *not* need to be rebuilt.
-                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
-              | (revvedDependencies /= [] || newDependencies /= []) && any isTagged (revvedDependencies ++ newDependencies) ->
-                  -- However, if any of the build dependencies have tags that appear to have been
-                  -- added by the autobuilder, then we *do* want to build.
-                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
+              | autobuiltDependencies /= [] && isNothing oldSrcVersion ->
+		  -- If oldSrcVersion is Nothing, the autobuilder didn't make the previous build
+                  -- so there are no recorded build dependencies.  In that case we don't really
+                  -- know whether a build is required, so we could go either way.  The decision
+                  -- here is to only built if some of the build dependencies were built by the
+                  -- autobuilder (so their version numbers have been tagged by it.)
+                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText autobuiltDependencies)
+              | (revvedDependencies ++ newDependencies) /= [] && isJust oldSrcVersion ->
+                  -- If the package *was* previously built by the autobuilder we rebuild when any
+                  -- of its build dependencies are revved or new ones appear.
+                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText (revvedDependencies ++ newDependencies))
               | releaseStatus == Indep ->
+                  -- The binary packages are missing, we need an arch only build.
                   Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
               | releaseStatus == All ->
-                  No ("Version " ++ show sourceVersion ++ " is already in release." ++
-                      "\nsourceDependencies': " ++ show sourceDependencies' ++
-                      "\nsourceDependencies: " ++ show sourceDependencies ++
-                      "\nbuildDependencies: " ++ show builtDependencies)
+                  No ("Version " ++ show sourceVersion ++ " is already in release.")
               | True -> 
                   error ("Unexpected releaseStatus: " ++ show releaseStatus)
-      isTagged :: PkgVersion -> Bool
-      isTagged dep = isJust . snd . parseTag vendorTag . getVersion $ dep
-      buildDependencyChangeText =
+      buildDependencyChangeText dependencies =
           "  " ++ consperse "\n  " lines
           where
-            lines = map (\ (built, new) -> show built ++ " -> " ++ show new) (zip builtVersions (revvedDependencies ++ newDependencies))
-            builtVersions = map (findDepByName builtDependencies) (revvedDependencies ++ newDependencies)
+            lines = map (\ (built, new) -> show built ++ " -> " ++ show new) (zip builtVersions dependencies)
+            builtVersions = map (findDepByName builtDependencies) dependencies
             findDepByName builtDependencies new = find (\ old -> getName new == getName old) builtDependencies
+      -- The list of the revved and new dependencies which were built by the autobuilder.
+      autobuiltDependencies = filter isTagged (revvedDependencies ++ newDependencies)
       -- If we are deciding whether to rebuild the same version of the source package,
       -- this function checks the status of the build dependencies.  If any are older
       -- now than when the package was built previously, it is a fatal error.  Probably
@@ -1042,7 +1048,7 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
       -- available, or some of the build dependencies were never built for the current
       -- build architecture.  If any are younger, we need to rebuild the package.
       -- buildDependencyStatus :: ([PkgVersion], [PkgVersion], [PkgVersion], [PkgVersion])
-      (badDependencies, revvedDependencies, newDependencies, unchangedDependencies) =
+      (badDependencies, revvedDependencies, newDependencies, _unchangedDependencies) =
           (bad, changed, new, unchanged)
           where
             -- If a dependency is older than the one we last built with it is an error.
@@ -1062,3 +1068,5 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
       filterDepends :: [String] -> [PkgVersion] -> [PkgVersion]
       filterDepends relaxDepends sourceDependencies =
           filter (\ ver -> not (elem (getName ver) relaxDepends)) sourceDependencies
+      isTagged :: PkgVersion -> Bool
+      isTagged dep = isJust . snd . parseTag vendorTag . getVersion $ dep
