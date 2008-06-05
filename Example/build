@@ -73,7 +73,7 @@ Targets:
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/quilt/haskell-cgi-quilt)
-  apt:sid:haskell-devscripts
+  quilt:(svn:svn://svn.debian.org/svn/pkg-haskell/packages/haskell-devscripts/trunk):(darcs:http://src.seereason.com/quilt/haskell-devscripts-quilt)
   quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/quilt/haskell-fgl-quilt)
   quilt:(apt:sid:haskell-glut):(darcs:http://src.seereason.com/quilt/haskell-glut-quilt)
   quilt:(apt:sid:haskell-haskell-src):(darcs:http://src.seereason.com/quilt/haskell-src-quilt)
@@ -177,7 +177,6 @@ Targets:
   apt:sid:drift
   apt:sid:frown
   apt:sid:ftphs
-  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/quilt/gtk2hs-quilt)
   apt:sid:gtkrsync
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/quilt/haskell-binary-quilt)
@@ -219,6 +218,7 @@ Targets:
   apt:sid:washngo
   apt:sid:whitespace
 Comment: Broken packages
+  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/quilt/gtk2hs-quilt)
   apt:sid:haskell98-report - dvips: ! Couldn't find header file times.ttf.
   apt:hardy:hs-plugins - depends on haskell-src-exts
   apt:sid:haskell-src-exts - Syntax error in build dependencies
