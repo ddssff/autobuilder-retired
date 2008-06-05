@@ -1002,34 +1002,38 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
                         True -> sameSourceTests
     where
       sameSourceTests =
-          case buildDependencyChanges of
-            (bad@(_ : _), _) -> 
-                Error ("Missing build dependencies: " ++ concat (intersperse ", " (map (\ ver -> getName ver ++ " >= " ++ show (getVersion ver)) bad)) ++ " (use --relax-depends to ignore.)")
-            ([], new@(_ : _)) | isJust oldSrcVersion ->
-		-- If oldSrcVersion is nothing, the autobuilder didn't make the previous build
-                -- and there are no recorded build dependencies.  In that case we don't really
-                -- know whether a build is required, so we could go either way.  As I write this,
-                -- I have added the isJust oldSrcVersion clause, which makes the new assumption
-                -- that the package does *not* need to be rebuilt.
-                Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
-            ([], new@(_ : _)) | any isTagged new ->
-                -- However, if any of the build dependencies have tags that appear to have been
-                -- added by the autobuilder, then we *do* want to build.
-                Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
-            _ | releaseStatus == Indep ->
-                Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
-            _ | releaseStatus == All ->
-                No ("Version " ++ show sourceVersion ++ " is already in release.")
-            _ -> 
-                error ("Unexpected releaseStatus: " ++ show releaseStatus)
+          case () of
+            _ | badDependencies /= [] ->
+                  Error ("Missing build dependencies: " ++ 
+                         concat (intersperse ", " (map (\ ver -> getName ver ++ " >= " ++ show (getVersion ver)) badDependencies)) ++
+                         " (use --relax-depends to ignore.)")
+              | (revvedDependencies /= [] || newDependencies /= []) && isJust oldSrcVersion ->
+		  -- If oldSrcVersion is nothing, the autobuilder didn't make the previous build
+                  -- and there are no recorded build dependencies.  In that case we don't really
+                  -- know whether a build is required, so we could go either way.  As I write this,
+                  -- I have added the isJust oldSrcVersion clause, which makes the new assumption
+                  -- that the package does *not* need to be rebuilt.
+                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
+              | (revvedDependencies /= [] || newDependencies /= []) && any isTagged (revvedDependencies ++ newDependencies) ->
+                  -- However, if any of the build dependencies have tags that appear to have been
+                  -- added by the autobuilder, then we *do* want to build.
+                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText)
+              | releaseStatus == Indep ->
+                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
+              | releaseStatus == All ->
+                  No ("Version " ++ show sourceVersion ++ " is already in release." ++
+                      "\nsourceDependencies': " ++ show sourceDependencies' ++
+                      "\nsourceDependencies: " ++ show sourceDependencies ++
+                      "\nbuildDependencies: " ++ show builtDependencies)
+              | True -> 
+                  error ("Unexpected releaseStatus: " ++ show releaseStatus)
       isTagged :: PkgVersion -> Bool
       isTagged dep = isJust . snd . parseTag vendorTag . getVersion $ dep
       buildDependencyChangeText =
           "  " ++ consperse "\n  " lines
           where
-            lines = map (\ (built, new) -> show built ++ " -> " ++ show new) (zip builtVersions newDependencies)
-            builtVersions = map (findDepByName builtDependencies) newDependencies
-            (badDependencies, newDependencies) = buildDependencyChanges
+            lines = map (\ (built, new) -> show built ++ " -> " ++ show new) (zip builtVersions (revvedDependencies ++ newDependencies))
+            builtVersions = map (findDepByName builtDependencies) (revvedDependencies ++ newDependencies)
             findDepByName builtDependencies new = find (\ old -> getName new == getName old) builtDependencies
       -- If we are deciding whether to rebuild the same version of the source package,
       -- this function checks the status of the build dependencies.  If any are older
@@ -1037,16 +1041,24 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
       -- the sources.list changed so that build dependency versions are no longer
       -- available, or some of the build dependencies were never built for the current
       -- build architecture.  If any are younger, we need to rebuild the package.
-      buildDependencyChanges =
-          (map (fromJust . builtVersion) (filter isOlder sourceDependencies'), filter isNewer sourceDependencies')
-         where
-           isNewer new = maybe False (\ built -> getVersion built < getVersion new) (builtVersion new)
-           isOlder new = maybe False (\ built -> getVersion built > getVersion new) (builtVersion new)
-           builtVersion new = maybe Nothing (\ ver -> Just (PkgVersion (getName new) ver)) (Map.findWithDefault Nothing (getName new) builtDeps)
-	   builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
-           -- Remove the current package and any package in the relaxDepends list
-           -- from the list of build dependencies which can trigger a rebuild.
-           sourceDependencies' = filterDepends (logPackage sourceLog : relaxDepends) sourceDependencies
+      -- buildDependencyStatus :: ([PkgVersion], [PkgVersion], [PkgVersion], [PkgVersion])
+      (badDependencies, revvedDependencies, newDependencies, unchangedDependencies) =
+          (bad, changed, new, unchanged)
+          where
+            -- If a dependency is older than the one we last built with it is an error.
+            (bad, notBad) = partition isOlder sourceDependencies'
+            isOlder new = maybe False (\ built -> getVersion built > getVersion new) (builtVersion new)
+            -- If a dependency is newer it generally triggers a rebuild.
+            (changed, notChanged) = partition isNewer notBad
+            isNewer new = maybe False (\ built -> getVersion built < getVersion new) (builtVersion new)
+	    -- Dependencies which we have never seen before also generally trigger a rebuild.
+            (new, unchanged) = partition (isNothing . builtVersion) notChanged
+	    -- What version of this dependency was most recently used to build?
+            builtVersion x = maybe Nothing (\ ver -> Just (PkgVersion (getName x) ver)) (Map.findWithDefault Nothing (getName x) builtDeps)
+	    builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
+      -- Remove the current package and any package in the relaxDepends list
+      -- from the list of build dependencies which can trigger a rebuild.
+      sourceDependencies' = filterDepends (logPackage sourceLog : relaxDepends) sourceDependencies
       filterDepends :: [String] -> [PkgVersion] -> [PkgVersion]
       filterDepends relaxDepends sourceDependencies =
           filter (\ ver -> not (elem (getName ver) relaxDepends)) sourceDependencies
