@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-include $(CURDIR)/debian/hlibrary.mk
+include /usr/share/haskell-devscripts/hlibrary.mk
 
 binary-fixup/libghc6-autobuilder-dev::
 	mkdir -p debian/autobuilder/usr/bin
