@@ -148,7 +148,7 @@ Targets:
   deb-dir:(darcs:http://code.haskell.org/HSP/hjscript):(darcs:http://src.seereason.com/debian/hjscript-debian)
   deb-dir:(darcs:http://src.seereason.com/HSP/hsp):(darcs:http://src.seereason.com/debian/hsp-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hsx-xhtml):(darcs:http://src.seereason.com/debian/hsx-xhtml-debian)
-  quilt:(darcs:http://src.seereason.com/HSP/hsx):(darcs:http://src.seereason.com/quilt/hsx-quilt)
+  darcs:http://src.seereason.com/HSP/hsx
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/RJson/0.3.4/RJson-0.3.4.tar.gz:42591b36ca60a2449a030aa8522791b0):(darcs:http://src.seereason.com/debian/RJson-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/iconv/0.4/iconv-0.4.tar.gz):(darcs:http://src.seereason.com/debian/iconv-debian)
   darcs:http://src.seereason.com/HAppS/syb-with-class
