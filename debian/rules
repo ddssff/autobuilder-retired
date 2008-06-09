@@ -1,19 +1,6 @@
 #!/usr/bin/make -f
 include /usr/share/haskell-devscripts/hlibrary.mk
 
-binary-fixup/libghc6-autobuilder-dev::
-	mkdir -p debian/autobuilder/usr/bin
-	mv debian/libghc6-autobuilder-dev/usr/lib/haskell-packages/ghc6/bin/autobuilder debian/autobuilder/usr/bin
-	mkdir -p debian/autobuilder-web-client/usr/bin
-	mv debian/libghc6-autobuilder-dev/usr/lib/haskell-packages/ghc6/bin/autobuilder-web-client debian/autobuilder-web-client/usr/bin
-	mkdir -p debian/newdist/usr/bin
-	mv debian/libghc6-autobuilder-dev/usr/lib/haskell-packages/ghc6/bin/newdist debian/newdist/usr/bin
-
-binary-fixup/libghc6-autobuilder-prof::
-	rm debian/libghc6-autobuilder-prof/usr/lib/haskell-packages/ghc6/bin/autobuilder
-	rm debian/libghc6-autobuilder-prof/usr/lib/haskell-packages/ghc6/bin/autobuilder-web-client
-	rm debian/libghc6-autobuilder-prof/usr/lib/haskell-packages/ghc6/bin/newdist
-
 Version.hs: debian/changelog Makefile
 	/bin/echo -e "module Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
 
