@@ -1,8 +1,8 @@
-module BuildTarget.DebDir where
+module Debian.AutoBuilder.BuildTarget.DebDir where
 
 import Control.Exception
 import Control.Monad.Trans
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory

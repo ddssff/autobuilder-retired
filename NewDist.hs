@@ -5,7 +5,7 @@ import		 Prelude hiding (putStr, putStrLn, putChar)
 import		 Control.Monad.Trans
 import		 Extra.TIO
 import		 Debian.Repo
-import		 Config
+import		 Debian.Config as Config
 import		 Control.Monad
 import		 Data.List
 import		 Data.Maybe
@@ -17,7 +17,7 @@ import		 System.Environment
 import		 System.Exit
 import qualified System.IO as IO
 import		 Text.Regex
-import qualified Version
+import qualified Debian.AutoBuilder.Version as Version
 import		 Extra.Email
 
 appName = "newdist"

@@ -1,23 +1,6 @@
 -- |AutoBuilder - application to build Debian packages in a clean
 -- environment.  In the following list, each module's dependencies
 -- appear above it:
---
--- * "Extra"
---
--- * "VersionPolicy"
---
--- * "Version"
---
--- * "Config"
---
--- * "DryRun"
---
--- * "BuildTarget"
---
--- * "Params"
---
--- * "Target"
---
 module Main where
 
 import		 Debian.Repo
@@ -28,7 +11,7 @@ import		 Debian.URI
 import		 Control.Monad.State
 import		 Control.Monad.RWS
 import		 Extra.TIO
-import qualified Config
+import qualified Debian.Config as Config
 import		 Control.Exception
 import		 Control.Monad
 import qualified Data.Map as Map
@@ -41,7 +24,7 @@ import		 Extra.Lock
 import		 Extra.Misc
 import		 System.Unix.Directory hiding (find)
 import		 System.Unix.Process
-import qualified Params
+import qualified Debian.AutoBuilder.Params as Params
 import		 System.Directory
 import		 System.Environment
 import		 System.Exit
@@ -49,8 +32,8 @@ import qualified System.IO as IO
 import 	         System.IO.Error (isDoesNotExistError)
 import		 System.Posix.Files (removeLink)
 import		 System.Time
-import		 Target
-import qualified Version
+import		 Debian.AutoBuilder.Target
+import qualified Debian.AutoBuilder.Version as Version
 
 -- | Convert the command line arguments into a list of flags.  Then
 -- expand these flags into a list of flag lists, and then run the
@@ -221,7 +204,7 @@ runParameterSet params =
           do tio (showTargets allTargets)
              tio (vEPutStrBl 0 "Checking all source code out of the repositories:")
              mapRWST (setStyle (appPrefix " "))
-                         (mapM (Target.readSpec (Params.debug params) top flush
+                         (mapM (readSpec (Params.debug params) top flush
                                 (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
           where
             allTargets = listDiff (Params.targets params) (Params.omitTargets params)

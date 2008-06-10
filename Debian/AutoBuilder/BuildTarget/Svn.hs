@@ -1,4 +1,4 @@
-module BuildTarget.Svn 
+module Debian.AutoBuilder.BuildTarget.Svn 
     ( BuildTarget(..)
     , prepareSvn
     , Svn
@@ -10,7 +10,7 @@ import Debian.Repo
 import Debian.Shell
 import Debian.URI
 
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans

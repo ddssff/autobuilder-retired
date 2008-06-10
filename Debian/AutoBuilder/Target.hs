@@ -3,7 +3,7 @@
 -- methods to retrieve and update it.
 --
 -- Author: David Fox <ddssff@gmail.com>
-module Target
+module Debian.AutoBuilder.Target
     ( Target(..)
     , targetName	-- Target -> String
     , changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
@@ -32,18 +32,18 @@ import		 Extra.Either
 import		 Extra.Files
 import		 Extra.List
 import		 Extra.Misc
-import		 BuildTarget
-import qualified BuildTarget.Apt as Apt
-import qualified BuildTarget.Darcs as Darcs
-import qualified BuildTarget.DebDir as DebDir
-import qualified BuildTarget.Hg as Hg
-import qualified BuildTarget.Proc as Proc
-import qualified BuildTarget.Quilt as Quilt
-import qualified BuildTarget.SourceDeb as SourceDeb
-import qualified BuildTarget.Svn as Svn
-import qualified BuildTarget.Tla as Tla
-import qualified BuildTarget.Bzr as Bzr
-import qualified BuildTarget.Uri as Uri
+import		 Debian.AutoBuilder.BuildTarget as BuildTarget
+import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
+import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
+import qualified Debian.AutoBuilder.BuildTarget.DebDir as DebDir
+import qualified Debian.AutoBuilder.BuildTarget.Hg as Hg
+import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
+import qualified Debian.AutoBuilder.BuildTarget.Quilt as Quilt
+import qualified Debian.AutoBuilder.BuildTarget.SourceDeb as SourceDeb
+import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
+import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
+import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
+import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 --import		 Control.Monad
 import		 Control.Monad.Reader
 import		 System.Unix.Process hiding (processOutput)
@@ -53,7 +53,7 @@ import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
 import qualified Data.Set as Set
-import		 Params
+import qualified Debian.AutoBuilder.Params as Params
 import		 System.Directory
 --import		 System.Locale
 import		 System.Exit
@@ -492,7 +492,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                       Auto _ -> buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
     where
       --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
-      packageName = Target.targetName target
+      packageName = targetName target
       -- Find or create an apt-get environment that will see all the packages
       -- in both the upload repository and the local repository, and then use
       -- it to compute a list of all existing versions of the package.

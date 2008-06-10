@@ -1,9 +1,9 @@
 -- |Modify a target so that \/proc is mounted while it builds.
-module BuildTarget.Proc where
+module Debian.AutoBuilder.BuildTarget.Proc where
 
 import Debian.Repo
 
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import System.Unix.Process
 import Extra.TIO
 import Control.Monad.Trans
@@ -23,7 +23,7 @@ instance BuildTarget Proc where
     getTop (Proc (Tgt s)) = getTop s
     cleanTarget (Proc (Tgt s)) source = cleanTarget s source
     revision (Proc (Tgt s)) =  
-        BuildTarget.revision s >>= return . either Left (Right . ("proc:" ++))
+        Debian.AutoBuilder.BuildTarget.revision s >>= return . either Left (Right . ("proc:" ++))
     buildPkg noClean setEnv buildOS buildTree status _ =
         do vPutStrBl 0 "Mouting /proc during target build"
            lift $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 

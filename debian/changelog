@@ -1,3 +1,9 @@
+autobuilder (4.20) unstable; urgency=low
+
+  * Move the modules into the Debian.AutoBuilder heirarchy.
+
+ -- David Fox <dsf@seereason.com>  Tue, 10 Jun 2008 17:45:31 +0000
+
 autobuilder (4.19) unstable; urgency=low
 
   * Fix bug in build decision code - we now build when a new build

@@ -1,13 +1,13 @@
 -- |A SourceDeb target modifies another target to provide an unpacked debian source tree
 -- when a debian source package is found.  A debian source package is a @.dsc@ file, a
 -- @.tar.gz@ file, and an optional @.diff.gz@ file.
-module BuildTarget.SourceDeb where
+module Debian.AutoBuilder.BuildTarget.SourceDeb where
 
 import qualified Debian.Control.String as S
 import Debian.Repo.Types
 import qualified Debian.Version as V
 
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget as BuildTarget
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List

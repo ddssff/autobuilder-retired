@@ -1,9 +1,9 @@
-module BuildTarget.Apt where
+module Debian.AutoBuilder.BuildTarget.Apt where
 
 import Debian.Repo
 import Debian.Version
 
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import Control.Monad
 import Data.Maybe
 import System.Unix.Directory

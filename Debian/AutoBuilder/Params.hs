@@ -4,7 +4,7 @@
 -- parameters for the program.
 --
 -- Author: David Fox <ddssff@gmail.com>
-module Params
+module Debian.AutoBuilder.Params
     (-- * Runtime Parameters
      Params(..),
      optSpecs,
@@ -14,7 +14,7 @@ module Params
      -- * Global Parameters
      topDir,			-- Params -> TopDir
      debug,			-- Params -> Bool
-     Params.dryRun,		-- Params -> Bool
+     Debian.AutoBuilder.Params.dryRun,		-- Params -> Bool
      --style,			-- Params -> [Progress.Style]
      requiredVersion,		-- Params -> [(DebianVersion, Maybe String)]
      showSources,		-- Params -> Bool
@@ -22,7 +22,7 @@ module Params
      flushAll,
      useRepoCache,		-- Params -> Bool
      -- * Obtaining and preparing target source
-     Params.sources,		-- Params -> [String]	(Use distro)
+     Debian.AutoBuilder.Params.sources,		-- Params -> [String]	(Use distro)
      targets,			-- Params -> [String]
      omitTargets,		-- Params -> [String]
      vendorTag,			-- Params -> String
@@ -31,8 +31,8 @@ module Params
      -- * Build Environment
      forceBuild,		-- Params -> Bool
      preferred,			-- Params -> [String]
-     Params.cleanRoot,		-- Params -> EnvRoot
-     Params.dirtyRoot,		-- Params -> EnvRoot
+     Debian.AutoBuilder.Params.cleanRoot,		-- Params -> EnvRoot
+     Debian.AutoBuilder.Params.dirtyRoot,		-- Params -> EnvRoot
      cleanRootOfRelease,
      Strictness(Strict, Moderate, Lax),
      strictness,		-- Params -> Strictness
@@ -54,7 +54,7 @@ module Params
      cleanUp,			-- Params -> Bool
      archList,			-- Params -> [Arch]
      flushPool,			-- Params -> Bool
-     Params.localPoolDir,	-- Params -> FilePath
+     Debian.AutoBuilder.Params.localPoolDir,	-- Params -> FilePath
      -- * Uploading
      doUpload,			-- Params -> Bool
      doNewDist,			-- Params -> Bool
@@ -73,13 +73,13 @@ import		 Debian.Repo
 import		 Debian.Version
 import		 Debian.URI
 
-import		 Config hiding (usageInfo)
 import		 Control.Exception
 import		 Data.List
 import		 Data.Maybe
 import		 Extra.TIO
 import		 Extra.Misc
-import qualified Config as P (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
+import		 Debian.Config hiding (usageInfo)
+import qualified Debian.Config as P (usageInfo) -- (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
 import qualified Data.Map as Map
 import qualified System.IO as IO
 import		 System.Console.GetOpt
@@ -128,7 +128,7 @@ instance Show Strictness where
 -- candidates for the configuration directory path.
 params :: Int -> String -> [Flag] -> AptIO [Params]
 params verbosity appName flags =
-    do flagLists <- io $ Config.computeConfig verbosity appName flags id
+    do flagLists <- io $ computeConfig verbosity appName flags id
        flagMaps <- io (mapM computeTopDir (map (listMap . pairsFromFlags) flagLists))
        case listToMaybe flagMaps of
          Nothing -> return ()
@@ -264,7 +264,7 @@ usage appName
                    "EXAMPLES:\n" ++
                    "  sudo autobuilder build-feisty-common --target apt:sid:haskell-hsql --flush-pool\n" ++
                    "  sudo autobuilder build-feisty-common --do-upload\n\n" ++
-                   "GLOBAL OPTIONS:\n") (Config.optBaseSpecs appName ++ globalOpts) ++
+                   "GLOBAL OPTIONS:\n") (optBaseSpecs appName ++ globalOpts) ++
       P.usageInfo "\nOBTAINING AND PREPARING TARGET SOURCE CODE:\n" sourceOpts ++
       P.usageInfo "\nCREATING AND USING THE BUILD ENVIRONMENT:\n" buildOpts ++
       P.usageInfo "\nMANAGING THE LOCAL TEMPORARY PACKAGE REPOSITORY:\n" localRepoOpts ++
@@ -351,18 +351,18 @@ extraEssential :: Params -> [String]
 extraEssential params = values params extraEssentialOpt
 
 extraEssentialOpt =
-    P.Param { P.shortOpts = []
-            , P.longOpts = ["extra-essential"]
-            , P.argDescr = ReqArg (Value "ExtraEssential") "PACKAGE"
-            , P.description =
-                (text ["Specify an extra package to include as essential in the build",
-                       "environment.  This option was provided to add either upstart or",
-                       "sysvinit to the build when they ceased to be 'Required' packages."])
-{-	    , P.option = Option [] ["extra-essential"] (ReqArg (Value "Extra-Essential") "PACKAGE")
-                         (text ["Specify an extra package to include as essential in the build",
-                                "environment.  This option was provided to add either upstart or",
-                                "sysvinit to the build when they ceased to be 'Required' packages."]) -}
-            , P.names = ["Extra-Essential"] }
+    Param { shortOpts = []
+          , longOpts = ["extra-essential"]
+          , argDescr = ReqArg (Value "ExtraEssential") "PACKAGE"
+          , description =
+            (text ["Specify an extra package to include as essential in the build",
+                   "environment.  This option was provided to add either upstart or",
+                   "sysvinit to the build when they ceased to be 'Required' packages."])
+{-	  , option = Option [] ["extra-essential"] (ReqArg (Value "Extra-Essential") "PACKAGE")
+                       (text ["Specify an extra package to include as essential in the build",
+                              "environment.  This option was provided to add either upstart or",
+                              "sysvinit to the build when they ceased to be 'Required' packages."]) -}
+          , names = ["Extra-Essential"] }
 
 omitEssential :: Params -> [String]
 omitEssential params = values params omitEssentialOpt
@@ -774,23 +774,23 @@ text lines =
 -- Constants
 
 dirtyRoot :: Params -> EnvRoot
-dirtyRoot params = dirtyRootOfRelease params (Params.buildRelease params)
-    --EnvRoot $ topDir params ++ "/dists/" ++ show (buildRelease params) ++ "/build-" ++ (show (Params.strictness params))
+dirtyRoot params = dirtyRootOfRelease params (buildRelease params)
+    --EnvRoot $ topDir params ++ "/dists/" ++ show (buildRelease params) ++ "/build-" ++ (show (strictness params))
 
 cleanRoot :: Params -> EnvRoot
-cleanRoot params = cleanRootOfRelease params (Params.buildRelease params)
-    -- cleanRootOfRelease params (Params.buildRelease params)
+cleanRoot params = cleanRootOfRelease params (buildRelease params)
+    -- cleanRootOfRelease params (buildRelease params)
 
 dirtyRootOfRelease :: Params -> ReleaseName -> EnvRoot
 dirtyRootOfRelease params distro =
-    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/build-" ++ (show (Params.strictness params))
-    --ReleaseCache.dirtyRoot distro (show (Params.strictness params))
+    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/build-" ++ (show (strictness params))
+    --ReleaseCache.dirtyRoot distro (show (strictness params))
 
 cleanRootOfRelease :: Params -> ReleaseName -> EnvRoot
 cleanRootOfRelease params distro =
-    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/clean-" ++ (show (Params.strictness params))
-    --ReleaseCache.cleanRoot distro (show (Params.strictness params))
+    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/clean-" ++ (show (strictness params))
+    --ReleaseCache.cleanRoot distro (show (strictness params))
 
 -- |Location of the local repository for uploaded packages.
 localPoolDir :: Params -> FilePath
-localPoolDir params = Params.topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)
+localPoolDir params = topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)

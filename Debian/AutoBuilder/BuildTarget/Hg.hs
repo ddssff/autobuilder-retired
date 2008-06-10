@@ -1,5 +1,5 @@
 -- | A Mercurial archive.
-module BuildTarget.Hg where
+module Debian.AutoBuilder.BuildTarget.Hg where
 
 import Debian.Shell
 import Debian.Repo
@@ -14,7 +14,7 @@ import System.IO
 import System.Process
 import System.Unix.Directory
 import System.Unix.FilePath
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import Extra.TIO
 
 data Hg = Hg String SourceTree

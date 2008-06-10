@@ -22,7 +22,7 @@
 -- of the features this module supports.
 --
 -- Author: David Fox <ddssff@gmail.com>
-module Config
+module Debian.Config
     ( Flag(..)
     , seedFlags	
     , optBaseSpecs
@@ -35,7 +35,7 @@ module Config
     , values
     , ParamDescr(..)
     , option
-    , Config.usageInfo
+    , Debian.Config.usageInfo
     ) where
 
 import Control.Exception
@@ -121,7 +121,7 @@ seedFlags appName options args =
     case getOpt Permute (map option customizedOptions) args of
       (o, [], []) -> o
       (o, extra, []) -> (o ++ [Use extra])
-      (_, _, errs) -> error (concat errs ++ Config.usageInfo header customizedOptions)      
+      (_, _, errs) -> error (concat errs ++ Debian.Config.usageInfo header customizedOptions)      
     where
       customizedOptions = mergeSpecs appName options
       header = "Usage: " ++ appName ++ " [OPTION...]"

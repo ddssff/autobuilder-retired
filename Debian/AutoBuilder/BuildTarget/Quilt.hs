@@ -1,7 +1,7 @@
 -- | The quilt target takes two other targets, one a base source
 -- directory and another a quilt-style patch directory, and creates
 -- a build target with the patches applied to the source directory.
-module BuildTarget.Quilt where
+module Debian.AutoBuilder.BuildTarget.Quilt where
 
 import Debian.Repo
 import Debian.Shell
@@ -21,7 +21,7 @@ import Extra.Files
 import Extra.List
 import System.Directory
 import System.Exit
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget as BuildTarget
 import System.Unix.Process
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex

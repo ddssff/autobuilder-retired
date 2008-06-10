@@ -1,10 +1,10 @@
-module BuildTarget.Tla where
+module Debian.AutoBuilder.BuildTarget.Tla where
 
 import Debian.Repo
 import Debian.Shell
 
 import Control.Monad.Trans
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import System.IO
 import Control.Monad
 import System.Process

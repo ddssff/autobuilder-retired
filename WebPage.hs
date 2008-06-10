@@ -5,7 +5,7 @@ import		 Debian.Control
 import		 Debian.Repo
 import		 Debian.URI
 
-import qualified Config
+import qualified Debian.Config as Config
 import		 Control.Monad
 import		 Control.Monad.Trans(liftIO)	-- required despite warning
 import		 Data.List
@@ -14,7 +14,7 @@ import		 Data.Maybe
 import		 Extra.TIO
 import qualified MyHtml
 import qualified Network.CGI as CGI
-import qualified Params
+import qualified Debian.AutoBuilder.Params as Params
 import		 System.Directory
 import		 System.Environment
 import		 System.IO

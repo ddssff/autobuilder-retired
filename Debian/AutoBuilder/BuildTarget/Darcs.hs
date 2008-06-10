@@ -1,9 +1,9 @@
-module BuildTarget.Darcs where
+module Debian.AutoBuilder.BuildTarget.Darcs where
 
 import Debian.Repo
 import Debian.Shell
 
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import Control.Monad.Trans
 import System.Directory
 import System.Process hiding (runCommand)

@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, ExistentialQuantification, FlexibleContexts #-}
 -- |Various ways of obtaining a Debian source code tree.
-module BuildTarget 
+module Debian.AutoBuilder.BuildTarget 
     ( BuildTarget(..)
     , Tgt(Tgt)
     , Dir(Dir)

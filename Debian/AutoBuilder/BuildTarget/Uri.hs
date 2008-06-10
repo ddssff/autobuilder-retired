@@ -1,13 +1,13 @@
 -- |A 'uri:' target is an URI that returns a tarball, with an optional
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
-module BuildTarget.Uri where
+module Debian.AutoBuilder.BuildTarget.Uri where
 
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
 
 import Control.Monad.Trans
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import Control.Monad
 import Control.Exception
 import System.Unix.Directory

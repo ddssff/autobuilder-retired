@@ -1,11 +1,11 @@
-module BuildTarget.Bzr where
+module Debian.AutoBuilder.BuildTarget.Bzr where
 
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
 
 import Control.Monad.Trans
-import BuildTarget
+import Debian.AutoBuilder.BuildTarget
 import System.IO
 import Control.Monad
 import System.Process
