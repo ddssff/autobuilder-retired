@@ -474,8 +474,8 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
                let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
-                       buildDecision (realSource target) (Params.vendorTag params)
-                                         (Params.forceBuild params) ignoredBuildDeps sourceLog
+                       buildDecision (realSource target) (Params.vendorTag params) (Params.forceBuild params)
+                                         (Params.allowBuildDependencyRegressions params) ignoredBuildDeps sourceLog
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceRevision sourceDependencies'
                tio (vEPutStrBl 0 ("Build decision: " ++ show decision))
@@ -967,6 +967,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
 buildDecision :: Tgt
               -> String
               -> Bool
+              -> Bool
               -> [String]
               -> ChangeLogEntry		-- The newest log entry from the source tree
               -> Maybe DebianVersion	-- builtVersion: the version already present in the repository
@@ -979,7 +980,7 @@ buildDecision :: Tgt
 					--   Nothing if the target is a Dir target, which is not suitable for uploading.
               -> [PkgVersion]		-- sourceDependencies: the list of build dependency versions computed from the build environment
               -> BuildDecision
-buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
+buildDecision (Tgt _target) vendorTag forceBuild allowBuildDependencyRegressions relaxDepends sourceLog
                   oldVersion oldSrcVersion _oldRevision builtDependencies releaseStatus
                   sourceVersion _sourceRevision sourceDependencies =
     case (forceBuild, oldVersion == Nothing) of
@@ -1011,10 +1012,9 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
       -- are not completely protected from this possibility.
       sameSourceTests =
           case () of
-            _ | badDependencies /= [] ->
-                  Error ("Missing build dependencies: " ++ 
-                         concat (intersperse ", " (map (\ ver -> getName ver ++ " >= " ++ show (getVersion ver)) badDependencies)) ++
-                         " (use --relax-depends to ignore.)")
+            _ | badDependencies /= [] && not allowBuildDependencyRegressions ->
+                  Error ("Build dependency regression: " ++ 
+                         concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
               | autobuiltDependencies /= [] && isNothing oldSrcVersion ->
 		  -- If oldSrcVersion is Nothing, the autobuilder didn't make the previous build
                   -- so there are no recorded build dependencies.  In that case we don't really
@@ -1060,8 +1060,8 @@ buildDecision (Tgt _target) vendorTag forceBuild relaxDepends sourceLog
 	    -- Dependencies which we have never seen before also generally trigger a rebuild.
             (new, unchanged) = partition (isNothing . builtVersion) notChanged
 	    -- What version of this dependency was most recently used to build?
-            builtVersion x = maybe Nothing (\ ver -> Just (PkgVersion (getName x) ver)) (Map.findWithDefault Nothing (getName x) builtDeps)
-	    builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
+      builtVersion x = maybe Nothing (\ ver -> Just (PkgVersion (getName x) ver)) (Map.findWithDefault Nothing (getName x) builtDeps)
+      builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
       -- Remove the current package and any package in the relaxDepends list
       -- from the list of build dependencies which can trigger a rebuild.
       sourceDependencies' = filterDepends (logPackage sourceLog : relaxDepends) sourceDependencies

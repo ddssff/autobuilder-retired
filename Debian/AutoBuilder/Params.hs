@@ -30,6 +30,7 @@ module Debian.AutoBuilder.Params
      flushSource,		-- Params -> Bool
      -- * Build Environment
      forceBuild,		-- Params -> Bool
+     allowBuildDependencyRegressions,	-- Params -> Bool
      preferred,			-- Params -> [String]
      Debian.AutoBuilder.Params.cleanRoot,		-- Params -> EnvRoot
      Debian.AutoBuilder.Params.dirtyRoot,		-- Params -> EnvRoot
@@ -216,6 +217,7 @@ sourceOpts =
 buildOpts :: [ParamDescr]
 buildOpts =
     [forceBuildOpt,
+     allowBuildDependencyRegressionsOpt,
      laxOpt, moderateOpt, strictOpt,
      preferOpt,
      buildDependsOpt,
@@ -482,6 +484,14 @@ forceBuild :: Params -> Bool
 forceBuild params = values params forceBuildOpt /= []
 forceBuildOpt = Param [] ["force-build"] ["Force-Build"] (NoArg (Value "Force-Build" "yes")) 
                 "Build all targets whether or not they seems to need it."
+
+allowBuildDependencyRegressions :: Params -> Bool
+allowBuildDependencyRegressions params = values params allowBuildDependencyRegressionsOpt /= []
+allowBuildDependencyRegressionsOpt = Param [] ["allow-build-dependency-regressions"] ["Allow-Build-Dependency-Regressions"]
+                                     (NoArg (Value "Allow-Build-Dependency-Regressions" "yes"))
+                                     (text ["Normally, if a build dependency has an older version number than it did",
+                                            "on a previous build, it is an error.  This generally means the sources.list",
+                                            "is incorrect.  However, this flag can be necessary if a package gets withdrawn."])
 
 -- | Upload the packages in the given local repository to the
 -- corresponding remost repository.
