@@ -160,6 +160,7 @@ Targets:
   darcs:http://src.seereason.com/HAppS/HAppS-Server
   darcs:http://src.seereason.com/HAppS/HAppS-State
   darcs:http://src.seereason.com/HAppS/HAppS-Util
+  darcs:http://src.seereason.com/HAppS/HAppS-Extra
 
 
 Name: ghc-extra
