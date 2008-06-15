@@ -1,6 +1,8 @@
 autobuilder (4.20) unstable; urgency=low
 
   * Move the modules into the Debian.AutoBuilder heirarchy.
+  * Add dependency on subversion
+  * Add --allow-build-dependency-regressions option
 
  -- David Fox <dsf@seereason.com>  Tue, 10 Jun 2008 17:45:31 +0000
 

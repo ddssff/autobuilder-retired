@@ -56,7 +56,10 @@ Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
 	 it breaks the circular build dependency loop.
 Relax-Depends: ghc6-doc
 Relax-Depends: ghc6 hscolour
-Relax-Depends: ghc6 haskell-haddock
+Comment: Because a new version of the compiler invalidates all haddock documentation,
+	it is important that we never rebuild ghc6 just because the haddock dependency
+	was rebuilt.
+Relax-Depends: haddock ghc6
 Relax-Depends: ghc6-prof haskell-haddock
 Relax-Depends: hscolour ghc6
 Comment: We really need to relax any self dependencies or they will be built every run.
@@ -64,7 +67,6 @@ Comment: We really need to relax any self dependencies or they will be built eve
 Relax-Depends: haddock haskell-haddock
 Comment: Temporary - we only changed haskell-devscripts-cdbs
 Relax-Depends: haskell-devscripts
-Relax-Depends: haddock ghc6
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
 Comment: Please keep targets alphabetized by source package name!
