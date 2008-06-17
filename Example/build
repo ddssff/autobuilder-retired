@@ -191,7 +191,7 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
   apt:sid:haskell-configfile
   apt:sid:haskelldb
-  quilt:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/quilt/haskell-crypto-quilt)
+  deb-dir:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/debian/haskell-crypto-debian)
   apt:sid:haskell-doc
   quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/quilt/edison-quilt)
   apt:sid:haskell-hlist
