@@ -47,7 +47,12 @@ Comment: ============ HAPPY BOOSTRAPPING ==================
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
 
-Name: ghc682
+Name: relax
+Relax-Depends: g++
+Relax-Depends: make
+Relax-Depends: base-passwd
+Relax-Depends: mktemp
+Relax-Depends: sed
 Comment: Let's assume that new versions of utilities like make and g++ won't
 	affect the ghc6 build.  Everyone else does...
 Relax-Depends: g++
@@ -69,8 +74,21 @@ Comment: We really need to relax any self dependencies or they will be built eve
    The same is true for cycles.  We should detect these and print a warning.
 Relax-Depends: haddock haskell-haddock
 Relax-Depends: cabal-debian haskell-cabal-debian
+Comment: Relax-Depends: cabal-debian
+Relax-Depends: libghc6-debian-prof haskell-cabal-debian
+Relax-Depends: libghc6-debian-dev haskell-cabal-debian
+Relax-Depends: libhugs-debian haskell-cabal-debian
+Relax-Depends: haskell-debian-doc haskell-cabal-debian
+Relax-Depends: fakechanges haskell-cabal-debian
+Relax-Depends: debian-report haskell-cabal-debian
+Relax-Depends: libghc6-extra-prof haskell-cabal-debian
+Relax-Depends: libghc6-extra-dev haskell-cabal-debian
+Relax-Depends: haskell-extra-doc haskell-cabal-debian
 Comment: Temporary - we only changed haskell-devscripts-cdbs
 Relax-Depends: haskell-devscripts
+
+Name: ghc682
+Use: relax
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
 Comment: Please keep targets alphabetized by source package name!
@@ -111,6 +129,7 @@ Comment:
   sourcedeb:file:///home/david/darcs/haddock-source-deb
 
 Name: seereason-targets
+Use: relax
 Comment: Some targets are duplicates of targets in haskell-extra
 Targets:
   darcs:http://src.seereason.com/haskell-debian-3
@@ -141,11 +160,7 @@ Targets:
   darcs:http://src.seereason.com/haskell-appraisal
 
 Name: hsp
-Relax-Depends: g++
-Relax-Depends: make
-Relax-Depends: base-passwd
-Relax-Depends: mktemp
-Relax-Depends: sed
+Use: relax
 Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/hinotify/0.2/hinotify-0.2.tar.gz):(darcs:http://src.seereason.com/debian/hinotify-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/plugins/1.2/plugins-1.2.tar.gz):(darcs:http://src.seereason.com/debian/plugins-debian)
@@ -170,12 +185,8 @@ Targets:
 
 
 Name: ghc-extra
-Relax-Depends: g++
-Relax-Depends: make
-Relax-Depends: base-passwd
-Relax-Depends: mktemp
-Relax-Depends: sed
 Comment: Please keep targets alphabetized by source package name!
+Use: relax
 Use: hsp
 Targets:
   apt:sid:alex
@@ -268,11 +279,6 @@ Comment: Broken packages
   apt:sid:haskell98-report - dvips: ! Couldn't find header file times.ttf.
 
 Name: ghc-extra-broken
-Relax-Depends: g++
-Relax-Depends: make
-Relax-Depends: base-passwd
-Relax-Depends: mktemp
-Relax-Depends: sed
 Comment: Please keep targets alphabetized by source package name!
 Targets:
   apt:sid:ghc-cvs
