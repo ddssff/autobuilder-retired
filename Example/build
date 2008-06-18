@@ -167,7 +167,7 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/hspread/0.3/hspread-0.3.tar.gz):(darcs:http://src.seereason.com/debian/hspread-debian)
   deb-dir:(darcs:http://src.seereason.com/HSP/happs-hsp-template):(darcs:http://src.seereason.com/debian/happs-hsp-template-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/debian/harp-debian)
-  quilt:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/quilt/haskell-src-exts-quilt)
+  deb-dir:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/debian/haskell-src-exts-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hjavascript):(darcs:http://src.seereason.com/debian/hjavascript-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hjscript):(darcs:http://src.seereason.com/debian/hjscript-debian)
   deb-dir:(darcs:http://src.seereason.com/HSP/hsp):(darcs:http://src.seereason.com/debian/hsp-debian)
