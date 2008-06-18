@@ -56,10 +56,13 @@ Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
 	 it breaks the circular build dependency loop.
 Relax-Depends: ghc6-doc
 Relax-Depends: ghc6 hscolour
-Comment: Because a new version of the compiler invalidates all haddock documentation,
-	it is important that we never rebuild ghc6 just because the haddock dependency
-	was rebuilt.
-Relax-Depends: haddock ghc6
+Comment: All the existing haddock documentaion is invalidated when a new ghc6
+	is built, and when a new haskell-haddock is build.  Therefore, we must
+	rebuild ghc6 after haddock is built so ghc6-doc contains valid files,
+	but we must not rebuild haddock after ghc6 is built because that would
+	make them invalid again.  Unfortunately, it is likely that the haddock
+	docs will always be invalid.
+Relax-Depends: ghc6 haskell-haddock
 Relax-Depends: ghc6-prof haskell-haddock
 Relax-Depends: hscolour ghc6
 Comment: We really need to relax any self dependencies or they will be built every run.
