@@ -68,6 +68,7 @@ Relax-Depends: hscolour ghc6
 Comment: We really need to relax any self dependencies or they will be built every run.
    The same is true for cycles.  We should detect these and print a warning.
 Relax-Depends: haddock haskell-haddock
+Relax-Depends: cabal-debian haskell-cabal-debian
 Comment: Temporary - we only changed haskell-devscripts-cdbs
 Relax-Depends: haskell-devscripts
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
