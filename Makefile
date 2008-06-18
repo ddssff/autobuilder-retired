@@ -16,7 +16,7 @@ all: autobuilder webpage newdist test doc
 install: all
 	sudo cp webpage /usr/lib/cgi-bin/autobuilder
 
-autobuilder: $(HS) AutoBuilder.hs Makefile
+autobuilder: $(HS) AutoBuilder.hs Makefile Debian/AutoBuilder/Target.hs
 	$(GHC) -o $@ AutoBuilder.hs
 
 webpage: $(HS) WebPage.hs Makefile

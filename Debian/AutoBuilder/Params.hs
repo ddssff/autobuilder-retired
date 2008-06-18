@@ -73,6 +73,7 @@ module Debian.AutoBuilder.Params
 import		 Debian.Repo
 import		 Debian.Version
 import		 Debian.URI
+import qualified Debian.GenBuildDeps as G
 
 import		 Control.Exception
 import		 Data.List
@@ -754,12 +755,12 @@ setEnv params = values params setEnvOpt
 setEnvOpt = Param [] ["setenv"] ["Set-Env"] (ReqArg (Value "Set-Env") "VAR=VALUE")
             "Set an environment variable during the build"
 
-relaxDepends :: Params -> [(String, Maybe String)]
+relaxDepends :: Params -> G.RelaxInfo
 relaxDepends params =
-    map (makePair . words) (values params relaxDependsOpt)
+    G.RelaxInfo $ map (makePair . words) (values params relaxDependsOpt)
     where
-      makePair [a] = (a, Nothing)
-      makePair (a : b : _) = (a, Just b)
+      makePair [a] = (G.BinPkgName a, Nothing)
+      makePair (a : b : _) = (G.BinPkgName a, Just (G.SrcPkgName b))
       makePair [] = error "Invalid Relax-Depends value"
 relaxDependsOpt = Param [] ["relax-depends"] ["Relax-Depends"] (ReqArg (Value "Relax-Depends") "DEPENDENCY [SOURCE]")
                   (text ["Do not trigger builds due to new versions of this package",

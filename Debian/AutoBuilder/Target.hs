@@ -17,7 +17,7 @@ module Debian.AutoBuilder.Target
 import		 Debian.Control
 import qualified Debian.Control.ByteString as B
 import qualified Debian.Control.String as S(fieldValue)
-import qualified Debian.GenBuildDeps as GenBuildDeps
+import qualified Debian.GenBuildDeps as G
 import		 Debian.Relation.ByteString as B
 import		 Debian.Repo
 import		 Debian.Shell
@@ -307,7 +307,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             makeRow group =
                 [(targetName . head $ group), (consperse " " . map targetNameAndDeps . tail $ group)]
                 where targetNameAndDeps x = targetName x ++ " (" ++ intercalate " " (map (show . depends x) group) ++ ")"
-            depends (_, depInfo1) (_, depInfo2) = GenBuildDeps.compareSource depInfo1 depInfo2
+            depends (_, depInfo1) (_, depInfo2) = G.compareSource depInfo1 depInfo2
 -}
             buildTarget' target =
                 do tio (vBOL 0)
@@ -335,22 +335,33 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: Relations -> [(String, Maybe String)] -> [Target] -> TIO (Target, [Target], [Target])
-chooseNextTarget globalBuildDeps relaxed targets =
+chooseNextTarget :: Relations -> G.RelaxInfo -> [Target] -> TIO (Target, [Target], [Target])
+chooseNextTarget globalBuildDeps relaxed@(G.RelaxInfo pairs) targets =
     getDependencyInfo targets >>=
+    -- (\ info -> vEPutStrBl 0 ("Original: " ++ show (map snd info)) >> return info) >>=
+    return . relax >>=
+    -- (\ info -> vEPutStrBl 0 ("Relaxed:  " ++ show (map snd info)) >> return info) >>=
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
     -- targets which are blocked by the first target.
-    return . GenBuildDeps.buildable depends >>=
-    either (error . show . map (\ (pkg, deps) -> (targetName (fst pkg), map (targetName . fst) deps)))
-	   (\ (ready, blocked, other) -> (vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other))) >>=
-    (\ (ready, blocked, other) -> return (fst ready, map fst blocked, map fst other))
+    return . G.buildable depends >>= either badGraphError returnBuildable
     where
+      relax :: [(Target, G.DepInfo)] -> [(Target, G.DepInfo)]
+      relax xs =
+          zip targets deps'
+          where
+            deps' = G.relaxDeps relaxed deps
+            (targets, deps) = unzip xs
+      badGraphError arcs =
+          error ("Nothing is buildable - dependency cycle?\n  " ++
+                 intercalate "\n  " (map (\ (pkg, deps) -> showDep pkg ++ " -> [" ++ intercalate ", " (map showDep deps) ++ "]") arcs)
+                 ++ "\nRelaxInfo: " ++ show pairs)
+      returnBuildable (ready, blocked, other) =
+          vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (fst ready, map fst blocked, map fst other)
       -- retrieve the dependency information for each target
-      getDependencyInfo :: [Target] -> TIO [(Target, GenBuildDeps.DepInfo)]
+      getDependencyInfo :: [Target] -> TIO [(Target, G.DepInfo)]
       getDependencyInfo targets =
-          mapM (getDepInfo globalBuildDeps . cleanSource) targets >>=
-               return . zip targets >>=
+          mapM (getDepInfo globalBuildDeps) targets >>=
                printErrors >>=
                return . filter (\ pair -> isRight (snd pair)) >>=
                return . catMaybes . map (\ (target, info) -> case info of
@@ -363,34 +374,27 @@ chooseNextTarget globalBuildDeps relaxed targets =
                        ("Unable to retrieve build dependency info for some targets:\n  " ++
                         concat (intersperse "\n  " (map (\ (target, error) -> show target ++ ": " ++ either id (const "") error) bad))))
              return depInfo
-      getDepInfo :: Relations -> DebianBuildTree -> TIO (Either String GenBuildDeps.DepInfo)
-      getDepInfo globalBuildDeps buildTree =
-          do --let sourceTree = debTree buildTree
+      getDepInfo :: Relations -> Target -> TIO (Target, Either String G.DepInfo)
+      getDepInfo globalBuildDeps target =
+          do let buildTree = cleanSource target
+             --let sourceTree = debTree buildTree
              let controlPath = appendPath "/debian/control" (debdir buildTree)
-             info <- lift $ parseControlFromFile (outsidePath controlPath) >>= return . either (Left . show) (GenBuildDeps.genDep relaxed)
-             -- My.ePutStr ("getDepInfo " ++ show target ++ ": " ++ show info)
-             return $ either Left (Right . addRelations globalBuildDeps) info
-      addRelations :: Relations -> GenBuildDeps.DepInfo -> GenBuildDeps.DepInfo
+             info <- lift $ parseControlFromFile (outsidePath controlPath) >>= return . either (Left . show) (G.buildDependencies)
+             -- vEPutStrBl 0 ("getDepInfo " ++ targetName target ++ ": " ++ show info)
+             return $ (target, either Left (Right . addRelations globalBuildDeps) info)
+      addRelations :: Relations -> G.DepInfo -> G.DepInfo
       addRelations moreRels (name, relations, bins) = (name, relations ++ moreRels, bins)
-      makeTable :: ((Target, GenBuildDeps.DepInfo), [(Target, GenBuildDeps.DepInfo)], [(Target, GenBuildDeps.DepInfo)]) -> String
+      makeTable :: ((Target, G.DepInfo), [(Target, G.DepInfo)], [(Target, G.DepInfo)]) -> String
       makeTable (target, blocked, other) =
-          unlines . map (consperse " ") . columns $ [["Ready:", targetName (fst target)],
-                                                     ["Blocked:", (intercalate " " . map (targetName . fst) $ blocked)],
-                                                     ["Other:", (intercalate " " . map (targetName . fst) $ other)]]
-{-
-      makeRow :: (Target, GenBuildDeps.DepInfo) -> [(Target, GenBuildDeps.DepInfo)] -> [String]
-      makeRow ready blocked =
-          [(targetName . fst $ ready), (intercalate " " . map (targetName . fst) $ blocked)]
-          --[(targetNameAndDeps . head $ group), (intercalate " " . map targetNameAndDeps . tail $ group)]
-          where
-            targetNameAndDeps p@(t, _) = targetName t ++ " (" ++ targetDeps p ++ ")"
-            targetDeps p =
-                intercalate " " (catMaybes (map (\ p'@(t', _) ->
-                                                 case depends p p' of 
-                                                   EQ -> Nothing
-                                                   x -> Just (show x ++ " " ++ targetName t')) group))
--}
-      depends (_, depInfo1) (_, depInfo2) = GenBuildDeps.compareSource depInfo1 depInfo2
+          unlines . map (consperse " ") . columns $ [["Ready:", showDep target],
+                                                     ["Blocked:", (intercalate " " . map showDep $ blocked)],
+                                                     ["Other:", (intercalate " " . map showDep $ other)]]
+      depends (_, depInfo1) (_, depInfo2) = G.compareSource depInfo1 depInfo2
+      showDep :: (Target, G.DepInfo) -> String
+      -- showDep (target, _) = targetName target
+      showDep (_, (source, _, _)) = show source
+      -- showDep (target, (source, _, binaries)) = "[" ++ source ++ ": " ++ intercalate " " binaries ++ "]"
+
 --showTargets :: Show a => [a] -> IO ()
 showTargets targets =
     vEPutStrBl 0 ("\n" ++ 
@@ -472,10 +476,9 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                tio (vEPutStrBl 1 ("Current source version: " ++ show sourceVersion))
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
-               let ignoredBuildDeps = filterPairs (logPackage sourceLog) (Params.relaxDepends params)
                let decision =
                        buildDecision (realSource target) (Params.vendorTag params) (Params.forceBuild params)
-                                         (Params.allowBuildDependencyRegressions params) ignoredBuildDeps sourceLog
+                                         (Params.allowBuildDependencyRegressions params) (Params.relaxDepends params) sourceLog
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceRevision sourceDependencies'
                tio (vEPutStrBl 0 ("Build decision: " ++ show decision))
@@ -499,11 +502,6 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
 {-    compareVersion a b = case (fieldValue "Version" a, fieldValue "Version" b) of
                              (Just a', Just b') -> compare (parseDebianVersion a') (parseDebianVersion b')
                              _ -> error "Missing Version field" -}
-      filterPairs :: String -> [(String, Maybe String)] -> [String]
-      filterPairs name = catMaybes . map (filterPair name)
-      filterPair _ (x, Nothing) = Just x			-- Always omit this dependency
-      filterPair name (x, Just y) | (y == name) = Just x	-- Omit a dependency on a particular package
-      filterPair _ (_, Just _) = Nothing			-- Omit if the package name doesn't match
       iStyle = setStyle (appPrefix " ")
 
 -- |Convert to a simple name and version record to interface with older
@@ -780,7 +778,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
       -- mentioned in Relax-Depends, that only applies to deciding
       -- whether to build, once we are building we need to install all
       -- the dependencies.  Hence this empty list.
-      case GenBuildDeps.buildDependencies [] debianControl of
+      case G.buildDependencies debianControl of
         Left message -> return (Left message)
         Right (_, relations, _) ->
             do let relations' = relations ++ globalBuildDeps
@@ -968,7 +966,7 @@ buildDecision :: Tgt
               -> String
               -> Bool
               -> Bool
-              -> [String]
+              -> G.RelaxInfo
               -> ChangeLogEntry		-- The newest log entry from the source tree
               -> Maybe DebianVersion	-- builtVersion: the version already present in the repository
               -> Maybe DebianVersion	-- builtSrcVersion: the version of the source code that builtVersion was built from
@@ -980,7 +978,7 @@ buildDecision :: Tgt
 					--   Nothing if the target is a Dir target, which is not suitable for uploading.
               -> [PkgVersion]		-- sourceDependencies: the list of build dependency versions computed from the build environment
               -> BuildDecision
-buildDecision (Tgt _target) vendorTag forceBuild allowBuildDependencyRegressions relaxDepends sourceLog
+buildDecision (Tgt _target) vendorTag forceBuild allowBuildDependencyRegressions (G.RelaxInfo relaxPairs) sourceLog
                   oldVersion oldSrcVersion _oldRevision builtDependencies releaseStatus
                   sourceVersion _sourceRevision sourceDependencies =
     case (forceBuild, oldVersion == Nothing) of
@@ -1041,6 +1039,8 @@ buildDecision (Tgt _target) vendorTag forceBuild allowBuildDependencyRegressions
             findDepByName builtDependencies new = find (\ old -> getName new == getName old) builtDependencies
       -- The list of the revved and new dependencies which were built by the autobuilder.
       autobuiltDependencies = filter isTagged (revvedDependencies ++ newDependencies)
+      isTagged :: PkgVersion -> Bool
+      isTagged dep = isJust . snd . parseTag vendorTag . getVersion $ dep
       -- If we are deciding whether to rebuild the same version of the source package,
       -- this function checks the status of the build dependencies.  If any are older
       -- now than when the package was built previously, it is a fatal error.  Probably
@@ -1064,9 +1064,34 @@ buildDecision (Tgt _target) vendorTag forceBuild allowBuildDependencyRegressions
       builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
       -- Remove the current package and any package in the relaxDepends list
       -- from the list of build dependencies which can trigger a rebuild.
-      sourceDependencies' = filterDepends (logPackage sourceLog : relaxDepends) sourceDependencies
-      filterDepends :: [String] -> [PkgVersion] -> [PkgVersion]
-      filterDepends relaxDepends sourceDependencies =
-          filter (\ ver -> not (elem (getName ver) relaxDepends)) sourceDependencies
-      isTagged :: PkgVersion -> Bool
-      isTagged dep = isJust . snd . parseTag vendorTag . getVersion $ dep
+      sourceDependencies' = filter (\ x -> not (G.SrcPkgName (getName x) == sourceName) {- && not (elem (G.SrcPkgName (getName x)) toRelax) -} ) sourceDependencies
+      -- Binary dependencies that this source package ignores
+      toRelax =
+          catMaybes (map f relaxPairs)
+          where f (x, Nothing) = Just x
+                f (x, Just y) | y == sourceName = Just x
+                f _ = Nothing
+      sourceName = G.SrcPkgName (logPackage sourceLog)
+
+----------------------- COPIED FROM GenBuildDeps --------------------
+{-
+
+-- Return a list of binary packages which should be ignored for this
+-- source package.
+ignoredForSourcePackage :: String -> G.RelaxInfo -> [String]
+ignoredForSourcePackage source (G.RelaxInfo pairs) =
+    catMaybes . map snd . filter (\ (_, x) -> maybe True (== source) x) $ pairs
+
+-- Discard any dependencies not on the filtered package name list.  If
+-- this results in an empty list in an or-dep the entire dependency can
+-- be discarded.
+ignoreDependencies :: [String] -> Relations -> Relations
+ignoreDependencies ignore deps =
+    filter (/= []) (map (filter keepDep) deps)
+    where
+      keepDep (Rel name _ _) = not (elem name ignore)
+
+assoc :: String -> Paragraph -> Maybe String
+assoc name fields = maybe Nothing (\ (Field (_, v)) -> Just (stripWS v)) (lookupP name fields)
+
+-}
