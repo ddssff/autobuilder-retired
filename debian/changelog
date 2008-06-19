@@ -1,3 +1,12 @@
+autobuilder (4.21) unstable; urgency=low
+
+  * Store the dependency info and the relaxed dependency info with the target.
+    We need to use the relaxed dependency info both when deciding which target
+    to build next, and when deciding whether the target needs to be rebuilt.
+    The full dependency info is used when computing the build dependency solution.
+
+ -- David Fox <dsf@seereason.com>  Thu, 19 Jun 2008 15:58:51 +0000
+
 autobuilder (4.20) unstable; urgency=low
 
   * Move the modules into the Debian.AutoBuilder heirarchy.

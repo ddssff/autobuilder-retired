@@ -48,19 +48,32 @@ Comment: ============ HAPPY BOOSTRAPPING ==================
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
 
 Name: relax
+Comment: The next line means hscolour won't be rebuilt just because ghc6 changes, so
+	 it breaks the circular build dependency loop.
+Relax-Depends: ghc6 hscolour
+Comment: Let's assume that new versions of utilities like make and g++ won't
+	affect our build.  Everyone else does...
+Relax-Depends: bash
+Relax-Depends: bsdutils
+Relax-Depends: dpkg
+Relax-Depends: dpkg-dev
+Relax-Depends: gcc
 Relax-Depends: g++
 Relax-Depends: make
+Relax-Depends: mount
 Relax-Depends: base-passwd
 Relax-Depends: mktemp
 Relax-Depends: sed
-Comment: Let's assume that new versions of utilities like make and g++ won't
-	affect the ghc6 build.  Everyone else does...
+Relax-Depends: util-linux
 Relax-Depends: g++
 Relax-Depends: make
-Comment: The next line means hscolour won't get rebuild when ghc6 changes, so
-	 it breaks the circular build dependency loop.
-Relax-Depends: ghc6-doc
-Relax-Depends: ghc6 hscolour
+Comment: Relax self dependencies
+Relax-Depends: haddock haskell-haddock
+Relax-Depends: cabal-debian haskell-cabal-debian
+Relax-Depends: libghc6-debian-prof haskell-cabal-debian
+Relax-Depends: haskell-debian-doc haskell-cabal-debian
+Relax-Depends: ghc6 ghc6
+Comment: Relax-Depends: hscolour ghc6
 Comment: All the existing haddock documentaion is invalidated when a new ghc6
 	is built, and when a new haskell-haddock is build.  Therefore, we must
 	rebuild ghc6 after haddock is built so ghc6-doc contains valid files,
@@ -69,22 +82,10 @@ Comment: All the existing haddock documentaion is invalidated when a new ghc6
 	docs will always be invalid.
 Relax-Depends: ghc6 haskell-haddock
 Relax-Depends: ghc6-prof haskell-haddock
-Relax-Depends: hscolour ghc6
-Comment: We really need to relax any self dependencies or they will be built every run.
-   The same is true for cycles.  We should detect these and print a warning.
-Relax-Depends: haddock haskell-haddock
-Relax-Depends: cabal-debian haskell-cabal-debian
-Comment: Relax-Depends: cabal-debian
-Relax-Depends: libghc6-debian-prof haskell-cabal-debian
-Relax-Depends: libghc6-debian-dev haskell-cabal-debian
-Relax-Depends: libhugs-debian haskell-cabal-debian
-Relax-Depends: haskell-debian-doc haskell-cabal-debian
-Relax-Depends: fakechanges haskell-cabal-debian
-Relax-Depends: debian-report haskell-cabal-debian
-Relax-Depends: libghc6-extra-prof haskell-cabal-debian
-Relax-Depends: libghc6-extra-dev haskell-cabal-debian
-Relax-Depends: haskell-extra-doc haskell-cabal-debian
-Comment: Temporary - we only changed haskell-devscripts-cdbs
+Relax-Depends: ghc6-doc haskell-haddock
+Comment: Temporary - I changed haskell-devscripts-cdbs, but though haskell-devscripts 
+	got rebuilt it hasn't changed in a long time.  It would be good to be able to
+	specify haskell-devscripts (<< 0.6.13).
 Relax-Depends: haskell-devscripts
 
 Name: ghc682
