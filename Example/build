@@ -73,6 +73,7 @@ Relax-Depends: cabal-debian haskell-cabal-debian
 Relax-Depends: libghc6-debian-prof haskell-cabal-debian
 Relax-Depends: haskell-debian-doc haskell-cabal-debian
 Relax-Depends: ghc6 ghc6
+Relax-Depends: happy happy
 Comment: Relax-Depends: hscolour ghc6
 Comment: All the existing haddock documentaion is invalidated when a new ghc6
 	is built, and when a new haskell-haddock is build.  Therefore, we must
