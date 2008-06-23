@@ -203,6 +203,7 @@ Targets:
   apt:sid:frown
   apt:sid:ftphs
   apt:sid:gtkrsync
+  darcs:http://www.n-heptane.com/nhlab/repos/haskell-agi
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/quilt/haskell-binary-quilt)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
