@@ -131,14 +131,14 @@ main =
               (run aptIOStyle
                (do -- Compute configuration options
                    let flags' = useMain (Config.seedFlags appName optSpecs args)
-                   flags <- io (computeConfig verbosity appName flags' nameFirstSection) >>= return . concat
-                   tio (vPutStrBl 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
+                   flags <- liftIO (computeConfig verbosity appName flags' nameFirstSection) >>= return . concat
+                   liftIO (vPutStrBl 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
                    let lockPath = outsidePath (root flags) ++ "/newdist.lock"
                    case findValues flags "Version" of
                      [] -> withLock lockPath (runFlags flags) >>=
-                           either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . tio $ vBOL 0)
-                     _ -> tio (putStrBl Version.version) >>
-                          io (exitWith ExitSuccess)))
+                           either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . liftIO $ vBOL 0)
+                     _ -> liftIO (putStrBl Version.version) >>
+                          liftIO (exitWith ExitSuccess)))
     where
       nameFirstSection (flags : more) = nameSection "Main" flags : more
       nameFirstSection [] = []
@@ -162,19 +162,19 @@ runFlags flags =
        releases <- findReleases repo
        -- Get the Repository object, this will certainly be a singleton list.
        --let repos = nub $ map releaseRepo releases
-       tio (deletePackages releases flags keyname)
+       liftIO (deletePackages releases flags keyname)
        --vPutStrBl 1 IO.stderr $ "newdist " ++ show (root flags)
        --vPutStrBl 1 IO.stderr $ "signRepository=" ++ show signRepository
        --io $ exitWith ExitSuccess
-       io $ setRepositoryCompatibility repo
+       liftIO $ setRepositoryCompatibility repo
        when install ((scanIncoming False keyname repo) >>= 
-                     \ (ok, errors) -> (io (sendEmails senderAddr emailAddrs (map (successEmail repo) ok)) >>
-                                        io (sendEmails senderAddr emailAddrs (map (\ (changes, error) -> failureEmail changes error) errors)) >>
-                                        tio (exitOnError (map snd errors))))
-       when expire  $ tio (deleteTrumped keyname releases) >> return ()
+                     \ (ok, errors) -> (liftIO (sendEmails senderAddr emailAddrs (map (successEmail repo) ok)) >>
+                                        liftIO (sendEmails senderAddr emailAddrs (map (\ (changes, error) -> failureEmail changes error) errors)) >>
+                                        liftIO (exitOnError (map snd errors))))
+       when expire  $ liftIO (deleteTrumped keyname releases) >> return ()
        when cleanUp $ deleteGarbage repo >> return ()
        -- This flag says sign even if nothing changed
-       when signRepository $ tio (signReleases keyname releases)
+       when signRepository $ liftIO (signReleases keyname releases)
     where
 {-
       findReleaseByName :: [Release] -> ReleaseName -> Maybe Release
@@ -286,12 +286,12 @@ createAlias repo arg =
                _ -> error $ "Internal error 3"
       _ -> error $ "Invalid argument to --create-alias: " ++ arg
 
-exitOnError :: [InstallResult] -> TIO ()
+exitOnError :: CIO m => [InstallResult] -> m ()
 exitOnError [] = return ()
 exitOnError errors =
     do vPutStrBl 0 (showErrors errors)
-       lift $ IO.hFlush IO.stderr
-       lift $ exitWith (ExitFailure 1)
+       liftIO $ IO.hFlush IO.stderr
+       liftIO $ exitWith (ExitFailure 1)
 
 -- |Return the list of releases in the repository at root, creating
 -- the ones in the dists list with the given components and

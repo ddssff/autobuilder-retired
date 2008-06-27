@@ -5,7 +5,7 @@ import Debian.Repo
 
 import Debian.AutoBuilder.BuildTarget
 import System.Unix.Process
-import Extra.TIO
+import Extra.CIO
 import Control.Monad.Trans
 
 data Proc = Proc Tgt
@@ -26,11 +26,11 @@ instance BuildTarget Proc where
         Debian.AutoBuilder.BuildTarget.revision s >>= return . either Left (Right . ("proc:" ++))
     buildPkg noClean setEnv buildOS buildTree status _ =
         do vPutStrBl 0 "Mouting /proc during target build"
-           lift $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 
+           liftIO $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 
            result <- buildDebs noClean setEnv buildOS buildTree status
-           lift $ simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]
+           liftIO $ simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]
            return result
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
-prepareProc :: FilePath -> Bool -> Tgt -> TIO (Either String Tgt)
+prepareProc :: CIO m => FilePath -> Bool -> Tgt -> m (Either String Tgt)
 prepareProc _ _ base = return . Right . Tgt $ Proc base

@@ -5,6 +5,7 @@ import Debian.Version
 
 import Debian.AutoBuilder.BuildTarget
 import Control.Monad
+import Control.Monad.Trans
 import Data.Maybe
 import System.Unix.Directory
 import Text.Regex
@@ -39,8 +40,8 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
       let distro = maybe (error $ "Invalid dist: " ++ sliceName dist) id (findRelease distros dist)
       os <- prepareAptEnv cacheDir sourcesChangedAction distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
-      when flush (io . removeRecursiveSafely $ aptDir os package)
-      tree <- tio $ Debian.Repo.aptGetSource (rootEnvPath (aptDir os package)) os package version
+      when flush (liftIO . removeRecursiveSafely $ aptDir os package)
+      tree <- liftIO $ Debian.Repo.aptGetSource (rootEnvPath (aptDir os package)) os package version
       let version' = logVersion . entry $ tree
       return . Right . Tgt $ Apt distro package (Just version') tree
     where

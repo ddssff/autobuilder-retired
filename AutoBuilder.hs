@@ -49,9 +49,9 @@ main =
           run aptIOStyle (aptMain verbosity) >>=
           checkResults
       aptMain verbosity =
-          io getArgs >>=
+          liftIO getArgs >>=
           return . Config.seedFlags appName Params.optSpecs >>=
-          io . doHelp >>=
+          liftIO . doHelp >>=
           doVersion >>=
           Params.params verbosity appName >>=
           mapM doParameterSets
@@ -62,7 +62,7 @@ main =
           | True = return flags
       doVersion flags
           | isJust (Config.findValue flags "Version") =
-              do io (IO.putStrLn Version.version >> exitWith ExitSuccess)
+              do liftIO (IO.putStrLn Version.version >> exitWith ExitSuccess)
           | True = return flags
       -- Process one set of parameters.  Usually there is only one, but there
       -- can be several which are run sequentially.
@@ -73,16 +73,16 @@ main =
       -- exception or a completion code, or, if we fail to get a lock,
       -- nothing.  For a single result we can print a simple message,
       -- for multiple paramter sets we need to print a summary.
-      checkResults :: [Either Exception (Either Exception (Either String ([Output], TimeDiff)))] -> TIO ()
-      checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> lift (exitWith $ ExitFailure 1)
-      checkResults [Right (Right _)] = eBOL >> (lift $ exitWith ExitSuccess)
-      checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> lift (exitWith (ExitFailure 1))
+      checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], TimeDiff)))] -> m ()
+      checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
+      checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
+      checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
       checkResults list =
           do mapM_ (\ (num, result) -> vEPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
              eBOL
              case filter isLeft list of
-               [] -> lift (exitWith ExitSuccess)
-               _ -> lift (exitWith (ExitFailure 1))
+               [] -> liftIO (exitWith ExitSuccess)
+               _ -> liftIO (exitWith (ExitFailure 1))
              where showResult (Right (Left e)) = show e
                    showResult (Right (Right _)) = "Ok"
                    showResult (Left e) = "Ok (" ++ show e ++ ")"
@@ -99,8 +99,8 @@ appName = "autobuilder"
 runParameterSet :: Params.Params -> AptIO (Either String ([Output], TimeDiff))
 runParameterSet params =
     do
-      tio doRequiredVersion
-      tio doShowParams
+      liftIO doRequiredVersion
+      liftIO doShowParams
       doShowSources
       doFlush
       checkPermissions
@@ -120,7 +120,7 @@ runParameterSet params =
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
-      globalBuildDeps <- io $ buildEssential cleanOS (Params.omitBuildEssential params)
+      globalBuildDeps <- liftIO $ buildEssential cleanOS (Params.omitBuildEssential params)
       -- Get a list of all sources for the local repository.
       localSources <-
           case localRepo of
@@ -133,7 +133,7 @@ runParameterSet params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      tio (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
+      liftIO (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
@@ -144,11 +144,11 @@ runParameterSet params =
                -- If all targets succeed they may be uploaded to a remote repo
                uploadResult <- upload buildResult
                -- This processes the remote incoming dir
-               result <- tio (newDist uploadResult)
+               result <- liftIO (newDist uploadResult)
                updateRepoCache params
                return result
         (bad, _) ->
-            do tio (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ concat (intersperse "\n " bad)))
+            do liftIO (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ concat (intersperse "\n " bad)))
                return . Left $ "Could not prepare source code of some targets: " ++ concat (intersperse "\n " bad)
     where
       baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
@@ -156,14 +156,16 @@ runParameterSet params =
       buildReleaseSources = releaseSlices (Params.buildRelease params) (inexactPathSlices buildRepoSources)
       buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (Params.buildRelease params))
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
+      doRequiredVersion :: CIO m => m ()
       doRequiredVersion =
           case filter (\ (v, _) -> v > parseDebianVersion Version.version) (Params.requiredVersion params) of
             [] -> return ()
             reasons ->
                 do vEPutStrBl 0 ("Version " ++ Version.version ++ " is too old:")
                    mapM_ printReason reasons
-                   lift $ exitWith (ExitFailure 1)                    
+                   liftIO $ exitWith (ExitFailure 1)                    
           where
+            printReason :: CIO m => (DebianVersion, Maybe String) -> m ()
             printReason (v, s) =
                 vEPutStr 0 (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
       doShowParams = when (Params.showParams params) (vEPutStr 0 $ "Configuration parameters:\n" ++ Params.prettyPrint params)
@@ -173,26 +175,26 @@ runParameterSet params =
               return ()
           where
             doShow sources =
-                do io . IO.putStrLn $ (sliceName . sliceListName $ sources) ++ ":"
-                   io . IO.putStrLn . show . sliceList $ sources
-                   io $ exitWith ExitSuccess
+                do liftIO . IO.putStrLn $ (sliceName . sliceListName $ sources) ++ ":"
+                   liftIO . IO.putStrLn . show . sliceList $ sources
+                   liftIO $ exitWith ExitSuccess
       -- FIXME: This may be too late
       doFlush
           | Params.flushAll params = 
-              do io $ removeRecursiveSafely top
-                 io $ createDirectoryIfMissing True top
+              do liftIO $ removeRecursiveSafely top
+                 liftIO $ createDirectoryIfMissing True top
           | True = return ()
       checkPermissions =
-          do isRoot <- io $ checkSuperUser
+          do isRoot <- liftIO $ checkSuperUser
              case isRoot of
                True -> return ()
-               False -> do tio (vEPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
-                           io $ exitWith (ExitFailure 1)
+               False -> do liftIO (vEPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
+                           liftIO $ exitWith (ExitFailure 1)
       prepareLocalRepo =
           do let path = EnvPath (EnvRoot "") (Params.localPoolDir params)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if Params.flushPool params then flushLocalRepository else return)
-             tio (vEPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
+             liftIO (vEPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
              release <- prepareRelease repo (Params.buildRelease params) [] [parseSection' "main"] (Params.archList params)
              let repo' = releaseRepo release
              case repo' of
@@ -201,8 +203,8 @@ runParameterSet params =
                      True -> deleteGarbage repo''
                      False -> return repo''
       prepareTargetList =
-          do tio (showTargets allTargets)
-             tio (vEPutStrBl 0 "Checking all source code out of the repositories:")
+          do liftIO (showTargets allTargets)
+             liftIO (vEPutStrBl 0 "Checking all source code out of the repositories:")
              mapRWST (setStyle (appPrefix " "))
                          (mapM (readSpec (Params.debug params) top flush
                                 (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
@@ -214,16 +216,16 @@ runParameterSet params =
           | Params.doUpload params =
               case Params.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> tio (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
+                Just uri -> liftIO (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            tio (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
+            liftIO (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
             case Params.doUpload params of
-              True -> tio (vEPutStr 0 "Skipping upload.")
+              True -> liftIO (vEPutStr 0 "Skipping upload.")
               False -> return ()
-            io $ exitWith (ExitFailure 1)
-      newDist :: [Either String ([Output], TimeDiff)] -> TIO (Either String ([Output], TimeDiff))
+            liftIO $ exitWith (ExitFailure 1)
+      newDist :: CIO m => [Either String ([Output], TimeDiff)] -> m (Either String ([Output], TimeDiff))
       newDist results
           | Params.doNewDist params =
               case Params.uploadURI params of
@@ -247,11 +249,11 @@ runParameterSet params =
       updateRepoCache params =
           do let path = Params.topDir params  ++ "/repoCache"
              live <- getRepoMap
-             cache <- io $ loadCache path
+             cache <- liftIO $ loadCache path
              --tio (hPutStrBl IO.stderr (show (Map.toList live)))
              let merged = show . map (\ (uri, x) -> (show uri, x)) . Map.toList $ Map.union live cache
              --tio (hPutStrBl IO.stderr merged)
-             io (removeLink path `Prelude.catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> io (writeFile path merged)
+             liftIO (removeLink path `Prelude.catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> liftIO (writeFile path merged)
              return ()
           where
             isRemote (uri, _) = uriScheme uri /= "file:"

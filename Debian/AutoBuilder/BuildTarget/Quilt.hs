@@ -72,13 +72,13 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b) => FilePath -> a -> b -> TIO (Either String (SourceTree, EnvPath))
+makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => FilePath -> a -> b -> m (Either String (SourceTree, EnvPath))
 makeQuiltTree top base patch =
     do vPutStrBl 1 $ "Quilt base: " ++ outsidePath (getTop base)
        vPutStrBl 1 $ "Quilt patch: " ++ outsidePath (getTop patch)
        -- This will be the top directory of the quilt target
        let copyDir = rootEnvPath (top ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"))
-       lift (createDirectoryIfMissing True (top ++ "/quilt"))
+       liftIO (createDirectoryIfMissing True (top ++ "/quilt"))
        baseTree <- findSourceTree (getTop base) >>=
                    return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop base) ++ ": " ++ message) Right
        patchTree <- findSourceTree (getTop patch) >>=
@@ -119,22 +119,22 @@ debug e =
 
 prepareQuilt :: FilePath -> Bool -> Tgt -> Tgt -> TIO (Either String Tgt)
 prepareQuilt top _flush (Tgt base) (Tgt patch) = 
-    tryTIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (lift . debug) return
+    tryTIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (liftIO . debug) return
     where
       make (quiltTree, quiltDir) =
-          do applied <- lift (lazyCommand cmd1a L.empty) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
+          do applied <- liftIO (lazyCommand cmd1a L.empty) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
                (_, err, [ExitFailure 1])
                    | err == "No patches applied\n" ->
                           findUnapplied >>= apply >>= buildLog >>= cleanSource
                           where
-                            findUnapplied = do unapplied <- lift (lazyCommand cmd1b L.empty) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
+                            findUnapplied = do unapplied <- liftIO (lazyCommand cmd1b L.empty) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
                                                case unapplied of
                                                  (text, _, [ExitSuccess]) -> return (Right (lines text))
                                                  _ -> return (Left $ target ++ " - No patches to apply")
                             apply (Left message) = return (Left message)
                             apply (Right patches) =
-                                do result2 <- lift (lazyCommand (cmd2 patches) L.empty) >>= vMessage 1 "Patching Quilt target" . collectOutput . mergeToStderr
+                                do result2 <- liftIO (lazyCommand (cmd2 patches) L.empty) >>= vMessage 1 "Patching Quilt target" . collectOutput . mergeToStderr
                                    case result2 of
                                      (_, _, [ExitSuccess]) -> return (Right ())
                                      (_, err, _) ->
@@ -145,37 +145,37 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
                                 -- interleave its entries with those in changelog of the base
                                 -- tree by date.
                                 do vEPutStrBl 1 "Merging changelogs"
-                                   exists <- lift (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
+                                   exists <- liftIO (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                                    case exists of
                                      False -> return (Left (target ++ "- Missing changelog file: " ++ show (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")))
                                      True -> mergeChangelogs' (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource (Left message) = return (Left message)
                             cleanSource (Right ()) =
-                                do result3 <- lift (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
+                                do result3 <- liftIO (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
                                    case result3 of
                                      (_, _, [ExitSuccess]) ->
                                          findSourceTree (topdir quiltTree) >>= return . either (const . Left $ target ++ " - Failed to find tree") (\ tree -> Right . Tgt $ Quilt (Tgt base) (Tgt patch) tree)
                                      _ -> return (Left $ target ++ " - Failure removing quilt directory: " ++ cmd3)
 {-
-                          do unapplied <- lift (lazyCommand cmd1b L.empty) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
+                          do unapplied <- liftIO (lazyCommand cmd1b L.empty) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
                              --ePutStrLn ("unapplied: " ++ show unapplied)
                              let patches =
                                      case unapplied of
                                        (text, _, [ExitSuccess]) -> lines text
                                        _ -> error "No patches to apply"
                              --ePutStrLn cmd2
-                             result2 <- lift (lazyCommand (cmd2 patches) L.empty) >>= vMessage 1 "Patching Quilt target" . collectOutput
+                             result2 <- liftIO (lazyCommand (cmd2 patches) L.empty) >>= vMessage 1 "Patching Quilt target" . collectOutput
                              case result2 of
                                (_, _, [ExitSuccess]) -> return ()
                                _ -> error $ "Failed to apply quilt patches: " ++ (cmd2 patches)
                              -- If there is a changelog file in the quilt directory,
                              -- interleave its entries with those in changelog of the base
                              -- tree by date.
-                             lift (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog") >>=
+                             liftIO (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog") >>=
                                    (flip unless) (error ("Missing changelog file: " ++ show (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))))
-                             lift (mergeChangelogs (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
+                             liftIO (mergeChangelogs (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                              -- Return the target.
-                             result3 <- lift (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
+                             result3 <- liftIO (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
                              case result3 of
                                (_, _, [ExitSuccess]) -> return ()
                                _ -> error $ "Failure removing quilt directory: " ++ cmd3
@@ -204,8 +204,8 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
 
 mergeChangelogs' :: FilePath -> FilePath -> TIO (Either String ())
 mergeChangelogs' basePath patchPath =
-    do patchText <- lift (try (readFile patchPath))
-       baseText <- lift (try (readFile basePath))
+    do patchText <- liftIO (try (readFile patchPath))
+       baseText <- liftIO (try (readFile basePath))
        case (patchText, baseText) of
          (Right patchText, Right baseText) ->
              do -- vEPutStrBl 1 $ "Merging changelogs: " ++ baseText ++ "\npatch:\n\n" ++ patchText
@@ -213,7 +213,7 @@ mergeChangelogs' basePath patchPath =
          (Left e, _) -> return $ Left (show e)
          (_, Left e) -> return $ Left (show e)
     where
-      replace newText = lift (try (replaceFile basePath $! newText)) >>= return. either (Left . show) Right
+      replace newText = liftIO (try (replaceFile basePath $! newText)) >>= return. either (Left . show) Right
 
 -- Merge the entries in the patch changelog into the base changelog,
 -- merging the base and patch version numbers as we go.  It is

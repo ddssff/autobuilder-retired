@@ -15,7 +15,7 @@ import System.Process
 import System.Unix.Directory
 import System.Unix.FilePath
 import Debian.AutoBuilder.BuildTarget
-import Extra.TIO
+import Extra.CIO
 
 data Hg = Hg String SourceTree
 
@@ -31,10 +31,10 @@ instance BuildTarget Hg where
     --setSpecTree (Hg s _) tree = Hg s tree
 
     revision (Hg _ tree) =
-        do (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
-           revision <- lift (hGetContents outh) >>= return . listToMaybe . lines >>=
+        do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
+           revision <- liftIO (hGetContents outh) >>= return . listToMaybe . lines >>=
                        return . maybe (Left $ "no revision info printed by '" ++ cmd ++ "'") Right
-           result <- lift (try (waitForProcess handle))
+           result <- liftIO (try (waitForProcess handle))
            case (revision, result) of
              (Right revision, Right ExitSuccess) -> return . Right $ "hg:" ++ revision
              (Right _, Right (ExitFailure _)) -> return . Left $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
@@ -51,11 +51,11 @@ instance BuildTarget Hg where
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
-prepareHg :: Bool -> FilePath -> Bool -> String -> TIO (Either String Tgt)
+prepareHg :: CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
 prepareHg _debug top flush archive =
     do
-      when flush (lift $ removeRecursiveSafely dir)
-      exists <- lift $ doesDirectoryExist dir
+      when flush (liftIO $ removeRecursiveSafely dir)
+      exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of
         Left message -> return . Left $ "Failed to find HG source tree at " ++ show dir ++ ": " ++ message
@@ -66,7 +66,7 @@ prepareHg _debug top flush archive =
           either (\ _ -> updateSource dir)	-- failure means there were no changes
                  (\ _ -> removeSource dir >> createSource dir)	-- success means there was a change
 
-      removeSource dir = lift $ removeRecursiveSafely dir
+      removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
           runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && hg pull -u"))) >>=
@@ -75,7 +75,7 @@ prepareHg _debug top flush archive =
 
       createSource dir =
           let (parent, _) = splitFileName dir in
-          lift (try (createDirectoryIfMissing True parent)) >>=
+          liftIO (try (createDirectoryIfMissing True parent)) >>=
           either (return . Left . show) (const (runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))))) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir)))
 

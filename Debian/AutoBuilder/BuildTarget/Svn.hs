@@ -33,7 +33,7 @@ instance Show Svn where
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: (FullTask -> FullTask) -> Maybe EnvPath -> [String] -> TIO (Either String [Output])
+svn :: CIO m => (FullTask -> FullTask) -> Maybe EnvPath -> [String] -> m (Either String [Output])
 svn style path args =
     runTaskAndTest (style task) >>= return . either (Left . (("*** FAILURE: " ++ showCommand task ++ ": ") ++)) Right
     where

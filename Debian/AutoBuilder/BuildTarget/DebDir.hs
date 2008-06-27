@@ -6,7 +6,7 @@ import Debian.AutoBuilder.BuildTarget
 import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory
-import Extra.TIO
+import Extra.CIO
 import Debian.Shell
 --import ChangeLog
 
@@ -34,9 +34,9 @@ instance BuildTarget DebDir where
                  return . Left $ "Unimplemented: no revision method for deb-dir upstream target: " ++ message
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ maybe "none" id revision
 
-prepareDebDir :: Bool -> FilePath -> Bool -> Tgt -> Tgt -> TIO (Either String Tgt)
+prepareDebDir :: CIO m => Bool -> FilePath -> Bool -> Tgt -> Tgt -> m (Either String Tgt)
 prepareDebDir _debug top _flush (Tgt upstream) (Tgt debian) = 
-    lift  (try (createDirectoryIfMissing True (top ++ "/deb-dir"))) >>=
+    liftIO  (try (createDirectoryIfMissing True (top ++ "/deb-dir"))) >>=
     either (return . Left . show) (const copyUpstream) >>=
     either (return . Left) (const copyDebian) >>=
     either (return . Left) (const (findDebianSourceTree (rootEnvPath dest))) >>=

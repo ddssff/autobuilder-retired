@@ -76,6 +76,7 @@ import		 Debian.URI
 import qualified Debian.GenBuildDeps as G
 
 import		 Control.Exception
+import		 Control.Monad.Trans
 import		 Data.List
 import		 Data.Maybe
 import		 Extra.TIO
@@ -130,8 +131,8 @@ instance Show Strictness where
 -- candidates for the configuration directory path.
 params :: Int -> String -> [Flag] -> AptIO [Params]
 params verbosity appName flags =
-    do flagLists <- io $ computeConfig verbosity appName flags id
-       flagMaps <- io (mapM computeTopDir (map (listMap . pairsFromFlags) flagLists))
+    do flagLists <- liftIO $ computeConfig verbosity appName flags id
+       flagMaps <- liftIO (mapM computeTopDir (map (listMap . pairsFromFlags) flagLists))
        case listToMaybe flagMaps of
          Nothing -> return ()
          Just m -> case Map.findWithDefault [] "Use-Repo-Cache" m of
@@ -141,15 +142,15 @@ params verbosity appName flags =
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
        params <- mapM makeFlagSet flagMaps
-       mapM_ (tio  . vPutStrBl 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
+       mapM_ (liftIO  . vPutStrBl 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
        {- mapM verifySources params -}
        return params
     where
       loadRepoCache :: FilePath -> AptIO ()
       loadRepoCache top =
-          tio (ePutStrBl "Loading repo cache...") >>
-          io (try (readFile (top ++ "/repoCache")) >>=
-              try . evaluate . either (const []) read) >>=
+          liftIO (ePutStrBl "Loading repo cache...") >>
+          liftIO (try (readFile (top ++ "/repoCache")) >>=
+                  try . evaluate . either (const []) read) >>=
           either (const (return ())) (setRepoMap . Map.fromList . map fixURI)
       fixURI (s, x) = (fromJust (parseURI s), x)
       makeFlagSet flags =

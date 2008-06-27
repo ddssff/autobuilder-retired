@@ -35,10 +35,10 @@ instance BuildTarget Tla where
         do let path = topdir tree
                cmd = "cd " ++ outsidePath path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
-           (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
-           revision <- lift (hGetContents outh >>= return . listToMaybe . lines) >>=
+           (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
+           revision <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           lift $ waitForProcess handle
+           liftIO $ waitForProcess handle
            return . Right $ "tla:" ++ revision
 
     logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
@@ -46,8 +46,8 @@ instance BuildTarget Tla where
 prepareTla :: FilePath -> Bool -> String -> TIO (Either String Tgt)
 prepareTla top flush version =
     do
-      when flush (lift (removeRecursiveSafely dir))
-      exists <- lift $ doesDirectoryExist dir
+      when flush (liftIO (removeRecursiveSafely dir))
+      exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of
         Left message -> return . Left $ "failed to find source tree at " ++ dir ++ ": " ++ message
@@ -59,7 +59,7 @@ prepareTla top flush version =
                Left message -> vPutStrBl 0 message >> removeSource dir >> createSource dir	-- Failure means there is corruption
                Right output -> updateSource dir						-- Success means no changes
 
-      removeSource dir = lift $ removeRecursiveSafely dir
+      removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
           runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && tla update " ++ version))) >>=
@@ -73,7 +73,7 @@ prepareTla top flush version =
           do
             -- Create parent dir and let tla create dir
             let (parent, _) = splitFileName dir
-            lift $ createDirectoryIfMissing True parent
+            liftIO $ createDirectoryIfMissing True parent
             runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
             findSourceTree (rootEnvPath dir)
 

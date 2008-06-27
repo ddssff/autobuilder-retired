@@ -35,20 +35,20 @@ application :: [(String,String)] -> AptIO String
 application cgivars =
     do -- Use the same application name as the autobuilder so we
        -- see the same configuration files.
-      args <- io getArgs
+      args <- liftIO getArgs
       let verbosity = length (filter (== "-v") args)
       let flags = Config.Value "Use" "web-config" : Config.seedFlags appName Params.optSpecs args
       params <- Params.params verbosity "autobuilder" flags >>= return . head
       html <-
           case lookup "page" cgivars of
-            Nothing -> io $ topPage params cgivars
-            Just "params" -> io $ flagPage params
-            Just "env" -> io $ envPage
+            Nothing -> liftIO $ topPage params cgivars
+            Just "params" -> liftIO $ flagPage params
+            Just "env" -> liftIO $ envPage
             Just "dist" -> distPage params cgivars
             Just "source-package" -> sourcePackagePage params cgivars
-            Just "binary-package" -> io $ binaryPackagePage params cgivars
-            Just "apt-get-update" -> io $ aptGetUpdate params cgivars
-            Just page -> io $ errorPage params cgivars page
+            Just "binary-package" -> liftIO $ binaryPackagePage params cgivars
+            Just "apt-get-update" -> liftIO $ aptGetUpdate params cgivars
+            Just page -> liftIO $ errorPage params cgivars page
       return $ show $ concatHtml [heading params cgivars, html]
 
 appName :: String
@@ -177,9 +177,9 @@ binaryPackagePage _ cgivars =
 sourcePackageInfo :: Params.Params -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIO Control
 sourcePackageInfo _ root uploadHost distro =
     do
-      tio (vPutStrBl 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
-      filterM (io . doesFileExist) sourcePackageFiles >>=
-              mapM (io . parseControlFromFile) >>=
+      liftIO (vPutStrBl 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
+      filterM (liftIO . doesFileExist) sourcePackageFiles >>=
+              mapM (liftIO . parseControlFromFile) >>=
               return . map (either (\ e -> error (show e)) id) >>=
               return . mergeControls
     where

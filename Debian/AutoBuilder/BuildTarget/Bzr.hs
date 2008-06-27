@@ -14,7 +14,7 @@ import System.Unix.FilePath
 import Data.Maybe
 import Data.List
 import System.Directory
-import Extra.TIO
+import Extra.CIO
 import qualified Data.ByteString.Lazy.Char8 as L
 import qualified System.Unix.Process as P
 
@@ -39,18 +39,18 @@ instance BuildTarget Bzr where
         do let path = topdir tree
                cmd = "cd " ++ outsidePath path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
            -- FIXME: this command can take a lot of time, message it
-           (_, outh, _, handle) <- lift $ runInteractiveCommand cmd
-           revision <- lift (hGetContents outh >>= return . listToMaybe . lines) >>=
+           (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
+           revision <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           lift $ waitForProcess handle
+           liftIO $ waitForProcess handle
            return . Right $ "bzr:" ++ revision
 
     logText (Bzr _ _) revision = "Bazaar revision: " ++ maybe "none" id revision
 
-prepareBzr :: FilePath -> Bool -> String -> TIO (Either String Tgt)
+prepareBzr :: CIO m => FilePath -> Bool -> String -> m (Either String Tgt)
 prepareBzr top flush version = do
-    when flush (lift (removeRecursiveSafely dir))
-    exists <- lift $ doesDirectoryExist dir
+    when flush (liftIO (removeRecursiveSafely dir))
+    exists <- liftIO $ doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
     case tree of
         Left message -> return . Left $ "failed to find source tree at " ++ dir ++ ": " ++ message
@@ -94,12 +94,12 @@ prepareBzr top flush version = do
                 style = (setStart (Just ("Commiting merge to local Bazaar source archive '" ++ dir ++ "'")) .
                     setError (Just (\ _ -> "bzr commit failed in '" ++ dir ++ "'")))
         
-        removeSource dir = lift $ removeRecursiveSafely dir
+        removeSource dir = liftIO $ removeRecursiveSafely dir
 
         createSource dir = do
             -- Create parent dir and let bzr create dir
             let (parent, _) = splitFileName dir
-            lift $ createDirectoryIfMissing True parent
+            liftIO $ createDirectoryIfMissing True parent
             runTaskAndTest (style (commandTask (cmd)))
             findSourceTree (rootEnvPath dir)
             where
