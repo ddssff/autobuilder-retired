@@ -1,3 +1,10 @@
+autobuilder (4.22) unstable; urgency=low
+
+  * Most functions that were previously in the TIO monad now work with any
+    monad that is an instance of CIO, which includes IO.
+
+ -- David Fox <dsf@seereason.com>  Sat, 28 Jun 2008 15:57:20 -0700
+
 autobuilder (4.21) unstable; urgency=low
 
   * Store the dependency info and the relaxed dependency info with the target.
