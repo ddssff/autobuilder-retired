@@ -14,7 +14,7 @@ import Data.List
 import Data.Maybe
 import Control.Monad
 import System.Directory
-import Extra.TIO
+import Extra.CIO
 import System.Unix.Process
 
 -- | Treat the data returned by a target as a source deb.
@@ -38,16 +38,16 @@ instance BuildTarget SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: Tgt -> TIO (Either String Tgt)
+prepareSourceDeb :: CIO m => Tgt -> m (Either String Tgt)
 prepareSourceDeb (Tgt base) =
     do let top = getTop base
-       dscFiles <- lift (getDirectoryContents (outsidePath top)) >>=
+       dscFiles <- liftIO (getDirectoryContents (outsidePath top)) >>=
                    return . filter (isSuffixOf ".dsc")
-       dscInfo <- mapM (\ name -> lift (readFile (outsidePath top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
+       dscInfo <- mapM (\ name -> liftIO (readFile (outsidePath top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
          [] -> return . Left $ "Invalid sourcedeb base: no .dsc file in " ++ show base
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
-             do out <- lift (lazyCommand (unpack top dscName) L.empty)
+             do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of
                   [ExitSuccess] -> return $ makeTarget top dscInfo dscName
                   _ -> return . Left $ ("*** FAILURE: " ++ unpack top dscName)

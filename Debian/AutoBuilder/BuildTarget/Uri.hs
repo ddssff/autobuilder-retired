@@ -15,7 +15,7 @@ import System.Unix.FilePath
 import Data.Maybe
 import System.Directory
 import Text.Regex
-import Extra.TIO
+import Extra.CIO
 import Extra.Misc
 
 -- | A URI that returns a tarball, with an optional md5sum which must
@@ -43,7 +43,7 @@ instance BuildTarget Uri where
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: Bool -> FilePath -> Bool -> String -> TIO (Either String Tgt)
+prepareUri :: CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
 prepareUri _debug top flush target =
     case parseTarget target of
       Right (uri, md5sum) -> downloadTarget uri >>= checkTarget md5sum >>= unpackTarget uri
@@ -56,28 +56,28 @@ prepareUri _debug top flush target =
                   Nothing -> Left ("Invalid uri: " ++ s)
                   Just uri -> Right (uri, stringToMaybe md5sum)
             _ -> error ("Internal error 11 parsing " ++ target)
-      downloadTarget :: URI -> TIO (Either String String)
+      downloadTarget :: CIO m => URI -> m (Either String String)
       downloadTarget uri =
           do let name = snd . splitFileName . uriPath $ uri
                  dest = tmp ++ "/" ++ name
-             when flush (lift . removeRecursiveSafely $ dest)
-             exists <- lift $ doesFileExist dest
+             when flush (liftIO . removeRecursiveSafely $ dest)
+             exists <- liftIO $ doesFileExist dest
              case exists of
                True -> return (Right name)
                False ->
-                   lift (try (createDirectoryIfMissing True tmp)) >>=
+                   liftIO (try (createDirectoryIfMissing True tmp)) >>=
                    either (return . Left . show) (const ({- createStyle name $ -} runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'"))) >>=
                    either (return . Left) (const . return . Right $ name)
       checkTarget _ (Left message) = return (Left message)
       checkTarget sum (Right name) =
-          do output <- lift $ md5sum path
+          do output <- liftIO $ md5sum path
              case output of
                Left e -> error ("Could not checksum destination file " ++ path ++ ": " ++ show e)
                Right realSum | maybe True (== realSum) sum ->
                                  do let sumDir = tmp ++ "/" ++ realSum
                                         dest = sumDir ++ "/" ++ name 
-                                    lift $ createDirectoryIfMissing True sumDir
-                                    lift $ renameFile path dest
+                                    liftIO $ createDirectoryIfMissing True sumDir
+                                    liftIO $ renameFile path dest
                                     return (Right (realSum, sumDir, name))
                Right realSum -> error ("Checksum mismatch for " ++ path ++
                                        ": expected " ++ fromJust sum ++ ", saw " ++ realSum)
@@ -87,19 +87,19 @@ prepareUri _debug top flush target =
       unpackTarget uri (Right (sum, sumDir, name)) =
           mkdir >>= untar >>= read >>= search >>= verify
           where
-            mkdir = lift (try (createDirectoryIfMissing True sourceDir))
+            mkdir = liftIO (try (createDirectoryIfMissing True sourceDir))
             untar (Left e) = return . Left . show $ e
             untar (Right ()) = {- unpackStyle name $ -} runCommandTimed 1 ("tar xfz " ++ tarball ++ " -C " ++ sourceDir)
             read (Left message) = return . Left $ message
-            read (Right (output, elapsed)) = lift (getDir sourceDir)
+            read (Right (output, elapsed)) = liftIO (getDir sourceDir)
             search (Left message) = return . Left $ message
             search (Right files) = checkContents (filter (not . flip elem [".", ".."]) files)
             verify (Left message) = return . Left $ ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
             verify (Right tree) = return . Right . Tgt $ Uri uri (Just sum) tree
 {-
-          do (r1 :: Either Exception ())  <- lift (try (createDirectoryIfMissing True sourceDir))
+          do (r1 :: Either Exception ())  <- liftIO (try (createDirectoryIfMissing True sourceDir))
              (r2 :: Either String ([Output], TimeDiff)) <- either (return . Left . show) (const (unpackStyle name $ runCommandTimed 1 ("tar xfz " ++ tarball ++ " -C " ++ sourceDir))) r1
-             r3 <- either (return . Left) (const (lift (getDir sourceDir))) r2
+             r3 <- either (return . Left) (const (liftIO (getDir sourceDir))) r2
              r4 <- either (return . Left) (return . Right . filter (not . flip elem [".", ".."])) r3
              (r5 :: (Either String SourceTree)) <- either (return . Left) checkContents r4
              r6 <- return . checkSourceTree $ r5
@@ -108,7 +108,7 @@ prepareUri _debug top flush target =
 -}
             getDir dir = try (getDirectoryContents dir) >>=
                          either (return . Left . show) (return . Right . filter (not . flip elem [".", ".."]))
-            checkContents :: [FilePath] -> TIO (Either String SourceTree)
+            checkContents :: CIO m => [FilePath] -> m (Either String SourceTree)
             checkContents [] = return (Left "Empty tarball?")
             checkContents [subdir] = findSourceTree (rootEnvPath (sourceDir ++ "/" ++ subdir))
             checkContents _ = findSourceTree (rootEnvPath sourceDir)

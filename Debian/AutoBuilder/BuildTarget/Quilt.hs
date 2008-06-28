@@ -15,7 +15,7 @@ import Data.List
 import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime
-import Extra.TIO
+import Extra.CIO
 import Extra.Either
 import Extra.Files
 import Extra.List
@@ -117,9 +117,9 @@ debug e =
        IO.hFlush IO.stderr
        exitWith (ExitFailure 2)
 
-prepareQuilt :: FilePath -> Bool -> Tgt -> Tgt -> TIO (Either String Tgt)
+prepareQuilt :: CIO m => FilePath -> Bool -> Tgt -> Tgt -> m (Either String Tgt)
 prepareQuilt top _flush (Tgt base) (Tgt patch) = 
-    tryTIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (liftIO . debug) return
+    tryCIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (liftIO . debug) return
     where
       make (quiltTree, quiltDir) =
           do applied <- liftIO (lazyCommand cmd1a L.empty) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
@@ -202,7 +202,7 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
              
 --myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x
 
-mergeChangelogs' :: FilePath -> FilePath -> TIO (Either String ())
+mergeChangelogs' :: CIO m => FilePath -> FilePath -> m (Either String ())
 mergeChangelogs' basePath patchPath =
     do patchText <- liftIO (try (readFile patchPath))
        baseText <- liftIO (try (readFile basePath))

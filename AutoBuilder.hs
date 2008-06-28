@@ -66,8 +66,8 @@ main =
           | True = return flags
       -- Process one set of parameters.  Usually there is only one, but there
       -- can be several which are run sequentially.
-      doParameterSets :: Params.Params -> AptIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
-      doParameterSets set = withLock (lockFilePath set) (tryAB . runParameterSet $ set)
+      doParameterSets :: CIO m => Params.Params -> AptIOT m (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
+      doParameterSets set = withLock (lockFilePath set) (tryApt . runParameterSet $ set)
       lockFilePath params = Params.topDir params ++ "/lockfile"
       -- The result of processing a set of parameters is either an
       -- exception or a completion code, or, if we fail to get a lock,
@@ -96,7 +96,7 @@ main =
 appName :: String
 appName = "autobuilder"
 
-runParameterSet :: Params.Params -> AptIO (Either String ([Output], TimeDiff))
+runParameterSet :: CIO m => Params.Params -> AptIOT m (Either String ([Output], TimeDiff))
 runParameterSet params =
     do
       liftIO doRequiredVersion
@@ -211,7 +211,7 @@ runParameterSet params =
           where
             allTargets = listDiff (Params.targets params) (Params.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
-      upload :: (LocalRepository, [Target]) -> AptIO [Either String ([Output], TimeDiff)]
+      upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Either String ([Output], TimeDiff)]
       upload (repo, [])
           | Params.doUpload params =
               case Params.uploadURI params of

@@ -31,7 +31,7 @@ cgiMain =
       inputs <- CGI.getInputs
       return (("SCRIPT_NAME", name) : inputs) >>= liftIO . runTIO defStyle . run aptIOStyle . application >>= CGI.output
 
-application :: [(String,String)] -> AptIO String
+application :: CIO m => [(String,String)] -> AptIOT m String
 application cgivars =
     do -- Use the same application name as the autobuilder so we
        -- see the same configuration files.
@@ -115,7 +115,7 @@ environment =
       return $ concatHtml (map (\ (name, value) -> concatHtml [stringToHtml (name ++ "=" ++ value), br]) env)
 -}
 
-distPage :: Params.Params -> [(String,String)] -> AptIO Html
+distPage :: CIO m => Params.Params -> [(String,String)] -> AptIOT m Html
 distPage params cgivars =
     do distro <- distros params >>= return . find (isDist dist)
        case distro of
@@ -158,7 +158,7 @@ distPage params cgivars =
       root = cacheRootDir (Params.topDir params) (either (error . show) id (Params.findSlice params dist))
       isDist dist distro = dist == sliceListName distro
 
-sourcePackagePage :: Params.Params -> [(String, String)] -> AptIO Html
+sourcePackagePage :: CIO m => Params.Params -> [(String, String)] -> AptIOT m Html
 sourcePackagePage params cgivars =
     do
       let package = fromJust (lookup "package" cgivars)
@@ -174,7 +174,7 @@ binaryPackagePage _ cgivars =
     let package = fromJust (lookup "package" cgivars) in
     return $ stringToHtml ("binaryPackagePage: " ++ package)
 
-sourcePackageInfo :: Params.Params -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIO Control
+sourcePackageInfo :: CIO m => Params.Params -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIOT m Control
 sourcePackageInfo _ root uploadHost distro =
     do
       liftIO (vPutStrBl 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
@@ -202,7 +202,7 @@ errorPage _ _ page =
     return (concatHtml
             [h3 (stringToHtml ("Unknown page type: " ++ page))])
 
-distros :: Params.Params -> AptIO [NamedSliceList]
+distros :: CIO m => Params.Params -> AptIOT m [NamedSliceList]
 distros params = mapM parseNamedSliceList' (Params.sources params)
 
 linkToDist :: [(String,String)] -> String -> Html

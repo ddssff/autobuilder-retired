@@ -63,8 +63,7 @@ import		 System.Time
 import		 Text.Printf
 import		 Text.Regex
 
-liftTIO :: TIO a -> AptIO a
-liftTIO x = lift x
+--liftTIO = lift
 
 targetDocumentation :: String
 targetDocumentation =
@@ -112,14 +111,14 @@ targetName target =
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
 
-countAndPrepareTargets :: OSImage -> [Tgt] -> TIO [Target]
+countAndPrepareTargets :: CIO m => OSImage -> [Tgt] -> m [Target]
 countAndPrepareTargets os targets =
     countTasks (zip (map show targets) (map (prepareTarget os) targets))
 
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: OSImage -> Tgt -> TIO Target
+prepareTarget :: CIO m => OSImage -> Tgt -> m Target
 prepareTarget os tgt@(Tgt source) =
     do tree <- prepareBuild os source >>= 
                return . maybe (error $ "Could not find Debian build tree for " ++ show source) id
@@ -142,7 +141,7 @@ prepareTarget os tgt@(Tgt source) =
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: (BuildTarget t) => OSImage -> t -> TIO (Maybe DebianBuildTree)
+prepareBuild :: (BuildTarget t, CIO m) => OSImage -> t -> m (Maybe DebianBuildTree)
 prepareBuild os target =
     do debBuild <- findOneDebianBuildTree (getTop target)
        case debBuild of
@@ -153,7 +152,7 @@ prepareBuild os target =
                   Left message -> vEPutStrBl 0 message >> return Nothing
                   Right tree -> copySource tree >>= return . either (const Nothing) Just
     where
-      copySource :: DebianSourceTree -> TIO (Either String DebianBuildTree)
+      copySource :: CIO m => DebianSourceTree -> m (Either String DebianBuildTree)
       copySource debSource =
           do let name = logPackage . entry $ debSource
                  dest = EnvPath (rootDir os) ("/work/build/" ++ name)
@@ -167,7 +166,7 @@ prepareBuild os target =
                Right copy ->
                    do cleanTarget target (topdir copy)
                       findDebianBuildTree dest newdir
-      copyBuild :: DebianBuildTree -> TIO (Either String DebianBuildTree)
+      copyBuild :: CIO m => DebianBuildTree -> m (Either String DebianBuildTree)
       copyBuild debBuild =
           do let name = logPackage . entry $ debBuild
                  dest = EnvPath (rootDir os) ("/work/build/" ++ name)
@@ -180,7 +179,7 @@ prepareBuild os target =
                Right copy -> 
                    do cleanTarget target (topdir copy)
                       when (newdir /= (subdir debBuild))
-                               (lift $ renameDirectory (outsidePath dest ++ "/" ++ subdir debBuild) (outsidePath dest ++ "/" ++ newdir))
+                               (liftIO $ renameDirectory (outsidePath dest ++ "/" ++ subdir debBuild) (outsidePath dest ++ "/" ++ newdir))
                       findDebianBuildTree dest newdir
 
 -- |Make a path "safe" for building.  This shouldn't be necessary,
@@ -226,38 +225,38 @@ _formatVersions buildDeps =
     "\n"
     where prefix = "\n    "
 
-readSpec :: Bool -> FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIO (Either String Tgt)
+readSpec :: CIO m => Bool -> FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIOT m (Either String Tgt)
 readSpec debug top flush ifSourcesChanged distros text =
-    liftIO (vEPutStrBl 0 (text ++ ":")) >> mapRWST (local (appPrefix " ")) readSpec'
-    where
-      readSpec' =
-          case text of
+    do lift $ vEPutStrBl 0 (text ++ ":")
+       {-setStyle (appPrefix " ")-}
+       case text of
             'a':'p':'t':':' : target -> Apt.prepareApt top flush ifSourcesChanged distros target
-            'd':'a':'r':'c':'s':':' : target -> liftTIO $ Darcs.prepareDarcs debug top flush target
+            'd':'a':'r':'c':'s':':' : target -> lift $ Darcs.prepareDarcs debug top flush target
             'd':'e':'b':'-':'d':'i':'r':':' : target ->
                 do pair <- parsePair debug target
                    case pair of
                      Left message -> return (Left message)
-                     Right (upstream, debian) -> liftTIO $ DebDir.prepareDebDir debug top flush upstream debian
-            'd':'i':'r':':' : target -> liftTIO $ prepareDir debug top flush (rootEnvPath target)
-            'h':'g':':' : target -> liftTIO $ Hg.prepareHg debug top flush target
+                     Right (upstream, debian) -> lift $ DebDir.prepareDebDir debug top flush upstream debian
+            'd':'i':'r':':' : target -> lift $ prepareDir debug top flush (rootEnvPath target)
+            'h':'g':':' : target -> lift $ Hg.prepareHg debug top flush target
             'q':'u':'i':'l':'t':':' : target ->
                 do pair <- parsePair debug target
                    case pair of
                      Left message -> return (Left message)
-                     Right (base, patch) -> liftTIO $ Quilt.prepareQuilt top flush base patch
+                     Right (base, patch) -> lift $ Quilt.prepareQuilt top flush base patch
             's':'o':'u':'r':'c':'e':'d':'e':'b':':' : target ->
                 readSpec debug top flush ifSourcesChanged distros target >>=
-                liftTIO . either (return . Left . ((text ++ ": ") ++)) SourceDeb.prepareSourceDeb
-            's':'v':'n':':' : target -> liftTIO $ Svn.prepareSvn debug top flush target
-            't':'l':'a':':' : target -> liftTIO $ Tla.prepareTla top flush target
-            'b':'z':'r':':' : target -> liftTIO $ Bzr.prepareBzr top flush target
-            'u':'r':'i':':' : target -> liftTIO $ Uri.prepareUri debug top flush target
+                either (return . Left . ((text ++ ": ") ++)) (lift . SourceDeb.prepareSourceDeb)
+            's':'v':'n':':' : target -> lift $ Svn.prepareSvn debug top flush target
+            't':'l':'a':':' : target -> lift $ Tla.prepareTla top flush target
+            'b':'z':'r':':' : target -> lift $ Bzr.prepareBzr top flush target
+            'u':'r':'i':':' : target -> lift $ Uri.prepareUri debug top flush target
             'p':'r':'o':'c':':' : target ->
                 readSpec debug top flush ifSourcesChanged distros target >>=
-                liftTIO . either (return . Left) (Proc.prepareProc top flush)
+                either (return . Left) (lift . Proc.prepareProc top flush)
             _ -> error ("Error in target specification: " ++ text)
-      parsePair :: Bool -> String -> AptIO (Either String (Tgt, Tgt))
+    where
+      parsePair :: CIO m => Bool -> String -> AptIOT m (Either String (Tgt, Tgt))
       parsePair debug text =
           case match "\\(([^)]*)\\):\\(([^)]*)\\)" text of
             Just [baseName, patchName] ->
@@ -273,19 +272,18 @@ readSpec debug top flush ifSourcesChanged distros text =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => Params.Params -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIO (LocalRepository, [Target])
+buildTargets :: (AptCache t, CIO m) => Params.Params -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIOT m (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
-      targetList <- liftTIO $ prepareAllTargetSource cleanOS
+      targetList <- lift $ prepareAllTargetSource cleanOS
       liftIO (vEPutStrBl 0 "Building all targets:")
       failed <- {- setStyle (addPrefix " ") $ -} buildLoop cleanOS globalBuildDeps (length targetList) (targetList, [])
       return (localRepo, failed)
       --buildAll cleanOS targetList globalBuildDeps
     where
       -- Retrieve and/or update the source code of all the targets before building.
-      --prepareAllTargetSource :: OSImage -> TIO [Target]
       prepareAllTargetSource cleanOS =
           do
             vEPutStrBl 0 "Assembling clean source tree for each target:"
@@ -293,12 +291,12 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
           where
             iStyle = setStyle (appPrefix " ")
       -- Execute the target build loop until everything is built
-      buildLoop :: OSImage -> Relations -> Int -> ([Target], [Target]) -> AptIO [Target]
+      buildLoop :: CIO m => OSImage -> Relations -> Int -> ([Target], [Target]) -> AptIOT m [Target]
       buildLoop _ _ _ ([], failed) = return failed
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
-            relaxed <- liftTIO $ updateDependencyInfo globalBuildDeps (Params.relaxDepends params) unbuilt
-            targetGroups <- liftTIO $ chooseNextTarget relaxed
+            relaxed <- lift $ updateDependencyInfo globalBuildDeps (Params.relaxDepends params) unbuilt
+            targetGroups <- lift $ chooseNextTarget relaxed
             --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
             case targetGroups of
               (target, blocked, other) ->
@@ -351,7 +349,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: [Target] -> TIO (Target, [Target], [Target])
+chooseNextTarget :: CIO m => [Target] -> m (Target, [Target], [Target])
 chooseNextTarget targets =
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
@@ -372,7 +370,7 @@ chooseNextTarget targets =
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed target1) (targetRelaxed target2)
 
-updateDependencyInfo :: Relations -> G.RelaxInfo -> [Target] -> TIO [Target]
+updateDependencyInfo :: CIO m => Relations -> G.RelaxInfo -> [Target] -> m [Target]
 updateDependencyInfo globalBuildDeps relaxInfo targets =
     getDependencyInfo globalBuildDeps targets >>=
     (\ targets -> vEPutStrBl 1 ("Original dependencies: " ++ show (map targetDepends targets)) >> return targets) >>=
@@ -380,7 +378,7 @@ updateDependencyInfo globalBuildDeps relaxInfo targets =
     (\ targets -> vEPutStrBl 1 ("Relaxed dependencies:  " ++ show (map targetRelaxed targets)) >> return targets)
 
 -- |Retrieve the dependency information for a list of targets
-getDependencyInfo :: Relations -> [Target] -> TIO [Target]
+getDependencyInfo :: CIO m => Relations -> [Target] -> m [Target]
 getDependencyInfo globalBuildDeps targets =
     mapM (getTargetDependencyInfo globalBuildDeps) targets >>=
     finish . partitionEithers . zipEithers targets
@@ -401,12 +399,12 @@ zipEithers xs ys =
       zipEither (x, (Right y)) = Right (x, y)
 
 -- |Retrieve the dependency information for a single target
-getTargetDependencyInfo :: Relations -> Target -> TIO (Either String G.DepInfo)
+getTargetDependencyInfo :: CIO m => Relations -> Target -> m (Either String G.DepInfo)
 getTargetDependencyInfo globalBuildDeps target =
     do let buildTree = cleanSource target
        --let sourceTree = debTree buildTree
        let controlPath = appendPath "/debian/control" (debdir buildTree)
-       info <- lift $ parseControlFromFile (outsidePath controlPath) >>= return . either (Left . show) (G.buildDependencies)
+       info <- liftIO $ parseControlFromFile (outsidePath controlPath) >>= return . either (Left . show) (G.buildDependencies)
        -- vEPutStrBl 0 ("getDepInfo " ++ targetName target ++ ": " ++ show info)
        return $ either Left (\ deps -> Right (addRelations globalBuildDeps deps)) info
     where
@@ -453,14 +451,14 @@ instance Show BuildDecision where
 
 -- Decide whether a target needs to be built and, if so, build it.
 buildTarget ::
-    (AptCache t) =>
+    (AptCache t, CIO m) =>
     Params.Params ->			-- configuration info
     OSImage ->				-- cleanOS
     Relations ->			-- The build-essential relations
     LocalRepository ->			-- The local repository the packages will be uploaded to
     t ->
     Target ->
-    AptIO (Either String LocalRepository)	-- The local repository after the upload, or an error message
+    AptIOT m (Either String LocalRepository)	-- The local repository after the upload, or an error message
 buildTarget params cleanOS globalBuildDeps repo poolOS target =
     do
       liftIO (syncPool cleanOS)
@@ -468,7 +466,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       -- build dependencies
       let debianControl = targetControl target
       liftIO (vEPutStrBl 1 "Loading package lists and searching for build dependency solution...")
-      solutions <- liftTIO (iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl)
+      solutions <- lift (iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl)
       case solutions of
         Left excuse -> do liftIO (vEPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
@@ -494,7 +492,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               sourceRevision <- case realSource target of (Tgt spec) -> liftTIO (BuildTarget.revision spec) >>= return . either (const Nothing) Just
+               sourceRevision <- case realSource target of (Tgt spec) -> lift (BuildTarget.revision spec) >>= return . either (const Nothing) Just
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -539,24 +537,24 @@ makeVersion package =
                , getVersion = packageVersion (packageID package) }
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIO (Either String LocalRepository)
+buildPackage :: CIO m => Params.Params -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT m (Either String LocalRepository)
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >>
-    (liftTIO prepareImage) >>=
-    either (return . Left) (liftTIO . logEntry) >>=
-    either (return . Left) (liftTIO . build) >>=
-    either (return . Left) (liftTIO . find) >>=
+    (lift prepareImage) >>=
+    either (return . Left) (lift . logEntry) >>=
+    either (return . Left) (lift . build) >>=
+    either (return . Left) (liftIO . find) >>=
     either (return . Left) upload
     where
       checkDryRun = when (Params.dryRun params)  (do liftIO (vEPutStrBl 0 "Not proceeding due to -n option.")
                                                      liftIO (exitWith ExitSuccess))
       prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
-      logEntry :: DebianBuildTree -> TIO (Either String DebianBuildTree)
+      logEntry :: CIO m => DebianBuildTree -> m (Either String DebianBuildTree)
       logEntry buildTree = 
           case Params.noClean params of
-            False -> lift $ maybeAddLogEntry buildTree newVersion >> return (Right buildTree)
+            False -> liftIO $ maybeAddLogEntry buildTree newVersion >> return (Right buildTree)
             True -> return (Right buildTree)
-      build :: DebianBuildTree -> TIO (Either String (DebianBuildTree, TimeDiff))
+      build :: CIO m => DebianBuildTree -> m (Either String (DebianBuildTree, TimeDiff))
       build buildTree =
           case realSource target of
             Tgt t -> do result <- buildPkg (Params.noClean params) (Params.setEnv params) buildOS buildTree status t
@@ -564,8 +562,8 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                           Left message -> return (Left message)
                           Right elapsed -> return (Right (buildTree, elapsed))
       find (buildTree, elapsed) =
-          lift $ findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
-      upload :: (ChangesFile, TimeDiff) -> AptIO (Either String LocalRepository)
+          liftIO $ findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
+      upload :: CIO m => (ChangesFile, TimeDiff) -> AptIOT m (Either String LocalRepository)
       upload (changesFile, elapsed) = doLocalUpload elapsed changesFile
       -- Depending on the strictness, build dependencies either
       -- get installed into the clean or the build environment.
@@ -588,7 +586,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                   , changeRelease = name }
           where setDist name (Field ("Distribution", _)) = Field ("Distribution", ' ' : releaseName' name)
                 setDist _ other = other
-      doLocalUpload :: TimeDiff -> ChangesFile -> AptIO (Either String LocalRepository)
+      doLocalUpload :: CIO m => TimeDiff -> ChangesFile -> AptIOT m (Either String LocalRepository)
       doLocalUpload elapsed changesFile =
           do
             (changesFile' :: ChangesFile) <-
@@ -616,7 +614,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
 -- these operations take place in a different order from other types
 -- of builds.  For lax: dependencies, then image copy, then source
 -- copy.  For other: image copy, then source copy, then dependencies.
-prepareBuildImage :: Params.Params -> OSImage -> [PkgVersion] -> OSImage -> Target -> Params.Strictness -> TIO (Either String DebianBuildTree)
+prepareBuildImage :: CIO m => Params.Params -> OSImage -> [PkgVersion] -> OSImage -> Target -> Params.Strictness -> m (Either String DebianBuildTree)
 prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _ _ _) Params.Lax =
     -- Install dependencies directly into the clean environment
     installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies >>=
@@ -641,17 +639,17 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
     either (return . Left) (syncEnv noClean) >>=
     either (return . Left) installDeps
     where
-      findTree :: Bool -> TIO (Either String DebianBuildTree)
+      -- findTree :: CIO m => Bool -> m (Either String DebianBuildTree)
       findTree False = prepareCopy tgt (cleanSource target) newPath
       findTree True = findOneDebianBuildTree newPath >>= return . maybe (Left "build tree not found") Right
-      downloadDeps :: DebianBuildTree -> TIO (Either String DebianBuildTree)
+      -- downloadDeps :: CIO m => DebianBuildTree -> m (Either String DebianBuildTree)
       downloadDeps buildTree = iStyle (downloadDependencies cleanOS buildTree buildDepends sourceDependencies) >>=
                                either (return . Left) (const (return (Right buildTree)))
-      syncEnv :: Bool -> DebianBuildTree -> TIO (Either String (OSImage, DebianBuildTree))
+      -- syncEnv :: CIO m => Bool -> DebianBuildTree -> m (Either String (OSImage, DebianBuildTree))
       syncEnv False buildTree = vEPutStrBl 1 "Syncing buildOS" >>
                                 Debian.Repo.syncEnv cleanOS buildOS >>= (\ os -> return (Right (os, buildTree)))
       syncEnv True buildTree = return (Right (buildOS, buildTree))
-      installDeps :: (OSImage, DebianBuildTree) -> TIO (Either String DebianBuildTree)
+      -- installDeps :: CIO m => (OSImage, DebianBuildTree) -> m (Either String DebianBuildTree)
       installDeps (buildOS, buildTree) = iStyle (installDependencies buildOS buildTree buildDepends sourceDependencies) >>=
                                          either (return . Left) (const (return (Right buildTree)))
 {-
@@ -797,10 +795,10 @@ computeNewVersion params
           maybe Nothing (Just . parseDebianVersion . B.unpack) (maybe Nothing (fieldValue "Version" . sourceParagraph) current)
 
 -- FIXME: Most of this code should move into Debian.Repo.Dependencies
-buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> TIO (Either String [(Int, [BinaryPackage])])
+buildDepSolutions' :: CIO m => [String] -> OSImage -> Relations -> Control -> m (Either String [(Int, [BinaryPackage])])
 buildDepSolutions' preferred os globalBuildDeps debianControl =
     do
-      arch <- lift $ buildArchOfEnv (rootDir os)
+      arch <- liftIO $ buildArchOfEnv (rootDir os)
       -- We don't discard any dependencies here even if they are
       -- mentioned in Relax-Depends, that only applies to deciding
       -- whether to build, once we are building we need to install all
@@ -897,7 +895,7 @@ sinkFields f (Paragraph fields) =
           f' (Comment _) = False
 
 -- |Download the package's build dependencies into /var/cache
-downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
+downloadDependencies :: CIO m => OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> m (Either String [Output])
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        vEPutStrBl 1 . ("versions: " ++) . show $! vers
@@ -918,7 +916,7 @@ downloadDependencies os source extra versions =
       root = rootDir os
 
 -- |Install the package's build dependencies.
-installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> TIO (Either String [Output])
+installDependencies :: CIO m => OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> m (Either String [Output])
 installDependencies os source extra versions =
     do (out, codes) <- liftIO (lazyCommand command L.empty) >>=
                        vMessage 0 ("Installing build dependencies into " ++ rootPath (rootDir os)) >>=

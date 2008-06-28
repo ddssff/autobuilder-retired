@@ -9,6 +9,7 @@ import Control.Monad.Trans
 import Data.Maybe
 import System.Unix.Directory
 import Text.Regex
+import Extra.CIO
 
 -- | A package retrieved via apt-get in the given slice
 data Apt = Apt NamedSliceList String (Maybe DebianVersion) DebianBuildTree
@@ -29,7 +30,7 @@ instance BuildTarget Apt where
     revision (Apt _ _ Nothing _) = error "Attempt to generate revision string for unversioned apt package"
     logText (Apt _ _ _ _) _ = "Built from apt pool"
 
-prepareApt :: FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIO (Either String Tgt)
+prepareApt :: CIO m => FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIOT m (Either String Tgt)
 prepareApt cacheDir flush sourcesChangedAction distros target =
     do
       let (dist, package, version) =

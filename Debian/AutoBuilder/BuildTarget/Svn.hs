@@ -22,7 +22,7 @@ import Data.Maybe
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import System.Directory
-import Extra.TIO
+import Extra.CIO
 
 -- | A Subversion archive
 data Svn = Svn URI SourceTree
@@ -93,10 +93,10 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
 
-prepareSvn ::  Bool -> FilePath -> Bool -> String -> TIO (Either String Tgt)
+prepareSvn ::  CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
 prepareSvn _debug top flush target =
-    do when flush (lift (removeRecursiveSafely dir))
-       exists <- lift $ doesDirectoryExist dir
+    do when flush (liftIO (removeRecursiveSafely dir))
+       exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
        case tree of
          Left message -> return $ Left ("No source tree at " ++ show dir ++ ": " ++ message)
@@ -110,7 +110,7 @@ prepareSvn _debug top flush target =
                                              -- Failure - error code or output from status means changes have occured
                                              False ->  removeSource dir >> createSource dir)
 
-      removeSource dir = lift $ removeRecursiveSafely dir
+      removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
           do
@@ -120,10 +120,10 @@ prepareSvn _debug top flush target =
 
       createSource dir =
           let (parent, _) = splitFileName dir in
-          lift (try (createDirectoryIfMissing True parent)) >>=
+          liftIO (try (createDirectoryIfMissing True parent)) >>=
           either (return . Left . show) (const checkout) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir)))
-      checkout :: TIO (Either String [Output])
+      checkout :: CIO m => m (Either String [Output])
       --checkout = svn createStyle args 
       checkout = runTask (createStyle (processTask "svn" args Nothing Nothing)) >>= return . finish
           where

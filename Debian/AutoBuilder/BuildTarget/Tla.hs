@@ -12,7 +12,7 @@ import System.Unix.Directory
 import System.Unix.FilePath
 import Data.Maybe
 import System.Directory
-import Extra.TIO
+import Extra.CIO
 
 -- | A TLA archive
 data Tla = Tla String SourceTree
@@ -43,7 +43,7 @@ instance BuildTarget Tla where
 
     logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
 
-prepareTla :: FilePath -> Bool -> String -> TIO (Either String Tgt)
+prepareTla :: CIO m => FilePath -> Bool -> String -> m (Either String Tgt)
 prepareTla top flush version =
     do
       when flush (liftIO (removeRecursiveSafely dir))

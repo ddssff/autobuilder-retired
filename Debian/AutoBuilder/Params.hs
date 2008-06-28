@@ -129,7 +129,7 @@ instance Show Strictness where
 --
 -- The appName string is used to construct the usage message and
 -- candidates for the configuration directory path.
-params :: Int -> String -> [Flag] -> AptIO [Params]
+params :: CIO m => Int -> String -> [Flag] -> AptIOT m [Params]
 params verbosity appName flags =
     do flagLists <- liftIO $ computeConfig verbosity appName flags id
        flagMaps <- liftIO (mapM computeTopDir (map (listMap . pairsFromFlags) flagLists))
@@ -146,7 +146,7 @@ params verbosity appName flags =
        {- mapM verifySources params -}
        return params
     where
-      loadRepoCache :: FilePath -> AptIO ()
+      loadRepoCache :: CIO m => FilePath -> AptIOT m ()
       loadRepoCache top =
           liftIO (ePutStrBl "Loading repo cache...") >>
           liftIO (try (readFile (top ++ "/repoCache")) >>=
