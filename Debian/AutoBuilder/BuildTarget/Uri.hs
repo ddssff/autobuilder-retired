@@ -68,6 +68,7 @@ prepareUri _debug top flush target =
                    liftIO (try (createDirectoryIfMissing True tmp)) >>=
                    either (return . Left . show) (const ({- createStyle name $ -} runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'"))) >>=
                    either (return . Left) (const . return . Right $ name)
+      checkTarget :: CIO m => Maybe String -> Either String String -> m (Either String (String, String, String))
       checkTarget _ (Left message) = return (Left message)
       checkTarget sum (Right name) =
           do output <- liftIO $ md5sum path
@@ -80,7 +81,7 @@ prepareUri _debug top flush target =
                                     liftIO $ renameFile path dest
                                     return (Right (realSum, sumDir, name))
                Right realSum ->
-                   do removeFile path
+                   do liftIO $ removeFile path
                       error ("Checksum mismatch for " ++ path ++
                              ": expected " ++ fromJust sum ++ ", saw " ++ realSum ++ ", removed.")
           where
