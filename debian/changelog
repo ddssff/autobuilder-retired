@@ -2,6 +2,7 @@ autobuilder (4.22) unstable; urgency=low
 
   * Most functions that were previously in the TIO monad now work with any
     monad that is an instance of CIO, which includes IO.
+  * Remove files from the uri directory if they have bad checksums.
 
  -- David Fox <dsf@seereason.com>  Sat, 28 Jun 2008 15:57:20 -0700
 

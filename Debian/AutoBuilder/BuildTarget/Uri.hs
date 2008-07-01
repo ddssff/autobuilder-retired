@@ -79,8 +79,10 @@ prepareUri _debug top flush target =
                                     liftIO $ createDirectoryIfMissing True sumDir
                                     liftIO $ renameFile path dest
                                     return (Right (realSum, sumDir, name))
-               Right realSum -> error ("Checksum mismatch for " ++ path ++
-                                       ": expected " ++ fromJust sum ++ ", saw " ++ realSum)
+               Right realSum ->
+                   do removeFile path
+                      error ("Checksum mismatch for " ++ path ++
+                             ": expected " ++ fromJust sum ++ ", saw " ++ realSum ++ ", removed.")
           where
             path = tmp ++ "/" ++ name
       unpackTarget _ (Left message) = return (Left message)
