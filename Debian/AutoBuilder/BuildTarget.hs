@@ -45,18 +45,9 @@ class BuildTarget t where
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
     revision :: CIO m => t -> m (Either String String)
-    -- |Copy 
-    prepareCopy :: (BuildTarget t, CIO m) => t -> DebianBuildTree -> EnvPath -> m (Either String DebianBuildTree)
-    prepareCopy _target buildTree dest = copyDebianBuildTree buildTree dest
-
-    -- | Prepare a source tree for an actual build, run the function to do
-    -- the build, and then tear down any preparations we just made.
-{-
-    withPreparedSource :: (BuildTarget t) => (DebianBuildTree -> AptIO ()) -> t -> DebianBuildTree -> AptIO ()
-    withPreparedSource f tgt path tree = f path tree
--}
-
     -- |Default function to build the package for this target.
+    -- Currently this is only overridden by the proc: target which
+    -- mounts /proc, then calls buildDebs, then unmounts /proc.
     buildPkg :: (BuildTarget t, CIO m) => Bool -> [String] -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> m (Either String TimeDiff)
     buildPkg noClean setEnv buildOS buildTree status _target =
         buildDebs noClean setEnv buildOS buildTree status

@@ -1,5 +1,7 @@
 #!/bin/sh
 
-[ "$1" = "configure" ] || exit 0
+[ "$1" = "configure" ] && chmod 4755 /usr/lib/cgi-bin/autobuilder
 
-chmod 4755 /usr/lib/cgi-bin/autobuilder
+#DEBHELPER#
+
+exit 0

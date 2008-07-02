@@ -4,6 +4,10 @@ include /usr/share/haskell-devscripts/hlibrary.mk
 Debian/AutoBuilder/Version.hs: debian/changelog
 	/bin/echo -e "module Debian.Autobuilder.Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
 
+binary-fixup/autobuilder-web-client::
+	mkdir -p debian/autobuilder-web-client/usr/lib/cgi-bin
+	mv debian/autobuilder-web-client/usr/bin/autobuilder-web-client debian/autobuilder-web-client/usr/lib/cgi-bin/
+
 clean::
 	rm -f *.o *.hi */*.o */*.hi Debian/AutoBuilder/Version.hs
 	/bin/echo -e "module Debian.AutoBuilder.Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > Debian/AutoBuilder/Version.hs

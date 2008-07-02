@@ -627,7 +627,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
           vBOL 0 >>
           vEPutStr 1 "Syncing buildOS" >>
           Debian.Repo.syncEnv cleanOS buildOS >>=
-          const (prepareCopy tgt (cleanSource target) newPath)
+          const (copyDebianBuildTree (cleanSource target) newPath)
       buildDepends = (Params.buildDepends params)
       noClean = Params.noClean params
       newPath = EnvPath {envRoot = rootDir buildOS, envPath = envPath oldPath}
@@ -640,7 +640,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
     either (return . Left) installDeps
     where
       -- findTree :: CIO m => Bool -> m (Either String DebianBuildTree)
-      findTree False = prepareCopy tgt (cleanSource target) newPath
+      findTree False = copyDebianBuildTree (cleanSource target) newPath
       findTree True = findOneDebianBuildTree newPath >>= return . maybe (Left "build tree not found") Right
       -- downloadDeps :: CIO m => DebianBuildTree -> m (Either String DebianBuildTree)
       downloadDeps buildTree = iStyle (downloadDependencies cleanOS buildTree buildDepends sourceDependencies) >>=
@@ -652,24 +652,6 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
       -- installDeps :: CIO m => (OSImage, DebianBuildTree) -> m (Either String DebianBuildTree)
       installDeps (buildOS, buildTree) = iStyle (installDependencies buildOS buildTree buildDepends sourceDependencies) >>=
                                          either (return . Left) (const (return (Right buildTree)))
-{-
-    do
-      buildTree <- 
-          case noClean of
-            False -> prepareCopy tgt (cleanSource target) newPath
-            True -> findOneDebianBuildTree newPath >>= return . maybe (Left "build tree not found") Right
-      case buildTree of
-        Left message -> return (Left message)
-        Right buildTree -> iStyle $ downloadDependencies cleanOS buildTree buildDepends sourceDependencies
-      case noClean of
-        False -> vEPutStrBl 1 "Syncing buildOS" >> Debian.Repo.syncEnv cleanOS buildOS
-        True -> return buildOS
-      case buildTree of
-        Left message -> return (Left message)
-        Right buildTree -> iStyle $ installDependencies buildOS buildTree buildDepends sourceDependencies
-      return buildTree
-    where
--}
       buildDepends = Params.buildDepends params
       noClean = Params.noClean params
       newPath = EnvPath {envRoot = rootDir buildOS, envPath = (envPath . topdir . cleanSource $ target)}
@@ -685,19 +667,6 @@ getReleaseControlInfo cleanOS packageName =
       (info, False) : _ -> (Just info, Indep, message)
       _ -> (Nothing, None, message)
     where
-{-
-      message =
-          let results = (map (isComplete binaryPackages) sourcePackagesWithBinaryNames) in
-          concat . intersperse "\n" $
-                     (map (\ ((sp, bn), flag) ->
-                               "  isComplete " ++ show (map binaryPackageVersion binaryPackages) ++ " " ++
-                               show (sourcePackageVersion sp) ++ " " ++ show bn ++ " -> " ++
-                               show flag ++ "\n" ++
-                               "  availableDebNames " ++ show (map binaryPackageVersion binaryPackages) ++ " " ++
-                               show (sourcePackageVersion sp) ++ " -> " ++ show (availableDebNames binaryPackages sp)
-                          )
-                      (zip sourcePackagesWithBinaryNames results))
--}
       message =
           concat
           . intersperse "\n"
