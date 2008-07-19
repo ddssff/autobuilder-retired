@@ -219,6 +219,7 @@ Targets:
   apt:hardy:haskell-hsql
   apt:sid:haskell-http
   apt:sid:haskell-http
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/MemoTrie/0.0/MemoTrie-0.0.tar.gz):(darcs:http://src.seereason.com/debian/MemoTrie-debian)
   apt:sid:haskell-mode
   deb-dir:(darcs:http://code.haskell.org/utf8-string):(darcs:http://src.seereason.com/debian/haskell-utf8-string-debian)
   apt:sid:haskell-uulib
