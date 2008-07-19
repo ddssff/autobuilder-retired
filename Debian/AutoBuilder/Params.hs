@@ -151,7 +151,7 @@ params verbosity appName flags =
           liftIO (ePutStrBl "Loading repo cache...") >>
           liftIO (try (readFile (top ++ "/repoCache")) >>=
                   try . evaluate . either (const []) read) >>=
-          either (const (return ())) (setRepoMap . Map.fromList . map fixURI)
+          either (const (return ())) (const (return ()) . setRepoMap . Map.fromList . map fixURI)
       fixURI (s, x) = (fromJust (parseURI s), x)
       makeFlagSet flags =
           do allSources <- allSourcesOfFlags flags

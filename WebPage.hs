@@ -29,7 +29,7 @@ cgiMain =
     do
       name <- CGI.scriptName
       inputs <- CGI.getInputs
-      return (("SCRIPT_NAME", name) : inputs) >>= liftIO . runTIO defStyle . run aptIOStyle . application >>= CGI.output
+      return (("SCRIPT_NAME", name) : inputs) >>= liftIO . runTIO defStyle . runAptIO . application >>= CGI.output
 
 application :: CIO m => [(String,String)] -> AptIOT m String
 application cgivars =
@@ -84,7 +84,7 @@ heading params cgivars =
 
 topPage :: Params.Params -> [(String,String)] -> IO Html
 topPage params cgivars =
-    do dists <- runTIO defStyle (run aptIOStyle (distros params)) >>= return . map (sliceName . sliceListName)
+    do dists <- runTIO defStyle (runAptIO (distros params)) >>= return . map (sliceName . sliceListName)
        return (concatHtml
                [h3 (stringToHtml "Dists"),
                 ulist (concatHtml (map (li . linkToDist cgivars . show) dists)),

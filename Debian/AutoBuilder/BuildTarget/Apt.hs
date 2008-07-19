@@ -42,7 +42,7 @@ prepareApt cacheDir flush sourcesChangedAction distros target =
       os <- prepareAptEnv cacheDir sourcesChangedAction distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
       when flush (liftIO . removeRecursiveSafely $ aptDir os package)
-      tree <- liftIO $ Debian.Repo.aptGetSource (rootEnvPath (aptDir os package)) os package version
+      tree <- lift $ Debian.Repo.aptGetSource (rootEnvPath (aptDir os package)) os package version
       let version' = logVersion . entry $ tree
       return . Right . Tgt $ Apt distro package (Just version') tree
     where
