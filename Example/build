@@ -55,6 +55,7 @@ Comment: Let's assume that new versions of utilities like make and g++ won't
 	affect our build.  Everyone else does...
 Relax-Depends: bash
 Relax-Depends: bsdutils
+Relax-Depends: devscripts
 Relax-Depends: dpkg
 Relax-Depends: dpkg-dev
 Relax-Depends: gcc
