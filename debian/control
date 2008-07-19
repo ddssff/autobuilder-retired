@@ -45,6 +45,9 @@ Package: libghc6-autobuilder-dev
 Section: libdevel
 Architecture: any
 Depends: ${haskell:Depends}
+Conflicts: libghc6-autobuilder-prof
+Provides: libghc6-autobuilder-prof
+Replaces: libghc6-autobuilder-prof
 Description: A library version of the autobuilder
  A Haskell library providing an autobuilder for Debian packages.
  .
