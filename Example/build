@@ -71,8 +71,8 @@ Relax-Depends: g++
 Relax-Depends: make
 Comment: Relax self dependencies
 Relax-Depends: haddock haskell-haddock
-Relax-Depends: cabal-debian cabal-debian
-Relax-Depends: cabal-debian haskell-cabal-debian
+Relax-Depends: cabal-debian haskell-extra
+Relax-Depends: cabal-debian haskell-debian
 Relax-Depends: libghc6-debian-prof haskell-cabal-debian
 Relax-Depends: haskell-debian-doc haskell-cabal-debian
 Relax-Depends: ghc6 ghc6
