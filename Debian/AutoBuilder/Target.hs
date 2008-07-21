@@ -358,14 +358,15 @@ chooseNextTarget targets =
     where
       badGraphError arcs =
           error ("Nothing is buildable - dependency cycle?\n  " ++
-                 intercalate "\n  " (map (\ (pkg, deps) -> show pkg ++ " -> [" ++ intercalate ", " (map show deps) ++ "]") arcs))
+                 intercalate "\n  " (map (\ (pkg, deps) -> targetName pkg ++ " -> [" ++ intercalate ", " (map targetName deps) ++ "]") arcs))
       returnBuildable (ready, blocked, other) =
           vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other)
       makeTable :: (Target, [Target], [Target]) -> String
       makeTable (target, blocked, other) =
-          unlines . map (consperse " ") . columns $ [["Ready:", show target],
-                                                     ["Blocked:", (intercalate " " . map show $ blocked)],
-                                                     ["Other:", (intercalate " " . map show $ other)]]
+          unlines . map (consperse " ") . columns $ [["Ready:", targetName target],
+                                                     ["Blocked:", (intercalate " " . map targetName $ blocked)],
+                                                     ["Other:", (intercalate " " . map targetName $ other)]]
+      targetName = logPackage . targetEntry
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed target1) (targetRelaxed target2)
