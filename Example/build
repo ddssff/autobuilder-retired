@@ -197,6 +197,7 @@ Use: hsp
 Targets:
   apt:sid:alex
   apt:sid:arch2darcs
+  darcs:http://src.seereason.com/backups
   apt:sid:bnfc
   apt:sid:c2hs
   apt:sid:darcs
