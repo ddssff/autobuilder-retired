@@ -218,6 +218,10 @@ Targets:
   apt:sid:haskell-hlist
   apt:sid:haskell-hsh
   apt:hardy:haskell-hsql
+  apt:hardy:haskell-hsql-mysql
+  apt:hardy:haskell-hsql-odbc
+  apt:hardy:haskell-hsql-postgresql
+  apt:hardy:haskell-hsql-sqlite3
   apt:sid:haskell-http
   apt:sid:haskell-http
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/MemoTrie/0.0/MemoTrie-0.0.tar.gz):(darcs:http://src.seereason.com/debian/MemoTrie-debian)
@@ -227,6 +231,7 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
   apt:hardy:hat
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
+  apt:sid:helium
   apt:sid:hg-buildpackage
   apt:hardy:hmake
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/quilt/hslogger-quilt)
@@ -235,16 +240,40 @@ Targets:
   apt:sid:listlike
   apt:sid:magic-haskell
   quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/quilt/missingh-quilt)
+  quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
   apt:sid:srcinst
-  apt:sid:washngo
+  apt:sid:uuagc
   apt:sid:washngo
   apt:sid:whitespace
-Comment: Broken
-  apt:sid:pandoc
+
+Name: ghc-broken
+Comment: These targets currently do not build
+Use: relax
+Targets:
+  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/quilt/gtk2hs-quilt)
+  apt:sid:ghc-cvs
+  apt:sid:haskell98-report
+  quilt:(apt:sid:hdbc):(darcs:http://src.seereason.com/quilt/hdbc-quilt)
+  apt:sid:hdbc-missingh
+  apt:sid:hdbc-odbc
+  apt:sid:hdbc-postgresql
+  apt:sid:hdbc-sqlite3
+  apt:sid:hpodder
+  apt:sid:kaya
+  apt:sid:missingpy
+  apt:sid:xmonad
+Comment: gtk2hs
+	: [2] cairo/Graphics/Rendering/Cairo.hs.pp:242:7:
+	: [2]     Could not find module `Graphics.Rendering.Cairo.Internal':
+	: [2]       Use -v to see a list of the files searched for.
+Comment: apt:sid:xmonad
+	Equals dependencies
+Comment: apt:sid:haskell98-report
+	dvips: ! Couldn't find header file times.ttf.
+Comment: apt:sid:pandoc
 	: [2] Text/Pandoc/Definition.hs:92:32:
 	: [2]     parse error on input `-- ^ Link target (URL, title)'
-Comment: Broken
-  quilt:(apt:sid:hdbc):(darcs:http://src.seereason.com/quilt/hdbc-quilt)
+Comment: quilt:(apt:sid:hdbc):(darcs:http://src.seereason.com/quilt/hdbc-quilt)
 	: [2] Database/HDBC/Statement.hs:201:0:
 	: [2]     Illegal instance declaration for `SqlType String'
 	: [2]         (All instance types must be of the form (T t1 ... tn)
@@ -263,12 +292,10 @@ Comment: Broken
 	apt:sid:hdbc-odbc
 	apt:sid:hdbc-postgresql
 	apt:sid:hdbc-sqlite3
-Comment: Broken
-  apt:sid:pandoc
+Comment: apt:sid:pandoc
 	: [2] Text/Pandoc/Definition.hs:92:32:
 	: [2]     parse error on input `-- ^ Link target (URL, title)'
-Comment: Broken:
-  apt:hardy:hs-plugins
+Comment: apt:hardy:hs-plugins
 	: [1] ghc -package-name hi-0.9.10 -O -Wall -Werror -fno-warn-missing-signatures  -threaded -ILanguage/Hi -c Language/Hi/FastString.hs -o Language/Hi/FastString.o -ohi Language/Hi/FastString.hi
 	: [2] 
 	: [2] Language/Hi/FastString.hs:207:8:
@@ -281,31 +308,16 @@ Comment: Broken:
 	: [2]         >>=
 	: [2]           \ (STArray _ _ arr#) -> newIORef (FastStringTable 0# arr#))'
 	: [2] make[3]: *** [Language/Hi/FastString.o] Error 1
-Comment: Broken packages
-  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/quilt/gtk2hs-quilt)
-  apt:sid:haskell98-report - dvips: ! Couldn't find header file times.ttf.
-
-Name: ghc-extra-broken
-Comment: Please keep targets alphabetized by source package name!
-Targets:
-  apt:sid:ghc-cvs
-  apt:sid:haddock
-  apt:sid:hdbc-missingh
-  apt:sid:helium
-  apt:sid:kaya
-  apt:sid:missingpy
-  apt:sid:uuagc
-  apt:sid:xmonad
-Comment:
-  apt:sid:ghc-cvs		- Can't find System.Directory.Internals:
+Comment: apt:sid:ghc-cvs
+	: [2] Compat/Directory.hs:27:0:
+	: [2]     Failed to load interface for `System.Directory.Internals':
+	: [2]       Use -v to see a list of the files searched for.
   apt:sid:haddock		- Depends on directory, which is hidden:
   quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)	- Patches won't apply:
-  apt:sid:haskell-x11-extras	- Not available
   apt:sid:hdbc-missingh		- Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
   apt:sid:helium		- Failed due to failure of uuagc
   apt:sid:kaya			- Error parsing build depends (unexpected #):
   apt:sid:missingpy		- Disabled due to flaw in the autobuilder's build dependency parser:
-  apt:hardy:pugs		- Not available
   apt:sid:uuagc			- missing dependency on uulib
   apt:sid:xmonad		- Dependencies too tight:
 
