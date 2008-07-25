@@ -144,6 +144,7 @@ Targets:
   darcs:http://src.seereason.com/haskell-mime
   darcs:http://src.seereason.com/haskell-unixutils
   darcs:http://src.seereason.com/haskell-extra
+  darcs:http://src.seereason.com/haskell-help
   darcs:http://src.seereason.com/mirror
   darcs:http://src.seereason.com/tree-widget
 Comment: This is not really useful any more
