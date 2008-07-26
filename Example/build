@@ -146,6 +146,7 @@ Targets:
   darcs:http://src.seereason.com/haskell-extra
   darcs:http://src.seereason.com/haskell-help
   darcs:http://src.seereason.com/mirror
+  darcs:http://src.seereason.com/backups
   darcs:http://src.seereason.com/tree-widget
 Comment: This is not really useful any more
   apt:sid:hugs98
@@ -197,7 +198,6 @@ Use: hsp
 Targets:
   apt:sid:alex
   apt:sid:arch2darcs
-  darcs:http://src.seereason.com/backups
   apt:sid:bnfc
   apt:sid:c2hs
   apt:sid:darcs
