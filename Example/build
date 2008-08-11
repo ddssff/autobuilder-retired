@@ -148,6 +148,7 @@ Targets:
   darcs:http://src.seereason.com/mirror
   darcs:http://src.seereason.com/backups
   darcs:http://src.seereason.com/tree-widget
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Shellac/0.9.1/Shellac-0.9.1.tar.gz):(darcs:http://src.seereason.com/debian/shellac-debian)
 Comment: This is not really useful any more
   apt:sid:hugs98
 Comment: Missing build deps under lenny
@@ -247,6 +248,7 @@ Targets:
   apt:sid:uuagc
   apt:sid:washngo
   apt:sid:whitespace
+  sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
 
 Name: ghc-broken
 Comment: These targets currently do not build
