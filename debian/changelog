@@ -1,3 +1,9 @@
+autobuilder (4.24) unstable; urgency=low
+
+  * Return type of Debian.GenBuildDeps.buildable changed.
+
+ -- David Fox <dsf@seereason.com>  Mon, 18 Aug 2008 12:47:39 -0700
+
 autobuilder (4.23) unstable; urgency=low
 
   * API changes in haskell-debian.

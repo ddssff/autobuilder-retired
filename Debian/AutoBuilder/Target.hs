@@ -357,8 +357,8 @@ chooseNextTarget targets =
     either badGraphError returnBuildable (G.buildable depends targets)
     where
       badGraphError arcs =
-          error ("Nothing is buildable - dependency cycle?\n  " ++
-                 intercalate "\n  " (map (\ (pkg, deps) -> targetName pkg ++ " -> [" ++ intercalate ", " (map targetName deps) ++ "]") arcs))
+          error ("Dependency cycles formed by these edges need to be broken:\n  " ++ 
+                 intercalate "\n  " (map (\ (pkg, dep) -> targetName pkg ++ " -> " ++ targetName dep) arcs))
       returnBuildable (ready, blocked, other) =
           vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other)
       makeTable :: (Target, [Target], [Target]) -> String
