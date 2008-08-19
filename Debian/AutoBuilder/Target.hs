@@ -356,9 +356,25 @@ chooseNextTarget targets =
     -- targets which are blocked by the first target.
     either badGraphError returnBuildable (G.buildable depends targets)
     where
+      badGraphError :: [(Target, Target)] -> m (Target, [Target], [Target])
       badGraphError arcs =
-          error ("Dependency cycles formed by these edges need to be broken:\n  " ++ 
-                 intercalate "\n  " (map (\ (pkg, dep) -> targetName pkg ++ " -> " ++ targetName dep) arcs))
+          error ("Dependency cycles formed by these edges need to be broken:\n  " ++
+                 unlines (map (consperse " ") (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
+                                                        (map (\ (pkg, dep) -> [(show (intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg)))),
+                                                                               targetName dep,
+                                                                               " -> ",
+                                                                               targetName pkg]) arcs)))) ++
+                 "\nAdd one or more of these lines (but as few as possible) to your configuration file:\n  " ++
+                 intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs)))) ++ "\n"
+                )
+          where
+            relaxLine (bin, src) = "Relax-Depends: " ++ bin ++ " " ++ src
+            pairs (pkg, dep) =
+                 map (\ bin -> (bin, targetName pkg)) binaryDependencies
+                 where
+                   binaryDependencies = intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg))
+            binaryNamesOfRelations (_, rels, _) =
+                concat (map (map (\ (Rel name _ _) -> name)) rels)
       returnBuildable (ready, blocked, other) =
           vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other)
       makeTable :: (Target, [Target], [Target]) -> String
@@ -370,6 +386,9 @@ chooseNextTarget targets =
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed target1) (targetRelaxed target2)
+      binaryNames dep =
+          map (\ (G.BinPkgName name) -> name) xs
+          where (_, _, xs) = (targetRelaxed dep)
 
 updateDependencyInfo :: CIO m => Relations -> G.RelaxInfo -> [Target] -> m [Target]
 updateDependencyInfo globalBuildDeps relaxInfo targets =

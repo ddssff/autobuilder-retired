@@ -1,3 +1,10 @@
+autobuilder (4.25) unstable; urgency=low
+
+  * Improve reporting of dependency cycles, show a table of exactly
+    which binary and source packages participated in cycles that need
+
+ --
+
 autobuilder (4.24) unstable; urgency=low
 
   * Return type of Debian.GenBuildDeps.buildable changed.
