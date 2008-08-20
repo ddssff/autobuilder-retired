@@ -14,24 +14,15 @@ module Debian.AutoBuilder.Target
     , targetDocumentation
     ) where
 
-import		 Debian.Control
-import qualified Debian.Control.ByteString as B
-import qualified Debian.Control.String as S(fieldValue)
-import qualified Debian.GenBuildDeps as G
-import		 Debian.Relation.ByteString as B
-import		 Debian.Repo
-import		 Debian.Shell
-import		 Debian.Time
-import		 Debian.Version
-import		 Debian.VersionPolicy
-
 import		 Control.Exception
+import		 Control.Monad.Reader
 import		 Control.Monad.RWS hiding (All)
-import		 Extra.TIO
-import		 Extra.Either
-import		 Extra.Files
-import		 Extra.List
-import		 Extra.Misc
+import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as L
+import		 Data.List
+import qualified Data.Map as Map
+import		 Data.Maybe
+import qualified Data.Set as Set
 import		 Debian.AutoBuilder.BuildTarget as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
 import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
@@ -44,16 +35,25 @@ import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
 import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
---import		 Control.Monad
-import		 Control.Monad.Reader
-import		 System.Unix.Process hiding (processOutput)
-import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.Lazy.Char8 as L
-import		 Data.List
-import qualified Data.Map as Map
-import		 Data.Maybe
-import qualified Data.Set as Set
 import qualified Debian.AutoBuilder.Params as Params
+import		 Debian.Control
+import qualified Debian.Control.ByteString as B
+import qualified Debian.Control.String as S(fieldValue)
+import qualified Debian.GenBuildDeps as G
+import		 Debian.Relation.ByteString as B
+import		 Debian.Repo
+import		 Debian.Shell
+import		 Debian.Time
+import		 Debian.Version
+import		 Debian.VersionPolicy
+import		 Debian.Extra.CIO (vMessage)
+import		 Extra.TIO
+import		 Extra.Either
+import		 Extra.Files
+import		 Extra.List
+import		 Extra.Misc
+--import		 Control.Monad
+import		 System.Unix.Process hiding (processOutput)
 import		 System.Directory
 --import		 System.Locale
 import		 System.Exit

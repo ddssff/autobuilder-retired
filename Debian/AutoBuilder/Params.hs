@@ -699,8 +699,8 @@ readStyle text =
 
 -- This is not used, the verbosity is computed by inspecting getArgs directly
 -- because it is used during the construction of the Params value.
-verbosity :: Params -> Int
-verbosity params = foldr (+) 0 (map read (values params verbosityOpt)) - foldr (+) 0 (map read (values params quieterOpt))
+_verbosity :: Params -> Int
+_verbosity params = foldr (+) 0 (map read (values params verbosityOpt)) - foldr (+) 0 (map read (values params quieterOpt))
 
 verbosityOpt = Param ['v'] [] ["Verbosity"] (OptArg (\ x -> Value "Verbosity" (maybe "1" id x)) "INCREMENT")
 	       "How chatty? (see also --style)"

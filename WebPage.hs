@@ -1,16 +1,24 @@
 -- |Web interface to control autobuilder.
 module Main where
 
-import		 Debian.Control
-import		 Debian.Repo
-import		 Debian.URI
 
-import qualified Debian.Config as Config
 import		 Control.Monad
 import		 Control.Monad.Trans(liftIO)	-- required despite warning
 import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
+import qualified Debian.Config as Config
+import		 Debian.Control
+import		 Debian.Repo.Slice ()
+import 		 Debian.Repo.IO (AptIOT, runAptIO)
+import		 Debian.Repo.Slice (sourceSlices, releaseSlices, parseNamedSliceList')
+import		 Debian.Repo.Types (EnvRoot(EnvRoot), Arch(Source, Binary),
+                                    ReleaseName(ReleaseName), parseReleaseName, rootPath,
+                                    SliceName(SliceName), Slice(sliceSource), NamedSliceList, 
+                                    sliceList, sliceName, sliceListName, slices,
+	 			    SourceType(Deb, DebSrc), DebSource(DebSource), SliceName, )
+import		 Debian.Repo.Cache (cacheRootDir, archFiles)
+import		 Debian.URI
 import		 Extra.TIO
 import qualified MyHtml
 import qualified Network.CGI as CGI
@@ -155,7 +163,7 @@ distPage params cgivars =
       splitCommaList s = splitRegex (mkRegex "[, ]+") s
       cmpPackages a b = compare (fieldValue "Package" a) (fieldValue "Package" b)
       dist = maybe (error "No dist name") SliceName (lookup "dist" cgivars)
-      root = cacheRootDir (Params.topDir params) (either (error . show) id (Params.findSlice params dist))
+      root = cacheRootDir (Params.topDir params) (either (error . show) (ReleaseName . sliceName . sliceListName) (Params.findSlice params dist))
       isDist dist distro = dist == sliceListName distro
 
 sourcePackagePage :: CIO m => Params.Params -> [(String, String)] -> AptIOT m Html
@@ -164,7 +172,7 @@ sourcePackagePage params cgivars =
       let package = fromJust (lookup "package" cgivars)
       let dist = maybe (error "No dist name") SliceName (lookup "dist" cgivars)
       let distro = either (error . show) id (Params.findSlice params dist)
-      let root = cacheRootDir (Params.topDir params) distro
+      let root = cacheRootDir (Params.topDir params) (ReleaseName . sliceName . sliceListName $ distro)
       (Control control) <- sourcePackageInfo params root (Params.uploadHost params) distro
       let (Paragraph info) = fromJust (find (\ info -> fieldValue "Package" info == Just package) control)
       return $ concatHtml (intersperse br (map (stringToHtml . show) info))

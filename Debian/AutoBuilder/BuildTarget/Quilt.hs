@@ -11,17 +11,19 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
-import Data.List
+import Data.List (intercalate, sortBy)
 import Data.Maybe
 import Data.Time
-import Data.Time.LocalTime
-import Extra.CIO
-import Extra.Either
-import Extra.Files
-import Extra.List
-import System.Directory
+import Data.Time.LocalTime ()
+import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
+import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, escapeForMake)
+import Debian.Extra.CIO (vMessage)
+import Extra.CIO (CIO(tryCIO), vPutStrBl, vEPutStrBl)
+import Extra.Either (partitionEithers)
+import Extra.Files (replaceFile)
+import Extra.List ()
+import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Exit
-import Debian.AutoBuilder.BuildTarget as BuildTarget
 import System.Unix.Process
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
@@ -68,7 +70,7 @@ instance BuildTarget Quilt where
                     patchRev <- BuildTarget.revision patch
                     return $ fmap (\ x -> "quilt:(" ++ show rev ++ "):(" ++ x ++ ")") patchRev
 
-    logText (Quilt _ _ _) revision = "Quilt revision " ++ maybe "none" id revision
+    logText (Quilt _ _ _) rev = "Quilt revision " ++ maybe "none" id rev
 
 quiltPatchesDir = "quilt-patches"
 
@@ -195,7 +197,7 @@ prepareQuilt top _flush (Tgt base) (Tgt patch) =
             cmd2 patches =
                 ("export QUILT_PATCHES=" ++ quiltPatchesDir ++
                  " && cd '" ++ outsidePath quiltDir ++ "' && " ++
-                 consperse " && " (map ("quilt -v --leave-reject push " ++) patches))
+                 intercalate " && " (map ("quilt -v --leave-reject push " ++) patches))
             cmd3 = ("cd '" ++ outsidePath quiltDir ++ "' && " ++
                     "rm -rf '" ++ outsidePath quiltDir ++ "/.pc' '" ++ outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "'")
             target = "quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"
@@ -223,7 +225,7 @@ mergeChangelogs :: String -> String -> Either String String
 mergeChangelogs baseText patchText =
     case partitionEithers (parseLog patchText) of
       (bad@(_ : _), _) ->
-          Left $ "Error(s) in patch changelog:\n  " ++ concat (intersperse "\n  " bad)
+          Left $ "Error(s) in patch changelog:\n  " ++ intercalate "\n  " bad
       ([], patchEntries) ->
           let patchEntries' = map Patch patchEntries in
           let oldest = zonedTimeToUTC . myParseTimeRFC822 . logDate . getEntry . head . reverse $ patchEntries' in
