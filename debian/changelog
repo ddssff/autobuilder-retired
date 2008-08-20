@@ -3,7 +3,7 @@ autobuilder (4.25) unstable; urgency=low
   * Improve reporting of dependency cycles, show a table of exactly
     which binary and source packages participated in cycles that need
 
- --
+ -- David Fox <dsf@seereason.com>  Wed, 20 Aug 2008 09:21:43 -0700
 
 autobuilder (4.24) unstable; urgency=low
 
