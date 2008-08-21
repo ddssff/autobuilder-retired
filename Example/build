@@ -70,13 +70,37 @@ Relax-Depends: util-linux
 Relax-Depends: g++
 Relax-Depends: make
 Comment: Relax self dependencies
+Relax-Depends: happy happy
+Relax-Depends: haskell-devscripts
+Use: relax-ghc
+
+Name: relax-ghc
+Comment: achieve this build order:
+  cabal -> cabal-debian -> ghc-paths -> haddock -> ghc6
 Relax-Depends: haddock haskell-haddock
-Relax-Depends: cabal-debian haskell-extra
-Relax-Depends: cabal-debian haskell-debian
+Relax-Depends: ghc6 haskell-cabal
+Relax-Depends: ghc6 haskell-cabal
+Relax-Depends: ghc6-prof haskell-cabal
+Relax-Depends: ghc6-doc haskell-cabal
+Relax-Depends: cabal-debian haskell-cabal
+Relax-Depends: haddock haskell-cabal
+Relax-Depends: ghc6 haskell-ghc-paths
+Relax-Depends: ghc6-prof haskell-ghc-paths
+Relax-Depends: ghc6-doc haskell-ghc-paths
+Relax-Depends: haddock haskell-ghc-paths
+Relax-Depends: libghc6-cabal-prof haskell-ghc-paths
+Relax-Depends: haskell-cabal-doc haskell-ghc-paths
 Relax-Depends: libghc6-debian-prof haskell-cabal-debian
 Relax-Depends: haskell-debian-doc haskell-cabal-debian
+Relax-Depends: haddock haskell-cabal-debian
+Relax-Depends: ghc6 haskell-cabal-debian
+Relax-Depends: ghc6-prof haskell-cabal-debian
+Relax-Depends: ghc6-doc haskell-cabal-debian
+Relax-Depends: libghc6-time-prof haskell-cabal-debian
+Relax-Depends: libghc6-time-doc haskell-cabal-debian
+Relax-Depends: cabal-debian haskell-extra
+Relax-Depends: cabal-debian haskell-debian
 Relax-Depends: ghc6 ghc6
-Relax-Depends: happy happy
 Comment: Relax-Depends: hscolour ghc6
 Comment: All the existing haddock documentaion is invalidated when a new ghc6
 	is built, and when a new haskell-haddock is build.  Therefore, we must
@@ -90,7 +114,10 @@ Relax-Depends: ghc6-doc haskell-haddock
 Comment: Temporary - I changed haskell-devscripts-cdbs, but though haskell-devscripts 
 	got rebuilt it hasn't changed in a long time.  It would be good to be able to
 	specify haskell-devscripts (<< 0.6.13).
-Relax-Depends: haskell-devscripts
+Commment: ghc needs these to build
+Comment: We want to avoid rebuilding haddock.  However, we must have
+  some version of ghc-paths to build haddock, we have to do a special
+  bootstrap build.
 
 Name: ghc682
 Use: relax
@@ -100,6 +127,8 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/debian/haddock-debian)
   apt:sid:cpphs
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
