@@ -176,7 +176,7 @@ Targets:
   apt:sid:darcs-monitor
   apt:sid:dfsbuild
   apt:sid:drift
-  darcs:http://src.seereason.com/frisby
+  darcs:(http://src.seereason.com/frisby)
   apt:sid:frown
   apt:sid:ftphs
   apt:sid:gtkrsync
