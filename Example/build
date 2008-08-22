@@ -180,6 +180,7 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Shellac/0.9.1/Shellac-0.9.1.tar.gz):(darcs:http://src.seereason.com/debian/shellac-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Shellac-readline/0.9/Shellac-readline-0.9.tar.gz):(darcs:http://src.seereason.com/debian/shellac-readline-debian)
   darcs:http://src.seereason.com/decimal
+  darcs:http://src.seereason.com/vc-darcs
 Comment: This is not really useful any more
   apt:sid:hugs98
 Comment: Missing build deps under lenny
