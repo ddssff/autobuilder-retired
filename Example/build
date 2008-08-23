@@ -41,83 +41,11 @@ Comment: ============ HAPPY BOOSTRAPPING ==================
   and /usr/share/happy-1.17 into the clean build environment of a
   distribution that doesn't have a working happy package (such as
   Debian Lenny.)  Once the bootstrap has been done, the dummy target
-  should be used to restored the original dependencies while keeping
+  should be used to restore the original dependencies while keeping
   the modified version number.
   .
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
-
-Name: relax
-Comment: The next line means hscolour won't be rebuilt just because ghc6 changes, so
-	 it breaks the circular build dependency loop.
-Relax-Depends: ghc6 hscolour
-Comment: Let's assume that new versions of utilities like make and g++ won't
-	affect our build.  Everyone else does...
-Relax-Depends: base-files
-Relax-Depends: bash
-Relax-Depends: bsdutils
-Relax-Depends: devscripts
-Relax-Depends: dpkg
-Relax-Depends: dpkg-dev
-Relax-Depends: gcc
-Relax-Depends: g++
-Relax-Depends: make
-Relax-Depends: mount
-Relax-Depends: base-passwd
-Relax-Depends: mktemp
-Relax-Depends: sed
-Relax-Depends: util-linux
-Relax-Depends: g++
-Relax-Depends: make
-Comment: Relax self dependencies
-Relax-Depends: happy happy
-Relax-Depends: haskell-devscripts
-Use: relax-ghc
-
-Name: relax-ghc
-Comment: achieve this build order:
-  cabal -> cabal-debian -> ghc-paths -> haddock -> ghc6
-Relax-Depends: haddock haskell-haddock
-Relax-Depends: ghc6 haskell-cabal
-Relax-Depends: ghc6 haskell-cabal
-Relax-Depends: ghc6-prof haskell-cabal
-Relax-Depends: ghc6-doc haskell-cabal
-Relax-Depends: cabal-debian haskell-cabal
-Relax-Depends: haddock haskell-cabal
-Relax-Depends: ghc6 haskell-ghc-paths
-Relax-Depends: ghc6-prof haskell-ghc-paths
-Relax-Depends: ghc6-doc haskell-ghc-paths
-Relax-Depends: haddock haskell-ghc-paths
-Relax-Depends: libghc6-cabal-prof haskell-ghc-paths
-Relax-Depends: haskell-cabal-doc haskell-ghc-paths
-Relax-Depends: libghc6-debian-prof haskell-cabal-debian
-Relax-Depends: haskell-debian-doc haskell-cabal-debian
-Relax-Depends: haddock haskell-cabal-debian
-Relax-Depends: ghc6 haskell-cabal-debian
-Relax-Depends: ghc6-prof haskell-cabal-debian
-Relax-Depends: ghc6-doc haskell-cabal-debian
-Relax-Depends: libghc6-time-prof haskell-cabal-debian
-Relax-Depends: libghc6-time-doc haskell-cabal-debian
-Relax-Depends: cabal-debian haskell-extra
-Relax-Depends: cabal-debian haskell-debian
-Relax-Depends: ghc6 ghc6
-Comment: Relax-Depends: hscolour ghc6
-Comment: All the existing haddock documentaion is invalidated when a new ghc6
-	is built, and when a new haskell-haddock is build.  Therefore, we must
-	rebuild ghc6 after haddock is built so ghc6-doc contains valid files,
-	but we must not rebuild haddock after ghc6 is built because that would
-	make them invalid again.  Unfortunately, it is likely that the haddock
-	docs will always be invalid.
-Relax-Depends: ghc6 haskell-haddock
-Relax-Depends: ghc6-prof haskell-haddock
-Relax-Depends: ghc6-doc haskell-haddock
-Comment: Temporary - I changed haskell-devscripts-cdbs, but though haskell-devscripts 
-	got rebuilt it hasn't changed in a long time.  It would be good to be able to
-	specify haskell-devscripts (<< 0.6.13).
-Commment: ghc needs these to build
-Comment: We want to avoid rebuilding haddock.  However, we must have
-  some version of ghc-paths to build haddock, we have to do a special
-  bootstrap build.
 
 Name: ghc682
 Use: relax
