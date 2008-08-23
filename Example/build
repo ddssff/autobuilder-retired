@@ -47,6 +47,18 @@ Comment: ============ HAPPY BOOSTRAPPING ==================
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
 
+Name: ghc682-non-bootstrap
+Use: ghc682
+Targets:
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
+
+Name: ghc682-bootstrap
+Use: ghc682
+Targets:
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization-bootstrap)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
+
 Name: ghc682
 Use: relax
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
@@ -55,14 +67,11 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/debian/haddock-debian)
   apt:sid:cpphs
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/quilt/haskell-cgi-quilt)
-  darcs:http://src.seereason.com/cabal-debian
   quilt:(svn:svn://svn.debian.org/svn/pkg-haskell/packages/haskell-devscripts/trunk):(darcs:http://src.seereason.com/quilt/haskell-devscripts-quilt)
   quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/quilt/haskell-fgl-quilt)
   quilt:(apt:sid:haskell-glut):(darcs:http://src.seereason.com/quilt/haskell-glut-quilt)
@@ -94,6 +103,7 @@ Name: seereason-targets
 Use: relax
 Comment: Some targets are duplicates of targets in haskell-extra
 Targets:
+  darcs:http://src.seereason.com/cabal-debian
   darcs:http://src.seereason.com/haskell-debian-3
   darcs:http://src.seereason.com/haskell-ugly
   darcs:http://src.seereason.com/build-env
