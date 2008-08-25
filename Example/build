@@ -141,7 +141,7 @@ Name: hsp
 Use: relax
 Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/hinotify/0.2/hinotify-0.2.tar.gz):(darcs:http://src.seereason.com/debian/hinotify-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/plugins/1.2/plugins-1.2.tar.gz):(darcs:http://src.seereason.com/debian/plugins-debian)
+  deb-dir:(darcs:http://src.seereason.com/hs-plugins):(darcs:http://src.seereason.com/debian/plugins-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/hspread/0.3/hspread-0.3.tar.gz):(darcs:http://src.seereason.com/debian/hspread-debian)
   deb-dir:(darcs:http://src.seereason.com/HSP/happs-hsp-template):(darcs:http://src.seereason.com/debian/happs-hsp-template-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/debian/harp-debian)
