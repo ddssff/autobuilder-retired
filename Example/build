@@ -171,7 +171,6 @@ Targets:
   apt:sid:arch2darcs
   apt:sid:bnfc
   apt:sid:c2hs
-  deb-dir:(darcs:http://code.haskell.org/checkers):(darcs:http://src.seereason.com/debian/checkers-debian)
   apt:sid:darcs
   apt:sid:darcs-buildpackage
   apt:sid:darcs-monitor
@@ -199,7 +198,6 @@ Targets:
   apt:hardy:haskell-hsql-sqlite3
   apt:sid:haskell-http
   apt:sid:haskell-http
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/MemoTrie/0.0/MemoTrie-0.0.tar.gz):(darcs:http://src.seereason.com/debian/MemoTrie-debian)
   apt:sid:haskell-mode
   deb-dir:(darcs:http://code.haskell.org/utf8-string):(darcs:http://src.seereason.com/debian/haskell-utf8-string-debian)
   apt:sid:haskell-uulib
@@ -217,12 +215,21 @@ Targets:
   quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/quilt/missingh-quilt)
   quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
   apt:sid:srcinst
-  deb-dir:(darcs:http://darcs.haskell.org/packages/TypeCompose):(darcs:http://src.seereason.com/debian/TypeCompose-debian)
   apt:sid:uuagc
-  deb-dir:(darcs:http://code.haskell.org/vector-space):(darcs:http://src.seereason.com/debian/vector-space-debian)
   apt:sid:washngo
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
+
+Name: ghc-hackage
+Comment: Not in active use, just exploring.
+Comment: Please keep targets alphabetized by source package name!
+Use: relax
+Use: hsp
+Targets:
+  deb-dir:(darcs:http://code.haskell.org/checkers):(darcs:http://src.seereason.com/debian/checkers-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/MemoTrie/0.0/MemoTrie-0.0.tar.gz):(darcs:http://src.seereason.com/debian/MemoTrie-debian)
+  deb-dir:(darcs:http://darcs.haskell.org/packages/TypeCompose):(darcs:http://src.seereason.com/debian/TypeCompose-debian)
+  deb-dir:(darcs:http://code.haskell.org/vector-space):(darcs:http://src.seereason.com/debian/vector-space-debian)
 
 Name: ghc-broken
 Comment: These targets currently do not build
