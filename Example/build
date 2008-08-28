@@ -217,7 +217,7 @@ Targets:
   quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/quilt/missingh-quilt)
   quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
   apt:sid:srcinst
-  deb-dir:(darcs:http://darcs.haskell.org/TypeCompose):(darcs:http://src.seereason.com/debian/TypeCompose-debian)
+  deb-dir:(darcs:http://darcs.haskell.org/packages/TypeCompose):(darcs:http://src.seereason.com/debian/TypeCompose-debian)
   apt:sid:uuagc
   deb-dir:(darcs:http://code.haskell.org/vector-space):(darcs:http://src.seereason.com/debian/vector-space-debian)
   apt:sid:washngo
