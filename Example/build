@@ -171,6 +171,7 @@ Targets:
   apt:sid:arch2darcs
   apt:sid:bnfc
   apt:sid:c2hs
+  deb-dir:(darcs:http://code.haskell.org/checkers):(darcs:http://src.seereason.com/debian/checkers-debian)
   apt:sid:darcs
   apt:sid:darcs-buildpackage
   apt:sid:darcs-monitor
@@ -216,7 +217,9 @@ Targets:
   quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/quilt/missingh-quilt)
   quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
   apt:sid:srcinst
+  deb-dir:(darcs:http://darcs.haskell.org/TypeCompose):(darcs:http://src.seereason.com/debian/TypeCompose-debian)
   apt:sid:uuagc
+  deb-dir:(darcs:http://code.haskell.org/vector-space):(darcs:http://src.seereason.com/debian/vector-space-debian)
   apt:sid:washngo
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
