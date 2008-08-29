@@ -47,19 +47,48 @@ Comment: ============ HAPPY BOOSTRAPPING ==================
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
 
-Name: ghc682-non-bootstrap
-Use: ghc682
+Name: ghc682
+Use: ghc-core
 Targets:
+  quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
 
 Name: ghc682-bootstrap
 Use: ghc682
 Targets:
+  quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization-bootstrap)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
 
-Name: ghc682
+Name: ghc683-bootstrap
+Use: ghc-core
+Targets:
+  quilt:(sourcedeb:darcs:http://src.seereason.com/ghc683):(darcs:http://src.seereason.com/quilt/ghc6-quilt-bootstrap)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization-bootstrap)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
+Relax-Depends: haddock haskell-cabal
+Relax-Depends: haddock ghc6
+Relax-Depends: hscolour ghc6
+Comment:
+  This bootstrap target builds ghc683 without any documentation, because
+  after it builds, it will eventually build haddock, and when it does
+  any documentation already built becomes essentially poison.  After
+  the new haddock builds, we have to build cabal-debian and all of its
+  build dependencies (I don't yet know what those are) whereupon we can
+  go back and re-build everything using the normal ghc683 target (which
+  at this moment doesn't yet exist.)  Obviously, you shouldn't upload
+  any of this stuff until you've built every last ghc package we know
+  of and maybe even installed and tested some of them.
+  .
+  Currently, ghc6-doc fails to install:
+     Setting up ghc6-doc (6.8.3-0+13seereason1) ...
+     cd: 34: can't cd to /usr/share/doc/ghc6-doc/libraries
+
+Name: tmp
+Relax-Depends: haddock haskell-cabal
+
+Name: ghc-core
 Use: relax
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
@@ -67,7 +96,6 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/debian/haddock-debian)
   apt:sid:cpphs
-  quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
@@ -176,7 +204,7 @@ Targets:
   apt:sid:darcs-monitor
   apt:sid:dfsbuild
   apt:sid:drift
-  darcs:(http://src.seereason.com/frisby)
+  darcs:http://src.seereason.com/frisby
   apt:sid:frown
   apt:sid:ftphs
   apt:sid:gtkrsync

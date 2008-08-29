@@ -51,7 +51,7 @@ isosize: isosize.hs
 
 clean:
 	rm -f autobuilder webpage newdist test \
-		*.hi *.o */*.hi */*.o  */*/*.hi */*/*.o \
+		*.hi *.o */*.hi */*.o */*/*.hi */*/*.o */*/*/*.hi */*/*/*.o \
 		Documentation/*.aux Documentation/*.dvi Documentation/*.log
 
 .PHONY: all doc clean

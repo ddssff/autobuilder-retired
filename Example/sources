@@ -5,7 +5,7 @@ Name: extra-sources
 Use: slimdevices-sources
 Use: debian-multimedia-sources
 Use: kanotix-sources
-Use: marlin-old-sources
+Comment: Use: marlin-old-sources
 Use: debian-experimental-sources
 Comment: No release files
   Use: haskell-unsafe-sources
@@ -43,8 +43,9 @@ Sources: haskell-unsafe
   deb http://haskell-unsafe.alioth.debian.org/archive/i386 . unstable testing stable
   deb-src http://haskell-unsafe.alioth.debian.org/archive/i386 . unstable testing stable
 
-Name: marlin-old-sources
-Sources: marlin-old
+Comment:
+ Name: marlin-old-sources
+ Sources: marlin-old
   deb http://apt.freespire.org marlin/live-freespire apps/live
   deb http://apt.freespire.org marlin/live-freespire apps/live-freespire
   deb http://apt.freespire.org marlin/live-freespire apps/live-unstable
