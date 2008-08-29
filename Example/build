@@ -111,7 +111,7 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/debian/haddock-debian)
   apt:sid:cpphs
-  apt:sid:happy
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/quilt/haskell-cgi-quilt)
