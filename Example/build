@@ -45,14 +45,14 @@ Comment: ============ HAPPY BOOSTRAPPING ==================
   the modified version number.
   .
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
-  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
 
-Name: ghc682
-Use: ghc-core
-Targets:
-  quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
+Name: all-targets
+Use: ghc683
+Use: cabal-debian-targets
+Use: ghc-extra
+Use: seereason-targets
+Use: hsp
+Use: relax
 
 Name: ghc682-bootstrap
 Use: ghc682
@@ -61,6 +61,13 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization-bootstrap)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
 
+Name: ghc682
+Use: ghc-core
+Targets:
+  quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
+
 Name: ghc683-bootstrap
 Use: ghc-core
 Targets:
@@ -68,6 +75,7 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization-bootstrap)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
 Relax-Depends: haddock haskell-cabal
+Relax-Depends: haddock haskell-ghc-paths
 Relax-Depends: haddock ghc6
 Relax-Depends: hscolour ghc6
 Comment:
@@ -81,12 +89,19 @@ Comment:
   any of this stuff until you've built every last ghc package we know
   of and maybe even installed and tested some of them.
   .
-  Currently, ghc6-doc fails to install:
-     Setting up ghc6-doc (6.8.3-0+13seereason1) ...
-     cd: 34: can't cd to /usr/share/doc/ghc6-doc/libraries
+  It will be necessary to force the build of the cabal and ghc-paths
+  targets.  Then after building this and cabal-debian-targets, it will
+  be necessary to force the rebuild of ghc6.
 
-Name: tmp
-Relax-Depends: haddock haskell-cabal
+Name: ghc683
+Use: ghc-core
+Relax-Depends: haddock ghc6
+Relax-Depends: hscolour ghc6
+Relax-Depends: libghc6-ghc-paths-prof haskell-haddock
+Targets:
+  quilt:(sourcedeb:darcs:http://src.seereason.com/ghc683):(darcs:http://src.seereason.com/quilt/ghc683-quilt)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
 
 Name: ghc-core
 Use: relax
@@ -96,7 +111,7 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/debian/haddock-debian)
   apt:sid:cpphs
-  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt-dummy)
+  apt:sid:happy
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/quilt/haskell-cgi-quilt)
@@ -128,17 +143,14 @@ Comment:
   sourcedeb:file:///home/david/darcs/haddock-source-deb
 
 Name: seereason-targets
-Use: relax
 Comment: Some targets are duplicates of targets in haskell-extra
+Use: relax
+Use: cabal-debian-targets
 Targets:
-  darcs:http://src.seereason.com/cabal-debian
-  darcs:http://src.seereason.com/haskell-debian-3
   darcs:http://src.seereason.com/haskell-ugly
   darcs:http://src.seereason.com/build-env
   darcs:http://src.seereason.com/autobuilder
   darcs:http://src.seereason.com/haskell-mime
-  darcs:http://src.seereason.com/haskell-unixutils
-  darcs:http://src.seereason.com/haskell-extra
   darcs:http://src.seereason.com/haskell-help
   darcs:http://src.seereason.com/mirror
   darcs:http://src.seereason.com/backups
@@ -159,6 +171,19 @@ Comment:
 Comment: Probably don't need these
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
+
+Name: cabal-debian-targets
+Comment:
+  We need to build cabal-debian in order to bootstrap a new ghc.
+Relax-Depends: cabal-debian haskell-extra
+Targets:
+  darcs:http://src.seereason.com/cabal-debian
+  darcs:http://src.seereason.com/haskell-debian-3
+  darcs:http://src.seereason.com/haskell-unixutils
+  darcs:http://src.seereason.com/haskell-extra
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
+  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
 
 Name: seereason-private-targets
 Comment: These depend on haskell-extra
@@ -211,7 +236,6 @@ Targets:
   darcs:http://www.n-heptane.com/nhlab/repos/haskell-agi
   apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/quilt/haskell-binary-quilt)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
   apt:sid:haskell-configfile
   apt:sid:haskelldb
   deb-dir:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/debian/haskell-crypto-debian)
@@ -229,9 +253,7 @@ Targets:
   apt:sid:haskell-mode
   deb-dir:(darcs:http://code.haskell.org/utf8-string):(darcs:http://src.seereason.com/debian/haskell-utf8-string-debian)
   apt:sid:haskell-uulib
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
   apt:hardy:hat
-  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
   apt:sid:helium
   apt:sid:hg-buildpackage
   apt:hardy:hmake
