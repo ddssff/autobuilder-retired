@@ -132,12 +132,12 @@ main =
                (do -- Compute configuration options
                    let flags' = useMain (Config.seedFlags appName optSpecs args)
                    flags <- liftIO (computeConfig verbosity appName flags' nameFirstSection) >>= return . concat
-                   liftIO (vPutStrBl 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
+                   lift (vPutStrBl 1 ("Flags:\n  " ++ concat (intersperse "\n  " (map show flags))))
                    let lockPath = outsidePath (root flags) ++ "/newdist.lock"
                    case findValues flags "Version" of
                      [] -> withLock lockPath (runFlags flags) >>=
-                           either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . liftIO $ vBOL 0)
-                     _ -> liftIO (putStrBl Version.version) >>
+                           either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . lift $ vBOL 0)
+                     _ -> lift (putStrBl Version.version) >>
                           liftIO (exitWith ExitSuccess)))
     where
       nameFirstSection (flags : more) = nameSection "Main" flags : more
@@ -162,7 +162,7 @@ runFlags flags =
        releases <- findReleases repo
        -- Get the Repository object, this will certainly be a singleton list.
        --let repos = nub $ map releaseRepo releases
-       liftIO (deletePackages releases flags keyname)
+       lift (deletePackages releases flags keyname)
        --vPutStrBl 1 IO.stderr $ "newdist " ++ show (root flags)
        --vPutStrBl 1 IO.stderr $ "signRepository=" ++ show signRepository
        --io $ exitWith ExitSuccess
@@ -170,11 +170,11 @@ runFlags flags =
        when install ((scanIncoming False keyname repo) >>= 
                      \ (ok, errors) -> (liftIO (sendEmails senderAddr emailAddrs (map (successEmail repo) ok)) >>
                                         liftIO (sendEmails senderAddr emailAddrs (map (\ (changes, error) -> failureEmail changes error) errors)) >>
-                                        liftIO (exitOnError (map snd errors))))
-       when expire  $ liftIO (deleteTrumped keyname releases) >> return ()
+                                        lift (exitOnError (map snd errors))))
+       when expire  $ lift (deleteTrumped keyname releases) >> return ()
        when cleanUp $ deleteGarbage repo >> return ()
        -- This flag says sign even if nothing changed
-       when signRepository $ liftIO (signReleases keyname releases)
+       when signRepository $ lift (signReleases keyname releases)
     where
 {-
       findReleaseByName :: [Release] -> ReleaseName -> Maybe Release

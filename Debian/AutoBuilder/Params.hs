@@ -131,8 +131,8 @@ instance Show Strictness where
 -- candidates for the configuration directory path.
 params :: CIO m => Int -> String -> [Flag] -> AptIOT m [Params]
 params verbosity appName flags =
-    do flagLists <- liftIO $ computeConfig verbosity appName flags id
-       flagMaps <- liftIO (mapM computeTopDir (map (listMap . pairsFromFlags) flagLists))
+    do flagLists <- liftIO (computeConfig verbosity appName flags id)
+       flagMaps <- mapM (lift . computeTopDir) (map (listMap . pairsFromFlags) flagLists)
        case listToMaybe flagMaps of
          Nothing -> return ()
          Just m -> case Map.findWithDefault [] "Use-Repo-Cache" m of
@@ -303,15 +303,15 @@ topDirOpt = Param [] ["top-dir"] ["Top-Dir"] (ReqArg (Value "Top-Dir") "PATH")
 
 -- Compute the top directory, try to create it, and then make sure it
 -- exists.  Then we can safely return it from topDir below.
-computeTopDir :: Map.Map String [String] -> IO (Map.Map String [String])
+computeTopDir :: CIO m => Map.Map String [String] -> m (Map.Map String [String])
 computeTopDir params =
     do
       case Map.member "Top-Dir" params of
         True -> return params
         False -> do
-          top <- try (getEnv "HOME") >>= return . either (\ _ -> topDirDefault) (++ "/.autobuilder")
-          try $ createDirectoryIfMissing True top
-          result <- try $ getPermissions top >>= return . writable
+          top <- liftIO (try (getEnv "HOME")) >>= return . either (\ _ -> topDirDefault) (++ "/.autobuilder")
+          liftIO (try $ createDirectoryIfMissing True top)
+          result <- liftIO (try $ getPermissions top >>= return . writable)
           case result of
             Left _ -> error $ "Could not create cache directory " ++ top ++ " (are you root?)"
             Right False ->
