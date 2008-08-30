@@ -9,10 +9,15 @@ Comment: This file contains hints about where to break build dependency cycles.
   a new version of that binary package will not trigger a rebuild of the source package.
   If the source package name is omitted it means that binary package will never trigger
   a rebuild of any package.
-use: relax-self
+Use: relax-self
 Use: relax-core
-Use: relax-ghc6-bootstrap
+Use: relax-ghc6
+Use: relax-build-tools
 Relax-Depends: haskell-devscripts
+
+Name: relax-build-tools
+Comment: Avoid rebuilding tools used to build lots of other packages.
+Relax-depends: libghc6-debian-dev cabal-debian
 
 Name: relax-ghc6
 Comment: These lines are used for a normal rebuild of the ghc complex.  They won't work
