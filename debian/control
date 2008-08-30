@@ -67,7 +67,7 @@ Architecture: any
 Recommends: subversion
 Depends: ${shlibs:Depends},
          ${haskell:Depends},
-         build-env (>= 2.8),
+         build-env (>= 2.20),
          rsync,
          dupload,
          darcs,
