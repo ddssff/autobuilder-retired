@@ -3,7 +3,7 @@ module Main where
 
 
 import		 Control.Monad
-import		 Control.Monad.Trans(liftIO)	-- required despite warning
+import		 Control.Monad.Trans(lift, liftIO)	-- required despite warning
 import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
