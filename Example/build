@@ -44,7 +44,7 @@ Comment: ============ HAPPY BOOSTRAPPING ==================
   should be used to restore the original dependencies while keeping
   the modified version number.
   .
-  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt)
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt)
 
 Name: all-targets
 Use: ghc683
@@ -98,6 +98,7 @@ Use: ghc-core
 Relax-Depends: haddock ghc6
 Relax-Depends: hscolour ghc6
 Relax-Depends: libghc6-ghc-paths-prof haskell-haddock
+Relax-Depends: cabal-debian haskell-cabal
 Targets:
   quilt:(sourcedeb:darcs:http://src.seereason.com/ghc683):(darcs:http://src.seereason.com/quilt/ghc683-quilt)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization)
@@ -111,7 +112,7 @@ Comment: Please keep targets alphabetized by source package name!
 Targets:
   deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/debian/haddock-debian)
   apt:sid:cpphs
-  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/happy-quilt-dummy)
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/quilt/haskell-cgi-quilt)
@@ -221,28 +222,20 @@ Use: relax
 Use: hsp
 Targets:
   apt:sid:alex
-  apt:sid:arch2darcs
   apt:sid:bnfc
   apt:sid:c2hs
   apt:sid:darcs
-  apt:sid:darcs-buildpackage
   apt:sid:darcs-monitor
-  apt:sid:dfsbuild
   apt:sid:drift
   darcs:http://src.seereason.com/frisby
   apt:sid:frown
-  apt:sid:ftphs
-  apt:sid:gtkrsync
   darcs:http://www.n-heptane.com/nhlab/repos/haskell-agi
-  apt:sid:haskell-anydbm
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/quilt/haskell-binary-quilt)
-  apt:sid:haskell-configfile
   apt:sid:haskelldb
   deb-dir:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/debian/haskell-crypto-debian)
   apt:sid:haskell-doc
   quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/quilt/edison-quilt)
   apt:sid:haskell-hlist
-  apt:sid:haskell-hsh
   apt:hardy:haskell-hsql
   apt:hardy:haskell-hsql-mysql
   apt:hardy:haskell-hsql-odbc
@@ -255,20 +248,39 @@ Targets:
   apt:sid:haskell-uulib
   apt:hardy:hat
   apt:sid:helium
-  apt:sid:hg-buildpackage
   apt:hardy:hmake
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/quilt/hslogger-quilt)
-  apt:sid:ldap-haskell
+  quilt:(apt:sid:ldap-haskell):(darcs:http://src.seereason.com/quilt/ldap-haskell-quilt)
   apt:sid:lhs2tex
-  apt:sid:listlike
-  apt:sid:magic-haskell
-  quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/quilt/missingh-quilt)
+  quilt:(apt:sid:magic-haskell):(darcs:http://src.seereason.com/quilt/magic-haskell-quilt)
   quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
-  apt:sid:srcinst
   apt:sid:uuagc
-  apt:sid:washngo
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
+
+Name: ghc-extra-needs-patch
+Targets:
+  apt:sid:washngo
+  apt:sid:ftphs
+  apt:sid:haskell-anydbm
+  apt:sid:haskell-configfile
+  apt:sid:haskell-hsh
+  apt:sid:listlike
+  quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/quilt/missingh-quilt)
+  apt:sid:gtkrsync
+  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/quilt/gtk2hs-quilt)
+  apt:sid:arch2darcs
+  apt:sid:hg-buildpackage
+  apt:sid:srcinst
+  apt:sid:dfsbuild
+  apt:sid:darcs-buildpackage
+Comment:
+  gtkrsync depends on gtk2hs
+  arch2darcs depends on missingh
+  darcs-buildpackage depends on missingh and haskell-configfile
+  dfsbuild depends on missingh, haskell-configfile, haskell-hsh
+  hg-buildpackage depends on 
+  srcinst depends on 
 
 Name: ghc-hackage
 Comment: Not in active use, just exploring.
@@ -285,7 +297,6 @@ Comment: These targets currently do not build
 Use: relax
 Targets:
   deb-dir:(darcs:http://code.haskell.org/vector-space):(darcs:http://src.seereason.com/debian/vector-space-debian)
-  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/quilt/gtk2hs-quilt)
   apt:sid:ghc-cvs
   apt:sid:haskell98-report
   quilt:(apt:sid:hdbc):(darcs:http://src.seereason.com/quilt/hdbc-quilt)
