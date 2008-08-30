@@ -278,7 +278,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
       targetList <- lift $ prepareAllTargetSource cleanOS
-      liftIO (vEPutStrBl 0 "Building all targets:")
+      lift (vEPutStrBl 0 "Building all targets:")
       failed <- {- setStyle (addPrefix " ") $ -} buildLoop cleanOS globalBuildDeps (length targetList) (targetList, [])
       return (localRepo, failed)
       --buildAll cleanOS targetList globalBuildDeps
@@ -300,13 +300,13 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
             case targetGroups of
               (target, blocked, other) ->
-                  liftIO (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
+                  lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
                                      (count - length relaxed + 1) count (show target))) >>
                   -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
                   buildTarget' target >>=
-                  either (\ e -> do liftIO $ vEPutStrBl 0 ("Package build failed: " ++ e)
-                                    liftIO $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
-                                                           concat (intersperse "\n  " (map show blocked)))
+                  either (\ e -> do lift $ vEPutStrBl 0 ("Package build failed: " ++ e)
+                                    lift $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
+                                                         concat (intersperse "\n  " (map show blocked)))
                                     buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
                          (\ _ -> do cleanOS' <- updateEnv cleanOS
                                     case cleanOS' of
@@ -324,7 +324,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             depends (_, depInfo1) (_, depInfo2) = G.compareSource depInfo1 depInfo2
 -}
             buildTarget' target =
-                do liftIO (vBOL 0)
+                do lift (vBOL 0)
                    {- showElapsed "Total elapsed for target: " $ -} 
                    buildTarget params cleanOS globalBuildDeps localRepo poolOS target
       -- Find the sources.list for the distribution we will be building in.
@@ -481,25 +481,25 @@ buildTarget ::
     AptIOT m (Either String LocalRepository)	-- The local repository after the upload, or an error message
 buildTarget params cleanOS globalBuildDeps repo poolOS target =
     do
-      liftIO (syncPool cleanOS)
+      lift (syncPool cleanOS)
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
-      liftIO (vEPutStrBl 1 "Loading package lists and searching for build dependency solution...")
+      lift (vEPutStrBl 1 "Loading package lists and searching for build dependency solution...")
       solutions <- lift (iStyle $ buildDepSolutions' (Params.preferred params) cleanOS globalBuildDeps debianControl)
       case solutions of
-        Left excuse -> do liftIO (vEPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
+        Left excuse -> do lift (vEPutStrBl 0 ("Couldn't satisfy build dependencies\n " ++ excuse))
                           return $ Left ("Couldn't satisfy build dependencies\n" ++ excuse)
         Right [] -> error "Internal error 4"
         Right ((count, sourceDependencies) : _) ->
             do let sourceDependencies' = map makeVersion sourceDependencies
-               liftIO (vEPutStrBl 2 ("Using build dependency solution #" ++ show count))
-               liftIO (vEPutStr 3 (concat (map (("\n  " ++) . show) sourceDependencies')))
+               lift (vEPutStrBl 2 ("Using build dependency solution #" ++ show count))
+               lift (vEPutStr 3 (concat (map (("\n  " ++) . show) sourceDependencies')))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
-               liftIO (vEPutStrBl 2 message)
-               liftIO (vEPutStrBl 2 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
+               lift (vEPutStrBl 2 message)
+               lift (vEPutStrBl 2 ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
                              ": " ++ explainSourcePackageStatus releaseStatus))
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
                -- Get the revision info of the package currently in the dist
@@ -516,9 +516,9 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
-               liftIO (vEPutStrBl 1 ("Released source version: " ++ show oldSrcVersion))
-               liftIO (vEPutStrBl 1 ("Released version: " ++ show oldVersion))
-               liftIO (vEPutStrBl 1 ("Current source version: " ++ show sourceVersion))
+               lift (vEPutStrBl 1 ("Released source version: " ++ show oldSrcVersion))
+               lift (vEPutStrBl 1 ("Released version: " ++ show oldVersion))
+               lift (vEPutStrBl 1 ("Current source version: " ++ show sourceVersion))
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
                let decision =
@@ -526,7 +526,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                                          (Params.allowBuildDependencyRegressions params)
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
-               liftIO (vEPutStrBl 0 ("Build decision: " ++ show decision))
+               lift (vEPutStrBl 0 ("Build decision: " ++ show decision))
                -- FIXME: incorporate the release status into the build decision
                case newVersion of
                  Left message ->
@@ -566,7 +566,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
     either (return . Left) (liftIO . find) >>=
     either (return . Left) upload
     where
-      checkDryRun = when (Params.dryRun params)  (do liftIO (vEPutStrBl 0 "Not proceeding due to -n option.")
+      checkDryRun = when (Params.dryRun params)  (do lift (vEPutStrBl 0 "Not proceeding due to -n option.")
                                                      liftIO (exitWith ExitSuccess))
       prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (Params.strictness params)
       logEntry :: CIO m => DebianBuildTree -> m (Either String DebianBuildTree)
@@ -619,7 +619,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                 -- the md5sum of the .dsc file in the .changes file.
                 liftIO . setRevisionInfo (logVersion sourceLog) sourceRevision sourceDependencies
             -- Upload to the local apt repository
-            liftIO (uploadLocal repo changesFile')
+            lift $ uploadLocal repo changesFile'
             -- The upload to the local repository is done even when
             -- the --dry-run flag is given.  Or it would be if we
             -- didn't exit when the first buildworthy target is found.

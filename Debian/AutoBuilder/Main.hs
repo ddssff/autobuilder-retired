@@ -99,8 +99,8 @@ appName = "autobuilder"
 runParameterSet :: Params.Params -> AptIOT TIO (Either String ([Output], TimeDiff))
 runParameterSet params =
     do
-      liftIO doRequiredVersion
-      liftIO doShowParams
+      lift doRequiredVersion
+      lift doShowParams
       doShowSources
       doFlush
       checkPermissions
@@ -133,7 +133,7 @@ runParameterSet params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      liftIO (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
+      lift (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
@@ -144,11 +144,11 @@ runParameterSet params =
                -- If all targets succeed they may be uploaded to a remote repo
                uploadResult <- upload buildResult
                -- This processes the remote incoming dir
-               result <- liftIO (newDist uploadResult)
+               result <- lift (newDist uploadResult)
                updateRepoCache params
                return result
         (bad, _) ->
-            do liftIO (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ concat (intersperse "\n " bad)))
+            do lift (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ concat (intersperse "\n " bad)))
                return . Left $ "Could not prepare source code of some targets: " ++ concat (intersperse "\n " bad)
     where
       baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
@@ -188,13 +188,13 @@ runParameterSet params =
           do isRoot <- liftIO $ checkSuperUser
              case isRoot of
                True -> return ()
-               False -> do liftIO (vEPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
+               False -> do lift (vEPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
                            liftIO $ exitWith (ExitFailure 1)
       prepareLocalRepo =
           do let path = EnvPath (EnvRoot "") (Params.localPoolDir params)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if Params.flushPool params then flushLocalRepository else return)
-             liftIO (vEPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
+             lift (vEPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
              release <- prepareRelease repo (Params.buildRelease params) [] [parseSection' "main"] (Params.archList params)
              let repo' = releaseRepo release
              case repo' of
@@ -203,8 +203,8 @@ runParameterSet params =
                      True -> deleteGarbage repo''
                      False -> return repo''
       prepareTargetList =
-          do liftIO (showTargets allTargets)
-             liftIO (vEPutStrBl 0 "Checking all source code out of the repositories:")
+          do lift (showTargets allTargets)
+             lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
              mapRWST (setStyle (appPrefix " "))
                          (mapM (readSpec (Params.debug params) top flush
                                 (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
@@ -216,13 +216,13 @@ runParameterSet params =
           | Params.doUpload params =
               case Params.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> liftIO (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
+                Just uri -> lift (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            liftIO (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
+            lift (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
             case Params.doUpload params of
-              True -> liftIO (vEPutStr 0 "Skipping upload.")
+              True -> lift (vEPutStr 0 "Skipping upload.")
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: CIO m => [Either String ([Output], TimeDiff)] -> m (Either String ([Output], TimeDiff))

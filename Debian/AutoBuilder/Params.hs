@@ -142,13 +142,13 @@ params verbosity appName flags =
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
        params <- mapM makeFlagSet flagMaps
-       mapM_ (liftIO  . vPutStrBl 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
+       mapM_ (lift  . vPutStrBl 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
        {- mapM verifySources params -}
        return params
     where
       loadRepoCache :: CIO m => FilePath -> AptIOT m ()
       loadRepoCache top =
-          liftIO (ePutStrBl "Loading repo cache...") >>
+          lift (ePutStrBl "Loading repo cache...") >>
           liftIO (try (readFile (top ++ "/repoCache")) >>=
                   try . evaluate . either (const []) read) >>=
           either (const (return ())) (const (return ()) . setRepoMap . Map.fromList . map fixURI)
