@@ -74,6 +74,7 @@ Targets:
   quilt:(sourcedeb:darcs:http://src.seereason.com/ghc683):(darcs:http://src.seereason.com/quilt/ghc6-quilt-bootstrap)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz):(darcs:http://src.seereason.com/debian/cabal-debianization-bootstrap)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
+Use: cabal-debian-bootstrap
 Relax-Depends: haddock haskell-cabal
 Relax-Depends: haddock haskell-ghc-paths
 Relax-Depends: haddock ghc6
@@ -89,9 +90,13 @@ Comment:
   any of this stuff until you've built every last ghc package we know
   of and maybe even installed and tested some of them.
   .
-  It will be necessary to force the build of the cabal and ghc-paths
+  It may be necessary to force the build of the cabal and ghc-paths
   targets.  Then after building this and cabal-debian-targets, it will
   be necessary to force the rebuild of ghc6.
+  .
+  ./autobuilder --use-repo-cache sid-build --use ghc683-bootstrap
+  ./autobuilder --use-repo-cache sid-build --target 'quilt:(sourcedeb:darcs:http://src.seereason.com/ghc683):(darcs:http://src.seereason.com/quilt/ghc683-quilt)' --force-build
+  ./autobuilder --use-repo-cache sid-build --use all-targets --do-upload --do-newdist
 
 Name: ghc683
 Use: ghc-core
@@ -110,7 +115,7 @@ Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a ne
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
 Comment: Please keep targets alphabetized by source package name!
 Targets:
-  deb-dir:(darcs:http://code.haskell.org/haddock):(darcs:http://src.seereason.com/debian/haddock-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/haddock/2.2.2/haddock-2.2.2.tar.gz):(darcs:http://src.seereason.com/debian/haddock-debian)
   apt:sid:cpphs
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
@@ -172,6 +177,16 @@ Comment:
 Comment: Probably don't need these
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
+
+Name: cabal-debian-bootstrap
+Targets:
+  quilt:(darcs:http://src.seereason.com/haskell-extra):(darcs:http://src.seereason.com/quilt/haskell-extra-bootstrap)
+  quilt:(darcs:http://src.seereason.com/haskell-debian-3):(darcs:http://src.seereason.com/quilt/haskell-debian-bootstrap)
+  darcs:http://src.seereason.com/haskell-unixutils
+  darcs:http://src.seereason.com/cabal-debian
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
+  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
 
 Name: cabal-debian-targets
 Comment:
