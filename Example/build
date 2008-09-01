@@ -211,7 +211,7 @@ Use: relax
 Targets:
   deb-dir:(darcs:http://haskell.org/~kolmodin/code/hinotify):(darcs:http://src.seereason.com/debian/hinotify-debian)
   deb-dir:(darcs:http://src.seereason.com/hs-plugins):(darcs:http://src.seereason.com/debian/plugins-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/hspread/0.3/hspread-0.3.tar.gz):(darcs:http://src.seereason.com/debian/hspread-debian)
+  apt:sid:haskell-hspread
   deb-dir:(darcs:http://src.seereason.com/HSP/happs-hsp-template):(darcs:http://src.seereason.com/debian/happs-hsp-template-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/debian/harp-debian)
   quilt:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/quilt/haskell-src-exts-quilt)
@@ -254,14 +254,14 @@ Targets:
   apt:hardy:haskell-hsql
   apt:hardy:haskell-hsql-mysql
   apt:hardy:haskell-hsql-odbc
-  apt:hardy:haskell-hsql-postgresql
+  apt:sid:haskell-hsql-postgresql
   apt:hardy:haskell-hsql-sqlite3
   apt:sid:haskell-http
   apt:sid:haskell-http
   apt:sid:haskell-mode
-  deb-dir:(darcs:http://code.haskell.org/utf8-string):(darcs:http://src.seereason.com/debian/haskell-utf8-string-debian)
+  apt:sid:haskell-utf8-string
   apt:sid:haskell-uulib
-  apt:hardy:hat
+  apt:sid:hat
   apt:sid:helium
   apt:hardy:hmake
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/quilt/hslogger-quilt)
