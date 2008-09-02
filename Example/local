@@ -49,6 +49,10 @@ Name: hardy-local
 Use: ubuntu-local
 Development-Release: yes
 
+Name: intrepid-local
+Use: ubuntu-local
+Development-Release: yes
+
 Name: debian-local
 Let: upload-repo=debian
 Use: common-local
