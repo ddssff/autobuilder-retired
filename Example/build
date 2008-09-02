@@ -121,7 +121,7 @@ Targets:
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/quilt/haskell-cgi-quilt)
-  quilt:(svn:svn://svn.debian.org/svn/pkg-haskell/packages/haskell-devscripts/trunk):(darcs:http://src.seereason.com/quilt/haskell-devscripts-quilt)
+  darcs:http://src.seereason.com/haskell-devscripts-cdbs
   quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/quilt/haskell-fgl-quilt)
   quilt:(apt:sid:haskell-glut):(darcs:http://src.seereason.com/quilt/haskell-glut-quilt)
   quilt:(apt:sid:haskell-haskell-src):(darcs:http://src.seereason.com/quilt/haskell-src-quilt)
@@ -147,6 +147,9 @@ Targets:
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/quilt/hscolour-quilt)
 Comment:
   sourcedeb:file:///home/david/darcs/haddock-source-deb
+Comment: No longer required, all patches moved to haskell-devscripts-cdbs
+  quilt:(svn:svn://svn.debian.org/svn/pkg-haskell/packages/haskell-devscripts/trunk):(darcs:http://src.seereason.com/quilt/haskell-devscripts-quilt)
+
 
 Name: seereason-targets
 Comment: Some targets are duplicates of targets in haskell-extra
