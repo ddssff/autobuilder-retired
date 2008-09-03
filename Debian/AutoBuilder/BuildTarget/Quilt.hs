@@ -286,7 +286,7 @@ partitionChangelog date text =
 -- e.g., it will accept "Wed, 10 Oct 2007 06:00:57 +0000", which the
 -- official function won't.
 myParseTimeRFC822 s =
-    case matchRegex (mkRegex "^..., (..) (...) (....) (..):(..):(..) (.)(..)(..)$") s of
+    case matchRegex (mkRegex "^..., (.?.) (...) (....) (..):(..):(..) (.)(..)(..)$") s of
       Just [dom, mon, year, hour, min, sec, zoneSign, zoneHours, zoneMinutes] ->
           ZonedTime (localTime dom mon year hour min sec) (timeZone zoneSign zoneHours zoneMinutes)
       _ -> error ("Invalid date string: " ++ s)

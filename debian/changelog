@@ -1,3 +1,11 @@
+autobuilder (4.26) unstable; urgency=low
+
+  * Slightly relax the expression to recognize a date string so the
+    entry in gtk2hs parses ("Thu, 8 Jul 2008 11:16:33 -0300", missing
+    a leading space or zero before the first 8.)
+
+ -- David Fox <dsf@seereason.com>  Wed, 03 Sep 2008 10:13:38 -0700
+
 autobuilder (4.25) unstable; urgency=low
 
   * Improve reporting of dependency cycles, show a table of exactly
