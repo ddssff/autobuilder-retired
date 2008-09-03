@@ -47,7 +47,6 @@ Use: ubuntu-local
 
 Name: hardy-local
 Use: ubuntu-local
-Development-Release: yes
 
 Name: intrepid-local
 Use: ubuntu-local
