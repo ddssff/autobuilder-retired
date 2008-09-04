@@ -147,7 +147,10 @@ Targets:
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/quilt/hscolour-quilt)
 Comment:
   sourcedeb:file:///home/david/darcs/haddock-source-deb
-Comment: No longer required, all patches moved to haskell-devscripts-cdbs
+Comment: No longer required, all patches moved to haskell-devscripts-cdbs, 
+	 But it needs to be built in order to build haskell-devscripts-cdbs
+	 until a new version of haskell-devscripts comes out to trump all the
+	 versions we already uploaded.
   quilt:(svn:svn://svn.debian.org/svn/pkg-haskell/packages/haskell-devscripts/trunk):(darcs:http://src.seereason.com/quilt/haskell-devscripts-quilt)
 
 
@@ -242,7 +245,7 @@ Targets:
   apt:sid:alex
   apt:sid:bnfc
   apt:sid:c2hs
-  apt:sid:darcs
+  apt:intrepid:darcs
   apt:sid:darcs-monitor
   apt:sid:drift
   darcs:http://src.seereason.com/frisby
@@ -264,7 +267,6 @@ Targets:
   apt:sid:haskell-mode
   apt:sid:haskell-utf8-string
   apt:sid:haskell-uulib
-  apt:sid:hat
   apt:sid:helium
   apt:hardy:hmake
   quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/quilt/hslogger-quilt)
@@ -292,6 +294,7 @@ Targets:
   apt:sid:srcinst
   apt:sid:dfsbuild
   apt:sid:darcs-buildpackage
+  apt:sid:hat
 Comment:
   gtkrsync depends on gtk2hs
   arch2darcs depends on missingh

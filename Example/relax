@@ -79,3 +79,4 @@ Relax-Depends: sed
 Relax-Depends: util-linux
 Relax-Depends: g++
 Relax-Depends: make
+Relax-Depends: sysvinit-utils
