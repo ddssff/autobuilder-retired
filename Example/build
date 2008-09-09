@@ -200,6 +200,7 @@ Comment:
 Relax-Depends: cabal-debian haskell-extra
 Targets:
   darcs:http://src.seereason.com/cabal-debian
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/cabal-install/0.5.2/cabal-install-0.5.2.tar.gz):(darcs:http://src.seereason.com/debian/cabal-install-debian)
   darcs:http://src.seereason.com/haskell-debian-3
   darcs:http://src.seereason.com/haskell-unixutils
   darcs:http://src.seereason.com/haskell-extra
