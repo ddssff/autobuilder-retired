@@ -597,8 +597,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                                 logWho=Params.autobuilderEmail params,
                                 logDate=date,
                                 logComments=
-                                         ("  * Automatic build due to dependency changes.\n" ++
-                                          changelogText (realSource target) sourceRevision oldDependencies sourceDependencies)}
+                                         (changelogText (realSource target) sourceRevision oldDependencies sourceDependencies)}
       setDistribution name changes =
           let (Paragraph fields) = changeInfo changes in
           let info' = map (setDist name) fields in
@@ -1021,7 +1020,7 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
       sameSourceTests =
           case () of
             _ | badDependencies /= [] && not allowBuildDependencyRegressions ->
-                  Error ("Build dependency regression: " ++ 
+                  Error ("Build dependency regression (allow with --allow-build-dependency-regressions): " ++ 
                          concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
               | badDependencies /= [] ->
                   Auto ("Build dependency regression: " ++ 
@@ -1032,7 +1031,7 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
                   -- know whether a build is required, so we could go either way.  The decision
                   -- here is to only built if some of the build dependencies were built by the
                   -- autobuilder (so their version numbers have been tagged by it.)
-                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText autobuiltDependencies)
+                  Auto ("Build dependency status unknown:\n" ++ buildDependencyChangeText autobuiltDependencies)
               | (revvedDependencies ++ newDependencies) /= [] && isJust oldSrcVersion ->
                   -- If the package *was* previously built by the autobuilder we rebuild when any
                   -- of its build dependencies are revved or new ones appear.
@@ -1077,7 +1076,7 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
       builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
       -- Remove any package not mentioned in the relaxed dependency list
       -- from the list of build dependencies which can trigger a rebuild.
-      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed target))) sourceDependencies
+      sourceDependencies' = filter (\ x -> not (elem (getName x) (packageNames (targetRelaxed target)))) sourceDependencies
       -- All the package names mentioned in a dependency list
       packageNames :: G.DepInfo -> [String]
       packageNames (_, deps, _) = nub (map (\ (Rel name _ _) -> name) (concat deps))

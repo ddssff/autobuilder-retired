@@ -28,7 +28,7 @@ instance BuildTarget Apt where
     getTop (Apt _ _ _ t) = topdir t
     revision (Apt d p (Just v) _) = return (Right $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show v)
     revision (Apt _ _ Nothing _) = error "Attempt to generate revision string for unversioned apt package"
-    logText (Apt _ _ _ _) _ = "Built from apt pool"
+    logText (Apt name _ _ _) _ = "Built from " ++ sliceName (sliceListName name) ++ " apt pool"
 
 prepareApt :: CIO m => FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIOT m (Either String Tgt)
 prepareApt cacheDir flush sourcesChangedAction distros target =
