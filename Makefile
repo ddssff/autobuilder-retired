@@ -1,10 +1,10 @@
 HS =	$(wildcard *.hs) \
 	$(wildcard BuildTarget/*.hs) \
-	Debian.AutoBuilder.Version.hs
+	Debian/AutoBuilder/Version.hs
 
 # Filter out unused and machine generated source files, and DryRunIO
 # which has a construct that haddock can't handle.
-NODOCHS = Documentatiion/CodeReview.hs Setup.hs Verify.hs Debian.AutoBuilder.Version.hs \
+NODOCHS = Documentatiion/CodeReview.hs Setup.hs Verify.hs Debian/AutoBuilder/Version.hs \
 	  NewDist.hs WebPage.hs Test.hs
 
 DOCHS = $(filter-out $(NODOCHS), $(HS))
@@ -28,7 +28,7 @@ newdist: $(HS) NewDist.hs Makefile
 test: $(HS) Test.hs Makefile
 	$(GHC) -o $@ Test.hs
 
-Debian.AutoBuilder.Version.hs: debian/changelog Makefile
+Debian/AutoBuilder/Version.hs: debian/changelog Makefile
 	/bin/echo -e "module Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
 
 # Config.hs GenBuildDeps.hs My.hs MyTypes.hs Strictness.hs Target.hs
@@ -113,7 +113,7 @@ Params.o : My.hi
 Params.o : Config.hi
 Params.o : Progress.hi
 VersionTag.o : VersionTag.hs
-Version.o : Debian.AutoBuilder.Version.hs
+Version.o : Debian/AutoBuilder/Version.hs
 AutoBuilder.o : AutoBuilder.hs
 AutoBuilder.o : Version.hi
 AutoBuilder.o : VersionTag.hi

@@ -1,3 +1,13 @@
+autobuilder (4.27) unstable; urgency=low
+
+  * When a build dependency regresses and the --allow-build-dependency-regressions
+    flag is used, we need to rebuild packages that experience such regressions.  It
+    is not correct that they don't need rebuilding because they were built with even
+    newer packages than the ones available.  Frequently they have binary dependencies
+    on packages that are no longer available.
+
+ -- David Fox <dsf@seereason.com>  Wed, 10 Sep 2008 10:21:03 -0700
+
 autobuilder (4.26) unstable; urgency=low
 
   * Slightly relax the expression to recognize a date string so the

@@ -1023,6 +1023,9 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
             _ | badDependencies /= [] && not allowBuildDependencyRegressions ->
                   Error ("Build dependency regression: " ++ 
                          concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
+              | badDependencies /= [] ->
+                  Auto ("Build dependency regression: " ++ 
+                        concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
               | autobuiltDependencies /= [] && isNothing oldSrcVersion ->
 		  -- If oldSrcVersion is Nothing, the autobuilder didn't make the previous build
                   -- so there are no recorded build dependencies.  In that case we don't really
