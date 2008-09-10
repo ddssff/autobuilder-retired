@@ -761,8 +761,8 @@ relaxDepends params =
     G.RelaxInfo $ map (makePair . words) (values params relaxDependsOpt)
     where
       makePair [a] = (G.BinPkgName a, Nothing)
-      makePair (a : b : _) = (G.BinPkgName a, Just (G.SrcPkgName b))
-      makePair [] = error "Invalid Relax-Depends value"
+      makePair [a, b] = (G.BinPkgName a, Just (G.SrcPkgName b))
+      makePair xs = error ("Invalid Relax-Depends value: " ++ show xs)
 relaxDependsOpt = Param [] ["relax-depends"] ["Relax-Depends"] (ReqArg (Value "Relax-Depends") "DEPENDENCY [SOURCE]")
                   (text ["Do not trigger builds due to new versions of this package",
                          "appears, optionally specifying which source package not to build.",

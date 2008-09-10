@@ -17,9 +17,9 @@ Relax-Depends: haskell-devscripts
 
 Name: relax-build-tools
 Comment: Avoid rebuilding tools used to build lots of other packages.
-Relax-depends: libghc6-debian-dev haskell-cabal-debian
-Relax-depends: libghc6-debian-prof haskell-cabal-debian
-Relax-depends: haskell-debian-doc haskell-cabal-debian
+Relax-Depends: libghc6-debian-dev haskell-cabal-debian
+Relax-Depends: libghc6-debian-prof haskell-cabal-debian
+Relax-Depends: haskell-debian-doc haskell-cabal-debian
 
 Name: relax-ghc6
 Comment: These lines are used for a normal rebuild of the ghc complex.  They won't work

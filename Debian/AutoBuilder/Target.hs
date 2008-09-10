@@ -390,6 +390,9 @@ chooseNextTarget targets =
           map (\ (G.BinPkgName name) -> name) xs
           where (_, _, xs) = (targetRelaxed dep)
 
+instance Show G.RelaxInfo where
+    show (G.RelaxInfo xs) = show xs
+
 updateDependencyInfo :: CIO m => Relations -> G.RelaxInfo -> [Target] -> m [Target]
 updateDependencyInfo globalBuildDeps relaxInfo targets =
     getDependencyInfo globalBuildDeps targets >>=
@@ -1076,7 +1079,7 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
       builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
       -- Remove any package not mentioned in the relaxed dependency list
       -- from the list of build dependencies which can trigger a rebuild.
-      sourceDependencies' = filter (\ x -> not (elem (getName x) (packageNames (targetRelaxed target)))) sourceDependencies
+      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed target))) sourceDependencies
       -- All the package names mentioned in a dependency list
       packageNames :: G.DepInfo -> [String]
       packageNames (_, deps, _) = nub (map (\ (Rel name _ _) -> name) (concat deps))
