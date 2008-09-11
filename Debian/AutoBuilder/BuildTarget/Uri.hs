@@ -51,7 +51,7 @@ prepareUri _debug top flush target =
     where
       parseTarget target =
           case matchRegex (mkRegex uriRE) target of
-            Just [s, _, md5sum] ->
+            Just [s, md5sum] ->
                 case parseURI s of
                   Nothing -> Left ("Invalid uri: " ++ s)
                   Just uri -> Right (uri, stringToMaybe md5sum)
@@ -63,27 +63,34 @@ prepareUri _debug top flush target =
              when flush (liftIO . removeRecursiveSafely $ dest)
              exists <- liftIO $ doesFileExist dest
              case exists of
+               -- If we have the md5sum and it matches we don't have
+               -- to download
                True -> return (Right name)
                False ->
                    liftIO (try (createDirectoryIfMissing True tmp)) >>=
                    either (return . Left . show) (const ({- createStyle name $ -} runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'"))) >>=
                    either (return . Left) (const . return . Right $ name)
-      checkTarget :: CIO m => Maybe String -> Either String String -> m (Either String (String, String, String))
-      checkTarget _ (Left message) = return (Left message)
+      checkTarget :: CIO m => String -> Either String String -> m (Either String (String, String, String))
+      -- checkTarget _ (Left message) = return (Left message)
       checkTarget sum (Right name) =
           do output <- liftIO $ md5sum path
              case output of
                Left e -> error ("Could not checksum destination file " ++ path ++ ": " ++ show e)
-               Right realSum | maybe True (== realSum) sum ->
-                                 do let sumDir = tmp ++ "/" ++ realSum
-                                        dest = sumDir ++ "/" ++ name 
-                                    liftIO $ createDirectoryIfMissing True sumDir
-                                    liftIO $ renameFile path dest
-                                    return (Right (realSum, sumDir, name))
-               Right realSum ->
-                   do liftIO $ removeFile path
-                      error ("Checksum mismatch for " ++ path ++
-                             ": expected " ++ fromJust sum ++ ", saw " ++ realSum ++ ", removed.")
+               -- We have checksummed the file and it either matches
+               -- what we expected or we don't know what checksum to
+               -- expect.
+               Right realSum
+                   | sum == realSum ->
+                         do let sumDir = tmp ++ "/" ++ realSum
+                                dest = sumDir ++ "/" ++ name 
+                            liftIO $ createDirectoryIfMissing True sumDir
+                            liftIO $ renameFile path dest
+                            return (Right (realSum, sumDir, name))
+                   | True ->
+                       -- We have checksummed the file but it doesn't match
+                       do liftIO $ removeFile path
+                          error ("Checksum mismatch for " ++ path ++
+                                 ": expected " ++ fromJust sum ++ ", saw " ++ realSum ++ ", removed.")
           where
             path = tmp ++ "/" ++ name
       unpackTarget _ (Left message) = return (Left message)
@@ -125,7 +132,7 @@ prepareUri _debug top flush target =
             sourceDir = sumDir ++ "/unpack"
 
       tmp = top ++ "/tmp"
-      uriRE = "([^:]+:[^:]+)" ++ "(:(" ++ md5sumRE ++ "))?"
+      uriRE = "([^:]+:[^:]+):(" ++ md5sumRE ++ ")"
       md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
       stringToMaybe "" = Nothing
       stringToMaybe s = Just s

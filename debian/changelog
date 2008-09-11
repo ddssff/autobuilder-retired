@@ -1,3 +1,14 @@
+autobuilder (4.28) unstable; urgency=low
+
+  * Require the md5sum suffix on uri targets, this means we don't have to
+    download them when we already have a file with the correct checksum.
+    Before the checksum was optional, but human nature being what it is
+    many targets were left without checksums resulting in unnecessary
+    file downloads on every run of the autobuilder.  It also resulted in
+    builds failing when corrupt downloads occurred.
+
+ -- David Fox <dsf@seereason.com>  Thu, 11 Sep 2008 08:31:28 -0700
+
 autobuilder (4.27) unstable; urgency=low
 
   * When a build dependency regresses and the --allow-build-dependency-regressions

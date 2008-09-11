@@ -31,6 +31,7 @@ Relax-Depends: ghc6-prof haskell-haddock
 Relax-Depends: ghc6-doc haskell-haddock
 Relax-Depends: haskell-devscripts-cdbs haskell-haddock
 Relax-Depends: ghc6 hscolour
+Relax-Depends: xsltproc ghc6
 
 Name: relax-ghc6-bootstrap
 Comment: achieve this build order:
