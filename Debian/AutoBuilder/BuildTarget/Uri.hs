@@ -54,7 +54,7 @@ prepareUri _debug top flush target =
             Just [s, md5sum] ->
                 case parseURI s of
                   Nothing -> Left ("Invalid uri: " ++ s)
-                  Just uri -> Right (uri, stringToMaybe md5sum)
+                  Just uri -> Right (uri, md5sum)
             _ -> error ("Internal error 11 parsing " ++ target)
       downloadTarget :: CIO m => URI -> m (Either String String)
       downloadTarget uri =
