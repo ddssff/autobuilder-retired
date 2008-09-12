@@ -90,7 +90,7 @@ prepareUri _debug top flush target =
                        -- We have checksummed the file but it doesn't match
                        do liftIO $ removeFile path
                           error ("Checksum mismatch for " ++ path ++
-                                 ": expected " ++ fromJust sum ++ ", saw " ++ realSum ++ ", removed.")
+                                 ": expected " ++ sum ++ ", saw " ++ realSum ++ ", removed.")
           where
             path = tmp ++ "/" ++ name
       unpackTarget _ (Left message) = return (Left message)
