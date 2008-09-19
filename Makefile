@@ -29,7 +29,7 @@ test: $(HS) Test.hs Makefile
 	$(GHC) -o $@ Test.hs
 
 Debian/AutoBuilder/Version.hs: debian/changelog Makefile
-	/bin/echo -e "module Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
+	/bin/echo -e "module Debian.AutoBuilder.Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
 
 # Config.hs GenBuildDeps.hs My.hs MyTypes.hs Strictness.hs Target.hs
 
