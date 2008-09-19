@@ -62,6 +62,7 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz:a8f36dcb5407de9907b7d78b31fc24a1):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
 
 Name: ghc682
+Use: relax
 Use: ghc-core
 Targets:
   quilt:(apt:sid:ghc6):(darcs:http://src.seereason.com/quilt/ghc6-quilt)
@@ -99,6 +100,7 @@ Comment:
   ./autobuilder --use-repo-cache sid-build --use all-targets --do-upload --do-newdist
 
 Name: ghc683
+Use: relax
 Use: ghc-core
 Relax-Depends: haddock ghc6
 Relax-Depends: hscolour ghc6
@@ -110,7 +112,6 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz:a8f36dcb5407de9907b7d78b31fc24a1):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
 
 Name: ghc-core
-Use: relax
 Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a newer gcc
 	 The version in Ubuntu (6.8.2-1ubuntu1) will.
 Comment: Please keep targets alphabetized by source package name!
