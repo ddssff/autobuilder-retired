@@ -266,9 +266,8 @@ Targets:
   apt:sid:haskell-hsql-postgresql
   apt:hardy:haskell-hsql-sqlite3
   apt:sid:haskell-http
-  apt:sid:haskell-http
   apt:sid:haskell-mode
-  apt:sid:haskell-utf8-string
+  quilt:(apt:sid:haskell-utf8-string):(darcs:http://src.seereason.com/quilt/haskell-utf8-string-quilt)
   apt:sid:haskell-uulib
   apt:sid:helium
   apt:hardy:hmake

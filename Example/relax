@@ -12,14 +12,18 @@ Comment: This file contains hints about where to break build dependency cycles.
 Use: relax-self
 Use: relax-core
 Use: relax-ghc6
-Use: relax-build-tools
+Use: relax-cabal-debian
 Relax-Depends: haskell-devscripts
 
-Name: relax-build-tools
-Comment: Avoid rebuilding tools used to build lots of other packages.
+Name: relax-cabal-debian
+Comment: Avoid rebuilding cabal-debian and the libraries used to build it.
+Relax-Depends: cabal-debian haskell-debian
+Relax-Depends: cabal-debian haskell-extra
+Relax-Depends: cabal-debian haskell-cabal
+Relax-Depends: cabal-debian haskell-ghc-paths
 Relax-Depends: libghc6-debian-dev haskell-cabal-debian
 Relax-Depends: libghc6-debian-prof haskell-cabal-debian
-Relax-Depends: haskell-debian-doc haskell-cabal-debian
+Relax-Depends: libghc6-debian-doc haskell-cabal-debian
 
 Name: relax-ghc6
 Comment: These lines are used for a normal rebuild of the ghc complex.  They won't work
