@@ -13,13 +13,13 @@ Build-Depends: debhelper (>= 5.0),
                libghc6-parsec-prof,
                libghc6-parsec-doc,
                libghc6-regex-compat-prof,
-               haskell-regex-compat-doc,
+               libghc6-regex-compat-doc,
                libghc6-network-prof,
                libghc6-network-doc,
                libghc6-unixutils-prof (>= 1.8),
-               haskell-unixutils-doc (>= 1.8),
+               libghc6-unixutils-doc (>= 1.8),
 	       libghc6-debian-dev,
-               haskell-debian-doc (>= 3.5),
+               libghc6-debian-doc (>= 3.5),
                libghc6-xhtml-prof,
                libghc6-xhtml-doc,
                libghc6-cgi-prof,
@@ -29,9 +29,9 @@ Build-Depends: debhelper (>= 5.0),
                libghc6-time-prof,
                libghc6-time-doc,
                libghc6-mime-prof (>= 1.2),
-               haskell-mime-doc (>= 1.1),
+               libghc6-mime-doc (>= 1.1),
                libghc6-extra-prof (>= 1.26),
-               haskell-extra-doc,
+               libghc6-extra-doc,
                libghc6-html-dev,
                libghc6-cgi-dev,
                libghc6-time-dev,
@@ -53,8 +53,8 @@ Description: A library version of the autobuilder
  .
  This package contains the libraries compiled for GHC 6.
 
-Package: haskell-autobuilder-doc
-Architecture: all
+Package: libghc6-autobuilder-doc
+Architecture: any
 Section: libdevel
 Depends: ${haskell:Depends}
 Description: Build Debian source packages in suitable environments
