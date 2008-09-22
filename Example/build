@@ -221,7 +221,7 @@ Use: relax
 Targets:
   deb-dir:(darcs:http://haskell.org/~kolmodin/code/hinotify):(darcs:http://src.seereason.com/debian/hinotify-debian)
   deb-dir:(darcs:http://src.seereason.com/hs-plugins):(darcs:http://src.seereason.com/debian/plugins-debian)
-  apt:sid:haskell-hspread
+  quilt:(apt:sid:haskell-hspread):(darcs:http://src.seereason.com/quilt/haskell-hspread-quilt)
   deb-dir:(darcs:http://src.seereason.com/HSP/happs-hsp-template):(darcs:http://src.seereason.com/debian/happs-hsp-template-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/debian/harp-debian)
   quilt:(darcs:http://code.haskell.org/HSP/haskell-src-exts):(darcs:http://src.seereason.com/quilt/haskell-src-exts-quilt)
@@ -248,7 +248,6 @@ Use: hsp
 Targets:
   apt:sid:alex
   apt:sid:bnfc
-  apt:sid:c2hs
   apt:intrepid:darcs
   apt:sid:darcs-monitor
   apt:sid:drift
@@ -256,16 +255,10 @@ Targets:
   apt:sid:frown
   darcs:http://www.n-heptane.com/nhlab/repos/haskell-agi
   quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/quilt/haskell-binary-quilt)
-  apt:sid:haskelldb
   apt:sid:haskell-doc
   quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/quilt/edison-quilt)
   apt:sid:haskell-hlist
-  apt:hardy:haskell-hsql
-  apt:hardy:haskell-hsql-mysql
-  apt:hardy:haskell-hsql-odbc
-  apt:sid:haskell-hsql-postgresql
-  apt:hardy:haskell-hsql-sqlite3
-  apt:sid:haskell-http
+  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/quilt/haskell-http-quilt)
   apt:sid:haskell-mode
   quilt:(apt:sid:haskell-utf8-string):(darcs:http://src.seereason.com/quilt/haskell-utf8-string-quilt)
   apt:sid:haskell-uulib
@@ -279,6 +272,16 @@ Targets:
   apt:sid:uuagc
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
+
+Name: ghc-extra-needs-docarch-fix
+Targets:
+  apt:sid:haskelldb
+  apt:hardy:haskell-hsql
+  apt:hardy:haskell-hsql-mysql
+  apt:hardy:haskell-hsql-odbc
+  apt:sid:haskell-hsql-postgresql
+  apt:hardy:haskell-hsql-sqlite3
+  apt:sid:c2hs
 
 Name: ghc-extra-needs-patch
 Targets:
