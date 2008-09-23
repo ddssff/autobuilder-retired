@@ -55,7 +55,7 @@ prepareUri _debug top flush target =
                 case parseURI s of
                   Nothing -> Left ("Invalid uri: " ++ s)
                   Just uri -> Right (uri, md5sum)
-            _ -> error ("Internal error 11 parsing " ++ target)
+            _ -> error ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
       downloadTarget :: CIO m => URI -> m (Either String String)
       downloadTarget uri =
           do let name = snd . splitFileName . uriPath $ uri

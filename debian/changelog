@@ -1,3 +1,9 @@
+autobuilder (4.29) unstable; urgency=low
+
+  * Fix error message for bad URI target syntax.
+
+ -- David Fox <dsf@seereason.com>  Tue, 23 Sep 2008 07:58:02 -0700
+
 autobuilder (4.28) unstable; urgency=low
 
   * Require the md5sum suffix on uri targets, this means we don't have to
