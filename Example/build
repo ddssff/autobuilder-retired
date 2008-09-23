@@ -310,7 +310,6 @@ Comment:
   srcinst depends on 
 
 Name: uniplate
-Use: ghc-core
 Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/uniplate/1.2.0.1/uniplate-1.2.0.1.tar.gz:563aea2e596b0a336d401918ba6febea):(darcs:http://src.seereason.com/debian/uniplate-debian)
 
