@@ -309,11 +309,14 @@ Comment:
   hg-buildpackage depends on 
   srcinst depends on 
 
+Name: uniplate
+Targets:
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/uniplate/1.2.0.1/uniplate-1.2.0.1.tar.gz):(darcs:http://src.seereason.com/debian/uniplate-debian)
+
 Name: ghc-hackage
 Comment: Not in active use, just exploring.
 Comment: Please keep targets alphabetized by source package name!
 Use: relax
-Use: hsp
 Targets:
   deb-dir:(darcs:http://code.haskell.org/checkers):(darcs:http://src.seereason.com/debian/checkers-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/MemoTrie/0.0/MemoTrie-0.0.tar.gz):(darcs:http://src.seereason.com/debian/MemoTrie-debian)
