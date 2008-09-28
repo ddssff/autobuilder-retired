@@ -1,22 +1,21 @@
 module Debian.AutoBuilder.BuildTarget.Bzr where
 
+import Control.Monad
+import Control.Monad.Trans
+import qualified Data.ByteString.Lazy.Char8 as L
+import Data.List
+import Data.Maybe
+import Debian.AutoBuilder.BuildTarget
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-
-import Control.Monad.Trans
-import Debian.AutoBuilder.BuildTarget
+import Extra.CIO
+import System.FilePath (splitFileName)
 import System.IO
-import Control.Monad
 import System.Process
 import System.Unix.Directory
-import System.Unix.FilePath
-import Data.Maybe
-import Data.List
-import System.Directory
-import Extra.CIO
-import qualified Data.ByteString.Lazy.Char8 as L
 import qualified System.Unix.Process as P
+import System.Directory
 
 -- | A Bazaar archive
 data Bzr = Bzr String SourceTree

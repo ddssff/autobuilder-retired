@@ -2,21 +2,20 @@
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
 module Debian.AutoBuilder.BuildTarget.Uri where
 
+import Control.Exception
+import Control.Monad
+import Control.Monad.Trans
+import Data.Maybe
+import Debian.AutoBuilder.BuildTarget
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-
-import Control.Monad.Trans
-import Debian.AutoBuilder.BuildTarget
-import Control.Monad
-import Control.Exception
-import System.Unix.Directory
-import System.Unix.FilePath
-import Data.Maybe
-import System.Directory
-import Text.Regex
 import Extra.CIO
 import Extra.Misc
+import System.FilePath (splitFileName)
+import System.Unix.Directory
+import System.Directory
+import Text.Regex
 
 -- | A URI that returns a tarball, with an optional md5sum which must
 -- match if given.  The purpose of the md5sum is to be able to block

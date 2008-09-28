@@ -5,24 +5,23 @@ module Debian.AutoBuilder.BuildTarget.Svn
     , documentation
     ) where
 
+import Control.Exception
+import Control.Monad
+import Control.Monad.Trans
+import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as L
+import Data.List
+import Data.Maybe
+import Debian.AutoBuilder.BuildTarget
 import Debian.Control.ByteString
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-
-import Debian.AutoBuilder.BuildTarget
-import Control.Exception
-import Control.Monad
-import Control.Monad.Trans
-import System.Unix.Directory
-import System.Unix.FilePath
-import System.Unix.Process
-import Data.List
-import Data.Maybe
-import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.Lazy.Char8 as L
-import System.Directory
 import Extra.CIO
+import System.FilePath (splitFileName)
+import System.Unix.Directory
+import System.Unix.Process
+import System.Directory
 
 -- | A Subversion archive
 data Svn = Svn URI SourceTree

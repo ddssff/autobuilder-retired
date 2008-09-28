@@ -13,7 +13,7 @@ import Text.Regex
 import Control.Exception
 import Control.Monad
 import System.Unix.Directory
-import System.Unix.FilePath
+import System.FilePath
 import Extra.CIO
 
 -- | A Darcs archive

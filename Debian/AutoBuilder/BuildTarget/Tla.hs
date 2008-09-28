@@ -1,18 +1,17 @@
 module Debian.AutoBuilder.BuildTarget.Tla where
 
+import Control.Monad
+import Control.Monad.Trans
+import Data.Maybe
+import Debian.AutoBuilder.BuildTarget
 import Debian.Repo
 import Debian.Shell
-
-import Control.Monad.Trans
-import Debian.AutoBuilder.BuildTarget
+import Extra.CIO
+import System.FilePath (splitFileName)
 import System.IO
-import Control.Monad
 import System.Process
 import System.Unix.Directory
-import System.Unix.FilePath
-import Data.Maybe
 import System.Directory
-import Extra.CIO
 
 -- | A TLA archive
 data Tla = Tla String SourceTree

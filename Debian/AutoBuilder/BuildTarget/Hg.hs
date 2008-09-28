@@ -10,10 +10,10 @@ import Control.Monad.Trans
 import Data.Maybe
 import System.Directory
 import System.Exit
+import System.FilePath (splitFileName)
 import System.IO
 import System.Process
 import System.Unix.Directory
-import System.Unix.FilePath
 import Debian.AutoBuilder.BuildTarget
 import Extra.CIO
 
