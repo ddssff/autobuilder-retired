@@ -316,6 +316,7 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/regex-pcre-builtin/0.94.2.0.7.7/regex-pcre-builtin-0.94.2.0.7.7.tar.gz:1e7f7ca729d344caa20c8f57d18239dd):(darcs:http://src.seereason.com/debian/regex-pcre-builtin-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/stb-image/0.1/stb-image-0.1.tar.gz:15ffc8142dce3560eda439592db585c0):(darcs:http://src.seereason.com/debian/stb-image-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/gd/3000.4.0/gd-3000.4.0.tar.gz:7bc5bb68638b807d592aba433beb3fa5):(darcs:http://src.seereason.com/debian/haskell-gd-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/cabal-install/0.5.2/cabal-install-0.5.2.tar.gz:e479dc3add14c8678bb808a8bd5517ae):(darcs:http://src.seereason.com/debian/cabal-install-debian)
 
 Name: ghc-hackage
 Comment: Not in active use, just exploring.
