@@ -248,7 +248,7 @@ Use: hsp
 Targets:
   apt:sid:alex
   apt:sid:bnfc
-  apt:intrepid:darcs
+  apt:sid:darcs
   apt:sid:darcs-monitor
   apt:sid:drift
   darcs:http://src.seereason.com/frisby
