@@ -778,7 +778,14 @@ computeNewVersion params
                             (Just (sliceName (Params.baseRelease params)))
               extra = Params.extraReleaseTag params 
               aliases = Params.releaseAliases params in
-          setTag aliases vendor release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
+          case parseTag vendor sourceVersion of
+
+            (_, Just tag) -> Left ("Error: the version string in the changelog has a vendor tag (" ++ show tag ++
+                                   ".)  This is prohibited because the autobuilder needs to fully control suffixes" ++
+                                   " of this form.  This makes it difficult for the author to know what version" ++
+                                   " needs to go into debian/changelog to trigger a build by the autobuilder," ++
+                                   " particularly since each distribution may have different auto-generated versions.")
+            (_, Nothing) -> setTag aliases vendor release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
     where
       getVersion paragraph =
           maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)

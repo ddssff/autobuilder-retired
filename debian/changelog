@@ -1,3 +1,13 @@
+autobuilder (4.30) unstable; urgency=low
+
+  * Prohibit versions in the changelog that look like vendor tags added by
+    the autobuilder.  They make it difficult for the author to know what
+    version needs to go into debian/changelog to trigger a build by the
+    autobuilder, particularly since each distribution may have different
+    auto-generated versions.
+
+ -- David Fox <dsf@seereason.com>  Mon, 06 Oct 2008 09:52:10 -0700
+
 autobuilder (4.29) unstable; urgency=low
 
   * Fix error message for bad URI target syntax.
