@@ -248,6 +248,7 @@ Use: hsp
 Targets:
   apt:sid:alex
   apt:sid:bnfc
+  deb-dir:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/debian/haskell-crypto-debian)
   apt:sid:darcs
   apt:sid:darcs-monitor
   apt:sid:drift
@@ -285,7 +286,6 @@ Targets:
 
 Name: ghc-extra-needs-patch
 Targets:
-  deb-dir:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/debian/haskell-crypto-debian)
   apt:sid:washngo
   apt:sid:ftphs
   apt:sid:haskell-anydbm
