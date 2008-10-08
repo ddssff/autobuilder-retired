@@ -99,29 +99,6 @@ Comment:
   ./autobuilder --use-repo-cache sid-build --target 'quilt:(sourcedeb:darcs:http://src.seereason.com/ghc683):(darcs:http://src.seereason.com/quilt/ghc683-quilt)' --force-build
   ./autobuilder --use-repo-cache sid-build --use all-targets --do-upload --do-newdist
 
-Comment:
-  Bootstrap cabal-debian:
-  sudo autobuilder intrepid-build --use-repo-cache --allow-build-dependency-regressions \
-	--target 'dir:/home/dsf/darcs/haskell-debian-3' \
-	--target 'dir:/home/dsf/darcs/haskell-extra' \
-	--target 'darcs:http://src.seereason.com/haskell-unixutils' \
-	--target 'quilt:(apt:sid:haskell-regex-compat=0.91-1):(darcs:http://src.seereason.com/quilt/haskell-regex-compat-quilt)' \
-	--target 'quilt:(apt:sid:haskell-regex-posix=0.93.1-1):(darcs:http://src.seereason.com/quilt/haskell-regex-posix-quilt)' \
-	--target 'quilt:(apt:sid:haskell-regex-base=0.93.1-3):(darcs:http://src.seereason.com/quilt/haskell-regex-base-quilt)' \
-	--target 'darcs:http://src.seereason.com/cabal-debian' \
-	--target 'quilt:(apt:sid:haskell-mtl=1.1.0.0-2):(darcs:http://src.seereason.com/quilt/haskell-mtl-quilt)' \
-	--target 'quilt:(apt:sid:haskell-parallel=1.0.0.0-2):(darcs:http://src.seereason.com/quilt/haskell-parallel-quilt)' \
-	--target 'deb-dir:(uri:http://hackage.haskell.org/packages/archive/haddock/2.2.2/haddock-2.2.2.tar.gz:ddc8f3c65d7697934fda8b503e88cb25):(darcs:http://src.seereason.com/debian/haddock-debian)' \
-	--target 'quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)' \
-	--target 'quilt:(apt:sid:haskell-hunit):(darcs:http://src.seereason.com/quilt/haskell-hunit-quilt)' \
-	--target 'quilt:(apt:sid:haskell-network):(darcs:http://src.seereason.com/quilt/haskell-network-quilt)' \
-	--target 'quilt:(apt:sid:haskell-quickcheck):(darcs:http://src.seereason.com/quilt/haskell-quickcheck-quilt)' \
-	--target 'quilt:(apt:sid:haskell-time):(darcs:http://src.seereason.com/quilt/haskell-time-quilt)' \
-	--target 'quilt:(apt:sid:haskell-parsec):(darcs:http://src.seereason.com/quilt/haskell-parsec-quilt)' \
-	--target 'deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)' \
-	--target 'deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)' \
-	--relax-depends 'haddock haskell-haddock'
-
 Name: ghc683
 Use: relax
 Use: ghc-core
@@ -208,16 +185,6 @@ Comment: Probably don't need these
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
 
-Name: cabal-debian-bootstrap
-Targets:
-  quilt:(darcs:http://src.seereason.com/haskell-extra):(darcs:http://src.seereason.com/quilt/haskell-extra-bootstrap)
-  quilt:(darcs:http://src.seereason.com/haskell-debian-3):(darcs:http://src.seereason.com/quilt/haskell-debian-bootstrap)
-  darcs:http://src.seereason.com/haskell-unixutils
-  darcs:http://src.seereason.com/cabal-debian
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
-  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
-
 Name: cabal-debian-targets
 Comment:
   We need to build cabal-debian in order to bootstrap a new ghc.
@@ -233,6 +200,31 @@ Targets:
 Comment:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/cabal-install/0.5.2/cabal-install-0.5.2.tar.gz:e479dc3add14c8678bb808a8bd5517ae):(darcs:http://src.seereason.com/debian/cabal-install-debian)
 
+Name: cabal-debian-bootstrap
+Comment:
+  Build everything required to build cabal-debian package using versions that don't use cabal-debian.
+  sudo autobuilder intrepid-build --use-repo-cache --allow-build-dependency-regressions --relax-depends 'haddock haskell-haddock'
+Use: relax
+Targets:
+  dir:/home/dsf/darcs/haskell-debian-3
+  dir:/home/dsf/darcs/haskell-extra
+  darcs:http://src.seereason.com/haskell-unixutils
+  quilt:(apt:sid:haskell-regex-compat=0.91-1):(darcs:http://src.seereason.com/quilt/haskell-regex-compat-quilt)
+  quilt:(apt:sid:haskell-regex-posix=0.93.1-1):(darcs:http://src.seereason.com/quilt/haskell-regex-posix-quilt)
+  quilt:(apt:sid:haskell-regex-base=0.93.1-3):(darcs:http://src.seereason.com/quilt/haskell-regex-base-quilt)
+  quilt:(apt:sid:haskell-mtl=1.1.0.0-2):(darcs:http://src.seereason.com/quilt/haskell-mtl-quilt)
+  quilt:(apt:sid:haskell-parallel=1.0.0.0-2):(darcs:http://src.seereason.com/quilt/haskell-parallel-quilt)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz:5d8f10b95c42ac7419ac9673bfb6a607):(darcs:http://src.seereason.com/debian/cabal-debianization-bootstrap)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz:a8f36dcb5407de9907b7d78b31fc24a1):(darcs:http://src.seereason.com/debian/ghc-paths-debian-bootstrap)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/haddock/2.2.2/haddock-2.2.2.tar.gz:ddc8f3c65d7697934fda8b503e88cb25):(darcs:http://src.seereason.com/debian/haddock-debian)
+  quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
+  quilt:(apt:sid:haskell-hunit):(darcs:http://src.seereason.com/quilt/haskell-hunit-quilt)
+  quilt:(apt:sid:haskell-network):(darcs:http://src.seereason.com/quilt/haskell-network-quilt)
+  quilt:(apt:sid:haskell-quickcheck):(darcs:http://src.seereason.com/quilt/haskell-quickcheck-quilt)
+  quilt:(apt:sid:haskell-time):(darcs:http://src.seereason.com/quilt/haskell-time-quilt)
+  quilt:(apt:sid:haskell-parsec):(darcs:http://src.seereason.com/quilt/haskell-parsec-quilt)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
 
 Name: seereason-private-targets
 Comment: These depend on haskell-extra
