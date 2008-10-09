@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSignatures #-}
 -- |AutoBuilder - application to build Debian packages in a clean
 -- environment.  In the following list, each module's dependencies
 -- appear above it:
