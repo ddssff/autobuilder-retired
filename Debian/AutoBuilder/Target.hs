@@ -685,19 +685,22 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
 getReleaseControlInfo :: OSImage -> String -> (Maybe SourcePackage, SourcePackageStatus, String)
 getReleaseControlInfo cleanOS packageName =
     case zip sourcePackages (map (isComplete binaryPackages) sourcePackagesWithBinaryNames) of
-      (info, True) : _ -> (Just info, All, message)
-      (info, False) : _ -> (Just info, Indep, message)
-      _ -> (Nothing, None, message)
+      (info, status@Complete) : _ -> (Just info, All, message status)
+      (info, status@(Missing _)) : _ -> (Just info, Indep, message status)
+      _ -> (Nothing, None, message Complete)
     where
-      message =
+      message status =
           concat
           . intersperse "\n"
                 $ (["  Source Package Versions: " ++ show (map sourcePackageVersion sourcePackages),
                     "  Required Binary Package Names:"] ++
                    map (("   " ++) . show) (zip (map sourcePackageVersion sourcePackages) (map sourcePackageBinaryNames sourcePackages)) ++
+                   missingMessage status ++
                    ["  Binary Package Versions: " ++ show (map binaryPackageVersion binaryPackages),
                     "  Available Binary Packages of Source Package:"] ++
                    map (("   " ++) . show) (zip (map sourcePackageVersion sourcePackages) (map (availableDebNames binaryPackages) sourcePackages)))
+      missingMessage Complete = []
+      missingMessage (Missing missing) = ["  Missing Binary Package Names: "] ++ map ("   " ++) missing
       sourcePackagesWithBinaryNames = zip sourcePackages (map sourcePackageBinaryNames sourcePackages)
       binaryPackages = Debian.Repo.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
       sourcePackages = sortBy compareVersion . Debian.Repo.sourcePackages cleanOS $ [packageName]
@@ -716,12 +719,17 @@ getReleaseControlInfo cleanOS packageName =
       -- required binary packages are all available, either as debs or
       -- udebs.  Because it is easier to check for available debs, we
       -- do that first and only check for udebs if some names are missing.
-      isComplete :: [BinaryPackage] -> (SourcePackage, [String]) -> Bool
+      isComplete :: [BinaryPackage] -> (SourcePackage, [String]) -> Status
       isComplete binaryPackages (sourcePackage, requiredBinaryNames) =
-          Set.difference required availableDebs == Set.empty
-                 && (unableToCheckUDebs
-                        || Set.difference required (Set.union availableDebs availableUDebs) == Set.empty)
+          if missingDebs == Set.empty && (unableToCheckUDebs || missingUdebs == Set.empty)
+          then Complete
+          else Missing (Set.toList missingDebs ++ Set.toList missingUdebs)
           where
+            (readyDebs, missingDebs) = Set.partition (`Set.member` availableDebs) required
+            (readyUdebs, missingUdebs) =
+                if unableToCheckUDebs
+                then (Set.empty, Set.empty)
+                else Set.partition (`Set.member` (Set.union availableDebs availableUDebs)) required
             required = Set.fromList requiredBinaryNames
             -- Which binary packages produced from this source package are available?
             availableDebs = Set.fromList (availableDebNames binaryPackages sourcePackage)
@@ -739,6 +747,8 @@ getReleaseControlInfo cleanOS packageName =
       unableToCheckUDebs = True
       availableUDebNames :: SourcePackage -> [String]
       availableUDebNames _sourcePackage = undefined
+
+data Status = Complete | Missing [String]
 
 -- | Get the "old" package version number, the one that was already
 -- built and uploaded to the repository.
