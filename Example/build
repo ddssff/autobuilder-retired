@@ -288,6 +288,7 @@ Targets:
   apt:sid:uuagc
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
+  apt:sid:xmonad
 
 Name: ghc-extra-needs-docarch-fix
 Targets:
@@ -356,67 +357,12 @@ Targets:
   apt:sid:hdbc-postgresql
   apt:sid:hdbc-sqlite3
   apt:sid:hpodder
-  apt:sid:kaya
-  apt:sid:missingpy
-  apt:sid:xmonad
-Comment: gtk2hs
-	: [2] cairo/Graphics/Rendering/Cairo.hs.pp:242:7:
-	: [2]     Could not find module `Graphics.Rendering.Cairo.Internal':
-	: [2]       Use -v to see a list of the files searched for.
-Comment: apt:sid:xmonad
-	Equals dependencies
-Comment: apt:sid:haskell98-report
-	dvips: ! Couldn't find header file times.ttf.
-Comment: apt:sid:pandoc
-	: [2] Text/Pandoc/Definition.hs:92:32:
-	: [2]     parse error on input `-- ^ Link target (URL, title)'
-Comment: quilt:(apt:sid:hdbc):(darcs:http://src.seereason.com/quilt/hdbc-quilt)
-	: [2] Database/HDBC/Statement.hs:201:0:
-	: [2]     Illegal instance declaration for `SqlType String'
-	: [2]         (All instance types must be of the form (T t1 ... tn)
-	: [2]          where T is not a synonym.
-	: [2]          Use -XTypeSynonymInstances if you want to disable this.)
-	: [2]     In the instance declaration for `SqlType String'
-	: [2] 
-	: [2] Database/HDBC/Statement.hs:391:0:
-	: [2]     Illegal instance declaration for `SqlType Rational'
-	: [2]         (All instance types must be of the form (T t1 ... tn)
-	: [2]          where T is not a synonym.
-	: [2]          Use -XTypeSynonymInstances if you want to disable this.)
-	: [2]     In the instance declaration for `SqlType Rational'
-  Dependencies:
-	apt:sid:hpodder
-	apt:sid:hdbc-odbc
-	apt:sid:hdbc-postgresql
-	apt:sid:hdbc-sqlite3
-Comment: apt:sid:pandoc
-	: [2] Text/Pandoc/Definition.hs:92:32:
-	: [2]     parse error on input `-- ^ Link target (URL, title)'
-Comment: apt:hardy:hs-plugins
-	: [1] ghc -package-name hi-0.9.10 -O -Wall -Werror -fno-warn-missing-signatures  -threaded -ILanguage/Hi -c Language/Hi/FastString.hs -o Language/Hi/FastString.o -ohi Language/Hi/FastString.hi
-	: [2] 
-	: [2] Language/Hi/FastString.hs:207:8:
-	: [2]     Constructor `STArray' should have 4 arguments, but has been given 3
-	: [2]     In the pattern: STArray _ _ arr#
-	: [2]     In the second argument of `(>>=)', namely
-	: [2]         `\ (STArray _ _ arr#) -> newIORef (FastStringTable 0# arr#)'
-	: [2]     In the first argument of `unsafePerformIO', namely
-	: [2]         `(stToIO (newSTArray (0 :: Int, 993) [])
-	: [2]         >>=
-	: [2]           \ (STArray _ _ arr#) -> newIORef (FastStringTable 0# arr#))'
-	: [2] make[3]: *** [Language/Hi/FastString.o] Error 1
-Comment: apt:sid:ghc-cvs
-	: [2] Compat/Directory.hs:27:0:
-	: [2]     Failed to load interface for `System.Directory.Internals':
-	: [2]       Use -v to see a list of the files searched for.
-  apt:sid:haddock		- Depends on directory, which is hidden:
   quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)	- Patches won't apply:
   apt:sid:hdbc-missingh		- Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
   apt:sid:helium		- Failed due to failure of uuagc
   apt:sid:kaya			- Error parsing build depends (unexpected #):
   apt:sid:missingpy		- Disabled due to flaw in the autobuilder's build dependency parser:
   apt:sid:uuagc			- missing dependency on uulib
-  apt:sid:xmonad		- Dependencies too tight:
 
 Name: yhc-targets
 Targets:
