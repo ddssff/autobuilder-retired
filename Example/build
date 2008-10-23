@@ -288,7 +288,7 @@ Targets:
   apt:sid:uuagc
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
-  apt:sid:xmonad
+  quilt:(apt:sid:xmonad):(darcs:http://src.seereason.com/quilt/xmonad-quilt)
 
 Name: ghc-extra-needs-docarch-fix
 Targets:
