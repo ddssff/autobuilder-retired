@@ -1,20 +1,21 @@
 module Debian.AutoBuilder.BuildTarget.Darcs where
 
-import Debian.Repo
-import Debian.Shell
-
-import Debian.AutoBuilder.BuildTarget
-import Control.Monad.Trans
-import System.Directory
-import System.Process hiding (runCommand)
-import System.IO
-import System.Unix.Process
-import Text.Regex
 import Control.Exception
 import Control.Monad
-import System.Unix.Directory
-import System.FilePath
+import Control.Monad.Trans
+import Data.Maybe (fromJust)
+import Debian.AutoBuilder.BuildTarget
+import Debian.Repo
+import Debian.Shell
 import Extra.CIO
+import Network.URI (URI(..), URIAuth(..), parseURI)
+import System.Directory
+import System.FilePath
+import System.Process hiding (runCommand)
+import System.IO
+import System.Unix.Directory
+import System.Unix.Process
+import Text.Regex
 
 -- | A Darcs archive
 data Darcs = Darcs { uri :: String
@@ -74,7 +75,7 @@ prepareDarcs _debug top flush uriAndTag =
 
       updateSource :: CIO m => FilePath -> m (Either String SourceTree)
       updateSource dir =
-          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ theUri))) >>=
+          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>=
           either (return . Left) (const (findSourceTree (rootEnvPath dir))) >>=
           return . either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right
 
@@ -87,7 +88,7 @@ prepareDarcs _debug top flush uriAndTag =
              let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
              return r4
           where
-            cmd = unwords $ ["darcs", "get", "--partial", theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
+            cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
 {-
           do
             -- Create parent dir and let tla create dir
@@ -109,3 +110,11 @@ prepareDarcs _debug top flush uriAndTag =
             Just [uri, _, tag] -> (uri, Just tag)
             _ -> error "Internal error 6"	-- That regex should always match
       dir = top ++ "/darcs/" ++ name
+
+renderForDarcs :: String -> String
+renderForDarcs s =
+    case (uriScheme uri, uriAuthority uri) of
+      ("ssh:", Just auth) -> uriUserInfo auth ++ uriRegName auth ++ ":" ++ uriPath uri ++ uriQuery uri ++ uriFragment uri
+      (_, _) -> show uri
+    where
+      uri = fromJust (parseURI s)
