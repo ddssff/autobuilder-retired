@@ -1,8 +1,8 @@
 Name: lenny-common
-Let: base=lenny
 Use: debian-common
 
 Name: lenny-build
+Let: base=lenny
 Use: debian-build
 Use: lenny-common
 Use: lenny-local
@@ -21,6 +21,13 @@ Name: lenny-sources
 Sources: lenny
  deb http://${debian-mirror-host}/debian lenny main contrib non-free
  deb-src http://${debian-mirror-host}/debian lenny main contrib non-free
+
+Name: lenny-seereason-sources
+Sources: lenny-seereason
+ deb http://${debian-mirror-host}/debian lenny main contrib non-free
+ deb-src http://${debian-mirror-host}/debian lenny main contrib non-free
+ deb http://deb.seereason.com/debian lenny-seereason main
+ deb-src http://deb.seereason.com/debian lenny-seereason main
 
 Name: lenny-ghc682
 Use: ghc682

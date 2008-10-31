@@ -2,7 +2,7 @@ Comment:
   Some archives where we can pull packages from using the apt target.
 
 Name: extra-sources
-Use: slimdevices-sources
+Comment: Use: slimdevices-sources
 Use: debian-multimedia-sources
 Use: kanotix-sources
 Comment: Use: marlin-old-sources

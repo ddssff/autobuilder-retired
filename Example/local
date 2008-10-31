@@ -25,9 +25,6 @@ Let: ubuntu-mirror-host=mirror.anl.gov
 Let: ubuntu-security-mirror-host=mirror.anl.gov
 Let: debian-mirror-host=mirror.anl.gov
 Autobuilder-Email: SeeReason Autobuilder <autobuilder@seereason.org>
-Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
-Build-URI: http://${upload-host}/${upload-repo}
-Let: upload-release-suffix=seereason
 Comment:
   Extra-Package: seereason-keyring
 Comment: When initializing a new release, this extra package may need to be
@@ -35,8 +32,14 @@ Comment: When initializing a new release, this extra package may need to be
 	 the build environment can be recreated with --flush-root, or it can
 	 be installed by hand using chroot and apt-get.
 
-Name: ubuntu-local
+Name: public-local
 Use: common-local
+Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
+Build-URI: http://${upload-host}/${upload-repo}
+Let: upload-release-suffix=seereason
+
+Name: ubuntu-local
+Use: public-local
 Let: upload-repo=ubuntu
 
 Name: feisty-local
@@ -54,7 +57,7 @@ Development-Release: yes
 
 Name: debian-local
 Let: upload-repo=debian
-Use: common-local
+Use: public-local
 
 Name: sarge-local
 Use: debian-local
@@ -66,6 +69,5 @@ Name: lenny-local
 Use: debian-local
 
 Name: sid-local
-Let: upload-release-suffix=seereason
 Use: debian-local
 Development-Release: yes

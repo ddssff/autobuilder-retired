@@ -15,11 +15,15 @@ Comment: This package takes a long time to install, so install it into
 
 Name: debian-sources
 Use: sid-sources
+Use: sid-seereason-sources
 Use: etch-sources
 Use: sarge-sources
 Use: lenny-sources
+Use: lenny-seereason-sources
 Use: debian-experimental-sources
 Release-Alias: etch=bpo40+
+Release-Alias: hardy-seereason=hardy
+Release-Alias: intrepid-seereason=intrepid
 
 Name: debian-experimental-sources
 Sources: debian-experimental
