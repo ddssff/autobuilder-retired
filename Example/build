@@ -235,7 +235,7 @@ Name: hsp
 Use: relax
 Targets:
   deb-dir:(darcs:http://haskell.org/~kolmodin/code/hinotify):(darcs:http://src.seereason.com/debian/hinotify-debian)
-  deb-dir:(darcs:http://src.seereason.com/hs-plugins):(darcs:http://src.seereason.com/debian/plugins-debian)
+  quilt:(apt:sid:hs-plugins):(darcs:http://src.seereason.com/quilt/hs-plugins-quilt)
   quilt:(apt:sid:haskell-hspread):(darcs:http://src.seereason.com/quilt/haskell-hspread-quilt)
   deb-dir:(darcs:http://src.seereason.com/HSP/happs-hsp-template):(darcs:http://src.seereason.com/debian/happs-hsp-template-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/debian/harp-debian)
@@ -284,11 +284,15 @@ Targets:
   quilt:(apt:sid:ldap-haskell):(darcs:http://src.seereason.com/quilt/ldap-haskell-quilt)
   apt:sid:lhs2tex
   quilt:(apt:sid:magic-haskell):(darcs:http://src.seereason.com/quilt/magic-haskell-quilt)
-  quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
   apt:sid:uuagc
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
   quilt:(apt:sid:xmonad):(darcs:http://src.seereason.com/quilt/xmonad-quilt)
+Comment:
+  quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
+    Building pandoc-0.46...
+    /usr/bin/ar: creating dist/build/libHSpandoc-0.46_p.a
+    /usr/bin/ld: dist/build/Text/Pandoc.o: No such file: No such file or directory
 
 Name: ghc-extra-needs-docarch-fix
 Targets:
