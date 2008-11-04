@@ -199,6 +199,7 @@ Targets:
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
 Comment:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/cabal-install/0.5.2/cabal-install-0.5.2.tar.gz:e479dc3add14c8678bb808a8bd5517ae):(darcs:http://src.seereason.com/debian/cabal-install-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/colour/1.0.0/colour-1.0.0.tar.gz:97b0802abbf3a71a3606642850fe46c7):(darcs:http://src.seereason.com/debian/colour-debian)
 
 Name: cabal-debian-bootstrap
 Comment:
