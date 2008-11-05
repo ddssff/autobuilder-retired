@@ -142,7 +142,11 @@ params verbosity appName flags =
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
        params <- mapM makeFlagSet flagMaps
-       mapM_ (lift  . vPutStrBl 2) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
+       case map (slices . buildRepoSources) params of
+         [] -> error "No parameter sets"
+         [[]] -> error "No build repo sources!"
+         _ -> return ()
+       -- mapM_ (lift  . vPutStrBl 0) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
        {- mapM verifySources params -}
        return params
     where

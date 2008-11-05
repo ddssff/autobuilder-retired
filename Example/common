@@ -7,7 +7,7 @@ Name: common
 Required-Version: 2.26
 Use: all-sources
 Base-Release: ${base}
-Build-Release: ${base}-${upload-release-suffix}
+Build-Release: ${base}${upload-release-suffix}
 Relax-Depends: autoconf
 Relax-Depends: base-files
 Relax-Depends: base-passwd

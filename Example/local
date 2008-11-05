@@ -36,7 +36,7 @@ Name: public-local
 Use: common-local
 Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
-Let: upload-release-suffix=seereason
+Let: upload-release-suffix=-seereason
 
 Name: ubuntu-local
 Use: public-local

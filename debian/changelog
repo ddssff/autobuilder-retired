@@ -1,3 +1,10 @@
+autobuilder (4.31) unstable; urgency=low
+
+  * Add and repair support for sources.list entries that have ssh: as the
+    URI scheme.
+
+ -- David Fox <dsf@seereason.com>  Wed, 05 Nov 2008 10:40:19 -0800
+
 autobuilder (4.30) unstable; urgency=low
 
   * Prohibit versions in the changelog that look like vendor tags added by
