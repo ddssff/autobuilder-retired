@@ -285,15 +285,14 @@ Targets:
   quilt:(apt:sid:ldap-haskell):(darcs:http://src.seereason.com/quilt/ldap-haskell-quilt)
   apt:sid:lhs2tex
   quilt:(apt:sid:magic-haskell):(darcs:http://src.seereason.com/quilt/magic-haskell-quilt)
+  quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
   apt:sid:uuagc
   apt:sid:whitespace
   sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
   quilt:(apt:sid:xmonad):(darcs:http://src.seereason.com/quilt/xmonad-quilt)
-Comment:
-  quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
-    Building pandoc-0.46...
-    /usr/bin/ar: creating dist/build/libHSpandoc-0.46_p.a
-    /usr/bin/ld: dist/build/Text/Pandoc.o: No such file: No such file or directory
+Comment: Disabled targets
+  apt:sid:darcs
+    Requires debhelper (>= 7)
 
 Name: ghc-extra-needs-docarch-fix
 Targets:
