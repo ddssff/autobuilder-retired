@@ -5,6 +5,7 @@ module Debian.AutoBuilder.BuildTarget.Uri where
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
+import Data.List (isPrefixOf)
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
 import Debian.Repo
@@ -12,6 +13,7 @@ import Debian.Shell
 import Debian.URI
 import Extra.CIO
 import Extra.Misc
+import Magic
 import System.FilePath (splitFileName)
 import System.Unix.Directory
 import System.Directory
@@ -92,13 +94,25 @@ prepareUri _debug top flush target =
                                  ": expected " ++ sum ++ ", saw " ++ realSum ++ ", removed.")
           where
             path = tmp ++ "/" ++ name
+      unpackTarget :: CIO m => URI -> Either String (String, String, String) -> m (Either String Tgt)
       unpackTarget _ (Left message) = return (Left message)
       unpackTarget uri (Right (sum, sumDir, name)) =
           mkdir >>= untar >>= read >>= search >>= verify
           where
             mkdir = liftIO (try (createDirectoryIfMissing True sourceDir))
             untar (Left e) = return . Left . show $ e
-            untar (Right ()) = {- unpackStyle name $ -} runCommandTimed 1 ("tar xfz " ++ tarball ++ " -C " ++ sourceDir)
+            untar (Right ()) =
+                do c <- liftIO (unpackChar tarball)
+                   runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir)
+            unpackChar tarball =
+                do magic <- magicOpen []
+                   magicLoadDefault magic
+                   fileInfo <- magicFile magic tarball
+                   return $ if isPrefixOf "gzip" fileInfo 
+                            then "z"
+                            else if isPrefixOf "bzip2" fileInfo
+                                 then "j"
+                                 else ""
             read (Left message) = return . Left $ message
             read (Right (output, elapsed)) = liftIO (getDir sourceDir)
             search (Left message) = return . Left $ message

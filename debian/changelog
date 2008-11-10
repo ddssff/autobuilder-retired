@@ -1,3 +1,10 @@
+autobuilder (4.32) unstable; urgency=low
+
+  * Allow uri: targets to refer to uncompressed, gzipped, or bzip2'ed
+    tarballs
+
+ -- David Fox <dsf@seereason.com>  Mon, 10 Nov 2008 06:09:26 -0800
+
 autobuilder (4.31) unstable; urgency=low
 
   * Add and repair support for sources.list entries that have ssh: as the

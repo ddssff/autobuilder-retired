@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        4.30
+Version:        4.32
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments
@@ -29,14 +29,14 @@ Library
 Executable autobuilder
   Main-Is:        AutoBuilder.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
 
 Executable autobuilder-web-client
   Main-Is:        WebPage.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
 
 Executable newdist
   Main-Is:        NewDist.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
