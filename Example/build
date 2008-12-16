@@ -162,13 +162,12 @@ Use: cabal-debian-targets
 Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/applicative-extras/0.1.3/applicative-extras-0.1.3.tar.gz:50fa4c61e89654ea9858c304b4682680):(darcs:http://src.seereason.com/debian/applicative-extras-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/formlets/0.4.7/formlets-0.4.7.tar.gz:0cb872dc1c7ada9dedc9554f77201299):(darcs:http://src.seereason.com/debian/formlets-debian)
+  darcs:http://src.seereason.com/happs-hsp-formlets
   darcs:http://src.seereason.com/haskell-ugly
   darcs:http://src.seereason.com/build-env
   darcs:http://src.seereason.com/autobuilder
   darcs:http://src.seereason.com/haskell-mime
   darcs:http://src.seereason.com/haskell-help
-  darcs:http://src.seereason.com/mirror
-  darcs:http://src.seereason.com/backups
   darcs:http://src.seereason.com/tree-widget
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Shellac/0.9.1/Shellac-0.9.1.tar.gz:0a563883b3acedb9c0d4308b44772f0f):(darcs:http://src.seereason.com/debian/shellac-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Shellac-readline/0.9/Shellac-readline-0.9.tar.gz:ffea10846cc5f40b84d6a4fe97c35ec9):(darcs:http://src.seereason.com/debian/shellac-readline-debian)
@@ -186,6 +185,12 @@ Comment:
 Comment: Probably don't need these
   proc:apt:gutsy:neko
   proc:apt:gutsy:haxe
+
+Name: seereason-targets-disabled
+Comment: Targets temporarily moved out of seereason-targets because they won't build
+Targets:
+  darcs:http://src.seereason.com/mirror
+  darcs:http://src.seereason.com/backups
 
 Name: cabal-debian-targets
 Comment:
@@ -257,7 +262,6 @@ Targets:
   darcs:http://src.seereason.com/HAppS/HAppS-State
   darcs:http://src.seereason.com/HAppS/HAppS-Util
   darcs:http://src.seereason.com/HAppS/HAppS-Extra
-
 
 Name: ghc-extra
 Comment: Please keep targets alphabetized by source package name!
