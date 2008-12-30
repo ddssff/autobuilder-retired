@@ -24,6 +24,7 @@ Use: debian-experimental-sources
 Release-Alias: etch=bpo40+
 Release-Alias: hardy-seereason=hardy
 Release-Alias: intrepid-seereason=intrepid
+Release-Alias: jaunty-seereason=jaunty
 
 Name: debian-experimental-sources
 Sources: debian-experimental

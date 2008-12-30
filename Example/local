@@ -53,6 +53,9 @@ Use: ubuntu-local
 
 Name: intrepid-local
 Use: ubuntu-local
+
+Name: jaunty-local
+Use: ubuntu-local
 Development-Release: yes
 
 Name: debian-local

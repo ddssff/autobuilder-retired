@@ -1,7 +1,7 @@
 Name: ubuntu-common
 Use: common
 Let: ubuntu=ubuntu
-Let: head=intrepid
+Let: head=jaunty
 Comment:
   We use a variable for ubuntu so we can set it to point to a dated archive
   when we need to use an older or newer snapshot.
@@ -18,5 +18,7 @@ Use: feisty-sources
 Use: gutsy-sources
 Use: hardy-sources
 Use: intrepid-sources
+Use: jaunty-sources
 Use: hardy-seereason-sources
 Use: intrepid-seereason-sources
+Use: jaunty-seereason-sources
