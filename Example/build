@@ -284,7 +284,6 @@ Targets:
   apt:sid:haskell-hlist
   quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/quilt/haskell-http-quilt)
   apt:sid:haskell-mode
-  quilt:(apt:sid:haskell-utf8-string):(darcs:http://src.seereason.com/quilt/haskell-utf8-string-quilt)
   apt:sid:haskell-uulib
   apt:sid:helium
   apt:hardy:hmake
