@@ -173,6 +173,8 @@ Targets:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/Shellac-readline/0.9/Shellac-readline-0.9.tar.gz:ffea10846cc5f40b84d6a4fe97c35ec9):(darcs:http://src.seereason.com/debian/shellac-readline-debian)
   darcs:http://src.seereason.com/decimal
   darcs:http://src.seereason.com/vc-darcs
+  darcs:http://src.seereason.com/mirror
+  darcs:http://src.seereason.com/backups
 Comment: This is not really useful any more
   apt:sid:hugs98
 Comment: Missing build deps under lenny
@@ -189,8 +191,6 @@ Comment: Probably don't need these
 Name: seereason-targets-disabled
 Comment: Targets temporarily moved out of seereason-targets because they won't build
 Targets:
-  darcs:http://src.seereason.com/mirror
-  darcs:http://src.seereason.com/backups
 
 Name: cabal-debian-targets
 Comment:
