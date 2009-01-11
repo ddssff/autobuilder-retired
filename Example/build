@@ -52,6 +52,7 @@ Use: cabal-debian-targets
 Use: ghc-extra
 Use: seereason-targets
 Use: hsp
+Use: uniplate
 Use: relax
 
 Name: ghc682-bootstrap
