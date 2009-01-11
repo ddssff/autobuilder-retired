@@ -43,12 +43,19 @@ Relax-Depends: sysvinit
 Relax-Depends: util-linux
 Relax-Depends: libc6-dev
 Relax-Depends: module-init-tools linux-2.6
+Comment: Unlike the autobuilder, it is not Debian policy to rebuild a
+  package every time any of its build dependencies change.  These rules
+  specify a collection of packages which will not trigger a rebuild of
+  (basically) everything.
 
 Name: all-sources
 Use: debian-sources
 Extra-Package: debian-archive-keyring
 Use: ubuntu-sources
 Use: extra-sources
+Comment: The debian-archive-keyring package must be installed to get smooth
+  installations of packages from the debian archive, so we want it installed
+  when creating a build environment.
 
 Name: build
 Strictness: moderate
