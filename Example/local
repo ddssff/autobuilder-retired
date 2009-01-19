@@ -36,10 +36,21 @@ Name: public-local
 Use: common-local
 Upload-URI: ssh://${upload-user}@${upload-host}/srv/deb/${upload-repo}
 Build-URI: http://${upload-host}/${upload-repo}
+
+Name: public-local-seereason
+Use: public-local
 Let: upload-release-suffix=-seereason
 
-Name: ubuntu-local
+Name: public-local-ghc610
 Use: public-local
+Let: upload-release-suffix=-ghc610
+
+Name: ubuntu-local
+Use: public-local-seereason
+Let: upload-repo=ubuntu
+
+Name: ubuntu-local-ghc610
+Use: public-local-ghc610
 Let: upload-repo=ubuntu
 
 Name: feisty-local
@@ -50,6 +61,9 @@ Use: ubuntu-local
 
 Name: hardy-local
 Use: ubuntu-local
+
+Name: hardy-local-ghc610
+Use: ubuntu-local-ghc610
 
 Name: intrepid-local
 Use: ubuntu-local
