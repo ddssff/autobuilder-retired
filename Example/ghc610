@@ -5,6 +5,7 @@ Relax-Depends: hscolour ghc6
 Relax-Depends: libghc6-ghc-paths-prof haskell-haddock
 Relax-Depends: cabal-debian haskell-cabal
 Relax-Depends: haskell-devscripts-cdbs ghc6
+Relax-Depends: happy happy
 Targets:
   quilt:(uri:http://ftp.de.debian.org/debian/pool/main/h/haskell-devscripts/haskell-devscripts_0.6.15.tar.gz:996acac2c6fb2da2be9c5016f93a3c67):(darcs:http://src.seereason.com/ghc610/quilt/haskell-devscripts-quilt)
   deb-dir:(uri:http://www.haskell.org/ghc/dist/6.10.1/ghc-6.10.1-src.tar.bz2:54c676a632b3d73cf526b06347522c32):(darcs:http://src.seereason.com/ghc610/debian/ghc610-debian)
@@ -25,11 +26,12 @@ Targets:
   darcs:http://src.seereason.com/haskell-help
   darcs:http://src.seereason.com/tree-widget
   quilt:(apt:sid:magic-haskell):(darcs:http://src.seereason.com/ghc610/quilt/magic-haskell-quilt)
-  deb-dir:(darcs:http://haskell.org/~kolmodin/code/hinotify):(darcs:http://src.seereason.com/debian/hinotify-debian)
+  deb-dir:(darcs:http://haskell.org/~kolmodin/code/hinotify):(darcs:http://src.seereason.com/ghc610/debian/hinotify-debian)
   quilt:(apt:sid:hs-plugins):(darcs:http://src.seereason.com/quilt/hs-plugins-quilt)
   quilt:(apt:sid:haskell-hspread):(darcs:http://src.seereason.com/ghc610/quilt/haskell-hspread-quilt)
   deb-dir:(darcs:http://src.seereason.com/HSP/happs-hsp-template):(darcs:http://src.seereason.com/debian/happs-hsp-template-debian)
-  quilt:(darcs:http://src.seereason.com/haskell-src-exts):(darcs:http://src.seereason.com/quilt/haskell-src-exts-quilt)
+  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/ghc610/quilt/happy-quilt)
+  quilt:(darcs:http://src.seereason.com/haskell-src-exts):(darcs:http://src.seereason.com/ghc610/quilt/haskell-src-exts-quilt)
   deb-dir:(darcs:http://src.seereason.com/HSP/hsp):(darcs:http://src.seereason.com/debian/hsp-debian)
   darcs:http://src.seereason.com/HSP/hsx
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/RJson/0.3.5/RJson-0.3.5.tar.gz:e69c34b295e067c169a15fc5327a9dd9):(darcs:http://src.seereason.com/debian/RJson-debian)
@@ -57,7 +59,6 @@ Comment: ghc6 version 6.8.2-2 will not build on etch due to a dependency on a ne
 Comment: Please keep targets alphabetized by source package name!
 Targets:
   apt:sid:cpphs
-  quilt:(apt:sid:happy):(darcs:http://src.seereason.com/quilt/happy-quilt-dummy)
   quilt:(apt:sid:haskell-alut):(darcs:http://src.seereason.com/quilt/haskell-alut-quilt)
   quilt:(apt:sid:haskell-arrows):(darcs:http://src.seereason.com/quilt/haskell-arrows-quilt)
   quilt:(apt:sid:haskell-cgi):(darcs:http://src.seereason.com/quilt/haskell-cgi-quilt)
