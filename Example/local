@@ -11,7 +11,7 @@ Comment:
   upload-host and upload-repo.  This is necessary to ensure that
   packages you build do not conflict with packages already in the
   repository you are building against.
-Let: vendor=seereason
+Comment: Let: vendor=seereason
 Vendor-Tag: seereason
 Let: upload-host=deb.seereason.com
 Let: upload-user=upload
