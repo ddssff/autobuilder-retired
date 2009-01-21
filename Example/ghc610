@@ -7,11 +7,13 @@ Relax-Depends: cabal-debian haskell-cabal
 Relax-Depends: haskell-devscripts-cdbs ghc6
 Relax-Depends: happy happy
 Targets:
+  quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/ghc610/quilt/haskell-utils-quilt)
   quilt:(uri:http://ftp.de.debian.org/debian/pool/main/h/haskell-devscripts/haskell-devscripts_0.6.15.tar.gz:996acac2c6fb2da2be9c5016f93a3c67):(darcs:http://src.seereason.com/ghc610/quilt/haskell-devscripts-quilt)
   deb-dir:(uri:http://www.haskell.org/ghc/dist/6.10.1/ghc-6.10.1-src.tar.bz2:54c676a632b3d73cf526b06347522c32):(darcs:http://src.seereason.com/ghc610/debian/ghc610-debian)
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/ghc610/quilt/haxml-quilt)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.5.0.0/bzlib-0.5.0.0.tar.gz:ab594aaf9998ed602f8b23dd25199e19):(darcs:http://src.seereason.com/ghc610/debian/haskell-bzlib-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.5.0.0/zlib-0.5.0.0.tar.gz:22fa6d394c42c8584b234799b923f860):(darcs:http://src.seereason.com/ghc610/debian/haskell-zlib-debian)
+  quilt:(apt:sid:haskell-haskell-src):(darcs:http://src.seereason.com/ghc610/quilt/haskell-src-quilt)
   darcs:http://src.seereason.com/ghc610/haskell-unixutils
   darcs:http://src.seereason.com/ghc610/haskell-extra
   darcs:http://src.seereason.com/ghc610/haskell-debian-3
@@ -29,20 +31,22 @@ Targets:
   deb-dir:(darcs:http://haskell.org/~kolmodin/code/hinotify):(darcs:http://src.seereason.com/ghc610/debian/hinotify-debian)
   quilt:(apt:sid:hs-plugins):(darcs:http://src.seereason.com/quilt/hs-plugins-quilt)
   quilt:(apt:sid:haskell-hspread):(darcs:http://src.seereason.com/ghc610/quilt/haskell-hspread-quilt)
+  quilt:(apt:sid:haskell-utf8-string):(darcs:http://src.seereason.com/ghc610/quilt/haskell-utf8-string-quilt)
   deb-dir:(darcs:http://src.seereason.com/HSP/happs-hsp-template):(darcs:http://src.seereason.com/debian/happs-hsp-template-debian)
   quilt:(apt:sid:happy):(darcs:http://src.seereason.com/ghc610/quilt/happy-quilt)
   quilt:(darcs:http://src.seereason.com/haskell-src-exts):(darcs:http://src.seereason.com/ghc610/quilt/haskell-src-exts-quilt)
   deb-dir:(darcs:http://src.seereason.com/HSP/hsp):(darcs:http://src.seereason.com/debian/hsp-debian)
-  darcs:http://src.seereason.com/HSP/hsx
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/RJson/0.3.5/RJson-0.3.5.tar.gz:e69c34b295e067c169a15fc5327a9dd9):(darcs:http://src.seereason.com/debian/RJson-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/iconv/0.4/iconv-0.4.tar.gz:aef0c565f20297e29e34a5385f40be95):(darcs:http://src.seereason.com/debian/iconv-debian)
+  darcs:http://src.seereason.com/ghc610/HSP/hsx
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/RJson/0.3.5/RJson-0.3.5.tar.gz:e69c34b295e067c169a15fc5327a9dd9):(darcs:http://src.seereason.com/ghc610/debian/RJson-debian)
+  darcs:http://src.seereason.com/ghc610/iconv
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/hslogger/1.0.7/hslogger-1.0.7.tar.gz:74ff79b2abfec7e24b96925f06112c9f):(darcs:http://src.seereason.com/ghc610/debian/hslogger-debian)
+  darcs:http://src.seereason.com/ghc610/syb-with-class
   darcs:http://src.seereason.com/ghc610/HAppS-Util
-  darcs:http://src.seereason.com/HAppS/HAppS-Data
-  darcs:http://src.seereason.com/HAppS/HAppS-IxSet
-  darcs:http://src.seereason.com/HAppS/HAppS-Server
-  darcs:http://src.seereason.com/HAppS/HAppS-State
-  darcs:http://src.seereason.com/HAppS/HAppS-Extra
+  darcs:http://src.seereason.com/ghc610/HAppS-Data
+  darcs:http://src.seereason.com/ghc610/HAppS-IxSet
+  darcs:http://src.seereason.com/ghc610/HAppS-Server
+  darcs:http://src.seereason.com/ghc610/HAppS-State
+  darcs:http://src.seereason.com/ghc610/HAppS-Extra
 Comment: 
   deb-dir:(darcs:http://code.haskell.org/HSP/harp):(darcs:http://src.seereason.com/debian/harp-debian)
     - server code.haskell.org down
@@ -65,7 +69,6 @@ Targets:
   darcs:http://src.seereason.com/haskell-devscripts-cdbs
   quilt:(apt:sid:haskell-fgl):(darcs:http://src.seereason.com/quilt/haskell-fgl-quilt)
   quilt:(apt:sid:haskell-glut):(darcs:http://src.seereason.com/quilt/haskell-glut-quilt)
-  quilt:(apt:sid:haskell-haskell-src):(darcs:http://src.seereason.com/quilt/haskell-src-quilt)
   quilt:(apt:sid:haskell-hgl):(darcs:http://src.seereason.com/quilt/haskell-hgl-quilt)
   quilt:(apt:sid:haskell-html):(darcs:http://src.seereason.com/quilt/haskell-html-quilt)
   quilt:(apt:sid:haskell-hunit):(darcs:http://src.seereason.com/quilt/haskell-hunit-quilt)
@@ -82,7 +85,6 @@ Targets:
   quilt:(apt:sid:haskell-stm):(darcs:http://src.seereason.com/quilt/haskell-stm-quilt)
   quilt:(apt:sid:haskell-stream):(darcs:http://src.seereason.com/quilt/haskell-stream-quilt)
   quilt:(apt:sid:haskell-time):(darcs:http://src.seereason.com/quilt/haskell-time-quilt)
-  quilt:(apt:sid:haskell-utils):(darcs:http://src.seereason.com/quilt/haskell-utils-quilt)
   quilt:(apt:sid:haskell-x11):(darcs:http://src.seereason.com/quilt/haskell-x11-quilt)
   quilt:(apt:sid:haskell-xhtml):(darcs:http://src.seereason.com/quilt/haskell-xhtml-quilt)
   quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/quilt/hscolour-quilt)
@@ -156,7 +158,7 @@ Targets:
   deb-dir:(darcs:http://code.haskell.org/HSP/hjscript):(darcs:http://src.seereason.com/debian/hjscript-debian)
   deb-dir:(darcs:http://src.seereason.com/HSP/hsp):(darcs:http://src.seereason.com/debian/hsp-debian)
   deb-dir:(darcs:http://code.haskell.org/HSP/hsx-xhtml):(darcs:http://src.seereason.com/debian/hsx-xhtml-debian)
-  darcs:http://src.seereason.com/HSP/hsx
+  darcs:http://src.seereason.com/ghc610/HSP/hsx
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/RJson/0.3.5/RJson-0.3.5.tar.gz:e69c34b295e067c169a15fc5327a9dd9):(darcs:http://src.seereason.com/debian/RJson-debian)
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/iconv/0.4/iconv-0.4.tar.gz:aef0c565f20297e29e34a5385f40be95):(darcs:http://src.seereason.com/debian/iconv-debian)
   darcs:http://src.seereason.com/HAppS/syb-with-class
@@ -189,7 +191,6 @@ Targets:
   quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/quilt/edison-quilt)
   apt:sid:haskell-hlist
   quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/quilt/haskell-http-quilt)
-  quilt:(apt:sid:haskell-utf8-string):(darcs:http://src.seereason.com/quilt/haskell-utf8-string-quilt)
   apt:sid:haskell-mode
   apt:sid:haskell-uulib
   apt:sid:helium
