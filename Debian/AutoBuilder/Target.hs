@@ -850,9 +850,12 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
             nameOf (Rel name _ _) = name
 -}
 
+-- In ghc610, using readFile on pseudo files in /proc hangs.  Use this instead.
+rf path = lazyCommand ("cat '" ++ path ++ "'") empty >>= return . (\ (o, _, _) -> o) . collectOutputUnpacked
+
 parseProcCpuinfo :: IO [(String, String)]
 parseProcCpuinfo =
-    readFile "/proc/cpuinfo" >>= return . map makePair . catMaybes . map (matchRegex re) . lines
+    rf "/proc/cpuinfo" >>= return . map makePair . catMaybes . map (matchRegex re) . lines
     where
       re = mkRegex "^(.*[^ \t])[ \t]*:[ \t]*([^ \t].*)$"
       makePair [a, b] = (a, b)
@@ -860,7 +863,7 @@ parseProcCpuinfo =
 
 parseProcMeminfo :: IO [(String, String)]
 parseProcMeminfo =
-    readFile "/proc/meminfo" >>= return . map makePair . catMaybes . map (matchRegex re) . lines
+    rf "/proc/meminfo" >>= return . map makePair . catMaybes . map (matchRegex re) . lines
     where
       re = mkRegex "^(.*[^ \t])[ \t]*:[ \t]*([^ \t].*)$"
       makePair [a, b] = (a, b)
