@@ -1,3 +1,9 @@
+autobuilder (4.33) unstable; urgency=low
+
+  * Work around ghc bug 2971.
+
+ -- David Fox <dsf@seereason.com>  Wed, 21 Jan 2009 09:48:43 -0800
+
 autobuilder (4.32) unstable; urgency=low
 
   * Allow uri: targets to refer to uncompressed, gzipped, or bzip2'ed
