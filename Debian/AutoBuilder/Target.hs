@@ -851,7 +851,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
 -}
 
 -- In ghc610, using readFile on pseudo files in /proc hangs.  Use this instead.
-rf path = lazyCommand ("cat '" ++ path ++ "'") empty >>= return . (\ (o, _, _) -> o) . collectOutputUnpacked
+rf path = lazyCommand ("cat '" ++ path ++ "'") L.empty >>= return . (\ (o, _, _) -> o) . collectOutputUnpacked
 
 parseProcCpuinfo :: IO [(String, String)]
 parseProcCpuinfo =
