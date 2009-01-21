@@ -202,8 +202,8 @@ Targets:
   darcs:http://src.seereason.com/haskell-debian-3
   darcs:http://src.seereason.com/haskell-unixutils
   darcs:http://src.seereason.com/haskell-extra
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.5.0.0/bzlib-0.5.0.0.tar.gz:ab594aaf9998ed602f8b23dd25199e19):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.5.0.0/zlib-0.5.0.0.tar.gz:22fa6d394c42c8584b234799b923f860):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
   quilt:(apt:sid:haxml):(darcs:http://src.seereason.com/quilt/haxml-quilt)
 Comment:
   deb-dir:(uri:http://hackage.haskell.org/packages/archive/cabal-install/0.5.2/cabal-install-0.5.2.tar.gz:e479dc3add14c8678bb808a8bd5517ae):(darcs:http://src.seereason.com/debian/cabal-install-debian)
@@ -232,8 +232,8 @@ Targets:
   quilt:(apt:sid:haskell-quickcheck):(darcs:http://src.seereason.com/quilt/haskell-quickcheck-quilt)
   quilt:(apt:sid:haskell-time):(darcs:http://src.seereason.com/quilt/haskell-time-quilt)
   quilt:(apt:sid:haskell-parsec):(darcs:http://src.seereason.com/quilt/haskell-parsec-quilt)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.5.0.0/bzlib-0.5.0.0.tar.gz:ab594aaf9998ed602f8b23dd25199e19):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.5.0.0/zlib-0.5.0.0.tar.gz:22fa6d394c42c8584b234799b923f860):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/bzlib/0.4.0.1/bzlib-0.4.0.1.tar.gz:b6a7612c10f785e2ec615dcc2e87004b):(darcs:http://src.seereason.com/debian/haskell-bzlib-debian)
+  deb-dir:(uri:http://hackage.haskell.org/packages/archive/zlib/0.4.0.1/zlib-0.4.0.1.tar.gz:2eacb65c040975ab76453bc5e82c6b7c):(darcs:http://src.seereason.com/debian/haskell-zlib-debian)
 
 Name: seereason-private-targets
 Comment: These depend on haskell-extra
