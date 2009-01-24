@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-include /usr/share/haskell-devscripts/hlibrary.mk
+include /usr/share/cdbs/1/rules/hlibrary.mk
 
 Debian/AutoBuilder/Version.hs: debian/changelog
 	/bin/echo -e "module Debian.Autobuilder.Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
