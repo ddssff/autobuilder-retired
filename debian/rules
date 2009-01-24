@@ -4,9 +4,12 @@ include /usr/share/cdbs/1/rules/hlibrary.mk
 Debian/AutoBuilder/Version.hs: debian/changelog
 	/bin/echo -e "module Debian.Autobuilder.Version where\nversion :: String\nversion = \"$(shell dpkg-parsechangelog | sed -n 's/^Version:[ \t]*//p')\"" > $@
 
-binary-fixup/autobuilder-web-client::
+# Move the web client binary from the standard location /usr/bin to
+# /usr/lib/cgi-bin
+binary-predeb/autobuilder-web-client::
 	mkdir -p debian/autobuilder-web-client/usr/lib/cgi-bin
-	mv debian/autobuilder-web-client/usr/bin/autobuilder-web-client debian/autobuilder-web-client/usr/lib/cgi-bin/
+	install -D debian/autobuilder-web-client/usr/bin/autobuilder-web-client debian/autobuilder-web-client/usr/lib/cgi-bin/autobuilder-web-client
+	rm -rf debian/autobuilder-web-client/usr/bin
 
 clean::
 	rm -f *.o *.hi */*.o */*.hi Debian/AutoBuilder/Version.hs
