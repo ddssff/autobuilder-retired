@@ -47,7 +47,7 @@ instance BuildTarget Uri where
 prepareUri :: CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
 prepareUri _debug top flush target =
     case parseTarget target of
-      Right (uri, md5sum) -> downloadTarget uri >>= checkTarget md5sum >>= unpackTarget uri
+      Right (uri, md5sum) -> checkTarget uri md5sum >>= downloadTarget uri md5sum >>= validateTarget md5sum >>= unpackTarget uri
       Left message -> return $ Left ("Invalid target " ++ target ++ ": " ++ message)
     where
       parseTarget target =
@@ -57,48 +57,57 @@ prepareUri _debug top flush target =
                   Nothing -> Left ("Invalid uri: " ++ s)
                   Just uri -> Right (uri, md5sum)
             _ -> error ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
-      downloadTarget :: CIO m => URI -> m (Either String String)
-      downloadTarget uri =
-          do let name = snd . splitFileName . uriPath $ uri
-                 dest = tmp ++ "/" ++ name
-             when flush (liftIO . removeRecursiveSafely $ dest)
+      checkTarget uri sum =
+          liftIO $ doesFileExist final
+          where
+            final = tmp ++ "/" ++ sum ++ "/" ++ name
+            name = snd . splitFileName . uriPath $ uri
+      -- See if the file is already available in the checksum directory
+      -- Download the target into the tmp directory, compute its checksum, and see if it matches.
+      downloadTarget :: CIO m => URI -> String -> Bool -> m (Either String String)
+      downloadTarget uri sum True =
+          return (Right name)
+          where
+            name = snd . splitFileName . uriPath $ uri
+      downloadTarget uri sum False =
+          do when flush (liftIO . removeRecursiveSafely $ sumDir)
+             liftIO $ createDirectoryIfMissing True sumDir
              exists <- liftIO $ doesFileExist dest
              case exists of
-               -- If we have the md5sum and it matches we don't have
-               -- to download
                True -> return (Right name)
                False ->
-                   liftIO (try (createDirectoryIfMissing True tmp)) >>=
-                   either (return . Left . show) (const ({- createStyle name $ -} runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'"))) >>=
+                   runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") >>=
                    either (return . Left) (const . return . Right $ name)
-      checkTarget :: CIO m => String -> Either String String -> m (Either String (String, String, String))
-      -- checkTarget _ (Left message) = return (Left message)
-      checkTarget sum (Right name) =
-          do output <- liftIO $ md5sum path
+          where
+            dest = sumDir ++ "/" ++ name
+            sumDir = tmp ++ "/" ++ sum
+            name = snd . splitFileName . uriPath $ uri
+      -- Make sure what we just downloaded has the correct checksum
+      validateTarget :: CIO m => String -> Either String String -> m (Either String (String, String, String))
+      validateTarget sum (Left x) = return (Left x)
+      validateTarget sum (Right name) =
+          do output <- liftIO $ md5sum dest
              case output of
-               Left e -> error ("Could not checksum destination file " ++ path ++ ": " ++ show e)
+               Left e -> return (Left ("Could not checksum destination file " ++ dest ++ ": " ++ show e))
                -- We have checksummed the file and it either matches
                -- what we expected or we don't know what checksum to
                -- expect.
                Right realSum
                    | sum == realSum ->
-                         do let sumDir = tmp ++ "/" ++ realSum
-                                dest = sumDir ++ "/" ++ name 
-                            liftIO $ createDirectoryIfMissing True sumDir
-                            liftIO $ renameFile path dest
-                            return (Right (realSum, sumDir, name))
+                       return (Right (realSum, sumDir, name))
                    | True ->
                        -- We have checksummed the file but it doesn't match
-                       do liftIO $ removeFile path
-                          error ("Checksum mismatch for " ++ path ++
-                                 ": expected " ++ sum ++ ", saw " ++ realSum ++ ", removed.")
+                       do return (Left ("Checksum mismatch for " ++ dest ++
+                                        ": expected " ++ sum ++ ", saw " ++ realSum ++ "."))
           where
-            path = tmp ++ "/" ++ name
+            dest = sumDir ++ "/" ++ name
+            sumDir = tmp ++ "/" ++ sum
       unpackTarget :: CIO m => URI -> Either String (String, String, String) -> m (Either String Tgt)
       unpackTarget _ (Left message) = return (Left message)
       unpackTarget uri (Right (sum, sumDir, name)) =
           mkdir >>= untar >>= read >>= search >>= verify
           where
+            -- Create the unpack directory
             mkdir = liftIO (try (createDirectoryIfMissing True sourceDir))
             untar (Left e) = return . Left . show $ e
             untar (Right ()) =
@@ -119,28 +128,12 @@ prepareUri _debug top flush target =
             search (Right files) = checkContents (filter (not . flip elem [".", ".."]) files)
             verify (Left message) = return . Left $ ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
             verify (Right tree) = return . Right . Tgt $ Uri uri (Just sum) tree
-{-
-          do (r1 :: Either Exception ())  <- liftIO (try (createDirectoryIfMissing True sourceDir))
-             (r2 :: Either String ([Output], TimeDiff)) <- either (return . Left . show) (const (unpackStyle name $ runCommandTimed 1 ("tar xfz " ++ tarball ++ " -C " ++ sourceDir))) r1
-             r3 <- either (return . Left) (const (liftIO (getDir sourceDir))) r2
-             r4 <- either (return . Left) (return . Right . filter (not . flip elem [".", ".."])) r3
-             (r5 :: (Either String SourceTree)) <- either (return . Left) checkContents r4
-             r6 <- return . checkSourceTree $ r5
-             return r6
-	  where
--}
             getDir dir = try (getDirectoryContents dir) >>=
                          either (return . Left . show) (return . Right . filter (not . flip elem [".", ".."]))
             checkContents :: CIO m => [FilePath] -> m (Either String SourceTree)
             checkContents [] = return (Left "Empty tarball?")
             checkContents [subdir] = findSourceTree (rootEnvPath (sourceDir ++ "/" ++ subdir))
             checkContents _ = findSourceTree (rootEnvPath sourceDir)
-{-
-            checkSourceTree :: Either String SourceTree -> Either String Tgt
-            checkSourceTree (Left message) =
-                Left ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
-            checkSourceTree (Right p) = Right . Tgt $ Uri uri (Just sum) p
--}
             tarball = sumDir ++ "/" ++ name
             sourceDir = sumDir ++ "/unpack"
 
@@ -149,14 +142,6 @@ prepareUri _debug top flush target =
       md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
       stringToMaybe "" = Nothing
       stringToMaybe s = Just s
-{-
-      createStyle name = setStyle (setStart (Just ("Retrieving URI for " ++ name)) .
-                                   setError (Just "Curl failed") .
-                                   setEcho True)
-      unpackStyle name = setStyle (setStart (Just ("Unpacking " ++ name)) .
-                                   setError (Just ("Failure unpacking " ++ name)) .
-                                   setEcho True)
--}
 
 mustParseURI :: String -> URI
 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
