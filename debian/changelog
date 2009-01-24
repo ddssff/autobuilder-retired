@@ -1,3 +1,9 @@
+autobuilder (4.34) unstable; urgency=low
+
+  * Fix code to avoid re-downloading tarballs.
+
+ -- David Fox <dsf@seereason.com>  Fri, 23 Jan 2009 19:21:24 -0800
+
 autobuilder (4.33) unstable; urgency=low
 
   * Work around ghc bug 2971.
