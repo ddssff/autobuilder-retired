@@ -298,9 +298,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             relaxed <- lift $ updateDependencyInfo globalBuildDeps (Params.relaxDepends params) unbuilt
             targetInfo <- lift $ chooseNextTarget relaxed
             --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
-            let target = G.thisReady targetInfo
-                blocked = G.thisBlocked targetInfo
-                other = G.otherPackages targetInfo
+            let (target, blocked, other) = head (sortBy compareReady (G.readyTriples targetInfo))
             lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
                                 (count - length relaxed + 1) count (show target)))
             -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
@@ -315,15 +313,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                                 Right cleanOS'' ->
                                     buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed)) result
           where
-{-
-            makeTable groups =
-                unlines . map (consperse " ") . columns $ ["Ready", "Blocked"] : ["-----", "-------"] : map makeRow groups
-            makeRow :: [Target] -> [String]
-            makeRow group =
-                [(targetName . head $ group), (consperse " " . map targetNameAndDeps . tail $ group)]
-                where targetNameAndDeps x = targetName x ++ " (" ++ intercalate " " (map (show . depends x) group) ++ ")"
-            depends (_, depInfo1) (_, depInfo2) = G.compareSource depInfo1 depInfo2
--}
+            compareReady (_, a, _) (_, b, _) = compare (length b) (length a)
             buildTarget' target =
                 do lift (vBOL 0)
                    {- showElapsed "Total elapsed for target: " $ -} 
@@ -374,11 +364,11 @@ chooseNextTarget targets =
                    binaryDependencies = intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg))
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
-      info@(G.BuildableInfo _ _ _ _ _) -> vEPutStrBl 0 (makeTable info) >> return info
+      info@(G.BuildableInfo _ _) -> vEPutStrBl 0 (makeTable info) >> return info
     where
       makeTable info =
-          unlines . map (consperse " ") . columns . map readyLine . G.readyPairs $ info
-          where readyLine (ready, blocked) =
+          unlines . map (consperse " ") . columns . map readyLine . G.readyTriples $ info
+          where readyLine (ready, blocked, _) =
                     [" Ready:", targetName ready, "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       targetName = logPackage . targetEntry
       -- We choose the next target using the relaxed dependency set

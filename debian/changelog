@@ -1,3 +1,12 @@
+autobuilder (4.36) unstable; urgency=low
+
+  * Modify the code to choose the next target so we always build the
+    package blocking the largest number of other packages first.  That
+    way, when we parallelize the autobuilder we'll have more ready
+    targets that can be forked off.
+
+ -- David Fox <dsf@seereason.com>  Tue, 27 Jan 2009 06:50:57 -0800
+
 autobuilder (4.35) unstable; urgency=low
 
   * Add build dependency on cabal-debian.
