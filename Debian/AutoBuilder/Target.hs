@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |A Target represents a particular set of source code and the
 -- methods to retrieve and update it.
 --
@@ -296,23 +296,24 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
             relaxed <- lift $ updateDependencyInfo globalBuildDeps (Params.relaxDepends params) unbuilt
-            targetGroups <- lift $ chooseNextTarget relaxed
+            targetInfo <- lift $ chooseNextTarget relaxed
             --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
-            case targetGroups of
-              (target, blocked, other) ->
-                  lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
-                                     (count - length relaxed + 1) count (show target))) >>
-                  -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
-                  buildTarget' target >>=
-                  either (\ e -> do lift $ vEPutStrBl 0 ("Package build failed: " ++ e)
-                                    lift $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
-                                                         concat (intersperse "\n  " (map show blocked)))
-                                    buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
-                         (\ _ -> do cleanOS' <- updateEnv cleanOS
-                                    case cleanOS' of
-                                      Left e -> error ("Failed to update clean OS: " ++ e)
-                                      Right cleanOS'' ->
-                                          buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed))
+            let target = G.thisReady targetInfo
+                blocked = G.thisBlocked targetInfo
+                other = G.otherPackages targetInfo
+            lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
+                                (count - length relaxed + 1) count (show target)))
+            -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
+            result <- buildTarget' target
+            either (\ e -> do lift $ vEPutStrBl 0 ("Package build failed: " ++ e)
+                              lift $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
+                                                   concat (intersperse "\n  " (map show blocked)))
+                              buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
+                   (\ _ -> do cleanOS' <- updateEnv cleanOS
+                              case cleanOS' of
+                                Left e -> error ("Failed to update clean OS: " ++ e)
+                                Right cleanOS'' ->
+                                    buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed)) result
           where
 {-
             makeTable groups =
@@ -349,15 +350,13 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: CIO m => [Target] -> m (Target, [Target], [Target])
+chooseNextTarget :: CIO m => [Target] -> m (G.BuildableInfo Target)
 chooseNextTarget targets =
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
     -- targets which are blocked by the first target.
-    either badGraphError returnBuildable (G.buildable depends targets)
-    where
-      badGraphError :: [(Target, Target)] -> m (Target, [Target], [Target])
-      badGraphError arcs =
+    case G.buildable depends targets of
+      (G.CycleInfo arcs) ->
           error ("Dependency cycles formed by these edges need to be broken:\n  " ++
                  unlines (map (consperse " ") (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
                                                         (map (\ (pkg, dep) -> [(show (intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg)))),
@@ -375,13 +374,12 @@ chooseNextTarget targets =
                    binaryDependencies = intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg))
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
-      returnBuildable (ready, blocked, other) =
-          vEPutStrBl 0 (makeTable (ready, blocked, other)) >> return (ready, blocked, other)
-      makeTable :: (Target, [Target], [Target]) -> String
-      makeTable (target, blocked, other) =
-          unlines . map (consperse " ") . columns $ [["Ready:", targetName target],
-                                                     ["Blocked:", (intercalate " " . map targetName $ blocked)],
-                                                     ["Other:", (intercalate " " . map targetName $ other)]]
+      info@(G.BuildableInfo _ _ _ _ _) -> vEPutStrBl 0 (makeTable info) >> return info
+    where
+      makeTable info =
+          unlines . map (consperse " ") . columns . map readyLine . G.readyPairs $ info
+          where readyLine (ready, blocked) =
+                    [" Ready:", targetName ready, "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       targetName = logPackage . targetEntry
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering

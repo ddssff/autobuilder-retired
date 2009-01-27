@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSignatures, FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
 -- |The 'Config' module implements both command line and configuration
 -- file option handling.  It converts the command line parameters into
 -- Flag objects, and then expands any Include, Use, or Config flags.
