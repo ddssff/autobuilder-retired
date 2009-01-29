@@ -15,6 +15,8 @@ import System.IO
 import System.Process
 import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Extra.CIO
 
 data Hg = Hg String SourceTree
@@ -26,24 +28,24 @@ documentation = [ "hg:<string> - A target of this form target obtains the source
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
 instance BuildTarget Hg where
-    getTop (Hg _ tree) = topdir tree
+    getTop _ (Hg _ tree) = topdir tree
     --getSourceTree (Hg _ tree) = tree
     --setSpecTree (Hg s _) tree = Hg s tree
 
-    revision (Hg _ tree) =
+    revision _ (Hg _ tree) =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           revision <- liftIO (hGetContents outh) >>= return . listToMaybe . lines >>=
+           rev <- liftIO (hGetContents outh) >>= return . listToMaybe . lines >>=
                        return . maybe (Left $ "no revision info printed by '" ++ cmd ++ "'") Right
            result <- liftIO (try (waitForProcess handle))
-           case (revision, result) of
-             (Right revision, Right ExitSuccess) -> return . Right $ "hg:" ++ revision
+           case (rev, result) of
+             (Right rev', Right ExitSuccess) -> return . Right $ "hg:" ++ rev'
              (Right _, Right (ExitFailure _)) -> return . Left $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
              (Left message, _) -> return . Left $ message
              (_, Left e) -> return . Left . show $ e
         where
           path = topdir tree
           cmd = "cd " ++ outsidePath path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
-    cleanTarget (Hg _ _) path =
+    cleanTarget _ (Hg _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "rm -rf " ++ outsidePath path ++ "/.hg"
@@ -51,10 +53,10 @@ instance BuildTarget Hg where
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
-prepareHg :: CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
-prepareHg _debug top flush archive =
+prepareHg :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareHg params archive =
     do
-      when flush (liftIO $ removeRecursiveSafely dir)
+      when (P.flushSource params) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of
@@ -85,5 +87,5 @@ prepareHg _debug top flush archive =
                      setError (Just (\ _ -> "Update Hg Source failed in " ++ show dir)))
       createStyle = (setStart (Just ("Retrieving Hg source for " ++ archive)) .
                      setError (Just (\ _ -> "hg clone failed in " ++ show dir)))
-      dir = top ++ "/hg/" ++ archive
+      dir = P.topDir params ++ "/hg/" ++ archive
 

@@ -13,6 +13,8 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Control.ByteString
 import Debian.Repo
 import Debian.Shell
@@ -51,15 +53,15 @@ password userInfo =
     else ["--password",unEscapeString pw]
 
 instance BuildTarget Svn where
-    getTop (Svn _ tree) = topdir tree
+    getTop _ (Svn _ tree) = topdir tree
     -- We should recursively find and remove all the .svn directories in |dir source|
-    cleanTarget (Svn _ _) path =
+    cleanTarget _ (Svn _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
           cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ outsidePath path))
 
-    revision (Svn uri tree) =
+    revision _ (Svn uri tree) =
         svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         return . either (const (Left "svn info failed")) readControl
         where
@@ -92,9 +94,9 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
 
-prepareSvn ::  CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
-prepareSvn _debug top flush target =
-    do when flush (liftIO (removeRecursiveSafely dir))
+prepareSvn ::  (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareSvn params target =
+    do when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
        case tree of
@@ -140,7 +142,7 @@ prepareSvn _debug top flush target =
                      setError (Just (\ _ -> "svn co failed in " ++ dir)))
       uri = mustParseURI target
       userInfo = maybe "" uriUserInfo (uriAuthority uri)
-      dir = top ++ "/svn/" ++ escapeForMake (maybe "" uriRegName (uriAuthority uri)) ++ (uriPath uri)
+      dir = P.topDir params ++ "/svn/" ++ escapeForMake (maybe "" uriRegName (uriAuthority uri)) ++ (uriPath uri)
 
 mustParseURI :: String -> URI
 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)

@@ -6,6 +6,8 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
@@ -27,28 +29,28 @@ documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar
                 , "given revision name." ]
 
 instance BuildTarget Bzr where
-    getTop (Bzr _ tree) = topdir tree
-    cleanTarget (Bzr _ _) path =
+    getTop _ (Bzr _ tree) = topdir tree
+    cleanTarget _ (Bzr _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "find '" ++ outsidePath path ++ "' -name '.bzr' -prune | xargs rm -rf"
           cleanStyle path = setStart (Just ("Clean Bazzar target in " ++ outsidePath path))
 
-    revision (Bzr _ tree) =
+    revision _ (Bzr _ tree) =
         do let path = topdir tree
                cmd = "cd " ++ outsidePath path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           revision <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
+           rev <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
            liftIO $ waitForProcess handle
-           return . Right $ "bzr:" ++ revision
+           return . Right $ "bzr:" ++ rev
 
     logText (Bzr _ _) revision = "Bazaar revision: " ++ maybe "none" id revision
 
-prepareBzr :: CIO m => FilePath -> Bool -> String -> m (Either String Tgt)
-prepareBzr top flush version = do
-    when flush (liftIO (removeRecursiveSafely dir))
+prepareBzr :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareBzr params version = do
+    when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
     case tree of
@@ -62,7 +64,7 @@ prepareBzr top flush version = do
                 -- if we fail then the source tree is corrupted, so get a new one
                 Left message -> vPutStrBl 0 message  >> removeSource dir >> createSource dir
                 -- If we succeed then we try to merge with the parent tree
-                Right output -> mergeSource dir
+                Right _output -> mergeSource dir
             where
                 cmd   = "cd " ++ dir ++ " && ! `bzr status | grep -q 'modified:'`"
                 style = (setStart (Just ("Verifying Bazaar source archive '" ++ dir ++ "'")) .
@@ -87,7 +89,7 @@ prepareBzr top flush version = do
             runTaskAndTest (style (commandTask cmd)) >>= \result ->
             case result of
                 Left  a -> return (Left a)
-                Right b -> findSourceTree (rootEnvPath dir)
+                Right _b -> findSourceTree (rootEnvPath dir)
             where
                 cmd   = "cd " ++ dir ++ " && bzr commit -m 'Merged Upstream'"
                 style = (setStart (Just ("Commiting merge to local Bazaar source archive '" ++ dir ++ "'")) .
@@ -108,5 +110,5 @@ prepareBzr top flush version = do
         uri = mustParseURI version
             where
                 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
-        dir = top ++ "/bzr/" ++ escapeForMake (maybe "" uriRegName (uriAuthority uri)) ++ (uriPath uri)
+        dir = (P.topDir params) ++ "/bzr/" ++ escapeForMake (maybe "" uriRegName (uriAuthority uri)) ++ (uriPath uri)
 

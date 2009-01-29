@@ -4,6 +4,8 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Extra.CIO
@@ -23,14 +25,14 @@ documentation = [ "tla:<revision> - A target of this form retrieves the a TLA ar
                 , "given revision name." ]
 
 instance BuildTarget Tla where
-    getTop (Tla _ tree) = topdir tree
-    cleanTarget (Tla _ _) path =
+    getTop _ (Tla _ tree) = topdir tree
+    cleanTarget _ (Tla _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "find '" ++ outsidePath path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
           cleanStyle path = setStart (Just ("Clean TLA target in " ++ outsidePath path))
 
-    revision (Tla _ tree) =
+    revision _ (Tla _ tree) =
         do let path = topdir tree
                cmd = "cd " ++ outsidePath path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
@@ -42,10 +44,10 @@ instance BuildTarget Tla where
 
     logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
 
-prepareTla :: CIO m => FilePath -> Bool -> String -> m (Either String Tgt)
-prepareTla top flush version =
+prepareTla :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareTla params version =
     do
-      when flush (liftIO (removeRecursiveSafely dir))
+      when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of
@@ -56,7 +58,7 @@ prepareTla top flush version =
           do result <- runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes")))
              case result of
                Left message -> vPutStrBl 0 message >> removeSource dir >> createSource dir	-- Failure means there is corruption
-               Right output -> updateSource dir						-- Success means no changes
+               Right _output -> updateSource dir						-- Success means no changes
 
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
@@ -82,4 +84,4 @@ prepareTla top flush version =
                      setError (Just (\ _ -> "updateSource failed")) {- . Output Indented -})
       createStyle = (setStart (Just ("Retrieving TLA source for " ++ version)) .
                      setError (Just (\ _ -> "tla get failed in " ++ dir)))
-      dir = top ++ "/tla/" ++ version
+      dir = P.topDir params ++ "/tla/" ++ version

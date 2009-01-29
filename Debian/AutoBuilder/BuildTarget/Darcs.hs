@@ -5,6 +5,8 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe (fromJust)
 import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Extra.CIO
@@ -31,31 +33,31 @@ instance Show Darcs where
     show t = "darcs:" ++ uri t
 
 instance BuildTarget Darcs where
-    getTop t = topdir (sourceTree t)
-    cleanTarget _ path =
+    getTop _ t = topdir (sourceTree t)
+    cleanTarget _ _ path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where 
           cmd = "find " ++ outsidePath path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
           cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ outsidePath path))
-    revision tgt =
+    revision _ tgt =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           revision <- liftIO (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=
-                           return . maybe (Left $ "could not find hash field in output of '" ++ cmd ++ "'") (Right . head))
-           case revision of
+           rev <- liftIO (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=
+                          return . maybe (Left $ "could not find hash field in output of '" ++ cmd ++ "'") (Right . head))
+           case rev of
              Left message -> return (Left message)
-             Right revision ->
-                 do liftIO $ evaluate (length revision)
+             Right rev' ->
+                 do liftIO $ evaluate (length rev')
                     liftIO $ waitForProcess handle
-                    return . Right $ show tgt ++ "=" ++ revision
+                    return . Right $ show tgt ++ "=" ++ rev'
         where
           path = topdir (sourceTree tgt)
           cmd = "cd " ++ outsidePath path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ maybe "none" id revision
 
-prepareDarcs :: CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
-prepareDarcs _debug top flush uriAndTag =
+prepareDarcs :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareDarcs params uriAndTag =
     do
-      when flush (liftIO (removeRecursiveSafely dir))
+      when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       case tree of 
@@ -109,7 +111,7 @@ prepareDarcs _debug top flush uriAndTag =
             Just [uri, "", _] -> (uri, Nothing)
             Just [uri, _, tag] -> (uri, Just tag)
             _ -> error "Internal error 6"	-- That regex should always match
-      dir = top ++ "/darcs/" ++ name
+      dir = P.topDir params ++ "/darcs/" ++ name
 
 renderForDarcs :: String -> String
 renderForDarcs s =

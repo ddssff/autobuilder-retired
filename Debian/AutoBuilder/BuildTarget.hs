@@ -11,6 +11,8 @@ module Debian.AutoBuilder.BuildTarget
 
 import Extra.CIO
 import Debian.Repo
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Control.Monad
 import Data.Maybe
 import System.Time
@@ -31,11 +33,11 @@ instance Show Tgt where
 class BuildTarget t where
     -- | The directory containing the target's files.  For most target types, these
     --  files could be anything, not necessarily a Debian source directory.
-    getTop :: BuildTarget t => t -> EnvPath
+    getTop :: ParamClass p => p -> t -> EnvPath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: (BuildTarget t, CIO m) => t -> EnvPath -> m (Either String ([Output], TimeDiff))
-    cleanTarget _ _ = return . Right $ ([], noTimeDiff)
+    cleanTarget :: (ParamClass p, CIO m) => p -> t -> EnvPath -> m (Either String ([Output], TimeDiff))
+    cleanTarget _ _ _ = return . Right $ ([], noTimeDiff)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
     -- is intended to characterize the build environment of the
@@ -44,13 +46,13 @@ class BuildTarget t where
     -- the build dependencies that were installed when the package was
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
-    revision :: CIO m => t -> m (Either String String)
+    revision :: (ParamClass p, CIO m) => p -> t -> m (Either String String)
     -- |Default function to build the package for this target.
     -- Currently this is only overridden by the proc: target which
     -- mounts /proc, then calls buildDebs, then unmounts /proc.
-    buildPkg :: (BuildTarget t, CIO m) => Bool -> [String] -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> m (Either String TimeDiff)
-    buildPkg noClean setEnv buildOS buildTree status _target =
-        buildDebs noClean setEnv buildOS buildTree status
+    buildPkg :: (ParamClass p, CIO m) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> m (Either String TimeDiff)
+    buildPkg params buildOS buildTree status _target =
+        buildDebs (P.noClean params) (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.
     logText :: t -> Maybe String -> String
 
@@ -65,13 +67,13 @@ instance Show Dir where
     show (Dir tree) = "dir:" ++ outsidePath (topdir tree)
 
 instance BuildTarget Dir where
-    getTop (Dir tree) = topdir tree
-    revision (Dir _) = return (Left "Dir targets do not have revision strings")
+    getTop _ (Dir tree) = topdir tree
+    revision _ (Dir _) = return (Left "Dir targets do not have revision strings")
     logText (Dir tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
 
 -- |Prepare a Dir target
-prepareDir :: CIO m => Bool -> FilePath -> Bool -> EnvPath -> m (Either String Tgt)
-prepareDir _ _ _ path =
+prepareDir :: (ParamClass p, CIO m) => p -> EnvPath -> m (Either String Tgt)
+prepareDir _params path =
     findSourceTree path >>=
     return . either (\ message -> Left $ "No source tree at " ++ outsidePath path ++ ": " ++ message) (Right . Tgt . Dir)
 
@@ -84,8 +86,8 @@ instance Show Build where
     show (Build tree) = "build:" ++ outsidePath (topdir tree)
 
 instance BuildTarget Build where
-    getTop (Build tree) = topdir tree
-    revision (Build _) = return (Left "Build targets do not have revision strings")
+    getTop _ (Build tree) = topdir tree
+    revision _ (Build _) = return (Left "Build targets do not have revision strings")
     logText (Build tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
 
 -- | There are many characters which will confuse make if they appear

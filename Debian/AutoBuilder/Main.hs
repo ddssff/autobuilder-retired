@@ -97,7 +97,7 @@ runParameterSet params =
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
       cleanOS <- (prepareEnv
-                         top
+                         (P.topDir params)
                          (P.cleanRoot params)
                          buildRelease
                          (Just localRepo)
@@ -125,7 +125,7 @@ runParameterSet params =
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       lift (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      poolOS <- iStyle $ prepareAptEnv top (P.ifSourcesChanged params) poolSources
+      poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], ok) ->
@@ -171,8 +171,8 @@ runParameterSet params =
       -- FIXME: This may be too late
       doFlush
           | P.flushAll params = 
-              do liftIO $ removeRecursiveSafely top
-                 liftIO $ createDirectoryIfMissing True top
+              do liftIO $ removeRecursiveSafely (P.topDir params)
+                 liftIO $ createDirectoryIfMissing True (P.topDir params)
           | True = return ()
       checkPermissions =
           do isRoot <- liftIO $ checkSuperUser
@@ -195,9 +195,7 @@ runParameterSet params =
       prepareTargetList =
           do lift (showTargets allTargets)
              lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
-             mapRWST (setStyle (appPrefix " "))
-                         (mapM (readSpec (P.debug params) top flush
-                                (P.ifSourcesChanged params) (P.allSources params)) allTargets)
+             mapRWST (setStyle (appPrefix " ")) (mapM (readSpec params) allTargets)
           where
             allTargets = listDiff (P.targets params) (P.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
@@ -233,9 +231,9 @@ runParameterSet params =
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Right ([], noTimeDiff))
       iStyle = id {- setStyle (addPrefixes " " " ") -}
-      top = P.topDir params
+      --top = P.topDir params
       --dryRun = P.dryRun params
-      flush = P.flushSource params
+      -- flush = P.flushSource params
       updateRepoCache :: P.ParamClass p => p -> AptIOT TIO ()
       updateRepoCache params =
           do let path = P.topDir params  ++ "/repoCache"

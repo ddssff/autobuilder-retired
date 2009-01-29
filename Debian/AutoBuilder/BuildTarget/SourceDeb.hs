@@ -8,6 +8,8 @@ import Debian.Repo.Types
 import qualified Debian.Version as V
 
 import Debian.AutoBuilder.BuildTarget as BuildTarget
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
@@ -31,16 +33,16 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 
 -- |SourceDeb targets inherit the revision string of the target they modify.
 instance BuildTarget SourceDeb where
-    getTop (SourceDeb (Tgt _) dir _) = dir
-    revision (SourceDeb (Tgt t) _ _) =
-        BuildTarget.revision t >>= return . either Left (Right . ("sourcedeb:" ++))
+    getTop _ (SourceDeb (Tgt _) dir _) = dir
+    revision params (SourceDeb (Tgt t) _ _) =
+        BuildTarget.revision params t >>= return . either Left (Right . ("sourcedeb:" ++))
     logText (SourceDeb (Tgt t) _ _) revision = logText t revision ++ " (source deb)"
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: CIO m => Tgt -> m (Either String Tgt)
-prepareSourceDeb (Tgt base) =
-    do let top = getTop base
+prepareSourceDeb :: (ParamClass p, CIO m) => p -> Tgt -> m (Either String Tgt)
+prepareSourceDeb params (Tgt base) =
+    do let top = getTop params base
        dscFiles <- liftIO (getDirectoryContents (outsidePath top)) >>=
                    return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> liftIO (readFile (outsidePath top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles

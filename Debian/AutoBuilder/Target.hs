@@ -14,6 +14,7 @@ module Debian.AutoBuilder.Target
     , targetDocumentation
     ) where
 
+import           Control.Arrow (second)
 import		 Control.Exception
 --import		 Control.Monad.Reader
 import		 Control.Monad.RWS hiding (All)
@@ -25,6 +26,7 @@ import		 Data.Maybe
 import qualified Data.Set as Set
 import		 Debian.AutoBuilder.BuildTarget as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
+import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
 import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
 import qualified Debian.AutoBuilder.BuildTarget.DebDir as DebDir
 import qualified Debian.AutoBuilder.BuildTarget.Hg as Hg
@@ -35,6 +37,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
 import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
+import           Debian.AutoBuilder.ParamClass (ParamClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import		 Debian.Control
 import qualified Debian.Control.ByteString as B
@@ -111,21 +114,21 @@ targetName target =
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
 
-countAndPrepareTargets :: CIO m => OSImage -> [Tgt] -> m [Target]
-countAndPrepareTargets os targets =
-    countTasks (zip (map show targets) (map (prepareTarget os) targets))
+countAndPrepareTargets :: (ParamClass p, CIO m) => p -> OSImage -> [Tgt] -> m [Target]
+countAndPrepareTargets params os targets =
+    countTasks (zip (map show targets) (map (prepareTarget params os) targets))
 
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: CIO m => OSImage -> Tgt -> m Target
-prepareTarget os tgt@(Tgt source) =
-    do tree <- prepareBuild os source >>= 
+prepareTarget :: (ParamClass p, CIO m) => p -> OSImage -> Tgt -> m Target
+prepareTarget params os tgt@(Tgt source) =
+    do tree <- prepareBuild params os source >>= 
                return . maybe (error $ "Could not find Debian build tree for " ++ show source) id
        let ctl = control tree
            latest = entry tree
            ver = logVersion latest
-       rev <- BuildTarget.revision source
+       rev <- BuildTarget.revision params source
        return $ Target { realSource = tgt
                        , cleanSource = tree
                        , targetEntry = latest
@@ -141,13 +144,13 @@ prepareTarget os tgt@(Tgt source) =
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: (BuildTarget t, CIO m) => OSImage -> t -> m (Maybe DebianBuildTree)
-prepareBuild os target =
-    do debBuild <- findOneDebianBuildTree (getTop target)
+prepareBuild :: (ParamClass p, BuildTarget t, CIO m) => p -> OSImage -> t -> m (Maybe DebianBuildTree)
+prepareBuild params os target =
+    do debBuild <- findOneDebianBuildTree (getTop params target)
        case debBuild of
          Just tree -> copyBuild tree >>= return . either (const Nothing) Just
          Nothing ->
-             do debSource <- findDebianSourceTree (getTop target)
+             do debSource <- findDebianSourceTree (getTop params target)
                 case debSource of
                   Left message -> vEPutStrBl 0 message >> return Nothing
                   Right tree -> copySource tree >>= return . either (const Nothing) Just
@@ -164,7 +167,7 @@ prepareBuild os target =
              case copy of
                Left message -> return (Left message)
                Right copy ->
-                   do cleanTarget target (topdir copy)
+                   do cleanTarget params target (topdir copy)
                       findDebianBuildTree dest newdir
       copyBuild :: CIO m => DebianBuildTree -> m (Either String DebianBuildTree)
       copyBuild debBuild =
@@ -177,7 +180,7 @@ prepareBuild os target =
              case copy of
                Left message -> return (Left message)
                Right copy -> 
-                   do cleanTarget target (topdir copy)
+                   do cleanTarget params target (topdir copy)
                       when (newdir /= (subdir debBuild))
                                (liftIO $ renameDirectory (outsidePath dest ++ "/" ++ subdir debBuild) (outsidePath dest ++ "/" ++ newdir))
                       findDebianBuildTree dest newdir
@@ -225,43 +228,49 @@ _formatVersions buildDeps =
     "\n"
     where prefix = "\n    "
 
-readSpec :: CIO m => Bool -> FilePath -> Bool -> SourcesChangedAction -> [NamedSliceList] -> String -> AptIOT m (Either String Tgt)
-readSpec debug top flush ifSourcesChanged distros text =
+--  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
+
+readSpec :: (ParamClass p, CIO m) => p -> String -> AptIOT m (Either String Tgt)
+readSpec params text =
     do lift $ vEPutStrBl 0 (text ++ ":")
        {-setStyle (appPrefix " ")-}
        case text of
-            'a':'p':'t':':' : target -> Apt.prepareApt top flush ifSourcesChanged distros target
-            'd':'a':'r':'c':'s':':' : target -> lift $ Darcs.prepareDarcs debug top flush target
+            'a':'p':'t':':' : target -> Apt.prepareApt params target
+            'd':'a':'r':'c':'s':':' : target -> lift $ Darcs.prepareDarcs params target
             'd':'e':'b':'-':'d':'i':'r':':' : target ->
-                do pair <- parsePair debug target
+                do pair <- parsePair target
                    case pair of
                      Left message -> return (Left message)
-                     Right (upstream, debian) -> lift $ DebDir.prepareDebDir debug top flush upstream debian
-            'd':'i':'r':':' : target -> lift $ prepareDir debug top flush (rootEnvPath target)
-            'h':'g':':' : target -> lift $ Hg.prepareHg debug top flush target
+                     Right (upstream, debian) -> lift $ DebDir.prepareDebDir params upstream debian
+            'c':'d' : _target ->
+                do let (subdir, target) = second tail (break (== ':') target)
+                   tgt <- readSpec params target
+                   either (return . Left) (lift . Cd.prepareCd params subdir) tgt
+            'd':'i':'r':':' : target -> lift $ prepareDir params (rootEnvPath target)
+            'h':'g':':' : target -> lift $ Hg.prepareHg params target
             'q':'u':'i':'l':'t':':' : target ->
-                do pair <- parsePair debug target
+                do pair <- parsePair target
                    case pair of
                      Left message -> return (Left message)
-                     Right (base, patch) -> lift $ Quilt.prepareQuilt top flush base patch
+                     Right (base, patch) -> lift $ Quilt.prepareQuilt params base patch
             's':'o':'u':'r':'c':'e':'d':'e':'b':':' : target ->
-                readSpec debug top flush ifSourcesChanged distros target >>=
-                either (return . Left . ((text ++ ": ") ++)) (lift . SourceDeb.prepareSourceDeb)
-            's':'v':'n':':' : target -> lift $ Svn.prepareSvn debug top flush target
-            't':'l':'a':':' : target -> lift $ Tla.prepareTla top flush target
-            'b':'z':'r':':' : target -> lift $ Bzr.prepareBzr top flush target
-            'u':'r':'i':':' : target -> lift $ Uri.prepareUri debug top flush target
+                readSpec params target >>=
+                either (return . Left . ((text ++ ": ") ++)) (lift . SourceDeb.prepareSourceDeb params)
+            's':'v':'n':':' : target -> lift $ Svn.prepareSvn params target
+            't':'l':'a':':' : target -> lift $ Tla.prepareTla params target
+            'b':'z':'r':':' : target -> lift $ Bzr.prepareBzr params target
+            'u':'r':'i':':' : target -> lift $ Uri.prepareUri params target
             'p':'r':'o':'c':':' : target ->
-                readSpec debug top flush ifSourcesChanged distros target >>=
-                either (return . Left) (lift . Proc.prepareProc top flush)
+                readSpec params target >>=
+                either (return . Left) (lift . Proc.prepareProc params)
             _ -> error ("Error in target specification: " ++ text)
     where
-      parsePair :: CIO m => Bool -> String -> AptIOT m (Either String (Tgt, Tgt))
-      parsePair debug text =
+      parsePair :: CIO m => String -> AptIOT m (Either String (Tgt, Tgt))
+      parsePair text =
           case match "\\(([^)]*)\\):\\(([^)]*)\\)" text of
             Just [baseName, patchName] ->
-                do a <- readSpec debug top flush ifSourcesChanged distros baseName
-                   b <- readSpec debug top flush ifSourcesChanged distros patchName
+                do a <- readSpec params baseName
+                   b <- readSpec params patchName
                    return (case (a, b) of
                              (Right a', Right b') -> Right (a', b')
                              (Left message, _) -> Left message
@@ -287,7 +296,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       prepareAllTargetSource cleanOS =
           do
             vEPutStrBl 0 "Assembling clean source tree for each target:"
-            ({- debugStyle . -} iStyle) $ countAndPrepareTargets cleanOS targetSpecs
+            ({- debugStyle . -} iStyle) $ countAndPrepareTargets params cleanOS targetSpecs
           where
             iStyle = setStyle (appPrefix " ")
       -- Execute the target build loop until everything is built
@@ -503,7 +512,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               sourceRevision <- case realSource target of (Tgt spec) -> lift (BuildTarget.revision spec) >>= return . either (const Nothing) Just
+               sourceRevision <- case realSource target of (Tgt spec) -> lift (BuildTarget.revision params spec) >>= return . either (const Nothing) Just
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -568,7 +577,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
       build :: CIO m => DebianBuildTree -> m (Either String (DebianBuildTree, TimeDiff))
       build buildTree =
           case realSource target of
-            Tgt t -> do result <- buildPkg (P.noClean params) (P.setEnv params) buildOS buildTree status t
+            Tgt t -> do result <- buildPkg params buildOS buildTree status t
                         case result of
                           Left message -> return (Left message)
                           Right elapsed -> return (Right (buildTree, elapsed))
@@ -625,7 +634,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
 -- of builds.  For lax: dependencies, then image copy, then source
 -- copy.  For other: image copy, then source copy, then dependencies.
 prepareBuildImage :: (CIO m, P.ParamClass p) => p -> OSImage -> [PkgVersion] -> OSImage -> Target -> P.Strictness -> m (Either String DebianBuildTree)
-prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _ _ _) P.Lax =
+prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) P.Lax =
     -- Install dependencies directly into the clean environment
     installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies >>=
     either (return . Left) (prepareTree noClean)
@@ -642,7 +651,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
       noClean = P.noClean params
       newPath = EnvPath {envRoot = rootDir buildOS, envPath = envPath oldPath}
       oldPath = topdir . cleanSource $ target
-prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt tgt) _ _ _ _ _ _ _) _ =
+prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) _ =
     -- Install dependencies directly into the build environment
     findTree noClean >>=
     either (return . Left) downloadDeps >>=
@@ -713,8 +722,8 @@ getReleaseControlInfo cleanOS packageName =
           then Complete
           else Missing (Set.toList missingDebs ++ Set.toList missingUdebs)
           where
-            (readyDebs, missingDebs) = Set.partition (`Set.member` availableDebs) required
-            (readyUdebs, missingUdebs) =
+            (_readyDebs, missingDebs) = Set.partition (`Set.member` availableDebs) required
+            (_readyUdebs, missingUdebs) =
                 if unableToCheckUDebs
                 then (Set.empty, Set.empty)
                 else Set.partition (`Set.member` (Set.union availableDebs availableUDebs)) required

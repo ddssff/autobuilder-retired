@@ -17,6 +17,8 @@ import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, escapeForMake)
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Extra.CIO (vMessage)
 import Extra.CIO (CIO(tryCIO), vPutStrBl, vEPutStrBl)
 import Extra.Either (partitionEithers)
@@ -53,38 +55,38 @@ getEntry (Base x) = x
 getEntry (Patch x) = x
 
 instance BuildTarget Quilt where
-    getTop (Quilt _ _ tree) = topdir tree
-    cleanTarget (Quilt (Tgt base) _ _) source = cleanTarget base source
+    getTop _ (Quilt _ _ tree) = topdir tree
+    cleanTarget params (Quilt (Tgt base) _ _) source = cleanTarget params base source
     -- A quilt revision string is the base target revision string and the
     -- patch target revision string connected with a '+'.  If the base
     -- target has no revision string the patch revision string is used.
-    revision (Quilt (Tgt base) (Tgt patch) _) =
-        do baseRev <- BuildTarget.revision base
+    revision params (Quilt (Tgt base) (Tgt patch) _) =
+        do baseRev <- BuildTarget.revision params base
            case baseRev of
              Right rev ->
-                 do patchRev <- BuildTarget.revision patch
+                 do patchRev <- BuildTarget.revision params patch
                     return $ fmap (\ x -> "quilt:(" ++ rev ++ "):(" ++ x ++ ")") patchRev
-             Left message ->
-                 do tree <- findDebianSourceTree (getTop base)
+             Left _message ->
+                 do tree <- findDebianSourceTree (getTop params base)
                     let rev = logVersion . entry $ either (const (error $ "Invalid debian source tree")) id tree
-                    patchRev <- BuildTarget.revision patch
+                    patchRev <- BuildTarget.revision params patch
                     return $ fmap (\ x -> "quilt:(" ++ show rev ++ "):(" ++ x ++ ")") patchRev
 
     logText (Quilt _ _ _) rev = "Quilt revision " ++ maybe "none" id rev
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => FilePath -> a -> b -> m (Either String (SourceTree, EnvPath))
-makeQuiltTree top base patch =
-    do vPutStrBl 1 $ "Quilt base: " ++ outsidePath (getTop base)
-       vPutStrBl 1 $ "Quilt patch: " ++ outsidePath (getTop patch)
+makeQuiltTree :: (ParamClass p, Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => p -> a -> b -> m (Either String (SourceTree, EnvPath))
+makeQuiltTree params base patch =
+    do vPutStrBl 1 $ "Quilt base: " ++ outsidePath (getTop params base)
+       vPutStrBl 1 $ "Quilt patch: " ++ outsidePath (getTop params patch)
        -- This will be the top directory of the quilt target
-       let copyDir = rootEnvPath (top ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"))
-       liftIO (createDirectoryIfMissing True (top ++ "/quilt"))
-       baseTree <- findSourceTree (getTop base) >>=
-                   return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop base) ++ ": " ++ message) Right
-       patchTree <- findSourceTree (getTop patch) >>=
-                    return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop base) ++ ": " ++ message) Right
+       let copyDir = rootEnvPath (P.topDir params ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"))
+       liftIO (createDirectoryIfMissing True (P.topDir params ++ "/quilt"))
+       baseTree <- findSourceTree (getTop params base) >>=
+                   return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop params base) ++ ": " ++ message) Right
+       patchTree <- findSourceTree (getTop params patch) >>=
+                    return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop params base) ++ ": " ++ message) Right
        case (baseTree, patchTree) of
          (Right baseTree, Right patchTree) ->
              do copyTree <- copySourceTree baseTree copyDir
@@ -119,9 +121,9 @@ debug e =
        IO.hFlush IO.stderr
        exitWith (ExitFailure 2)
 
-prepareQuilt :: CIO m => FilePath -> Bool -> Tgt -> Tgt -> m (Either String Tgt)
-prepareQuilt top _flush (Tgt base) (Tgt patch) = 
-    tryCIO (makeQuiltTree top base patch >>= either (return . Left) make) >>= either (liftIO . debug) return
+prepareQuilt :: (ParamClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
+prepareQuilt params (Tgt base) (Tgt patch) = 
+    tryCIO (makeQuiltTree params base patch >>= either (return . Left) make) >>= either (liftIO . debug) return
     where
       make (quiltTree, quiltDir) =
           do applied <- liftIO (lazyCommand cmd1a L.empty) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked

@@ -8,6 +8,8 @@ import Control.Monad.Trans
 import Data.List (isPrefixOf)
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.ParamClass (ParamClass)
+import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
@@ -33,19 +35,19 @@ documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the f
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
 instance BuildTarget Uri where
-    getTop (Uri _ _ tree) = topdir tree
+    getTop _ (Uri _ _ tree) = topdir tree
     -- The revision string for a URI target is the md5sum if it is known.
     -- If it isn't known, we raise an error to avoid mysterious things
     -- happening with URI's that, for example, always point to the latest
     -- version of a package.
-    revision (Uri _ (Just c) _) = return (Right c)
-    revision (Uri _ Nothing _) = return (Left "Uri targets with no checksum do not have revision strings")
+    revision _ (Uri _ (Just c) _) = return (Right c)
+    revision _ (Uri _ Nothing _) = return (Left "Uri targets with no checksum do not have revision strings")
 
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: CIO m => Bool -> FilePath -> Bool -> String -> m (Either String Tgt)
-prepareUri _debug top flush target =
+prepareUri :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareUri params target =
     case parseTarget target of
       Right (uri, md5sum) -> checkTarget uri md5sum >>= downloadTarget uri md5sum >>= validateTarget md5sum >>= unpackTarget uri
       Left message -> return $ Left ("Invalid target " ++ target ++ ": " ++ message)
@@ -65,12 +67,12 @@ prepareUri _debug top flush target =
       -- See if the file is already available in the checksum directory
       -- Download the target into the tmp directory, compute its checksum, and see if it matches.
       downloadTarget :: CIO m => URI -> String -> Bool -> m (Either String String)
-      downloadTarget uri sum True =
+      downloadTarget uri _sum True =
           return (Right name)
           where
             name = snd . splitFileName . uriPath $ uri
       downloadTarget uri sum False =
-          do when flush (liftIO . removeRecursiveSafely $ sumDir)
+          do when (P.flushSource params) (liftIO . removeRecursiveSafely $ sumDir)
              liftIO $ createDirectoryIfMissing True sumDir
              exists <- liftIO $ doesFileExist dest
              case exists of
@@ -84,7 +86,7 @@ prepareUri _debug top flush target =
             name = snd . splitFileName . uriPath $ uri
       -- Make sure what we just downloaded has the correct checksum
       validateTarget :: CIO m => String -> Either String String -> m (Either String (String, String, String))
-      validateTarget sum (Left x) = return (Left x)
+      validateTarget _sum (Left x) = return (Left x)
       validateTarget sum (Right name) =
           do output <- liftIO $ md5sum dest
              case output of
@@ -123,7 +125,7 @@ prepareUri _debug top flush target =
                                  then "j"
                                  else ""
             read (Left message) = return . Left $ message
-            read (Right (output, elapsed)) = liftIO (getDir sourceDir)
+            read (Right (_output, _elapsed)) = liftIO (getDir sourceDir)
             search (Left message) = return . Left $ message
             search (Right files) = checkContents (filter (not . flip elem [".", ".."]) files)
             verify (Left message) = return . Left $ ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
@@ -137,11 +139,9 @@ prepareUri _debug top flush target =
             tarball = sumDir ++ "/" ++ name
             sourceDir = sumDir ++ "/unpack"
 
-      tmp = top ++ "/tmp"
+      tmp = P.topDir params ++ "/tmp"
       uriRE = "([^:]+:[^:]+):(" ++ md5sumRE ++ ")"
       md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
-      stringToMaybe "" = Nothing
-      stringToMaybe s = Just s
 
 mustParseURI :: String -> URI
 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
