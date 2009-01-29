@@ -5,69 +5,10 @@
 --
 -- Author: David Fox <ddssff@gmail.com>
 module Debian.AutoBuilder.Params
-    (-- * Runtime Parameters
-     Params(..),
-     optSpecs,
-     params,			-- IO [Params],
-     prettyPrint,		-- Params -> String
-     usage,			-- String -> String
-     -- * Global Parameters
-     topDir,			-- Params -> TopDir
-     debug,			-- Params -> Bool
-     Debian.AutoBuilder.Params.dryRun,		-- Params -> Bool
-     --style,			-- Params -> [Progress.Style]
-     requiredVersion,		-- Params -> [(DebianVersion, Maybe String)]
-     showSources,		-- Params -> Bool
-     showParams,		-- Params -> Bool
-     flushAll,
-     useRepoCache,		-- Params -> Bool
-     -- * Obtaining and preparing target source
-     Debian.AutoBuilder.Params.sources,		-- Params -> [String]	(Use distro)
-     targets,			-- Params -> [String]
-     omitTargets,		-- Params -> [String]
-     vendorTag,			-- Params -> String
-     extraReleaseTag,		-- Params -> Int
-     flushSource,		-- Params -> Bool
-     -- * Build Environment
-     forceBuild,		-- Params -> Bool
-     allowBuildDependencyRegressions,	-- Params -> Bool
-     preferred,			-- Params -> [String]
-     Debian.AutoBuilder.Params.cleanRoot,		-- Params -> EnvRoot
-     Debian.AutoBuilder.Params.dirtyRoot,		-- Params -> EnvRoot
-     cleanRootOfRelease,
-     Strictness(Strict, Moderate, Lax),
-     strictness,		-- Params -> Strictness
-     setEnv,			-- Params -> [String]
-     buildDepends,		-- Params -> [String]
-     relaxDepends,		-- Params -> [String]
-     noClean,			-- Params -> Bool
-     extraPackages,		-- Params -> [String]
-     extraEssential,
-     omitEssential,		-- Params -> [String]
-     omitBuildEssential,	-- Params -> Bool
-     baseRelease,
-     buildRelease,
-     doNotChangeVersion,	-- Params -> Bool
-     isDevelopmentRelease,	-- Params -> Bool
-     releaseAliases,
-     flushRoot,			-- Params -> Bool
-     -- * Local repository
-     cleanUp,			-- Params -> Bool
-     archList,			-- Params -> [Arch]
-     flushPool,			-- Params -> Bool
-     Debian.AutoBuilder.Params.localPoolDir,	-- Params -> FilePath
-     -- * Uploading
-     doUpload,			-- Params -> Bool
-     doNewDist,			-- Params -> Bool
-     newDistProgram,
-     uploadHost,		-- Params -> Maybe String (derived from uploadUrl)
-     uploadURI,			-- Params -> Maybe URI
-     createRelease,
-     ifSourcesChanged,
-     doSSHExport,
-     autobuilderEmail,		-- Params -> String
-     -- * Other
-     findSlice
+    ( Params(..),
+      optSpecs,
+      params,
+      usage
     ) where
 
 import		 Debian.Repo
@@ -81,13 +22,18 @@ import		 Data.List
 import		 Data.Maybe
 import		 Extra.TIO
 import		 Extra.Misc
+import qualified Debian.AutoBuilder.ParamClass as P
+import		 Debian.AutoBuilder.Target (targetDocumentation)
+import qualified Debian.AutoBuilder.Version as V
+import qualified Debian.Config as Config
 import		 Debian.Config hiding (usageInfo)
-import qualified Debian.Config as P (usageInfo) -- (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
+import qualified Debian.Config as P (usageInfo)
 import qualified Data.Map as Map
 import qualified System.IO as IO
 import		 System.Console.GetOpt
 import		 System.Directory
 import		 System.Environment as Environment
+import		 System.Exit (exitWith, ExitCode(ExitSuccess))
 import		 Text.Regex as Regex
 
 data Params
@@ -100,19 +46,61 @@ instance ParamSet Params where
     values params descr =
         concat (map (\ name -> Map.findWithDefault [] name (flags params)) (names descr))
 
--- Lax: dependencies are installed into clean, clean synced to build for each target
--- Moderate: dependencies are installed into build, clean synced to build only at beginning of run
--- Strict: dependencies are installed into build, clean synced to build for each target
-data Strictness
-    = Lax |		-- Let build dependencies accumulate
-      Moderate |	-- Install only required build dependencies
-      Strict		-- Create a new build environment for each package
-      deriving Eq
-
-instance Show Strictness where
-    show Lax = "Lax"
-    show Moderate = "Moderate"
-    show Strict = "Strict"
+instance P.ParamClass Params where
+    prettyPrint = prettyPrint
+    topDir = topDir
+    vendorTag = vendorTag
+    extraReleaseTag = extraReleaseTag
+    extraEssential = extraEssential
+    omitEssential = omitEssential
+    extraPackages = extraPackages
+    strictness = strictness
+    debug = debug
+    requiredVersion = requiredVersion
+    omitBuildEssential = omitBuildEssential
+    dryRun = dryRun
+    noClean = noClean
+    forceBuild = forceBuild
+    allowBuildDependencyRegressions = allowBuildDependencyRegressions
+    doUpload = doUpload
+    doNewDist = doNewDist
+    newDistProgram = newDistProgram
+    showSources = showSources
+    showParams = showParams
+    cleanUp = cleanUp
+    doSSHExport = doSSHExport
+    ifSourcesChanged = ifSourcesChanged
+    flushRoot = flushRoot
+    flushPool = flushPool
+    flushSource = flushSource
+    flushAll = flushAll
+    useRepoCache = useRepoCache
+    preferred = preferred
+    createRelease = createRelease
+    autobuilderEmail = autobuilderEmail
+    baseRelease = baseRelease
+    uploadURI = uploadURI
+    uploadHost = uploadHost
+    buildRelease = buildRelease
+    doNotChangeVersion = doNotChangeVersion
+    isDevelopmentRelease = isDevelopmentRelease
+    releaseAliases = releaseAliases
+    _verbosity = _verbosity
+    sources = sources
+    targets = targets
+    goals = goals
+    omitTargets = omitTargets
+    archList = archList
+    buildDepends = buildDepends
+    setEnv = setEnv
+    relaxDepends = relaxDepends
+    dirtyRoot = dirtyRoot
+    cleanRoot = cleanRoot
+    dirtyRootOfRelease = dirtyRootOfRelease
+    cleanRootOfRelease = cleanRootOfRelease
+    localPoolDir = localPoolDir
+    allSources = allSources
+    buildRepoSources = buildRepoSources    
 
 -- |Compute and return all the run time parameters by expanding the list of flags,
 -- generally computed from the command line arguments, using the Name\/Use macro
@@ -129,8 +117,8 @@ instance Show Strictness where
 --
 -- The appName string is used to construct the usage message and
 -- candidates for the configuration directory path.
-params :: CIO m => Int -> String -> [Flag] -> AptIOT m [Params]
-params verbosity appName flags =
+params' :: CIO m => Int -> String -> [Flag] -> AptIOT m [Params]
+params' verbosity appName flags =
     do flagLists <- liftIO (computeConfig verbosity appName flags id)
        flagMaps <- mapM (lift . computeTopDir) (map (listMap . pairsFromFlags) flagLists)
        case listToMaybe flagMaps of
@@ -217,6 +205,7 @@ sourceOpts =
      vendorTagOpt,
      extraReleaseTagOpt,
      targetsOpt,
+     goalOpt,
      omitTargetsOpt]
 
 -- |Build Environment
@@ -327,14 +316,6 @@ computeTopDir params =
                   -- putStrLn (top ++ ": ok")
                   return $ Map.insert "Top-Dir" [top] params
 
--- |Find a release by name, among all the "Sources" entries given in the configuration.
-findSlice :: Params -> SliceName -> Either String NamedSliceList
-findSlice params dist =
-    case filter ((== dist) . sliceListName) (allSources params) of
-      [x] -> Right x
-      [] -> Left ("No sources.list found for " ++ sliceName dist)
-      xs -> Left ("Multiple sources.lists found for " ++ sliceName dist ++ "\n" ++ show (map (sliceName . sliceListName) xs))
-
 -- |The string used to construct modified version numbers.  E.g.,
 -- Ubuntu uses "ubuntu", this should reflect the name of the repository
 -- you are going to upload to.
@@ -390,13 +371,13 @@ extraPackagesOpt = Param [] ["extra-package"] ["Extra-Package"] (ReqArg (Value "
 
 
 -- |Return the value of a strictness flag (--strict, --moderate, --lax)
-strictness :: Params -> Strictness
+strictness :: Params -> P.Strictness
 strictness params =
     case (values params laxOpt, values params moderateOpt, values params strictOpt) of
-      ([], [], []) -> Moderate
-      (_, [], []) -> Lax
-      ([], [], _) -> Strict
-      ([], _, []) -> Moderate
+      ([], [], []) -> P.Moderate
+      (_, [], []) -> P.Lax
+      ([], [], _) -> P.Strict
+      ([], _, []) -> P.Moderate
       _ -> error "Conflicting strictness options"
 
 laxOpt = Param [] ["lax"] ["Lax"] (NoArg (Value "Strictness" "lax"))
@@ -677,30 +658,6 @@ releaseAliasOpt = Param [] ["release-alias"] ["Release-Alias"] (ReqArg (Value "R
                   (text ["Use an alias for a release name when constructing the vendor tag,",
                          "for example, --release-alias etch=bpo40+"])
 
-{-
-style :: Params -> TStyle -> TStyle
-style params =
-    styleParams' . styleParams
-    where
-      styleParams' = {- setVerbosity (verbosity params) . setPrefix "" -} id
-      styleParams = foldl (.) id . map readStyle $ (values params styleOpt)
-styleOpt = Param [] ["style"] ["Style"] (ReqArg (Value "Style") "STYLE SPEC")
-           "Add to or change the default output style."
-
-readStyle :: String -> TStyle -> TStyle
-readStyle text =
-    case (mapSnd tail . break (== '=')) text of
-      ("Verbosity", value) -> setVerbosity (read value)
-      ("Indent", prefix) -> appPrefix prefix
-      _ -> id
-    where
-      readFlag "yes" = True
-      readFlag "no" = False
-      readFlag "true" = True
-      readFlag "false" = True
-      readFlag text = error ("Unrecognized bool: " ++ text)
--}
-
 -- This is not used, the verbosity is computed by inspecting getArgs directly
 -- because it is used during the construction of the Params value.
 _verbosity :: Params -> Int
@@ -727,6 +684,14 @@ targetsOpt = Param ['t'] ["target", "targets"] ["Target", "Targets"] (ReqArg (Va
 	     (text ["Specify one or more build targets, methods for obtaining the source",
                     "code of a package to be built.  See TARGET TYPES below for information",
                     "about the available target types." ])
+
+-- | Flag: --goal, config: Goal
+goals :: Params -> [String]
+goals params = concat (map words (values params goalOpt))
+
+goalOpt = Param ['g'] ["goal"] ["Goal"] (ReqArg (Value "Goal") "NAME")
+	  (text ["Specify a source package which we want to build, and stop once all goals",
+                 "are built.  If not given we build all of the targets"])
 
 -- |Return the value of the --omit-target flag.
 omitTargets :: Params -> [String]
@@ -810,3 +775,20 @@ cleanRootOfRelease params distro =
 -- |Location of the local repository for uploaded packages.
 localPoolDir :: Params -> FilePath
 localPoolDir params = topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)
+
+params :: (CIO m) => String -> [String] -> AptIOT m [Params]
+params appName useNames =
+    do args <- liftIO getArgs
+       let verbosity = length (filter (== "-v") args) - length (filter (== "-q") args)
+       let flags = map (Config.Value "Use") useNames ++ Config.seedFlags appName optSpecs args
+       liftIO (doHelp appName flags) >>= doVersion >>= params' verbosity appName
+
+doHelp :: String -> [Config.Flag] -> IO [Config.Flag]
+doHelp appName flags
+    | isJust (Config.findValue flags "Help") =
+        do IO.putStrLn (usage appName ++ targetDocumentation) >> exitWith ExitSuccess
+    | True = return flags
+doVersion flags
+    | isJust (Config.findValue flags "Version") =
+        do liftIO (IO.putStrLn V.version >> exitWith ExitSuccess)
+    | True = return flags

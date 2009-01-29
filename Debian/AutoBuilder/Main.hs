@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |AutoBuilder - application to build Debian packages in a clean
 -- environment.  In the following list, each module's dependencies
 -- appear above it:
@@ -9,10 +9,10 @@ import		 Debian.Shell
 import		 Debian.Version
 import		 Debian.URI
 
-import		 Control.Monad.State
+--import		 Control.Monad.State
 import		 Control.Monad.RWS
 import		 Extra.TIO
-import qualified Debian.Config as Config
+--import qualified Debian.Config as Config
 import		 Control.Exception
 import		 Control.Monad
 import qualified Data.Map as Map
@@ -25,7 +25,8 @@ import		 Extra.Lock
 import		 Extra.Misc
 import		 System.Unix.Directory hiding (find)
 import		 System.Unix.Process
-import qualified Debian.AutoBuilder.Params as Params
+import qualified Debian.AutoBuilder.ParamClass as P
+import           Debian.AutoBuilder.Params (params)
 import		 System.Directory
 import		 System.Environment
 import		 System.Exit
@@ -43,33 +44,17 @@ import qualified Debian.AutoBuilder.Version as Version
 main :: IO ()
 main =
     do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
-       runTIO (setVerbosity verbosity defStyle) (tioMain verbosity)        
+       runTIO (setVerbosity verbosity defStyle) (tioMain verbosity)
        IO.hFlush IO.stderr
     where
+      tioMain :: Int -> TIO ()
       tioMain verbosity =
-          runAptIO (aptMain verbosity) >>=
-          checkResults
-      aptMain verbosity =
-          liftIO getArgs >>=
-          return . Config.seedFlags appName Params.optSpecs >>=
-          liftIO . doHelp >>=
-          doVersion >>=
-          Params.params verbosity appName >>=
-          mapM doParameterSets
-      doHelp :: [Config.Flag] -> IO [Config.Flag]
-      doHelp flags
-          | isJust (Config.findValue flags "Help") =
-              do IO.putStrLn (Params.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
-          | True = return flags
-      doVersion flags
-          | isJust (Config.findValue flags "Version") =
-              do liftIO (IO.putStrLn Version.version >> exitWith ExitSuccess)
-          | True = return flags
+          runAptIO (params appName [] >>= mapM doParameterSets) >>= checkResults
       -- Process one set of parameters.  Usually there is only one, but there
       -- can be several which are run sequentially.
-      doParameterSets :: Params.Params -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
+      doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
       doParameterSets set = withLock (lockFilePath set) (tryAB . runParameterSet $ set)
-      lockFilePath params = Params.topDir params ++ "/lockfile"
+      lockFilePath params = P.topDir params ++ "/lockfile"
       -- The result of processing a set of parameters is either an
       -- exception or a completion code, or, if we fail to get a lock,
       -- nothing.  For a single result we can print a simple message,
@@ -97,7 +82,7 @@ main =
 appName :: String
 appName = "autobuilder"
 
-runParameterSet :: Params.Params -> AptIOT TIO (Either String ([Output], TimeDiff))
+runParameterSet :: P.ParamClass p => p -> AptIOT TIO (Either String ([Output], TimeDiff))
 runParameterSet params =
     do
       lift doRequiredVersion
@@ -105,23 +90,23 @@ runParameterSet params =
       doShowSources
       doFlush
       checkPermissions
-      maybe (return ()) (verifyUploadURI (Params.doSSHExport $ params)) (Params.uploadURI params)
+      maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
       cleanOS <- (prepareEnv
                          top
-                         (Params.cleanRoot params)
+                         (P.cleanRoot params)
                          buildRelease
                          (Just localRepo)
-                         (Params.flushRoot params)
-                         (Params.ifSourcesChanged params)
-                         (Params.extraEssential params)
-                         (Params.omitEssential params)
-                         (Params.extraPackages params ++ ["makedev", "build-essential"]))
-      updateCacheSources (Params.ifSourcesChanged params) cleanOS
+                         (P.flushRoot params)
+                         (P.ifSourcesChanged params)
+                         (P.extraEssential params)
+                         (P.omitEssential params)
+                         (P.extraPackages params ++ ["makedev", "build-essential"]))
+      updateCacheSources (P.ifSourcesChanged params) cleanOS
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
-      globalBuildDeps <- liftIO $ buildEssential cleanOS (Params.omitBuildEssential params)
+      globalBuildDeps <- liftIO $ buildEssential cleanOS (P.omitBuildEssential params)
       -- Get a list of all sources for the local repository.
       localSources <-
           case localRepo of
@@ -136,7 +121,7 @@ runParameterSet params =
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       lift (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      poolOS <- iStyle $ prepareAptEnv top (Params.ifSourcesChanged params) poolSources
+      poolOS <- iStyle $ prepareAptEnv top (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], ok) ->
@@ -152,14 +137,14 @@ runParameterSet params =
             do lift (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ concat (intersperse "\n " bad)))
                return . Left $ "Could not prepare source code of some targets: " ++ concat (intersperse "\n " bad)
     where
-      baseRelease =  either (error . show) id (Params.findSlice params (Params.baseRelease params))
-      buildRepoSources = Params.buildRepoSources params
-      buildReleaseSources = releaseSlices (Params.buildRelease params) (inexactPathSlices buildRepoSources)
-      buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (Params.buildRelease params))
+      baseRelease =  either (error . show) id (P.findSlice params (P.baseRelease params))
+      buildRepoSources = P.buildRepoSources params
+      buildReleaseSources = releaseSlices (P.buildRelease params) (inexactPathSlices buildRepoSources)
+      buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (P.buildRelease params))
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       doRequiredVersion :: CIO m => m ()
       doRequiredVersion =
-          case filter (\ (v, _) -> v > parseDebianVersion Version.version) (Params.requiredVersion params) of
+          case filter (\ (v, _) -> v > parseDebianVersion Version.version) (P.requiredVersion params) of
             [] -> return ()
             reasons ->
                 do vEPutStrBl 0 ("Version " ++ Version.version ++ " is too old:")
@@ -169,10 +154,10 @@ runParameterSet params =
             printReason :: CIO m => (DebianVersion, Maybe String) -> m ()
             printReason (v, s) =
                 vEPutStr 0 (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
-      doShowParams = when (Params.showParams params) (vEPutStr 0 $ "Configuration parameters:\n" ++ Params.prettyPrint params)
+      doShowParams = when (P.showParams params) (vEPutStr 0 $ "Configuration parameters:\n" ++ P.prettyPrint params)
       doShowSources =
-          if (Params.showSources params) then
-              either (error . show) doShow (Params.findSlice params (SliceName (releaseName' (Params.buildRelease params)))) else
+          if (P.showSources params) then
+              either (error . show) doShow (P.findSlice params (SliceName (releaseName' (P.buildRelease params)))) else
               return ()
           where
             doShow sources =
@@ -181,7 +166,7 @@ runParameterSet params =
                    liftIO $ exitWith ExitSuccess
       -- FIXME: This may be too late
       doFlush
-          | Params.flushAll params = 
+          | P.flushAll params = 
               do liftIO $ removeRecursiveSafely top
                  liftIO $ createDirectoryIfMissing True top
           | True = return ()
@@ -192,51 +177,51 @@ runParameterSet params =
                False -> do lift (vEPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
                            liftIO $ exitWith (ExitFailure 1)
       prepareLocalRepo =
-          do let path = EnvPath (EnvRoot "") (Params.localPoolDir params)
+          do let path = EnvPath (EnvRoot "") (P.localPoolDir params)
              repo <- prepareLocalRepository path (Just Flat) >>=
-                     (if Params.flushPool params then flushLocalRepository else return)
+                     (if P.flushPool params then flushLocalRepository else return)
              lift (vEPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
-             release <- prepareRelease repo (Params.buildRelease params) [] [parseSection' "main"] (Params.archList params)
+             release <- prepareRelease repo (P.buildRelease params) [] [parseSection' "main"] (P.archList params)
              let repo' = releaseRepo release
              case repo' of
                LocalRepo repo'' ->
-                   case Params.cleanUp params of
+                   case P.cleanUp params of
                      True -> deleteGarbage repo''
                      False -> return repo''
       prepareTargetList =
           do lift (showTargets allTargets)
              lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
              mapRWST (setStyle (appPrefix " "))
-                         (mapM (readSpec (Params.debug params) top flush
-                                (Params.ifSourcesChanged params) (Params.allSources params)) allTargets)
+                         (mapM (readSpec (P.debug params) top flush
+                                (P.ifSourcesChanged params) (P.allSources params)) allTargets)
           where
-            allTargets = listDiff (Params.targets params) (Params.omitTargets params)
+            allTargets = listDiff (P.targets params) (P.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
       upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Either String ([Output], TimeDiff)]
       upload (repo, [])
-          | Params.doUpload params =
-              case Params.uploadURI params of
+          | P.doUpload params =
+              case P.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
                 Just uri -> lift (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
             lift (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
-            case Params.doUpload params of
+            case P.doUpload params of
               True -> lift (vEPutStr 0 "Skipping upload.")
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: CIO m => [Either String ([Output], TimeDiff)] -> m (Either String ([Output], TimeDiff))
       newDist results
-          | Params.doNewDist params =
-              case Params.uploadURI params of
+          | P.doNewDist params =
+              case P.uploadURI params of
                 Just uri ->
                     do vEPutStrBl 1 ("Upload results:\n  " ++ concat (intersperse "\n  " (map show results)))
                        case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
-                                        " " ++ Params.newDistProgram params ++ " --root " ++ uriPath uri ++
-                                        (concat . map (" --create " ++) . Params.createRelease $ params)) in
+                                        " " ++ P.newDistProgram params ++ " --root " ++ uriPath uri ++
+                                        (concat . map (" --create " ++) . P.createRelease $ params)) in
                              vEPutStr 0 "Running newdist on remote repository" >> runCommandQuietlyTimed cmd
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
@@ -244,12 +229,12 @@ runParameterSet params =
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Right ([], noTimeDiff))
       iStyle = id {- setStyle (addPrefixes " " " ") -}
-      top = Params.topDir params
-      --dryRun = Params.dryRun params
-      flush = Params.flushSource params
-      updateRepoCache :: Params.Params -> AptIOT TIO ()
+      top = P.topDir params
+      --dryRun = P.dryRun params
+      flush = P.flushSource params
+      updateRepoCache :: P.ParamClass p => p -> AptIOT TIO ()
       updateRepoCache params =
-          do let path = Params.topDir params  ++ "/repoCache"
+          do let path = P.topDir params  ++ "/repoCache"
              live <- get >>= return . getRepoMap
              cache <- liftIO $ loadCache path
              --tio (hPutStrBl IO.stderr (show (Map.toList live)))
@@ -280,7 +265,7 @@ findPoolSources localRepo dist =
       (Left root, dists) ->
           do
             let sources = ReleaseCache.sources distro
-            let distros = catMaybes $ map (either (const Nothing) Just . Params.findRelease params . fst) dists
+            let distros = catMaybes $ map (either (const Nothing) Just . P.findRelease params . fst) dists
             return $ sources ++ concat (map local distros)
     where
       -- FIXME: this is cheating

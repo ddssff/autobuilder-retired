@@ -22,7 +22,8 @@ import		 Debian.URI
 import		 Extra.TIO
 import qualified MyHtml
 import qualified Network.CGI as CGI
-import qualified Debian.AutoBuilder.Params as Params
+import qualified Debian.AutoBuilder.ParamClass as P
+import           Debian.AutoBuilder.Params (params)
 import		 System.Directory
 import		 System.Environment
 import		 System.IO
@@ -43,40 +44,39 @@ application :: CIO m => [(String,String)] -> AptIOT m String
 application cgivars =
     do -- Use the same application name as the autobuilder so we
        -- see the same configuration files.
-      args <- liftIO getArgs
-      let verbosity = length (filter (== "-v") args)
-      let flags = Config.Value "Use" "web-config" : Config.seedFlags appName Params.optSpecs args
-      params <- Params.params verbosity "autobuilder" flags >>= return . head
-      html <-
-          case lookup "page" cgivars of
-            Nothing -> liftIO $ topPage params cgivars
-            Just "params" -> liftIO $ flagPage params
-            Just "env" -> liftIO $ envPage
-            Just "dist" -> distPage params cgivars
-            Just "source-package" -> sourcePackagePage params cgivars
-            Just "binary-package" -> liftIO $ binaryPackagePage params cgivars
-            Just "apt-get-update" -> liftIO $ aptGetUpdate params cgivars
-            Just page -> liftIO $ errorPage params cgivars page
-      return $ show $ concatHtml [heading params cgivars, html]
+      paramSets <- params appName ["web-config"]
+      case paramSets of
+        (params : _) ->
+            do html <-
+                   case lookup "page" cgivars of
+                     Nothing -> liftIO $ topPage params cgivars
+                     --Just "params" -> liftIO $ flagPage params
+                     Just "env" -> liftIO $ envPage
+                     Just "dist" -> distPage params cgivars
+                     Just "source-package" -> sourcePackagePage params cgivars
+                     Just "binary-package" -> liftIO $ binaryPackagePage params cgivars
+                     Just "apt-get-update" -> liftIO $ aptGetUpdate params cgivars
+                     Just page -> liftIO $ errorPage params cgivars page
+               return $ show $ concatHtml [heading params cgivars, html]
 
 appName :: String
 appName = "autobuilder"
 
-aptGetUpdate :: Params.Params -> [(String,String)] -> IO Html
+aptGetUpdate :: P.ParamClass p => p -> [(String,String)] -> IO Html
 aptGetUpdate params cgivars =
     do
       let dist = parseReleaseName . fromJust . lookup "dist" $ cgivars
-      let dir = Params.cleanRootOfRelease params dist
+      let dir = P.cleanRootOfRelease params dist
       let cmd = "sudo chroot " ++ rootPath dir ++ " apt-get update"
       -- Can't do this until we convince Apache it is ok
       -- (output, code) <- My.processOutput cmd
       -- return $ pre (stringToHtml (cmd ++ "\n" ++ output ++ "\n" ++ show code))
       return $ stringToHtml cmd
 
-heading :: Params.Params -> [(String,String)] -> Html
+heading :: P.ParamClass p => p -> [(String,String)] -> Html
 heading params cgivars =
     let nav = td (concatHtml topNav) in
-    let info = td (concatHtml [stringToHtml "Upload Host: ", stringToHtml (maybe "None" id (Params.uploadHost params))])
+    let info = td (concatHtml [stringToHtml "Upload Host: ", stringToHtml (maybe "None" id (P.uploadHost params))])
                ! [strAttr "align" "right"] in
     (table . tr . concatHtml) [nav, info] ! [strAttr "width" "100%"]
     where
@@ -90,7 +90,7 @@ heading params cgivars =
                       [stringToHtml " > ", linkToDist cgivars dist]
             _ -> []
 
-topPage :: Params.Params -> [(String,String)] -> IO Html
+topPage :: P.ParamClass p => p -> [(String,String)] -> IO Html
 topPage params cgivars =
     do dists <- runTIO defStyle (runAptIO (distros params)) >>= return . map (sliceName . sliceListName)
        return (concatHtml
@@ -99,12 +99,14 @@ topPage params cgivars =
 	        h3 (MyHtml.linkTo cgivars (stringToHtml "Parameters") [("page", "params")]),
 	        h3 (MyHtml.linkTo cgivars (stringToHtml "Environment") [("page", "env")])])
 
-flagPage :: Params.Params -> IO Html
+{-
+flagPage :: P.ParamClass p => p -> IO Html
 flagPage params =
     return (concatHtml 
             [h3 (stringToHtml "Parameters"),
              -- FIXME: format as html, replace newlines with <br>, etc
-             ulist (concatHtml (map (li . stringToHtml . show) (Map.assocs (Params.flags params))))])
+             ulist (concatHtml (map (li . stringToHtml . show) (Map.assocs (P.flags params))))])
+-}
 
 envPage :: IO Html
 envPage =
@@ -123,14 +125,14 @@ environment =
       return $ concatHtml (map (\ (name, value) -> concatHtml [stringToHtml (name ++ "=" ++ value), br]) env)
 -}
 
-distPage :: CIO m => Params.Params -> [(String,String)] -> AptIOT m Html
+distPage :: CIO m => P.ParamClass p => p -> [(String,String)] -> AptIOT m Html
 distPage params cgivars =
     do distro <- distros params >>= return . find (isDist dist)
        case distro of
          Nothing ->
              error ("Unknown dist: " ++ sliceName dist)
          Just distro ->
-             do (Control sourcePackages) <- sourcePackageInfo params root (Params.uploadHost params) distro
+             do (Control sourcePackages) <- sourcePackageInfo params root (P.uploadHost params) distro
                 return (form
                         (concatHtml
                          [input ! [strAttr "type" "submit",  strAttr "name" "page", strAttr "value" "apt-get-update"],
@@ -163,26 +165,26 @@ distPage params cgivars =
       splitCommaList s = splitRegex (mkRegex "[, ]+") s
       cmpPackages a b = compare (fieldValue "Package" a) (fieldValue "Package" b)
       dist = maybe (error "No dist name") SliceName (lookup "dist" cgivars)
-      root = cacheRootDir (Params.topDir params) (either (error . show) (ReleaseName . sliceName . sliceListName) (Params.findSlice params dist))
+      root = cacheRootDir (P.topDir params) (either (error . show) (ReleaseName . sliceName . sliceListName) (P.findSlice params dist))
       isDist dist distro = dist == sliceListName distro
 
-sourcePackagePage :: CIO m => Params.Params -> [(String, String)] -> AptIOT m Html
+sourcePackagePage :: CIO m => P.ParamClass p => p -> [(String, String)] -> AptIOT m Html
 sourcePackagePage params cgivars =
     do
       let package = fromJust (lookup "package" cgivars)
       let dist = maybe (error "No dist name") SliceName (lookup "dist" cgivars)
-      let distro = either (error . show) id (Params.findSlice params dist)
-      let root = cacheRootDir (Params.topDir params) (ReleaseName . sliceName . sliceListName $ distro)
-      (Control control) <- sourcePackageInfo params root (Params.uploadHost params) distro
+      let distro = either (error . show) id (P.findSlice params dist)
+      let root = cacheRootDir (P.topDir params) (ReleaseName . sliceName . sliceListName $ distro)
+      (Control control) <- sourcePackageInfo params root (P.uploadHost params) distro
       let (Paragraph info) = fromJust (find (\ info -> fieldValue "Package" info == Just package) control)
       return $ concatHtml (intersperse br (map (stringToHtml . show) info))
 
-binaryPackagePage :: Params.Params -> [(String, String)] -> IO Html
+binaryPackagePage :: P.ParamClass p => p -> [(String, String)] -> IO Html
 binaryPackagePage _ cgivars =
     let package = fromJust (lookup "package" cgivars) in
     return $ stringToHtml ("binaryPackagePage: " ++ package)
 
-sourcePackageInfo :: CIO m => Params.Params -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIOT m Control
+sourcePackageInfo :: (CIO m, P.ParamClass p) => p -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIOT m Control
 sourcePackageInfo _ root uploadHost distro =
     do
       lift (vPutStrBl 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
@@ -196,22 +198,22 @@ sourcePackageInfo _ root uploadHost distro =
       uploadSources = releaseSlices dist (sliceList distro)
       dist = parseReleaseName (sliceName . sliceListName $ distro)
 
-showSource :: Params.Params -> DebSource -> Html
+showSource :: P.ParamClass p => p -> DebSource -> Html
 showSource params src@(DebSource DebSrc uri _)
-    | uriHost uri == (Params.uploadHost params) =
+    | uriHost uri == (P.uploadHost params) =
         concatHtml [stringToHtml "uploadable source: ", (stringToHtml . show) src]
 showSource params src@(DebSource Deb uri _)
-    | uriHost uri == (Params.uploadHost params) =
+    | uriHost uri == (P.uploadHost params) =
         concatHtml [stringToHtml "uploadable binary: ", (stringToHtml . show) src]
 showSource _ src = (stringToHtml . show) src
 
-errorPage :: Params.Params -> [(String,String)] -> String -> IO Html
+errorPage :: P.ParamClass p => p -> [(String,String)] -> String -> IO Html
 errorPage _ _ page =
     return (concatHtml
             [h3 (stringToHtml ("Unknown page type: " ++ page))])
 
-distros :: CIO m => Params.Params -> AptIOT m [NamedSliceList]
-distros params = mapM parseNamedSliceList' (Params.sources params)
+distros :: (CIO m, P.ParamClass p) => p -> AptIOT m [NamedSliceList]
+distros params = mapM parseNamedSliceList' (P.sources params)
 
 linkToDist :: [(String,String)] -> String -> Html
 linkToDist cgivars dist =
