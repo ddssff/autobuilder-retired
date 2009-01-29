@@ -26,7 +26,9 @@ import		 Extra.Misc
 import		 System.Unix.Directory hiding (find)
 import		 System.Unix.Process
 import qualified Debian.AutoBuilder.ParamClass as P
-import           Debian.AutoBuilder.Params (params)
+import           Debian.AutoBuilder.Params (params, usage)
+import		 Debian.AutoBuilder.Target (Target, buildTargets, showTargets, readSpec, targetDocumentation)
+import qualified Debian.AutoBuilder.Version as V
 import		 System.Directory
 import		 System.Environment
 import		 System.Exit
@@ -34,7 +36,6 @@ import qualified System.IO as IO
 import 	         System.IO.Error (isDoesNotExistError)
 import		 System.Posix.Files (removeLink)
 import		 System.Time
-import		 Debian.AutoBuilder.Target
 import qualified Debian.AutoBuilder.Version as Version
 
 -- | Convert the command line arguments into a list of flags.  Then
@@ -49,7 +50,7 @@ main =
     where
       tioMain :: Int -> TIO ()
       tioMain verbosity =
-          runAptIO (params appName [] >>= mapM doParameterSets) >>= checkResults
+          runAptIO (params appName [] doHelp doVersion >>= mapM doParameterSets) >>= checkResults
       -- Process one set of parameters.  Usually there is only one, but there
       -- can be several which are run sequentially.
       doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
@@ -75,6 +76,9 @@ main =
                    isLeft (Right (Left _)) = True
                    isLeft (Left _) = True
                    isLeft (Right (Right _)) = False
+
+doHelp appName = IO.putStrLn (usage appName ++ targetDocumentation) >> exitWith ExitSuccess
+doVersion = IO.putStrLn V.version >> exitWith ExitSuccess
 
 -- |The application name is used to compute the default configuration
 -- file names and the name of the cache directory (topDir,) among

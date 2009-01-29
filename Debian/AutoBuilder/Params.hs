@@ -23,8 +23,6 @@ import		 Data.Maybe
 import		 Extra.TIO
 import		 Extra.Misc
 import qualified Debian.AutoBuilder.ParamClass as P
-import		 Debian.AutoBuilder.Target (targetDocumentation)
-import qualified Debian.AutoBuilder.Version as V
 import qualified Debian.Config as Config
 import		 Debian.Config hiding (usageInfo)
 import qualified Debian.Config as P (usageInfo)
@@ -33,7 +31,6 @@ import qualified System.IO as IO
 import		 System.Console.GetOpt
 import		 System.Directory
 import		 System.Environment as Environment
-import		 System.Exit (exitWith, ExitCode(ExitSuccess))
 import		 Text.Regex as Regex
 
 data Params
@@ -776,19 +773,20 @@ cleanRootOfRelease params distro =
 localPoolDir :: Params -> FilePath
 localPoolDir params = topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)
 
-params :: (CIO m) => String -> [String] -> AptIOT m [Params]
-params appName useNames =
+params :: (CIO m) =>
+          String
+       -> [String]
+       -> (String -> IO ())
+       -> (IO ())
+       -> AptIOT m [Params]
+params appName useNames doHelp doVersion =
     do args <- liftIO getArgs
        let verbosity = length (filter (== "-v") args) - length (filter (== "-q") args)
        let flags = map (Config.Value "Use") useNames ++ Config.seedFlags appName optSpecs args
-       liftIO (doHelp appName flags) >>= doVersion >>= params' verbosity appName
-
-doHelp :: String -> [Config.Flag] -> IO [Config.Flag]
-doHelp appName flags
-    | isJust (Config.findValue flags "Help") =
-        do IO.putStrLn (usage appName ++ targetDocumentation) >> exitWith ExitSuccess
-    | True = return flags
-doVersion flags
-    | isJust (Config.findValue flags "Version") =
-        do liftIO (IO.putStrLn V.version >> exitWith ExitSuccess)
-    | True = return flags
+       -- The --help and --version are done early, there is a lot of
+       -- computation and I/O involved in creating the Params records
+       -- that we don't want to do if those options are set.
+       case () of
+         _ | isJust (Config.findValue flags "Help") -> liftIO (doHelp appName) >> return []
+           | isJust (Config.findValue flags "Version") -> liftIO doVersion >> return []
+           | True -> params' verbosity appName flags

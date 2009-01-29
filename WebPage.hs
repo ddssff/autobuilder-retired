@@ -44,7 +44,7 @@ application :: CIO m => [(String,String)] -> AptIOT m String
 application cgivars =
     do -- Use the same application name as the autobuilder so we
        -- see the same configuration files.
-      paramSets <- params appName ["web-config"]
+      paramSets <- params appName ["web-config"] undefined undefined
       case paramSets of
         (params : _) ->
             do html <-

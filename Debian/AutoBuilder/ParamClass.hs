@@ -4,25 +4,12 @@ module Debian.AutoBuilder.ParamClass
     , findSlice
     ) where
 
+import		 Data.Maybe
 import		 Debian.Repo
 import		 Debian.Version
 import		 Debian.URI
 import qualified Debian.GenBuildDeps as G
-
---import		 Control.Exception
---import		 Control.Monad.Trans
---import		 Data.List
-import		 Data.Maybe
---import		 Extra.TIO
---import		 Extra.Misc
---import		 Debian.Config hiding (usageInfo)
---import qualified Debian.Config as P (usageInfo) -- (usageInfo, ParamDescr(Param), shortOpts, longOpts, argDescr, description, names, values)
---import qualified Data.Map as Map
 import qualified System.IO as IO
---import		 System.Console.GetOpt
---import		 System.Directory
---import		 System.Environment as Environment
---import		 Text.Regex as Regex
 
 -- Lax: dependencies are installed into clean, clean synced to build for each target
 -- Moderate: dependencies are installed into build, clean synced to build only at beginning of run
