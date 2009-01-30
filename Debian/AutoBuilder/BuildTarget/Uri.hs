@@ -134,8 +134,8 @@ prepareUri params target =
                          either (return . Left . show) (return . Right . filter (not . flip elem [".", ".."]))
             checkContents :: CIO m => [FilePath] -> m (Either String SourceTree)
             checkContents [] = return (Left "Empty tarball?")
-            checkContents [subdir] = findSourceTree (rootEnvPath (sourceDir ++ "/" ++ subdir))
-            checkContents _ = findSourceTree (rootEnvPath sourceDir)
+            checkContents [subdir] = findSourceTree (sourceDir ++ "/" ++ subdir)
+            checkContents _ = findSourceTree sourceDir
             tarball = sumDir ++ "/" ++ name
             sourceDir = sumDir ++ "/unpack"
 

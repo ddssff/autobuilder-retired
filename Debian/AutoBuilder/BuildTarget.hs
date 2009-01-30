@@ -33,10 +33,10 @@ instance Show Tgt where
 class BuildTarget t where
     -- | The directory containing the target's files.  For most target types, these
     --  files could be anything, not necessarily a Debian source directory.
-    getTop :: ParamClass p => p -> t -> EnvPath
+    getTop :: ParamClass p => p -> t -> FilePath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: (ParamClass p, CIO m) => p -> t -> EnvPath -> m (Either String ([Output], TimeDiff))
+    cleanTarget :: (ParamClass p, CIO m) => p -> t -> FilePath -> m (Either String ([Output], TimeDiff))
     cleanTarget _ _ _ = return . Right $ ([], noTimeDiff)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
@@ -64,18 +64,18 @@ class BuildTarget t where
 data Dir = Dir SourceTree
 
 instance Show Dir where
-    show (Dir tree) = "dir:" ++ outsidePath (topdir tree)
+    show (Dir tree) = "dir:" ++ topdir tree
 
 instance BuildTarget Dir where
     getTop _ (Dir tree) = topdir tree
     revision _ (Dir _) = return (Left "Dir targets do not have revision strings")
-    logText (Dir tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
+    logText (Dir tree) _ = "Built from local directory " ++ topdir tree
 
 -- |Prepare a Dir target
-prepareDir :: (ParamClass p, CIO m) => p -> EnvPath -> m (Either String Tgt)
+prepareDir :: (ParamClass p, CIO m) => p -> FilePath -> m (Either String Tgt)
 prepareDir _params path =
     findSourceTree path >>=
-    return . either (\ message -> Left $ "No source tree at " ++ outsidePath path ++ ": " ++ message) (Right . Tgt . Dir)
+    return . either (\ message -> Left $ "No source tree at " ++ path ++ ": " ++ message) (Right . Tgt . Dir)
 
 -- |Build is similar to Dir, except that it owns the parent directory
 -- of the source directory.  This is required for building packages
@@ -83,12 +83,12 @@ prepareDir _params path =
 data Build = Build DebianBuildTree
 
 instance Show Build where
-    show (Build tree) = "build:" ++ outsidePath (topdir tree)
+    show (Build tree) = "build:" ++ topdir tree
 
 instance BuildTarget Build where
     getTop _ (Build tree) = topdir tree
     revision _ (Build _) = return (Left "Build targets do not have revision strings")
-    logText (Build tree) _ = "Built from local directory " ++ outsidePath (topdir tree)
+    logText (Build tree) _ = "Built from local directory " ++ topdir tree
 
 -- | There are many characters which will confuse make if they appear
 -- in a directory name.  This turns them all into something safer.

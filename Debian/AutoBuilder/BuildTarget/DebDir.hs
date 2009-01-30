@@ -26,7 +26,7 @@ instance BuildTarget DebDir where
     getTop _ (DebDir _ _ tree) = topdir tree
     cleanTarget params (DebDir (Tgt upstream) (Tgt debian) _) path =
         do cleanTarget params upstream path
-           cleanTarget params debian (appendPath "/debian" path)
+           cleanTarget params debian (path ++ "/debian")
     revision params (DebDir (Tgt upstream) (Tgt debian) _) =
         do upstreamRev <- revision params upstream
            case upstreamRev of
@@ -41,7 +41,7 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
     either (return . Left . show) (const copyUpstream) >>=
     either (return . Left) (const copyDebian) >>=
-    either (return . Left) (const (findDebianSourceTree (rootEnvPath dest))) >>=
+    either (return . Left) (const (findDebianSourceTree dest)) >>=
     either (\ message -> return $ Left ("Couldn't find source tree at " ++ show dest ++ ": " ++ message))
            (return . Right . Tgt . DebDir (Tgt upstream) (Tgt debian))
     where
@@ -50,6 +50,6 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
       upstreamDir = getTop params upstream
       debianDir = getTop params debian
       dest = P.topDir params ++ "/deb-dir/" ++ escapeForMake ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 
-      cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ outsidePath upstreamDir ++ "/' '" ++ dest ++ "'")
-      cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ outsidePath debianDir ++ "/debian' '" ++ dest ++ "/'")
+      cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
+      cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")
       cleanStyle dest = setStart (Just (" Prepare deb-dir target in " ++ show dest))

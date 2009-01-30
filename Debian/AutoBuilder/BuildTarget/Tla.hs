@@ -29,12 +29,12 @@ instance BuildTarget Tla where
     cleanTarget _ (Tla _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
-          cmd = "find '" ++ outsidePath path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
-          cleanStyle path = setStart (Just ("Clean TLA target in " ++ outsidePath path))
+          cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
+          cleanStyle path = setStart (Just ("Clean TLA target in " ++ path))
 
     revision _ (Tla _ tree) =
         do let path = topdir tree
-               cmd = "cd " ++ outsidePath path ++ " && tla revisions -f -r | head -1"
+               cmd = "cd " ++ path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            revision <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
@@ -68,7 +68,7 @@ prepareTla params version =
              -- going to assume that the "clean" copies in the cache
              -- directory are clean, since some of the other target
              -- types have no way of doing this reversion.
-          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
+          either (return . Left) (const (findSourceTree dir))
 
       createSource dir =
           do
@@ -76,7 +76,7 @@ prepareTla params version =
             let (parent, _) = splitFileName dir
             liftIO $ createDirectoryIfMissing True parent
             runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
-            findSourceTree (rootEnvPath dir)
+            findSourceTree dir
 
       verifyStyle = (setStart (Just ("Verifying TLA source archive " ++ version)) .
                      setError (Just (\ _ -> "tla changes failed in" ++ dir)) {- . Output Indented-})

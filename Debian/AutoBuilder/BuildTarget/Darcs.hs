@@ -37,8 +37,8 @@ instance BuildTarget Darcs where
     cleanTarget _ _ path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where 
-          cmd = "find " ++ outsidePath path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
-          cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ outsidePath path))
+          cmd = "find " ++ path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
+          cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
     revision _ tgt =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            rev <- liftIO (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=
@@ -51,7 +51,7 @@ instance BuildTarget Darcs where
                     return . Right $ show tgt ++ "=" ++ rev'
         where
           path = topdir (sourceTree tgt)
-          cmd = "cd " ++ outsidePath path ++ " && darcs changes --xml-output"
+          cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ maybe "none" id revision
 
 prepareDarcs :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
@@ -78,7 +78,7 @@ prepareDarcs params uriAndTag =
       updateSource :: CIO m => FilePath -> m (Either String SourceTree)
       updateSource dir =
           runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>=
-          either (return . Left) (const (findSourceTree (rootEnvPath dir))) >>=
+          either (return . Left) (const (findSourceTree dir)) >>=
           return . either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right
 
       createSource :: CIO m => FilePath -> m (Either String SourceTree)
@@ -86,7 +86,7 @@ prepareDarcs params uriAndTag =
           let (parent, _) = splitFileName dir in
           do r1 <- liftIO (try (createDirectoryIfMissing True parent))
              r2 <- either (return . Left . show) (const (runTaskAndTest (createStyle (commandTask cmd)))) r1
-             r3 <- either (return . Left) (const (findSourceTree (rootEnvPath dir))) r2
+             r3 <- either (return . Left) (const (findSourceTree dir)) r2
              let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
              return r4
           where

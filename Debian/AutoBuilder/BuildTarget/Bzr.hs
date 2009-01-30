@@ -33,12 +33,12 @@ instance BuildTarget Bzr where
     cleanTarget _ (Bzr _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
-          cmd = "find '" ++ outsidePath path ++ "' -name '.bzr' -prune | xargs rm -rf"
-          cleanStyle path = setStart (Just ("Clean Bazzar target in " ++ outsidePath path))
+          cmd = "find '" ++ path ++ "' -name '.bzr' -prune | xargs rm -rf"
+          cleanStyle path = setStart . Just  $ "Clean Bazzar target in " ++ path
 
     revision _ (Bzr _ tree) =
         do let path = topdir tree
-               cmd = "cd " ++ outsidePath path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
+               cmd = "cd " ++ path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            rev <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
@@ -76,7 +76,7 @@ prepareBzr params version = do
             case result of
                 Left  a -> return (Left a)
                 Right b -> if isInfixOf "Nothing to do." (L.unpack (P.outputOnly b))
-                           then findSourceTree (rootEnvPath dir)
+                           then findSourceTree dir
                            else commitSource dir
             where
                 cmd   = "cd " ++ dir ++ " && bzr merge"
@@ -89,7 +89,7 @@ prepareBzr params version = do
             runTaskAndTest (style (commandTask cmd)) >>= \result ->
             case result of
                 Left  a -> return (Left a)
-                Right _b -> findSourceTree (rootEnvPath dir)
+                Right _b -> findSourceTree dir
             where
                 cmd   = "cd " ++ dir ++ " && bzr commit -m 'Merged Upstream'"
                 style = (setStart (Just ("Commiting merge to local Bazaar source archive '" ++ dir ++ "'")) .
@@ -102,7 +102,7 @@ prepareBzr params version = do
             let (parent, _) = splitFileName dir
             liftIO $ createDirectoryIfMissing True parent
             runTaskAndTest (style (commandTask (cmd)))
-            findSourceTree (rootEnvPath dir)
+            findSourceTree dir
             where
                 cmd   = "bzr branch " ++ version ++ " " ++ dir
                 style = (setStart (Just ("Retrieving Bazzar source for " ++ version)) .

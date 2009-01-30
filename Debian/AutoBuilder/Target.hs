@@ -53,7 +53,7 @@ import		 Debian.Extra.CIO (vMessage)
 import		 Extra.TIO
 import		 Extra.Either
 import		 Extra.Files
-import		 Extra.List
+import		 Extra.List (dropPrefix)
 import		 Extra.Misc
 --import		 Control.Monad
 import		 System.Unix.Process hiding (processOutput)
@@ -158,11 +158,11 @@ prepareBuild params os target =
       copySource :: CIO m => DebianSourceTree -> m (Either String DebianBuildTree)
       copySource debSource =
           do let name = logPackage . entry $ debSource
-                 dest = EnvPath (rootDir os) ("/work/build/" ++ name)
+                 dest = rootPath (rootDir os) ++ "/work/build/" ++ name
                  ver = Debian.Version.version . logVersion . entry $ debSource
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
-             copy <- copyDebianSourceTree debSource (appendPath ("/" ++ newdir) dest)
+             copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
              -- Clean the revision control files for this target out of the copy of the source tree
              case copy of
                Left message -> return (Left message)
@@ -172,7 +172,7 @@ prepareBuild params os target =
       copyBuild :: CIO m => DebianBuildTree -> m (Either String DebianBuildTree)
       copyBuild debBuild =
           do let name = logPackage . entry $ debBuild
-                 dest = EnvPath (rootDir os) ("/work/build/" ++ name)
+                 dest = rootPath (rootDir os) ++ "/work/build/" ++ name
                  ver = Debian.Version.version . logVersion . entry $ debBuild
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
@@ -182,7 +182,7 @@ prepareBuild params os target =
                Right copy -> 
                    do cleanTarget params target (topdir copy)
                       when (newdir /= (subdir debBuild))
-                               (liftIO $ renameDirectory (outsidePath dest ++ "/" ++ subdir debBuild) (outsidePath dest ++ "/" ++ newdir))
+                               (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
                       findDebianBuildTree dest newdir
 
 -- |Make a path "safe" for building.  This shouldn't be necessary,
@@ -208,7 +208,7 @@ changelogText (Tgt spec) revision oldDeps newDeps =
     ("  * " ++ logText spec revision ++ "\n" ++ depChanges changedDeps ++ "\n")
     where
       depChanges [] = ""
-      depChanges _ = "  * Build dependency changes:" ++ prefix ++ consperse prefix padded ++ "\n"
+      depChanges _ = "  * Build dependency changes:" ++ prefix ++ intercalate prefix padded ++ "\n"
       padded = map concat . columns . map showDepChange $ changedDeps
       changedDeps = Set.toList (Set.difference (Set.fromList newDeps) (Set.fromList oldDeps))
       showDepChange newDep =
@@ -224,7 +224,7 @@ _formatVersions :: [PkgVersion] -> String
 _formatVersions buildDeps =
     -- "\n  * Build dependency versions:" ++
     prefix ++
-    consperse prefix (map show buildDeps) ++
+    intercalate prefix (map show buildDeps) ++
     "\n"
     where prefix = "\n    "
 
@@ -246,7 +246,7 @@ readSpec params text =
                 do let (subdir, target) = second tail (break (== ':') target)
                    tgt <- readSpec params target
                    either (return . Left) (lift . Cd.prepareCd params subdir) tgt
-            'd':'i':'r':':' : target -> lift $ prepareDir params (rootEnvPath target)
+            'd':'i':'r':':' : target -> lift $ prepareDir params target
             'h':'g':':' : target -> lift $ Hg.prepareHg params target
             'q':'u':'i':'l':'t':':' : target ->
                 do pair <- parsePair target
@@ -357,7 +357,7 @@ chooseNextTarget targets =
     case G.buildable depends targets of
       (G.CycleInfo arcs) ->
           error ("Dependency cycles formed by these edges need to be broken:\n  " ++
-                 unlines (map (consperse " ") (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
+                 unlines (map (intercalate " ") (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
                                                         (map (\ (pkg, dep) -> [(show (intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg)))),
                                                                                targetName dep,
                                                                                " -> ",
@@ -376,7 +376,7 @@ chooseNextTarget targets =
       info@(G.BuildableInfo _ _) -> vEPutStrBl 0 (makeTable info) >> return info
     where
       makeTable info =
-          unlines . map (consperse " ") . columns . map readyLine . G.readyTriples $ info
+          unlines . map (intercalate " ") . columns . map readyLine . G.readyTriples $ info
           where readyLine (ready, blocked, _) =
                     [" Ready:", targetName ready, "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       targetName = logPackage . targetEntry
@@ -423,8 +423,8 @@ getTargetDependencyInfo :: CIO m => Relations -> Target -> m (Either String G.De
 getTargetDependencyInfo globalBuildDeps target =
     do let buildTree = cleanSource target
        --let sourceTree = debTree buildTree
-       let controlPath = appendPath "/debian/control" (debdir buildTree)
-       info <- liftIO $ parseControlFromFile (outsidePath controlPath) >>= return . either (Left . show) (G.buildDependencies)
+       let controlPath = debdir buildTree ++ "/debian/control"
+       info <- liftIO $ parseControlFromFile controlPath >>= return . either (Left . show) (G.buildDependencies)
        -- vEPutStrBl 0 ("getDepInfo " ++ targetName target ++ ": " ++ show info)
        return $ either Left (\ deps -> Right (addRelations globalBuildDeps deps)) info
     where
@@ -649,7 +649,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
           const (copyDebianBuildTree (cleanSource target) newPath)
       buildDepends = (P.buildDepends params)
       noClean = P.noClean params
-      newPath = EnvPath {envRoot = rootDir buildOS, envPath = envPath oldPath}
+      newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) oldPath)
       oldPath = topdir . cleanSource $ target
 prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) _ =
     -- Install dependencies directly into the build environment
@@ -673,7 +673,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
                                          either (return . Left) (const (return (Right buildTree)))
       buildDepends = P.buildDepends params
       noClean = P.noClean params
-      newPath = EnvPath {envRoot = rootDir buildOS, envPath = (envPath . topdir . cleanSource $ target)}
+      newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) (topdir (cleanSource target)))
       iStyle = setStyle (appPrefix " ")
             
 -- | Get the control info for the newest version of a source package
@@ -891,7 +891,7 @@ updateChangesFile elapsed changes =
                       maybe [] ((: []) . ("CPU MHz: " ++)) (lookup "cpu MHz" cpuInfo) ++
                       maybe [] ((: []) . ("CPU cache: " ++)) (lookup "cache size" cpuInfo)
       let buildInfo' = buildInfo ++ maybe [] (\ name -> ["Host: " ++ name]) hostname
-      let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ consperse "\n " buildInfo')])
+      let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ intercalate "\n " buildInfo')])
       replaceFile (Debian.Repo.path changes) (show (Control [fields']))
       return changes
 
@@ -919,9 +919,13 @@ downloadDependencies os source extra versions =
                  "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
-      aptGetCommand = "apt-get --yes install --download-only " ++ consperse " " (map showPkgVersion versions ++ extra)
-      path = envPath (topdir source)
+      aptGetCommand = "apt-get --yes install --download-only " ++ intercalate " " (map showPkgVersion versions ++ extra)
+      path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
+
+pathBelow root path =
+    maybe (error message) id (dropPrefix root path)
+    where message = "Expected a path below " ++ root ++ ", saw " ++ path
 
 -- |Install the package's build dependencies.
 installDependencies :: CIO m => OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> m (Either String [Output])
@@ -938,8 +942,8 @@ installDependencies os source extra versions =
                  "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand) ++ "\"")
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
-      aptGetCommand = "apt-get --yes install " ++ consperse " " (map showPkgVersion versions ++ extra)
-      path = envPath (topdir source)
+      aptGetCommand = "apt-get --yes install " ++ intercalate " " (map showPkgVersion versions ++ extra)
+      path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
 
 -- These two belongs in System.Unix.Process
@@ -988,7 +992,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
       addField (Control []) = error "Invalid control file"
       newField = Field ("Revision", " " ++ newFieldValue)
       newFieldValue = maybe invalidRevision id revision ++ " " ++ show sourceVersion ++ " " ++ formatVersions versions
-      formatVersions versions = consperse " " (map showPkgVersion versions)
+      formatVersions versions = intercalate " " (map showPkgVersion versions)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 
 -- |Decide whether to build a package.  We will build if the revision
@@ -1064,7 +1068,7 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
               | True -> 
                   error ("Unexpected releaseStatus: " ++ show releaseStatus)
       buildDependencyChangeText dependencies =
-          "  " ++ consperse "\n  " lines
+          "  " ++ intercalate "\n  " lines
           where
             lines = map (\ (built, new) -> show built ++ " -> " ++ show new) (zip builtVersions dependencies)
             builtVersions = map (findDepByName builtDependencies) dependencies

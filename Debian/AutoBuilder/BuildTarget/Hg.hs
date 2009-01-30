@@ -44,12 +44,12 @@ instance BuildTarget Hg where
              (_, Left e) -> return . Left . show $ e
         where
           path = topdir tree
-          cmd = "cd " ++ outsidePath path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
+          cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
     cleanTarget _ (Hg _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
-          cmd = "rm -rf " ++ outsidePath path ++ "/.hg"
-          cleanStyle path = setStart (Just ("Clean Hg target in " ++ outsidePath path))
+          cmd = "rm -rf " ++ path ++ "/.hg"
+          cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
@@ -72,14 +72,14 @@ prepareHg params archive =
 
       updateSource dir =
           runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && hg pull -u"))) >>=
-          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
+          either (return . Left) (const (findSourceTree dir))
             
 
       createSource dir =
           let (parent, _) = splitFileName dir in
           liftIO (try (createDirectoryIfMissing True parent)) >>=
           either (return . Left . show) (const (runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))))) >>=
-          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
+          either (return . Left) (const (findSourceTree dir))
 
       verifyStyle = (setStart (Just ("Verifying Hg source archive " ++ archive)) .
                      setError (Just (\ _ -> "tla changes failed in" ++ show dir)))

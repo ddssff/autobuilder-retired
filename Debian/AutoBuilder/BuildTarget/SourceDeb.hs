@@ -4,7 +4,7 @@
 module Debian.AutoBuilder.BuildTarget.SourceDeb where
 
 import qualified Debian.Control.String as S
-import Debian.Repo.Types
+--import Debian.Repo.Types
 import qualified Debian.Version as V
 
 import Debian.AutoBuilder.BuildTarget as BuildTarget
@@ -20,7 +20,7 @@ import Extra.CIO
 import System.Unix.Process
 
 -- | Treat the data returned by a target as a source deb.
-data SourceDeb = SourceDeb Tgt EnvPath String
+data SourceDeb = SourceDeb Tgt FilePath String
 
 instance Show SourceDeb where
     show (SourceDeb t _ _) = "sourcedeb:" ++ show t
@@ -43,9 +43,9 @@ instance BuildTarget SourceDeb where
 prepareSourceDeb :: (ParamClass p, CIO m) => p -> Tgt -> m (Either String Tgt)
 prepareSourceDeb params (Tgt base) =
     do let top = getTop params base
-       dscFiles <- liftIO (getDirectoryContents (outsidePath top)) >>=
+       dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")
-       dscInfo <- mapM (\ name -> liftIO (readFile (outsidePath top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
+       dscInfo <- mapM (\ name -> liftIO (readFile (top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
          [] -> return . Left $ "Invalid sourcedeb base: no .dsc file in " ++ show base
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
@@ -61,7 +61,7 @@ prepareSourceDeb params (Tgt base) =
             (Just package, Just version) ->
                 Right . Tgt $ (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
             _ -> Left $ "Invalid .dsc file: " ++ dscName
-      unpack top dscName = "cd " ++ outsidePath top ++ " && dpkg-source -x " ++ dscName
+      unpack top dscName = "cd " ++ top ++ " && dpkg-source -x " ++ dscName
       compareVersions (name2, info2) (name1, info1) =
           case (info1, info2) of
             (Right (S.Control (para1 : _)), Right (S.Control (para2 : _))) ->

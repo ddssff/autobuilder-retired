@@ -34,11 +34,11 @@ instance Show Svn where
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: CIO m => (FullTask -> FullTask) -> Maybe EnvPath -> [String] -> m (Either String [Output])
+svn :: CIO m => (FullTask -> FullTask) -> Maybe FilePath -> [String] -> m (Either String [Output])
 svn style path args =
     runTaskAndTest (style task) >>= return . either (Left . (("*** FAILURE: " ++ showCommand task ++ ": ") ++)) Right
     where
-      task = processTask "svn" args (maybe Nothing (Just . outsidePath) path) Nothing
+      task = processTask "svn" args path Nothing
 
 username userInfo = 
     let un = takeWhile (/= ':') userInfo in
@@ -58,8 +58,8 @@ instance BuildTarget Svn where
     cleanTarget _ (Svn _ _) path =
         timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
-          cmd = "find " ++ outsidePath path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
-          cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ outsidePath path))
+          cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
+          cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ path))
 
     revision _ (Svn uri tree) =
         svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
@@ -104,7 +104,7 @@ prepareSvn params target =
          Right tree -> return . Right . Tgt $ Svn uri tree
     where
       verifySource dir =
-          svn verifyStyle (Just (rootEnvPath dir)) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
+          svn verifyStyle (Just dir) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
           either (return . Left) (\ out -> case L.append (stdoutOnly out) (stderrOnly out) == L.empty of
                                              -- no output == nothing changed
                                              True -> updateSource dir
@@ -116,14 +116,14 @@ prepareSvn params target =
       updateSource dir =
           do
             -- if the original url contained a specific revision, this will do the wrong thing
-            svn updateStyle (Just (rootEnvPath dir)) (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
-            findSourceTree (rootEnvPath dir)
+            svn updateStyle (Just dir) (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
+            findSourceTree dir
 
       createSource dir =
           let (parent, _) = splitFileName dir in
           liftIO (try (createDirectoryIfMissing True parent)) >>=
           either (return . Left . show) (const checkout) >>=
-          either (return . Left) (const (findSourceTree (rootEnvPath dir)))
+          either (return . Left) (const (findSourceTree dir))
       checkout :: CIO m => m (Either String [Output])
       --checkout = svn createStyle args 
       checkout = runTask (createStyle (processTask "svn" args Nothing Nothing)) >>= return . finish

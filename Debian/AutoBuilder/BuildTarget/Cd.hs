@@ -19,8 +19,8 @@ documentation = [ "cd:<relpath>:<target> - A target of this form modifies anothe
                 , "used for repositories where the debian directory is in a subdirectory."]
 
 instance BuildTarget Cd where
-    getTop params (Cd subdir (Tgt s)) = let top = getTop params s in top {envPath = envPath top </> subdir}
-    cleanTarget params (Cd subdir (Tgt s)) source = cleanTarget params s (source {envPath = envPath source </> subdir})
+    getTop params (Cd subdir (Tgt s)) = let top = getTop params s in top </> subdir
+    cleanTarget params (Cd subdir (Tgt s)) source = cleanTarget params s (source </> subdir)
     revision params (Cd subdir (Tgt s)) =  
         Debian.AutoBuilder.BuildTarget.revision params s >>= return . either Left (Right . (("cd:" ++ subdir ++ ":") ++))
     buildPkg params buildOS buildTree status _ =

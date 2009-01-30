@@ -76,12 +76,12 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (ParamClass p, Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => p -> a -> b -> m (Either String (SourceTree, EnvPath))
+makeQuiltTree :: (ParamClass p, Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => p -> a -> b -> m (Either String (SourceTree, FilePath))
 makeQuiltTree params base patch =
-    do vPutStrBl 1 $ "Quilt base: " ++ outsidePath (getTop params base)
-       vPutStrBl 1 $ "Quilt patch: " ++ outsidePath (getTop params patch)
+    do vPutStrBl 1 $ "Quilt base: " ++ getTop params base
+       vPutStrBl 1 $ "Quilt patch: " ++ getTop params patch
        -- This will be the top directory of the quilt target
-       let copyDir = rootEnvPath (P.topDir params ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"))
+       let copyDir = P.topDir params ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
        liftIO (createDirectoryIfMissing True (P.topDir params ++ "/quilt"))
        baseTree <- findSourceTree (getTop params base) >>=
                    return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop params base) ++ ": " ++ message) Right
@@ -98,13 +98,13 @@ makeQuiltTree params base patch =
                          debTree <- findOneDebianBuildTree copyDir
                          -- Compute the directory where the patches will be applied
                          let quiltDir = maybe copyDir debdir debTree
-                         vPutStrBl 2 $ "copyDir: " ++ outsidePath copyDir
-                         vPutStrBl 2 $ "quiltDir: " ++ outsidePath quiltDir
+                         vPutStrBl 2 $ "copyDir: " ++ copyDir
+                         vPutStrBl 2 $ "quiltDir: " ++ quiltDir
                          let patchDir = topdir patchTree
                          -- Set up links to the quilt directory, and use quilt to get a
                          -- list of the unapplied patches.
-                         let cmd1 = ("set -x && cd '" ++ outsidePath quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++
-                                     "' && ln -s '" ++ outsidePath patchDir ++ "' '" ++ quiltPatchesDir ++ "'")
+                         let cmd1 = ("set -x && cd '" ++ quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++
+                                     "' && ln -s '" ++ patchDir ++ "' '" ++ quiltPatchesDir ++ "'")
                          result <- runTaskAndTest (linkStyle (commandTask cmd1))
                          -- Now we need to have created a DebianSourceTree so
                          -- that there is a changelog for us to reconstruct.
@@ -149,10 +149,10 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                                 -- interleave its entries with those in changelog of the base
                                 -- tree by date.
                                 do vEPutStrBl 1 "Merging changelogs"
-                                   exists <- liftIO (doesFileExist (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
+                                   exists <- liftIO (doesFileExist (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                                    case exists of
-                                     False -> return (Left (target ++ "- Missing changelog file: " ++ show (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")))
-                                     True -> mergeChangelogs' (outsidePath quiltDir ++ "/debian/changelog") (outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
+                                     False -> return (Left (target ++ "- Missing changelog file: " ++ show (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")))
+                                     True -> mergeChangelogs' (quiltDir ++ "/debian/changelog") (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource (Left message) = return (Left message)
                             cleanSource (Right ()) =
                                 do result3 <- liftIO (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
@@ -190,18 +190,18 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                (_, _, [ExitSuccess]) -> return (Left $ target ++ " - Unexpected result code from quilt applied")
                (_, _, other) -> return (Left $ target ++ " - Bad result code from quilt applied process: " ++ show other)
           where
-            cmd1a = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ outsidePath quiltDir ++ "' && quilt applied")
-            cmd1b = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ outsidePath quiltDir ++ "' && quilt unapplied")
+            cmd1a = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ quiltDir ++ "' && quilt applied")
+            cmd1b = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ quiltDir ++ "' && quilt unapplied")
             -- Apply all the unapplied patches, which should be all of
             -- the patches.  This somewhat roundabout two step process
             -- is required to make sure we get an error result if any
             -- of the patches fail.
             cmd2 patches =
                 ("export QUILT_PATCHES=" ++ quiltPatchesDir ++
-                 " && cd '" ++ outsidePath quiltDir ++ "' && " ++
+                 " && cd '" ++ quiltDir ++ "' && " ++
                  intercalate " && " (map ("quilt -v --leave-reject push " ++) patches))
-            cmd3 = ("cd '" ++ outsidePath quiltDir ++ "' && " ++
-                    "rm -rf '" ++ outsidePath quiltDir ++ "/.pc' '" ++ outsidePath quiltDir ++ "/" ++ quiltPatchesDir ++ "'")
+            cmd3 = ("cd '" ++ quiltDir ++ "' && " ++
+                    "rm -rf '" ++ quiltDir ++ "/.pc' '" ++ quiltDir ++ "/" ++ quiltPatchesDir ++ "'")
             target = "quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"
              
 --myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x

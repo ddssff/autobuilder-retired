@@ -44,7 +44,7 @@ prepareApt params target =
       os <- prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
       when (P.flushSource params) (liftIO . removeRecursiveSafely $ aptDir os package)
-      tree <- lift $ Debian.Repo.aptGetSource (rootEnvPath (aptDir os package)) os package version
+      tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version
       let version' = logVersion . entry $ tree
       return . Right . Tgt $ Apt distro package (Just version') tree
     where
