@@ -243,8 +243,8 @@ readSpec params text =
                    case pair of
                      Left message -> return (Left message)
                      Right (upstream, debian) -> lift $ DebDir.prepareDebDir params upstream debian
-            'c':'d' : _target ->
-                do let (subdir, target) = second tail (break (== ':') target)
+            'c':'d':':' : dirAndTarget ->
+                do let (subdir, target) = second tail (break (== ':') dirAndTarget)
                    tgt <- readSpec params target
                    either (return . Left) (lift . Cd.prepareCd params subdir) tgt
             'd':'i':'r':':' : target -> lift $ prepareDir params target

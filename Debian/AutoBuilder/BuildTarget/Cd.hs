@@ -12,7 +12,7 @@ import Extra.CIO
 data Cd = Cd FilePath Tgt
 
 instance Show Cd where
-    show (Cd p t) = "cd:" ++ show p ++ ":" ++ show t
+    show (Cd p t) = "cd:" ++ p ++ ":" ++ show t
 
 documentation = [ "cd:<relpath>:<target> - A target of this form modifies another target by"
                 , "changing directories into a subdirectory before doing the build.  It is"
