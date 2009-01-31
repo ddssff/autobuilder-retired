@@ -39,6 +39,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import           Debian.AutoBuilder.ParamClass (ParamClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Version as V
 import		 Debian.Control
 import qualified Debian.Control.ByteString as B
 import qualified Debian.Control.String as S(fieldValue)
@@ -876,14 +877,13 @@ updateChangesFile :: TimeDiff -> ChangesFile -> IO ChangesFile
 updateChangesFile elapsed changes =
     do
       let (Paragraph fields) = changeInfo changes
-      -- changes <- parseControlFromFile path >>= return . either (\ _ -> error ("Couldn't parse changes files " ++ path)) id
       autobuilderVersion <- processOutput "dpkg -s autobuilder | sed -n 's/^Version: //p'" >>=
                             return . either (const Nothing) Just >>=
                             return . maybe Nothing (listToMaybe . lines)
       hostname <- processOutput "hostname" >>= either (\ _ -> return Nothing) (return . listToMaybe . lines)
       cpuInfo <- parseProcCpuinfo
       memInfo <- parseProcMeminfo
-      let buildInfo = ["Autobuilder-Version: " ++ maybe "unknown" id autobuilderVersion] ++
+      let buildInfo = ["Autobuilder-Version: " ++ V.version] ++
                       ["Time: " ++ myTimeDiffToString elapsed] ++
                       maybe [] ((: []) . ("Memory: " ++)) (lookup "MemTotal" memInfo) ++
                       maybe [] ((: []) . ("CPU: " ++)) (lookup "model name" cpuInfo) ++
@@ -892,8 +892,9 @@ updateChangesFile elapsed changes =
                       maybe [] ((: []) . ("CPU cache: " ++)) (lookup "cache size" cpuInfo)
       let buildInfo' = buildInfo ++ maybe [] (\ name -> ["Host: " ++ name]) hostname
       let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ intercalate "\n " buildInfo')])
-      replaceFile (Debian.Repo.path changes) (show (Control [fields']))
-      return changes
+      -- let changes' = changes {changeInfo = Paragraph fields'}
+      -- replaceFile (Debian.Repo.path changes') (show (Control [fields']))
+      return changes {changeInfo = fields'}
 
 -- |Move this to {-Debian.-} Control
 sinkFields :: (Eq a) => (a -> Bool) -> Paragraph' a -> Paragraph' a
