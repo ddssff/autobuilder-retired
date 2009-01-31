@@ -1,3 +1,11 @@
+autobuilder (4.38) unstable; urgency=low
+
+  * API changes in haskell-debian
+  * Restore code to add build info (elapsed time, etc) to the .changes file
+  * Add a cd target, which builds a debian package from a subdirectory
+
+ -- David Fox <dsf@seereason.com>  Sat, 31 Jan 2009 08:54:38 -0800
+
 autobuilder (4.37) unstable; urgency=low
 
   * API changes for haskell-debian 3.22.
