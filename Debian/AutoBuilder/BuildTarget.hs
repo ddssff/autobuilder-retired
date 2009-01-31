@@ -9,13 +9,13 @@ module Debian.AutoBuilder.BuildTarget
     , escapeForMake
     ) where
 
+import Data.Time (NominalDiffTime)
 import Extra.CIO
 import Debian.Repo
 import Debian.AutoBuilder.ParamClass (ParamClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Control.Monad
 import Data.Maybe
-import System.Time
 import System.Unix.Process
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
@@ -36,8 +36,8 @@ class BuildTarget t where
     getTop :: ParamClass p => p -> t -> FilePath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: (ParamClass p, CIO m) => p -> t -> FilePath -> m (Either String ([Output], TimeDiff))
-    cleanTarget _ _ _ = return . Right $ ([], noTimeDiff)
+    cleanTarget :: (ParamClass p, CIO m) => p -> t -> FilePath -> m (Either String ([Output], NominalDiffTime))
+    cleanTarget _ _ _ = return . Right $ ([], fromInteger 0)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
     -- is intended to characterize the build environment of the
@@ -50,7 +50,7 @@ class BuildTarget t where
     -- |Default function to build the package for this target.
     -- Currently this is only overridden by the proc: target which
     -- mounts /proc, then calls buildDebs, then unmounts /proc.
-    buildPkg :: (ParamClass p, CIO m) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> m (Either String TimeDiff)
+    buildPkg :: (ParamClass p, CIO m) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> m (Either String NominalDiffTime)
     buildPkg params buildOS buildTree status _target =
         buildDebs (P.noClean params) (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.

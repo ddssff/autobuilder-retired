@@ -24,6 +24,7 @@ import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
 import qualified Data.Set as Set
+import           Data.Time (NominalDiffTime)
 import		 Debian.AutoBuilder.BuildTarget as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
 import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
@@ -63,7 +64,6 @@ import		 System.Directory
 import		 System.Exit
 import		 System.IO
 import		 System.Posix.Files
-import		 System.Time
 import		 Text.Printf
 import		 Text.Regex
 
@@ -575,7 +575,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
           case P.noClean params of
             False -> liftIO $ maybeAddLogEntry buildTree newVersion >> return (Right buildTree)
             True -> return (Right buildTree)
-      build :: CIO m => DebianBuildTree -> m (Either String (DebianBuildTree, TimeDiff))
+      build :: CIO m => DebianBuildTree -> m (Either String (DebianBuildTree, NominalDiffTime))
       build buildTree =
           case realSource target of
             Tgt t -> do result <- buildPkg params buildOS buildTree status t
@@ -584,7 +584,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                           Right elapsed -> return (Right (buildTree, elapsed))
       find (buildTree, elapsed) =
           liftIO $ findChanges buildTree >>= return . either Left (\ changesFile -> Right (changesFile, elapsed))
-      upload :: CIO m => (ChangesFile, TimeDiff) -> AptIOT m (Either String LocalRepository)
+      upload :: CIO m => (ChangesFile, NominalDiffTime) -> AptIOT m (Either String LocalRepository)
       upload (changesFile, elapsed) = doLocalUpload elapsed changesFile
       -- Depending on the strictness, build dependencies either
       -- get installed into the clean or the build environment.
@@ -606,7 +606,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                   , changeRelease = name }
           where setDist name (Field ("Distribution", _)) = Field ("Distribution", ' ' : releaseName' name)
                 setDist _ other = other
-      doLocalUpload :: CIO m => TimeDiff -> ChangesFile -> AptIOT m (Either String LocalRepository)
+      doLocalUpload :: CIO m => NominalDiffTime -> ChangesFile -> AptIOT m (Either String LocalRepository)
       doLocalUpload elapsed changesFile =
           do
             (changesFile' :: ChangesFile) <-
@@ -873,18 +873,18 @@ lookupAll a ((a', b) : pairs) | a == a' = b : (lookupAll a pairs)
 lookupAll a (_ : pairs) = lookupAll a pairs
 
 -- |Add Build-Info field to the .changes file
-updateChangesFile :: TimeDiff -> ChangesFile -> IO ChangesFile
+updateChangesFile :: NominalDiffTime -> ChangesFile -> IO ChangesFile
 updateChangesFile elapsed changes =
     do
       let (Paragraph fields) = changeInfo changes
-      autobuilderVersion <- processOutput "dpkg -s autobuilder | sed -n 's/^Version: //p'" >>=
+{-    autobuilderVersion <- processOutput "dpkg -s autobuilder | sed -n 's/^Version: //p'" >>=
                             return . either (const Nothing) Just >>=
-                            return . maybe Nothing (listToMaybe . lines)
+                            return . maybe Nothing (listToMaybe . lines) -}
       hostname <- processOutput "hostname" >>= either (\ _ -> return Nothing) (return . listToMaybe . lines)
       cpuInfo <- parseProcCpuinfo
       memInfo <- parseProcMeminfo
       let buildInfo = ["Autobuilder-Version: " ++ V.version] ++
-                      ["Time: " ++ myTimeDiffToString elapsed] ++
+                      ["Time: " ++ show elapsed] ++
                       maybe [] ((: []) . ("Memory: " ++)) (lookup "MemTotal" memInfo) ++
                       maybe [] ((: []) . ("CPU: " ++)) (lookup "model name" cpuInfo) ++
                       ["CPU count: " ++ (show . length . lookupAll "processor" $ cpuInfo)] ++

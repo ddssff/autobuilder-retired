@@ -11,7 +11,7 @@ import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-import Extra.CIO
+import Extra.CIO (CIO, vPutStrBl)
 import System.FilePath (splitFileName)
 import System.IO
 import System.Process

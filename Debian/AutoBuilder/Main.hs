@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import		 Data.List
 import		 Data.Maybe
 import qualified Data.Set as Set
+import           Data.Time (NominalDiffTime)
 import		 Extra.Either
 import		 Extra.List
 import		 Extra.Lock
@@ -35,7 +36,6 @@ import		 System.Exit
 import qualified System.IO as IO
 import 	         System.IO.Error (isDoesNotExistError)
 import		 System.Posix.Files (removeLink)
-import		 System.Time
 import qualified Debian.AutoBuilder.Version as Version
 
 -- | Convert the command line arguments into a list of flags.  Then
@@ -49,18 +49,18 @@ main =
        IO.hFlush IO.stderr
     where
       tioMain :: Int -> TIO ()
-      tioMain verbosity =
+      tioMain _verbosity =
           runAptIO (params appName [] doHelp doVersion >>= mapM doParameterSets) >>= checkResults
       -- Process one set of parameters.  Usually there is only one, but there
       -- can be several which are run sequentially.
-      doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], TimeDiff))))
+      doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], NominalDiffTime))))
       doParameterSets set = withLock (lockFilePath set) (tryAB . runParameterSet $ set)
       lockFilePath params = P.topDir params ++ "/lockfile"
       -- The result of processing a set of parameters is either an
       -- exception or a completion code, or, if we fail to get a lock,
       -- nothing.  For a single result we can print a simple message,
       -- for multiple paramter sets we need to print a summary.
-      checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], TimeDiff)))] -> m ()
+      checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], NominalDiffTime)))] -> m ()
       checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
       checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
       checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
@@ -86,7 +86,7 @@ doVersion = IO.putStrLn V.version >> exitWith ExitSuccess
 appName :: String
 appName = "autobuilder"
 
-runParameterSet :: P.ParamClass p => p -> AptIOT TIO (Either String ([Output], TimeDiff))
+runParameterSet :: P.ParamClass p => p -> AptIOT TIO (Either String ([Output], NominalDiffTime))
 runParameterSet params =
     do
       lift doRequiredVersion
@@ -128,7 +128,7 @@ runParameterSet params =
       poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
-        ([], ok) ->
+        ([], _ok) ->
             do -- Build all the targets
                buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)
                -- If all targets succeed they may be uploaded to a remote repo
@@ -199,7 +199,7 @@ runParameterSet params =
           where
             allTargets = listDiff (P.targets params) (P.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
-      upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Either String ([Output], TimeDiff)]
+      upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Either String ([Output], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =
               case P.uploadURI params of
@@ -213,7 +213,7 @@ runParameterSet params =
               True -> lift (vEPutStr 0 "Skipping upload.")
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
-      newDist :: CIO m => [Either String ([Output], TimeDiff)] -> m (Either String ([Output], TimeDiff))
+      newDist :: CIO m => [Either String ([Output], NominalDiffTime)] -> m (Either String ([Output], NominalDiffTime))
       newDist results
           | P.doNewDist params =
               case P.uploadURI params of
@@ -229,7 +229,7 @@ runParameterSet params =
                              let cmd = "newdist --root " ++ uriPath uri in
                              vEPutStr 0 "Running newdist on a local repository" >> runCommandQuietlyTimed cmd
                 _ -> error "Missing Upload-URI parameter"
-          | True = return (Right ([], noTimeDiff))
+          | True = return (Right ([], (fromInteger 0)))
       iStyle = id {- setStyle (addPrefixes " " " ") -}
       --top = P.topDir params
       --dryRun = P.dryRun params
