@@ -22,7 +22,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import		 Data.List
 import qualified Data.Map as Map
-import		 Data.Maybe
+import		 Data.Maybe (fromJust, catMaybes, isJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import           Data.Time (NominalDiffTime)
 import		 Debian.AutoBuilder.BuildTarget as BuildTarget
@@ -883,18 +883,23 @@ updateChangesFile elapsed changes =
       hostname <- processOutput "hostname" >>= either (\ _ -> return Nothing) (return . listToMaybe . lines)
       cpuInfo <- parseProcCpuinfo
       memInfo <- parseProcMeminfo
+      machine <- commandOutput "uname -m" >>= return . listToMaybe . either (const []) lines
       let buildInfo = ["Autobuilder-Version: " ++ V.version] ++
                       ["Time: " ++ show elapsed] ++
-                      maybe [] ((: []) . ("Memory: " ++)) (lookup "MemTotal" memInfo) ++
-                      maybe [] ((: []) . ("CPU: " ++)) (lookup "model name" cpuInfo) ++
+                      maybeField "Memory: " (lookup "MemTotal" memInfo) ++
+                      maybeField "CPU: " (lookup "model name" cpuInfo) ++
                       ["CPU count: " ++ (show . length . lookupAll "processor" $ cpuInfo)] ++
-                      maybe [] ((: []) . ("CPU MHz: " ++)) (lookup "cpu MHz" cpuInfo) ++
-                      maybe [] ((: []) . ("CPU cache: " ++)) (lookup "cache size" cpuInfo)
-      let buildInfo' = buildInfo ++ maybe [] (\ name -> ["Host: " ++ name]) hostname
-      let fields' = sinkFields (== "Files") (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ intercalate "\n " buildInfo')])
+                      maybeField "OS Architecture: " machine ++
+                      maybeField "CPU MHz: " (lookup "cpu MHz" cpuInfo) ++
+                      maybeField "CPU cache: " (lookup "cache size" cpuInfo) ++
+                      maybeField "Host: " hostname
+      let fields' = sinkFields (== "Files")
+                    (Paragraph $ fields ++ [Field ("Build-Info", "\n " ++ intercalate "\n " buildInfo)])
       -- let changes' = changes {changeInfo = Paragraph fields'}
       -- replaceFile (Debian.Repo.path changes') (show (Control [fields']))
       return changes {changeInfo = fields'}
+    where
+      maybeField tag value = maybe [] ((: []) . (tag ++)) value
 
 -- |Move this to {-Debian.-} Control
 sinkFields :: (Eq a) => (a -> Bool) -> Paragraph' a -> Paragraph' a
