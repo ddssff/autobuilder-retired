@@ -80,6 +80,7 @@ targetDocumentation =
               , "Packages built using this targets are not allowed to be uploaded"
               , "since they include no revision control information." ]
             , Apt.documentation
+            , Cd.documentation
             , Darcs.documentation
             , DebDir.documentation
             , Hg.documentation
@@ -104,6 +105,9 @@ data Target
 						--   compute this so we can look at the dependency graph.
              }
 
+instance Eq Target where
+    a == b = targetName a == targetName b
+
 instance Show Target where
     show target = show . realSource $ target
 
@@ -114,6 +118,10 @@ targetName target =
       Control (paragraph : _) ->
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
+
+-- | The package name in the top changelog entry
+targetName' :: Target -> String
+targetName' = logPackage . targetEntry
 
 countAndPrepareTargets :: (ParamClass p, CIO m) => p -> OSImage -> [Tgt] -> m [Target]
 countAndPrepareTargets params os targets =
@@ -300,34 +308,44 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             ({- debugStyle . -} iStyle) $ countAndPrepareTargets params cleanOS targetSpecs
           where
             iStyle = setStyle (appPrefix " ")
-      -- Execute the target build loop until everything is built
+      -- Execute the target build loop until all the goals (or everything) is built
       buildLoop :: CIO m => OSImage -> Relations -> Int -> ([Target], [Target]) -> AptIOT m [Target]
       buildLoop _ _ _ ([], failed) = return failed
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
             relaxed <- lift $ updateDependencyInfo globalBuildDeps (P.relaxDepends params) unbuilt
-            targetInfo <- lift $ chooseNextTarget relaxed
-            --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
-            let (target, blocked, other) = head (sortBy compareReady (G.readyTriples targetInfo))
-            lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
-                                (count - length relaxed + 1) count (show target)))
-            -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
-            result <- buildTarget' target
-            either (\ e -> do lift $ vEPutStrBl 0 ("Package build failed: " ++ e)
-                              lift $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
-                                                   concat (intersperse "\n  " (map show blocked)))
-                              buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
-                   (\ _ -> do cleanOS' <- updateEnv cleanOS
-                              case cleanOS' of
-                                Left e -> error ("Failed to update clean OS: " ++ e)
-                                Right cleanOS'' ->
-                                    buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed)) result
+            next <- lift $ chooseNextTarget (goals relaxed) relaxed
+            case next of
+              Nothing -> return failed
+              Just (target, blocked, other) ->
+                  do
+                    --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
+                    lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
+                                        (count - length relaxed + 1) count (show target)))
+                    -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
+                    result <- buildTarget' target
+                    either (\ e -> do lift $ vEPutStrBl 0 ("Package build failed: " ++ e)
+                                      lift $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
+                                                           concat (intersperse "\n  " (map show blocked)))
+                                      buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
+                           (\ _ -> do cleanOS' <- updateEnv cleanOS
+                                      case cleanOS' of
+                                        Left e -> error ("Failed to update clean OS: " ++ e)
+                                        Right cleanOS'' ->
+                                            buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed))
+                           result
           where
-            compareReady (_, a, _) (_, b, _) = compare (length b) (length a)
             buildTarget' target =
                 do lift (vBOL 0)
                    {- showElapsed "Total elapsed for target: " $ -} 
                    buildTarget params cleanOS globalBuildDeps localRepo poolOS target
+      -- If no goals are given in the build parameters, assume all
+      -- known targets are goals.
+      goals targets =
+          case P.goals params of
+            [] -> targets
+            goalNames -> filter (\ target -> elem (targetName target) goalNames) targets
+
       -- Find the sources.list for the distribution we will be building in.
       --indent s = setStyle (addPrefix stderr s)
       --debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun (P.debug params))
@@ -350,22 +368,22 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: CIO m => [Target] -> m (G.BuildableInfo Target)
-chooseNextTarget targets =
+chooseNextTarget :: CIO m => [Target] -> [Target] -> m (Maybe (Target, [Target], [Target]))
+chooseNextTarget [] _ = return Nothing
+chooseNextTarget goals targets =
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
     -- targets which are blocked by the first target.
     case G.buildable depends targets of
       (G.CycleInfo arcs) ->
           error ("Dependency cycles formed by these edges need to be broken:\n  " ++
-                 unlines (map (intercalate " ") (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
-                                                        (map (\ (pkg, dep) -> [(show (intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg)))),
-                                                                               targetName dep,
-                                                                               " -> ",
-                                                                               targetName pkg]) arcs)))) ++
+                 unlines (map (intercalate " ")
+                          (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
+                                    (map (\ (pkg, dep) -> [(show (intersect (binaryNames dep)
+                                                                  (binaryNamesOfRelations (targetRelaxed pkg)))),
+                                                           targetName dep, " -> ", targetName pkg]) arcs)))) ++
                  "\nAdd one or more of these lines (but as few as possible) to your configuration file:\n  " ++
-                 intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs)))) ++ "\n"
-                )
+                 intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs)))) ++ "\n")
           where
             relaxLine (bin, src) = "Relax-Depends: " ++ bin ++ " " ++ src
             pairs (pkg, dep) =
@@ -374,19 +392,40 @@ chooseNextTarget targets =
                    binaryDependencies = intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg))
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
-      info@(G.BuildableInfo _ _) -> vEPutStrBl 0 (makeTable info) >> return info
+      info ->
+          do vEPutStrBl 0 (makeTable info)
+             return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
-      makeTable info =
-          unlines . map (intercalate " ") . columns . map readyLine . G.readyTriples $ info
-          where readyLine (ready, blocked, _) =
-                    [" Ready:", targetName ready, "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
-      targetName = logPackage . targetEntry
+      makeTable (G.BuildableInfo ready other) =
+          unlines . map (intercalate " ") . columns $ goalsLine ++ readyLines
+          where
+            goalsLine = [[" Goals: ", "[" ++ intercalate ", " (map targetName goals) ++ "]"]]
+            readyLines = map readyLine ready
+            readyLine (ready, blocked, other) = 
+                [" Ready:", targetName ready, "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed target1) (targetRelaxed target2)
       binaryNames dep =
           map (\ (G.BinPkgName name) -> name) xs
           where (_, _, xs) = (targetRelaxed dep)
+      -- Choose the next target to build.  Look for targets which are
+      -- in the goal list, or which block packages in the goal list.
+      -- Among those, prefer the target which blocks the most
+      -- packages.  If there are goal targets but none of them are
+      -- ready to build or directly block 
+      -- targets include a goal as readyamongoals none of the 
+      compareReady :: [Target] -> (Target, [Target], [Target]) ->  (Target, [Target], [Target]) -> Ordering
+      compareReady goals (aReady, aBlocked, _) (bReady, bBlocked, _) =
+          -- Prefer targets which include a goal
+          case compare (length bGoals) (length aGoals) of
+            -- Otherwise, prefer the target which blocks the most other targets
+            EQ -> compare (length bBlocked) (length aBlocked)
+            x -> x
+          where 
+            aGoals = intersect goals (aReady : aBlocked)
+            bGoals = intersect goals (bReady : bBlocked)
+              
 
 instance Show G.RelaxInfo where
     show (G.RelaxInfo xs) = show xs

@@ -688,7 +688,7 @@ goals params = concat (map words (values params goalOpt))
 
 goalOpt = Param ['g'] ["goal"] ["Goal"] (ReqArg (Value "Goal") "NAME")
 	  (text ["Specify a source package which we want to build, and stop once all goals",
-                 "are built.  If not given we build all of the targets"])
+                 "are built.  If not given all targets are considered goals."])
 
 -- |Return the value of the --omit-target flag.
 omitTargets :: Params -> [String]
