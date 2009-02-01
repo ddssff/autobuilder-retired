@@ -1,3 +1,11 @@
+autobuilder (4.39) unstable; urgency=low
+
+  * Add the --goal option, which allows you to specify one or more 
+    packages which you wish to build.  Once those packages and all of
+    the packages they depend on are built the autobuilder exits.
+
+ -- David Fox <dsf@seereason.com>  Sun, 01 Feb 2009 07:59:25 -0800
+
 autobuilder (4.38) unstable; urgency=low
 
   * API changes in haskell-debian
