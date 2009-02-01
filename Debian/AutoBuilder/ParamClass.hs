@@ -2,6 +2,11 @@ module Debian.AutoBuilder.ParamClass
     ( ParamClass(..)
     , Strictness(Strict, Moderate, Lax)
     , findSlice
+    , cleanRootOfRelease
+    , dirtyRootOfRelease
+    , dirtyRoot
+    , cleanRoot
+    , localPoolDir
     ) where
 
 import		 Data.Maybe
@@ -52,10 +57,6 @@ class ParamClass a where
     forceBuild :: a -> Bool
     allowBuildDependencyRegressions :: a -> Bool
     preferred :: a -> [String]
-    dirtyRoot :: a -> EnvRoot
-    cleanRoot :: a -> EnvRoot
-    dirtyRootOfRelease :: a -> ReleaseName -> EnvRoot
-    cleanRootOfRelease :: a -> ReleaseName -> EnvRoot
     strictness :: a -> Strictness
     setEnv :: a -> [String]
     buildDepends :: a -> [String]
@@ -75,7 +76,6 @@ class ParamClass a where
     cleanUp :: a -> Bool
     archList :: a -> [Arch]
     flushPool :: a -> Bool
-    localPoolDir :: a -> FilePath
     -- Uploading
     doUpload :: a -> Bool
     doNewDist :: a -> Bool
@@ -94,3 +94,25 @@ findSlice params dist =
       [x] -> Right x
       [] -> Left ("No sources.list found for " ++ sliceName dist)
       xs -> Left ("Multiple sources.lists found for " ++ sliceName dist ++ "\n" ++ show (map (sliceName . sliceListName) xs))
+
+dirtyRootOfRelease :: ParamClass p => p -> ReleaseName -> EnvRoot
+dirtyRootOfRelease params distro =
+    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/build-" ++ (show (strictness params))
+    --ReleaseCache.dirtyRoot distro (show (strictness params))
+
+cleanRootOfRelease :: ParamClass p => p -> ReleaseName -> EnvRoot
+cleanRootOfRelease params distro =
+    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/clean-" ++ (show (strictness params))
+    --ReleaseCache.cleanRoot distro (show (strictness params))
+
+dirtyRoot :: ParamClass p => p -> EnvRoot
+dirtyRoot params = dirtyRootOfRelease params (buildRelease params)
+    --EnvRoot $ topDir params ++ "/dists/" ++ show (buildRelease params) ++ "/build-" ++ (show (strictness params))
+
+cleanRoot :: ParamClass p => p -> EnvRoot
+cleanRoot params = cleanRootOfRelease params (buildRelease params)
+    -- cleanRootOfRelease params (buildRelease params)
+
+-- |Location of the local repository for uploaded packages.
+localPoolDir :: ParamClass p => p -> FilePath
+localPoolDir params = topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)

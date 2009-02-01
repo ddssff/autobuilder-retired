@@ -91,11 +91,6 @@ instance P.ParamClass Params where
     buildDepends = buildDepends
     setEnv = setEnv
     relaxDepends = relaxDepends
-    dirtyRoot = dirtyRoot
-    cleanRoot = cleanRoot
-    dirtyRootOfRelease = dirtyRootOfRelease
-    cleanRootOfRelease = cleanRootOfRelease
-    localPoolDir = localPoolDir
     allSources = allSources
     buildRepoSources = buildRepoSources    
 
@@ -750,28 +745,6 @@ text lines =
           else (word : line : lines)
 
 -- Constants
-
-dirtyRoot :: Params -> EnvRoot
-dirtyRoot params = dirtyRootOfRelease params (buildRelease params)
-    --EnvRoot $ topDir params ++ "/dists/" ++ show (buildRelease params) ++ "/build-" ++ (show (strictness params))
-
-cleanRoot :: Params -> EnvRoot
-cleanRoot params = cleanRootOfRelease params (buildRelease params)
-    -- cleanRootOfRelease params (buildRelease params)
-
-dirtyRootOfRelease :: Params -> ReleaseName -> EnvRoot
-dirtyRootOfRelease params distro =
-    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/build-" ++ (show (strictness params))
-    --ReleaseCache.dirtyRoot distro (show (strictness params))
-
-cleanRootOfRelease :: Params -> ReleaseName -> EnvRoot
-cleanRootOfRelease params distro =
-    EnvRoot $ topDir params ++ "/dists/" ++ releaseName' distro ++ "/clean-" ++ (show (strictness params))
-    --ReleaseCache.cleanRoot distro (show (strictness params))
-
--- |Location of the local repository for uploaded packages.
-localPoolDir :: Params -> FilePath
-localPoolDir params = topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)
 
 params :: (CIO m) =>
           String
