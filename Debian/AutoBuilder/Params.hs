@@ -12,11 +12,6 @@ module Debian.AutoBuilder.Params
       prettyPrint
     ) where
 
-import		 Debian.Repo
-import		 Debian.Version
-import		 Debian.URI
-import qualified Debian.GenBuildDeps as G
-
 import		 Control.Exception
 import		 Control.Monad.Trans
 import		 Data.List
@@ -25,8 +20,15 @@ import		 Extra.TIO
 import		 Extra.Misc
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.Config as Config
-import		 Debian.Config hiding (usageInfo)
+import		 Debian.Config (ParamSet, Flag(..), ParamDescr(..), computeConfig, optBaseSpecs, values)
 import qualified Debian.Config as P (usageInfo)
+import qualified Debian.GenBuildDeps as G
+import		 Debian.Repo (NamedSliceList(..), SliceList(..), SliceName(..), 
+                              AptIOT, SourcesChangedAction(..), Arch(..),
+                              setRepoMap, parseNamedSliceList', repoSources,
+                              ReleaseName(..), parseReleaseName)
+import		 Debian.URI
+import		 Debian.Version
 import qualified Data.Map as Map
 import qualified System.IO as IO
 import		 System.Console.GetOpt
@@ -112,49 +114,61 @@ instance P.ParamClass Params where
 params' :: CIO m => Int -> String -> [Flag] -> AptIOT m [Params]
 params' verbosity appName flags =
     do flagLists <- liftIO (computeConfig verbosity appName flags id)
-       flagMaps <- mapM (lift . computeTopDir) (map (listMap . pairsFromFlags) flagLists)
-       case listToMaybe flagMaps of
-         Nothing -> return ()
-         Just m -> case Map.findWithDefault [] "Use-Repo-Cache" m of
-                     [] -> return ()
-                     _ -> mapM_ loadRepoCache (Map.findWithDefault [] "Top-Dir" m)
+       let flagMaps0 = map (listMap . pairsFromFlags) flagLists
+       let params0 = map (\ x -> Params {flags = x, allSources = [], buildRepoSources = SliceList { slices = [] }}) flagMaps0
        -- Make sure the topdir for each set of parameters exists and
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
-       params <- mapM makeFlagSet flagMaps
+       params1 <- mapM (lift . computeTopDir) params0
+       loadRepoCache params1
+       params <- mapM buildCache params1
        case map (slices . buildRepoSources) params of
          [] -> error "No parameter sets"
          [[]] -> error "No build repo sources!"
          _ -> return ()
-       -- mapM_ (lift  . vPutStrBl 0) ("buildRepoSources:" : map ((" " ++) . show . buildRepoSources) params)
-       {- mapM verifySources params -}
        return params
     where
-      loadRepoCache :: CIO m => FilePath -> AptIOT m ()
-      loadRepoCache top =
+      loadRepoCache :: CIO m => [Params] -> AptIOT m ()
+      loadRepoCache [] = return ()
+      loadRepoCache (params : _) =
           lift (ePutStrBl "Loading repo cache...") >>
-          liftIO (try (readFile (top ++ "/repoCache")) >>=
+          liftIO (try (readFile (P.topDir params ++ "/repoCache")) >>=
                   try . evaluate . either (const []) read) >>=
           either (const (return ())) (const (return ()) . setRepoMap . Map.fromList . map fixURI)
       fixURI (s, x) = (fromJust (parseURI s), x)
-      makeFlagSet flags =
-          do allSources <- allSourcesOfFlags flags
+      buildCache :: CIO m => Params -> AptIOT m Params
+      buildCache params =
+          do allSources <- mapM parseNamedSliceList' (P.sources params)
              buildRepoSources <- 
-                     case nub (Map.findWithDefault [] "Build-URI" flags) of
-                       [] -> case nub (Map.findWithDefault [] "Upload-URI" flags) of
+                     case nub (values params buildURIOpt) of
+                       [] -> case nub (values params uploadURIOpt) of
                                [] -> return SliceList { slices = [] }
                                [x] -> maybe (error $ "Invalid Upload-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
                                xs -> error $ "Multiple Upload-URI parameters: " ++ show xs
                        [x] -> maybe (error $ "Invalid Build-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
                        xs -> error $ "Multiple Build-URI parameters: " ++ show xs
-             return $ Params { flags = flags
-                             , allSources = allSources
+             return $ params { allSources = allSources
                              , buildRepoSources = buildRepoSources }        
       pairsFromFlags (Value k a : etc) = (k, a) : pairsFromFlags etc
       pairsFromFlags (_ : etc) = pairsFromFlags etc
       pairsFromFlags [] = []
-      allSourcesOfFlags flags = mapM parseNamedSliceList' (sources flags)
-      sources flags = Map.findWithDefault [] "Sources" flags
+
+{-
+buildCache :: CIO m => Params -> AptIOT m Params
+buildCache params =
+    do flagMaps <- mapM (lift . computeTopDir) (map (listMap . pairsFromFlags) flagLists)
+       allSources <- mapM parseNamedSliceList' (sources flags)
+       buildRepoSources <- 
+           case nub (Map.findWithDefault [] "Build-URI" flags) of
+             [] -> case nub (Map.findWithDefault [] "Upload-URI" flags) of
+                     [] -> return SliceList { slices = [] }
+                     [x] -> maybe (error $ "Invalid Upload-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
+                     xs -> error $ "Multiple Upload-URI parameters: " ++ show xs
+             [x] -> maybe (error $ "Invalid Build-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
+             xs -> error $ "Multiple Build-URI parameters: " ++ show xs
+       return $ params { allSources = allSources
+                       , buildRepoSources = buildRepoSources }
+-}
 
 buildURIOpt :: ParamDescr
 buildURIOpt = Param [] ["build-uri"] ["Build-URI"] (ReqArg (Value "Build-URI") "[SOURCES.LIST LINE]")
@@ -288,6 +302,25 @@ topDirOpt = Param [] ["top-dir"] ["Top-Dir"] (ReqArg (Value "Top-Dir") "PATH")
 
 -- Compute the top directory, try to create it, and then make sure it
 -- exists.  Then we can safely return it from topDir below.
+computeTopDir :: CIO m => Params -> m Params
+computeTopDir params =
+    do
+      case Map.member "Top-Dir" (flags params) of
+        True -> return params
+        False -> do
+          top <- liftIO (try (getEnv "HOME")) >>= return . either (\ _ -> topDirDefault) (++ "/.autobuilder")
+          liftIO (try $ createDirectoryIfMissing True top)
+          result <- liftIO (try $ getPermissions top >>= return . writable)
+          case result of
+            Left _ -> error $ "Could not create cache directory " ++ top ++ " (are you root?)"
+            Right False ->
+                 -- putStrLn (top ++ ": ok (read only)") -- error "Cache directory not writable (are you root?)" >>
+                return $ params {flags = Map.insert "Top-Dir" [top] (flags params)}
+            Right True ->
+                 -- putStrLn (top ++ ": ok") >>
+                return $ params {flags = Map.insert "Top-Dir" [top] (flags params)}
+
+{-
 computeTopDir :: CIO m => Map.Map String [String] -> m (Map.Map String [String])
 computeTopDir params =
     do
@@ -307,6 +340,7 @@ computeTopDir params =
                 do
                   -- putStrLn (top ++ ": ok")
                   return $ Map.insert "Top-Dir" [top] params
+-}
 
 -- |The string used to construct modified version numbers.  E.g.,
 -- Ubuntu uses "ubuntu", this should reflect the name of the repository

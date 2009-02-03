@@ -15,7 +15,7 @@ import		 Data.Maybe
 import qualified Data.Set as Set
 import           Data.Time (NominalDiffTime)
 import qualified Debian.AutoBuilder.ParamClass as P
-import           Debian.AutoBuilder.Params (usage)
+import           Debian.AutoBuilder.Params (params, usage)
 import		 Debian.AutoBuilder.Target (Target, buildTargets, showTargets, readSpec, targetDocumentation)
 import qualified Debian.AutoBuilder.Version as V
 import		 Debian.Repo
@@ -35,6 +35,41 @@ import		 System.Exit
 import qualified System.IO as IO
 import 	         System.IO.Error (isDoesNotExistError)
 import		 System.Posix.Files (removeLink)
+
+oldMain :: IO ()
+oldMain =
+    do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
+       runTIO (setVerbosity verbosity defStyle) (tioMain verbosity)
+       IO.hFlush IO.stderr
+    where
+      tioMain :: Int -> TIO ()
+      tioMain _verbosity =
+          runAptIO (params appName [] doHelp doVersion >>= mapM doParameterSets) >>= checkResults
+      -- Process one set of parameters.  Usually there is only one, but there
+      -- can be several which are run sequentially.
+      doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], NominalDiffTime))))
+      doParameterSets set = withLock (lockFilePath set) (tryAB . runParameterSet $ set)
+      lockFilePath params = P.topDir params ++ "/lockfile"
+      -- The result of processing a set of parameters is either an
+      -- exception or a completion code, or, if we fail to get a lock,
+      -- nothing.  For a single result we can print a simple message,
+      -- for multiple paramter sets we need to print a summary.
+      checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], NominalDiffTime)))] -> m ()
+      checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
+      checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
+      checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
+      checkResults list =
+          do mapM_ (\ (num, result) -> vEPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
+             eBOL
+             case filter isLeft list of
+               [] -> liftIO (exitWith ExitSuccess)
+               _ -> liftIO (exitWith (ExitFailure 1))
+             where showResult (Right (Left e)) = show e
+                   showResult (Right (Right _)) = "Ok"
+                   showResult (Left e) = "Ok (" ++ show e ++ ")"
+                   isLeft (Right (Left _)) = True
+                   isLeft (Left _) = True
+                   isLeft (Right (Right _)) = False    
 
 -- | Convert the command line arguments into a list of flags.  Then
 -- expand these flags into a list of flag lists, and then run the
