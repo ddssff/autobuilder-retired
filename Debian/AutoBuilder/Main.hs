@@ -4,14 +4,8 @@
 -- appear above it:
 module Debian.AutoBuilder.Main where
 
-import		 Debian.Repo
-import		 Debian.Shell
-import		 Debian.Version
-import		 Debian.URI
-
 --import		 Control.Monad.State
 import		 Control.Monad.RWS
-import		 Extra.TIO
 --import qualified Debian.Config as Config
 import		 Control.Exception
 import		 Control.Monad
@@ -20,37 +14,41 @@ import		 Data.List
 import		 Data.Maybe
 import qualified Data.Set as Set
 import           Data.Time (NominalDiffTime)
+import qualified Debian.AutoBuilder.ParamClass as P
+import           Debian.AutoBuilder.Params (usage)
+import		 Debian.AutoBuilder.Target (Target, buildTargets, showTargets, readSpec, targetDocumentation)
+import qualified Debian.AutoBuilder.Version as V
+import		 Debian.Repo
+import		 Debian.Shell
+import		 Debian.Version
+import		 Debian.URI
 import		 Extra.Either
 import		 Extra.List
 import		 Extra.Lock
 import		 Extra.Misc
+import		 Extra.TIO
 import		 System.Unix.Directory hiding (find)
 import		 System.Unix.Process
-import qualified Debian.AutoBuilder.ParamClass as P
-import           Debian.AutoBuilder.Params (params, usage)
-import		 Debian.AutoBuilder.Target (Target, buildTargets, showTargets, readSpec, targetDocumentation)
-import qualified Debian.AutoBuilder.Version as V
 import		 System.Directory
 import		 System.Environment
 import		 System.Exit
 import qualified System.IO as IO
 import 	         System.IO.Error (isDoesNotExistError)
 import		 System.Posix.Files (removeLink)
-import qualified Debian.AutoBuilder.Version as Version
 
 -- | Convert the command line arguments into a list of flags.  Then
 -- expand these flags into a list of flag lists, and then run the
 -- application on each list in sequence.  You get multiple flag lists
 -- when more than one identifier appears on the right side of a /Use/.
-main :: IO ()
-main =
+main :: P.ParamClass p => [p] -> IO ()
+main params =
     do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
        runTIO (setVerbosity verbosity defStyle) (tioMain verbosity)
        IO.hFlush IO.stderr
     where
       tioMain :: Int -> TIO ()
       tioMain _verbosity =
-          runAptIO (params appName [] doHelp doVersion >>= mapM doParameterSets) >>= checkResults
+          runAptIO ({- params appName [] doHelp doVersion >>= -} mapM doParameterSets params) >>= checkResults
       -- Process one set of parameters.  Usually there is only one, but there
       -- can be several which are run sequentially.
       doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], NominalDiffTime))))
@@ -148,10 +146,10 @@ runParameterSet params =
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       doRequiredVersion :: CIO m => m ()
       doRequiredVersion =
-          case filter (\ (v, _) -> v > parseDebianVersion Version.version) (P.requiredVersion params) of
+          case filter (\ (v, _) -> v > parseDebianVersion V.version) (P.requiredVersion params) of
             [] -> return ()
             reasons ->
-                do vEPutStrBl 0 ("Version " ++ Version.version ++ " is too old:")
+                do vEPutStrBl 0 ("Version " ++ V.version ++ " is too old:")
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)                    
           where

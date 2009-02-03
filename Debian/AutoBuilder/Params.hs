@@ -8,7 +8,8 @@ module Debian.AutoBuilder.Params
     ( Params(..),
       optSpecs,
       params,
-      usage
+      usage,
+      prettyPrint
     ) where
 
 import		 Debian.Repo
@@ -44,7 +45,6 @@ instance ParamSet Params where
         concat (map (\ name -> Map.findWithDefault [] name (flags params)) (names descr))
 
 instance P.ParamClass Params where
-    prettyPrint = prettyPrint
     topDir = topDir
     vendorTag = vendorTag
     extraReleaseTag = extraReleaseTag
@@ -639,10 +639,9 @@ isDevelopmentReleaseOpt = Param [] ["development-release"] ["Development-Release
                          "to include '~release', since there are no newer releases to",
                          "worry about trumping."])
 
-releaseAliases :: Params -> (String -> String)
+releaseAliases :: Params -> [(String, String)]
 releaseAliases params =
-    let pairs = map (makePair . break (== '=')) (values params releaseAliasOpt) in
-    \ s -> maybe s id (lookup s pairs )
+    map (makePair . break (== '=')) (values params releaseAliasOpt)
     where
       makePair (a, ('=' : b)) = (a, b)
       makePair (a, b) = error $ "ReleaseAlias invalid argument: " ++ a ++ b

@@ -824,7 +824,7 @@ computeNewVersion params
                             Nothing else
                             (Just (sliceName (P.baseRelease params)))
               extra = P.extraReleaseTag params 
-              aliases = P.releaseAliases params in
+              aliases = \ x -> maybe x id (lookup x (P.releaseAliases params)) in
           case parseTag vendor sourceVersion of
 
             (_, Just tag) -> Left ("Error: the version string in the changelog has a vendor tag (" ++ show tag ++

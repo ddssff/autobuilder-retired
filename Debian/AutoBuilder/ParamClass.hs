@@ -32,7 +32,6 @@ instance Show Strictness where
 
 class ParamClass a where
     prettyPrint :: a -> String
-               -- ^ A function to compactly display a parameter set, cutting off any long strings.
     -- Global Parameters
     _verbosity :: a -> Int
     topDir :: a -> FilePath
@@ -70,7 +69,7 @@ class ParamClass a where
     buildRelease :: a -> ReleaseName
     doNotChangeVersion :: a -> Bool
     isDevelopmentRelease :: a -> Bool
-    releaseAliases :: a -> (String -> String)
+    releaseAliases :: a -> [(String, String)]
     flushRoot :: a -> Bool
     -- Local Repository
     cleanUp :: a -> Bool
