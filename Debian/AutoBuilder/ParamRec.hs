@@ -1,6 +1,7 @@
 module Debian.AutoBuilder.ParamRec
     ( ParamRec(..)
     , makeParamRec
+    , CacheRec(..)
     ) where
 
 import qualified Debian.GenBuildDeps as G
@@ -13,8 +14,8 @@ data ParamRec =
     ParamRec
     { 
     -- Global parameters
-     _verbosity :: Int
-    , topDir :: FilePath
+      verbosity :: Int
+    , topDirParam :: Maybe FilePath
     , debug :: Bool
     , dryRun :: Bool
     , requiredVersion :: [(DebianVersion, Maybe String)]
@@ -24,8 +25,6 @@ data ParamRec =
     , useRepoCache :: Bool
     -- Obtaining and Preparing Source
     , sources :: [String]
-    , allSources :: [NamedSliceList]
-    , buildRepoSources :: SliceList
     , targets :: [String]
     , goals :: [String]
     , omitTargets :: [String]
@@ -36,8 +35,6 @@ data ParamRec =
     , forceBuild :: Bool
     , allowBuildDependencyRegressions :: Bool
     , preferred :: [String]
-    --, dirtyRoot :: EnvRoot
-    --, cleanRoot :: EnvRoot
     , strictness :: Strictness
     , setEnv :: [String]
     , buildDepends :: [String]
@@ -57,25 +54,40 @@ data ParamRec =
     , cleanUp :: Bool
     , archList :: [Arch]
     , flushPool :: Bool
-    --, localPoolDir :: FilePath
-      -- Uploading
+    -- Uploading
     , doUpload :: Bool
     , doNewDist :: Bool
     , newDistProgram :: String
     , uploadHost :: Maybe String
     , uploadURI :: Maybe URI
+    , buildURI :: Maybe URI
     , createRelease :: [String]
     , ifSourcesChanged :: SourcesChangedAction
     , doSSHExport :: Bool
     , autobuilderEmail :: String
+    } deriving Show 
+
+instance Show G.RelaxInfo where
+    show (G.RelaxInfo pairs) = "RelaxInfo [" ++ show pairs ++ "]"
+
+instance Show SliceName where
+    show x = "SliceName { sliceName = " ++ show (sliceName x) ++ " }"
+
+data CacheRec
+    = CacheRec'
+    { topDir :: FilePath
+    , allSources :: [NamedSliceList]
+    , buildRepoSources :: SliceList
     }
 
-instance Read DebianVersion where
-    readsPrec _ s = [(parseDebianVersion s, "")]
+instance Show SourcesChangedAction where
+    show SourcesChangedError = "SourcesChangedError"
+    show UpdateSources = "UpdateSources"
+    show RemoveRelease = "RemoveRelease"
 
 instance ParamClass ParamRec where
-    _verbosity = Debian.AutoBuilder.ParamRec._verbosity
-    topDir = Debian.AutoBuilder.ParamRec.topDir
+    verbosity = Debian.AutoBuilder.ParamRec.verbosity
+    topDirParam = Debian.AutoBuilder.ParamRec.topDirParam
     debug = Debian.AutoBuilder.ParamRec.debug
     dryRun = Debian.AutoBuilder.ParamRec.dryRun
     requiredVersion = Debian.AutoBuilder.ParamRec.requiredVersion
@@ -84,8 +96,6 @@ instance ParamClass ParamRec where
     flushAll = Debian.AutoBuilder.ParamRec.flushAll
     useRepoCache = Debian.AutoBuilder.ParamRec.useRepoCache
     sources = Debian.AutoBuilder.ParamRec.sources
-    allSources = Debian.AutoBuilder.ParamRec.allSources
-    buildRepoSources = Debian.AutoBuilder.ParamRec.buildRepoSources
     targets = Debian.AutoBuilder.ParamRec.targets
     goals = Debian.AutoBuilder.ParamRec.goals
     omitTargets = Debian.AutoBuilder.ParamRec.omitTargets
@@ -118,18 +128,17 @@ instance ParamClass ParamRec where
     newDistProgram = Debian.AutoBuilder.ParamRec.newDistProgram
     uploadHost = Debian.AutoBuilder.ParamRec.uploadHost
     uploadURI = Debian.AutoBuilder.ParamRec.uploadURI
+    buildURI = Debian.AutoBuilder.ParamRec.buildURI
     createRelease = Debian.AutoBuilder.ParamRec.createRelease
     ifSourcesChanged = Debian.AutoBuilder.ParamRec.ifSourcesChanged
     doSSHExport = Debian.AutoBuilder.ParamRec.doSSHExport
     autobuilderEmail = Debian.AutoBuilder.ParamRec.autobuilderEmail
 
---prettyPrint _ = putStrLn "prettyPrint: unimplemented"
-
 makeParamRec :: ParamClass p => p -> ParamRec
 makeParamRec params =
     ParamRec
-    { Debian.AutoBuilder.ParamRec._verbosity = P._verbosity params
-    , Debian.AutoBuilder.ParamRec.topDir = P.topDir params
+    { Debian.AutoBuilder.ParamRec.verbosity = P.verbosity params
+    , Debian.AutoBuilder.ParamRec.topDirParam = P.topDirParam params
     , Debian.AutoBuilder.ParamRec.debug = P.debug params
     , Debian.AutoBuilder.ParamRec.dryRun = P.dryRun params
     , Debian.AutoBuilder.ParamRec.requiredVersion = P.requiredVersion params
@@ -138,8 +147,6 @@ makeParamRec params =
     , Debian.AutoBuilder.ParamRec.flushAll = P.flushAll params
     , Debian.AutoBuilder.ParamRec.useRepoCache = P.useRepoCache params
     , Debian.AutoBuilder.ParamRec.sources = P.sources params
-    , Debian.AutoBuilder.ParamRec.allSources = P.allSources params
-    , Debian.AutoBuilder.ParamRec.buildRepoSources = P.buildRepoSources params
     , Debian.AutoBuilder.ParamRec.targets = P.targets params
     , Debian.AutoBuilder.ParamRec.goals = P.goals params
     , Debian.AutoBuilder.ParamRec.omitTargets = P.omitTargets params
@@ -172,10 +179,9 @@ makeParamRec params =
     , Debian.AutoBuilder.ParamRec.newDistProgram = P.newDistProgram params
     , Debian.AutoBuilder.ParamRec.uploadHost = P.uploadHost params
     , Debian.AutoBuilder.ParamRec.uploadURI = P.uploadURI params
+    , Debian.AutoBuilder.ParamRec.buildURI = P.buildURI params
     , Debian.AutoBuilder.ParamRec.createRelease = P.createRelease params
     , Debian.AutoBuilder.ParamRec.ifSourcesChanged = P.ifSourcesChanged params
     , Debian.AutoBuilder.ParamRec.doSSHExport = P.doSSHExport params
     , Debian.AutoBuilder.ParamRec.autobuilderEmail = P.autobuilderEmail params
     }
-    
--- \ x -> maybe x id (lookup x (releaseAliases p))

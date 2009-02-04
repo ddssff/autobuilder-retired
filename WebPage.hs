@@ -62,7 +62,7 @@ application cgivars =
 appName :: String
 appName = "autobuilder"
 
-aptGetUpdate :: P.ParamClass p => p -> [(String,String)] -> IO Html
+aptGetUpdate :: P.RunClass p => p -> [(String,String)] -> IO Html
 aptGetUpdate params cgivars =
     do
       let dist = parseReleaseName . fromJust . lookup "dist" $ cgivars
@@ -125,7 +125,7 @@ environment =
       return $ concatHtml (map (\ (name, value) -> concatHtml [stringToHtml (name ++ "=" ++ value), br]) env)
 -}
 
-distPage :: CIO m => P.ParamClass p => p -> [(String,String)] -> AptIOT m Html
+distPage :: CIO m => P.RunClass p => p -> [(String,String)] -> AptIOT m Html
 distPage params cgivars =
     do distro <- distros params >>= return . find (isDist dist)
        case distro of
@@ -168,7 +168,7 @@ distPage params cgivars =
       root = cacheRootDir (P.topDir params) (either (error . show) (ReleaseName . sliceName . sliceListName) (P.findSlice params dist))
       isDist dist distro = dist == sliceListName distro
 
-sourcePackagePage :: CIO m => P.ParamClass p => p -> [(String, String)] -> AptIOT m Html
+sourcePackagePage :: CIO m => P.RunClass p => p -> [(String, String)] -> AptIOT m Html
 sourcePackagePage params cgivars =
     do
       let package = fromJust (lookup "package" cgivars)

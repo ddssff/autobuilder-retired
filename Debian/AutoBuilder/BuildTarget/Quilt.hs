@@ -17,7 +17,7 @@ import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, escapeForMake)
-import Debian.AutoBuilder.ParamClass (ParamClass)
+import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Extra.CIO (vMessage)
 import Extra.CIO (CIO(tryCIO), vPutStrBl, vEPutStrBl)
@@ -76,7 +76,7 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (ParamClass p, Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => p -> a -> b -> m (Either String (SourceTree, FilePath))
+makeQuiltTree :: (RunClass p, Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => p -> a -> b -> m (Either String (SourceTree, FilePath))
 makeQuiltTree params base patch =
     do vPutStrBl 1 $ "Quilt base: " ++ getTop params base
        vPutStrBl 1 $ "Quilt patch: " ++ getTop params patch
@@ -121,7 +121,7 @@ debug e =
        IO.hFlush IO.stderr
        exitWith (ExitFailure 2)
 
-prepareQuilt :: (ParamClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
+prepareQuilt :: (RunClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
 prepareQuilt params (Tgt base) (Tgt patch) = 
     tryCIO (makeQuiltTree params base patch >>= either (return . Left) make) >>= either (liftIO . debug) return
     where

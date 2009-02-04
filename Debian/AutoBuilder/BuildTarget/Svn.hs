@@ -13,7 +13,7 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (ParamClass)
+import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Control.ByteString
 import Debian.Repo
@@ -94,7 +94,7 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
 
-prepareSvn ::  (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareSvn ::  (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
 prepareSvn params target =
     do when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir

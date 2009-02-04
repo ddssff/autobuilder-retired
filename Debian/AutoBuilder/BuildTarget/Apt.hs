@@ -4,7 +4,7 @@ import Debian.Repo
 import Debian.Version
 
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (ParamClass)
+import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Control.Monad
 import Control.Monad.Trans
@@ -32,7 +32,7 @@ instance BuildTarget Apt where
     revision _ (Apt _ _ Nothing _) = error "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) _ = "Built from " ++ sliceName (sliceListName name) ++ " apt pool"
 
-prepareApt :: (ParamClass p, CIO m) => p -> String -> AptIOT m (Either String Tgt)
+prepareApt :: (RunClass p, CIO m) => p -> String -> AptIOT m (Either String Tgt)
 prepareApt params target =
     do
       let (dist, package, version) =

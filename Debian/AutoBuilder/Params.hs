@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 -- |This module examines the command line arguments, the configuration
 -- files, and perhaps other aspects of the computing environment
 -- (e.g. the output of dpkg-architecture) and computes the run time
@@ -5,41 +6,38 @@
 --
 -- Author: David Fox <ddssff@gmail.com>
 module Debian.AutoBuilder.Params
-    ( Params(..),
-      optSpecs,
-      params,
-      usage,
-      prettyPrint
+    ( Params(..)
+    , optSpecs
+    , params
+    , usage
     ) where
 
 import		 Control.Exception
 import		 Control.Monad.Trans
 import		 Data.List
 import		 Data.Maybe
-import		 Extra.TIO
+import		 Extra.TIO hiding (verbosity)
 import		 Extra.Misc
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.Config as Config
 import		 Debian.Config (ParamSet, Flag(..), ParamDescr(..), computeConfig, optBaseSpecs, values)
 import qualified Debian.Config as P (usageInfo)
 import qualified Debian.GenBuildDeps as G
-import		 Debian.Repo (NamedSliceList(..), SliceList(..), SliceName(..), 
+import		 Debian.Repo (SliceList(..), SliceName(..), 
                               AptIOT, SourcesChangedAction(..), Arch(..),
-                              setRepoMap, parseNamedSliceList', repoSources,
-                              ReleaseName(..), parseReleaseName)
+                              setRepoMap, ReleaseName(..), parseReleaseName)
 import		 Debian.URI
 import		 Debian.Version
 import qualified Data.Map as Map
 import qualified System.IO as IO
 import		 System.Console.GetOpt
-import		 System.Directory
 import		 System.Environment as Environment
 import		 Text.Regex as Regex
 
 data Params
     = Params { flags :: Map.Map String [String]
-             , allSources :: [NamedSliceList]
-             , buildRepoSources :: SliceList
+             --, allSources :: [NamedSliceList]
+             --, buildRepoSources :: SliceList
              }
 
 instance ParamSet Params where
@@ -47,7 +45,7 @@ instance ParamSet Params where
         concat (map (\ name -> Map.findWithDefault [] name (flags params)) (names descr))
 
 instance P.ParamClass Params where
-    topDir = topDir
+    topDirParam = topDirParam
     vendorTag = vendorTag
     extraReleaseTag = extraReleaseTag
     extraEssential = extraEssential
@@ -80,11 +78,12 @@ instance P.ParamClass Params where
     baseRelease = baseRelease
     uploadURI = uploadURI
     uploadHost = uploadHost
+    buildURI = buildURI
     buildRelease = buildRelease
     doNotChangeVersion = doNotChangeVersion
     isDevelopmentRelease = isDevelopmentRelease
     releaseAliases = releaseAliases
-    _verbosity = _verbosity
+    verbosity = verbosity
     sources = sources
     targets = targets
     goals = goals
@@ -93,13 +92,12 @@ instance P.ParamClass Params where
     buildDepends = buildDepends
     setEnv = setEnv
     relaxDepends = relaxDepends
-    allSources = allSources
-    buildRepoSources = buildRepoSources    
 
--- |Compute and return all the run time parameters by expanding the list of flags,
--- generally computed from the command line arguments, using the Name\/Use macro
--- expansion mechanism.  The result is a Map from a parameter names to a list of the
--- values that were found for that parameter.
+-- |Compute and return all the run time parameters by expanding the
+-- list of flags, generally computed from the command line arguments,
+-- using the Name\/Use macro expansion mechanism.  The result is a Map
+-- from a parameter names to a list of the values that were found for
+-- that parameter.
 --
 -- The order of the list of values for a given parameter is well
 -- defined.  Values from an expansion of a Use parameter will appear
@@ -111,67 +109,52 @@ instance P.ParamClass Params where
 --
 -- The appName string is used to construct the usage message and
 -- candidates for the configuration directory path.
-params' :: CIO m => Int -> String -> [Flag] -> AptIOT m [Params]
+params :: (CIO m) =>
+          String
+       -> [String]
+       -> (String -> IO ())
+       -> (IO ())
+       -> AptIOT m [(Params, P.Cache)]
+params appName useNames doHelp doVersion =
+    do args <- liftIO getArgs
+       let verbosity = length (filter (== "-v") args) - length (filter (== "-q") args)
+       let flags = map (Config.Value "Use") useNames ++ Config.seedFlags appName optSpecs args
+       -- The --help and --version are done early, there is a lot of
+       -- computation and I/O involved in creating the Params records
+       -- that we don't want to do if those options are set.
+       case () of
+         _ | isJust (Config.findValue flags "Help") -> liftIO (doHelp appName) >> return []
+           | isJust (Config.findValue flags "Version") -> liftIO doVersion >> return []
+           | True -> params' verbosity appName flags
+
+params' :: CIO m => Int -> String -> [Flag] -> AptIOT m [(Params, P.Cache)]
 params' verbosity appName flags =
     do flagLists <- liftIO (computeConfig verbosity appName flags id)
-       let flagMaps0 = map (listMap . pairsFromFlags) flagLists
-       let params0 = map (\ x -> Params {flags = x, allSources = [], buildRepoSources = SliceList { slices = [] }}) flagMaps0
+       let params = map (\ x -> Params {flags = listMap (pairsFromFlags x)}) flagLists
        -- Make sure the topdir for each set of parameters exists and
        -- is writable.  If not, we won't be able to update any environments
        -- and none of the information we get will be accurate.
-       params1 <- mapM (lift . computeTopDir) params0
-       loadRepoCache params1
-       params <- mapM buildCache params1
-       case map (slices . buildRepoSources) params of
+       caches <- mapM P.buildCache params
+       let pairs = zip params caches
+       case pairs of
          [] -> error "No parameter sets"
-         [[]] -> error "No build repo sources!"
-         _ -> return ()
-       return params
+         (_ : _) ->
+             if any (== []) (map (slices . P.buildRepoSources) pairs)
+             then error "Parameter set has no build repo sources"
+             else return pairs
     where
-      loadRepoCache :: CIO m => [Params] -> AptIOT m ()
-      loadRepoCache [] = return ()
-      loadRepoCache (params : _) =
-          lift (ePutStrBl "Loading repo cache...") >>
-          liftIO (try (readFile (P.topDir params ++ "/repoCache")) >>=
-                  try . evaluate . either (const []) read) >>=
-          either (const (return ())) (const (return ()) . setRepoMap . Map.fromList . map fixURI)
-      fixURI (s, x) = (fromJust (parseURI s), x)
-      buildCache :: CIO m => Params -> AptIOT m Params
-      buildCache params =
-          do allSources <- mapM parseNamedSliceList' (P.sources params)
-             buildRepoSources <- 
-                     case nub (values params buildURIOpt) of
-                       [] -> case nub (values params uploadURIOpt) of
-                               [] -> return SliceList { slices = [] }
-                               [x] -> maybe (error $ "Invalid Upload-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
-                               xs -> error $ "Multiple Upload-URI parameters: " ++ show xs
-                       [x] -> maybe (error $ "Invalid Build-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
-                       xs -> error $ "Multiple Build-URI parameters: " ++ show xs
-             return $ params { allSources = allSources
-                             , buildRepoSources = buildRepoSources }        
       pairsFromFlags (Value k a : etc) = (k, a) : pairsFromFlags etc
       pairsFromFlags (_ : etc) = pairsFromFlags etc
       pairsFromFlags [] = []
 
-{-
-buildCache :: CIO m => Params -> AptIOT m Params
-buildCache params =
-    do flagMaps <- mapM (lift . computeTopDir) (map (listMap . pairsFromFlags) flagLists)
-       allSources <- mapM parseNamedSliceList' (sources flags)
-       buildRepoSources <- 
-           case nub (Map.findWithDefault [] "Build-URI" flags) of
-             [] -> case nub (Map.findWithDefault [] "Upload-URI" flags) of
-                     [] -> return SliceList { slices = [] }
-                     [x] -> maybe (error $ "Invalid Upload-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
-                     xs -> error $ "Multiple Upload-URI parameters: " ++ show xs
-             [x] -> maybe (error $ "Invalid Build-URI parameter: " ++ show x) (repoSources Nothing) (parseURI x)
-             xs -> error $ "Multiple Build-URI parameters: " ++ show xs
-       return $ params { allSources = allSources
-                       , buildRepoSources = buildRepoSources }
--}
-
+buildURI :: Params -> Maybe URI
+buildURI params =
+    case nub (values params buildURIOpt) of
+      [] -> Nothing
+      [x] -> maybe (error ("Invalid Build-URI: " ++ x)) Just (parseURI x)
+      xs -> error $ "Conflicting values for Build-URI: " ++ show xs
 buildURIOpt :: ParamDescr
-buildURIOpt = Param [] ["build-uri"] ["Build-URI"] (ReqArg (Value "Build-URI") "[SOURCES.LIST LINE]")
+buildURIOpt = Param [] ["build-uri"] ["Build-URI"] (ReqArg (Value "Build-URI") "[URI]")
               (text ["An alternate url for the same repository the upload-uri points to, used for",
                      "downloading packages that have already been installed there."])
 
@@ -273,6 +256,7 @@ usage appName
       P.usageInfo "\nMANAGING THE LOCAL TEMPORARY PACKAGE REPOSITORY:\n" localRepoOpts ++
       P.usageInfo "\nUPLOADING PACKAGES TO THE REMOTE REPOSITORY:\n" uploadOpts
 
+{-
 -- |A function to compactly display a parameter set, cutting off any
 -- long strings.
 prettyPrint :: Params -> String
@@ -288,59 +272,20 @@ prettyPrint params =
           case length s of
             n | n > 50 -> take 50 s ++ "..."
 	      | otherwise -> s
-
-topDirDefault = "/var/cache/autobuilder"
+-}
 
 -- | The top of the directory tree where the autobuilder will
 -- create its information cache.
-topDir :: Params -> FilePath
-topDir params = head (Map.findWithDefault [topDirDefault] "Top-Dir" (flags params))
+topDirParam :: Params -> Maybe FilePath
+topDirParam params =
+    case nub (values params topDirOpt) of
+      [] -> Nothing
+      [x] -> Just x
+      xs -> error $ "Conflicting values for Top-Dir: " ++ show xs
 
 topDirOpt = Param [] ["top-dir"] ["Top-Dir"] (ReqArg (Value "Top-Dir") "PATH")
             (text ["The directory the program will use for its working storage,",
-                   "default: " ++ topDirDefault])
-
--- Compute the top directory, try to create it, and then make sure it
--- exists.  Then we can safely return it from topDir below.
-computeTopDir :: CIO m => Params -> m Params
-computeTopDir params =
-    do
-      case Map.member "Top-Dir" (flags params) of
-        True -> return params
-        False -> do
-          top <- liftIO (try (getEnv "HOME")) >>= return . either (\ _ -> topDirDefault) (++ "/.autobuilder")
-          liftIO (try $ createDirectoryIfMissing True top)
-          result <- liftIO (try $ getPermissions top >>= return . writable)
-          case result of
-            Left _ -> error $ "Could not create cache directory " ++ top ++ " (are you root?)"
-            Right False ->
-                 -- putStrLn (top ++ ": ok (read only)") -- error "Cache directory not writable (are you root?)" >>
-                return $ params {flags = Map.insert "Top-Dir" [top] (flags params)}
-            Right True ->
-                 -- putStrLn (top ++ ": ok") >>
-                return $ params {flags = Map.insert "Top-Dir" [top] (flags params)}
-
-{-
-computeTopDir :: CIO m => Map.Map String [String] -> m (Map.Map String [String])
-computeTopDir params =
-    do
-      case Map.member "Top-Dir" params of
-        True -> return params
-        False -> do
-          top <- liftIO (try (getEnv "HOME")) >>= return . either (\ _ -> topDirDefault) (++ "/.autobuilder")
-          liftIO (try $ createDirectoryIfMissing True top)
-          result <- liftIO (try $ getPermissions top >>= return . writable)
-          case result of
-            Left _ -> error $ "Could not create cache directory " ++ top ++ " (are you root?)"
-            Right False ->
-                do
-                  -- putStrLn (top ++ ": ok (read only)") -- error "Cache directory not writable (are you root?)"
-                  return $ Map.insert "Top-Dir" [top] params
-            Right True ->
-                do
-                  -- putStrLn (top ++ ": ok")
-                  return $ Map.insert "Top-Dir" [top] params
--}
+                   "default: " ++ P.topDirDefault])
 
 -- |The string used to construct modified version numbers.  E.g.,
 -- Ubuntu uses "ubuntu", this should reflect the name of the repository
@@ -633,9 +578,10 @@ baseReleaseOpt = Param [] ["base-release"] ["Base-Release"] (ReqArg (Value "Base
 
 uploadURI :: Params -> Maybe URI
 uploadURI params =
-    case values params uploadURIOpt of
+    case nub (values params uploadURIOpt) of
       [] -> Nothing
-      (x : _) -> maybe (error ("Invalid Upload-URI: " ++ x)) Just (parseURI x)
+      [x] -> maybe (error ("Invalid Upload-URI: " ++ x)) Just (parseURI x)
+      xs -> error $ "Conflicting values for Upload-URI: " ++ show xs
 uploadURIOpt = Param [] ["upload-uri"] ["Upload-URI"] (ReqArg (Value "Upload-URI") "URI")
                (text ["This URI is the address of the remote repository to which packages will be",
                       "uploaded after a run with no failures, when the --do-upload flag is used.",
@@ -685,8 +631,8 @@ releaseAliasOpt = Param [] ["release-alias"] ["Release-Alias"] (ReqArg (Value "R
 
 -- This is not used, the verbosity is computed by inspecting getArgs directly
 -- because it is used during the construction of the Params value.
-_verbosity :: Params -> Int
-_verbosity params = foldr (+) 0 (map read (values params verbosityOpt)) - foldr (+) 0 (map read (values params quieterOpt))
+verbosity :: Params -> Int
+verbosity params = foldr (+) 0 (map read (values params verbosityOpt)) - foldr (+) 0 (map read (values params quieterOpt))
 
 verbosityOpt = Param ['v'] [] ["Verbosity"] (OptArg (\ x -> Value "Verbosity" (maybe "1" id x)) "INCREMENT")
 	       "How chatty? (see also --style)"
@@ -777,22 +723,4 @@ text lines =
           then (line ++ " " ++ word) : lines
           else (word : line : lines)
 
--- Constants
-
-params :: (CIO m) =>
-          String
-       -> [String]
-       -> (String -> IO ())
-       -> (IO ())
-       -> AptIOT m [Params]
-params appName useNames doHelp doVersion =
-    do args <- liftIO getArgs
-       let verbosity = length (filter (== "-v") args) - length (filter (== "-q") args)
-       let flags = map (Config.Value "Use") useNames ++ Config.seedFlags appName optSpecs args
-       -- The --help and --version are done early, there is a lot of
-       -- computation and I/O involved in creating the Params records
-       -- that we don't want to do if those options are set.
-       case () of
-         _ | isJust (Config.findValue flags "Help") -> liftIO (doHelp appName) >> return []
-           | isJust (Config.findValue flags "Version") -> liftIO doVersion >> return []
-           | True -> params' verbosity appName flags
+instance (P.ParamClass p) => P.RunClass (p, P.Cache)

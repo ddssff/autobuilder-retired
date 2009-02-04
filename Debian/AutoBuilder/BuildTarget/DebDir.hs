@@ -3,7 +3,7 @@ module Debian.AutoBuilder.BuildTarget.DebDir where
 import Control.Exception
 import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (ParamClass)
+import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Prelude hiding (catch)
 import Debian.Repo
@@ -36,7 +36,7 @@ instance BuildTarget DebDir where
                  return . Left $ "Unimplemented: no revision method for deb-dir upstream target: " ++ message
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ maybe "none" id revision
 
-prepareDebDir :: (ParamClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
+prepareDebDir :: (RunClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
 prepareDebDir params (Tgt upstream) (Tgt debian) = 
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
     either (return . Left . show) (const copyUpstream) >>=
@@ -45,11 +45,11 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
     either (\ message -> return $ Left ("Couldn't find source tree at " ++ show dest ++ ": " ++ message))
            (return . Right . Tgt . DebDir (Tgt upstream) (Tgt debian))
     where
-      copyUpstream = runTaskAndTest (cleanStyle dest (commandTask cmd1))
-      copyDebian = runTaskAndTest (cleanStyle dest (commandTask cmd2))
+      copyUpstream = runTaskAndTest (cleanStyle (show upstream) (commandTask cmd1))
+      copyDebian = runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))
       upstreamDir = getTop params upstream
       debianDir = getTop params debian
       dest = P.topDir params ++ "/deb-dir/" ++ escapeForMake ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")
-      cleanStyle dest = setStart (Just (" Prepare deb-dir target in " ++ show dest))
+      cleanStyle name = setStart (Just (" Prepare deb-dir target " ++ show name))

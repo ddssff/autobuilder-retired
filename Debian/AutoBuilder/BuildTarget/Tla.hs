@@ -4,7 +4,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (ParamClass)
+import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
@@ -44,7 +44,7 @@ instance BuildTarget Tla where
 
     logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
 
-prepareTla :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareTla :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
 prepareTla params version =
     do
       when (P.flushSource params) (liftIO (removeRecursiveSafely dir))

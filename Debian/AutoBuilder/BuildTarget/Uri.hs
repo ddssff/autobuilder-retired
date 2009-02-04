@@ -8,7 +8,7 @@ import Control.Monad.Trans
 import Data.List (isPrefixOf)
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (ParamClass)
+import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
@@ -46,7 +46,7 @@ instance BuildTarget Uri where
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareUri :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
 prepareUri params target =
     case parseTarget target of
       Right (uri, md5sum) -> checkTarget uri md5sum >>= downloadTarget uri md5sum >>= validateTarget md5sum >>= unpackTarget uri

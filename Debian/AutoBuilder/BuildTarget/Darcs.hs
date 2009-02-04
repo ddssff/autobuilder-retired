@@ -5,7 +5,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe (fromJust)
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (ParamClass)
+import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
@@ -54,7 +54,7 @@ instance BuildTarget Darcs where
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ maybe "none" id revision
 
-prepareDarcs :: (ParamClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareDarcs :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
 prepareDarcs params uriAndTag =
     do
       when (P.flushSource params) (liftIO (removeRecursiveSafely dir))

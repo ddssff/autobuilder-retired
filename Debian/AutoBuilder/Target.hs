@@ -38,7 +38,6 @@ import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
 import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
-import           Debian.AutoBuilder.ParamClass (ParamClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Version as V
 import		 Debian.Control
@@ -123,14 +122,14 @@ targetName target =
 targetName' :: Target -> String
 targetName' = logPackage . targetEntry
 
-countAndPrepareTargets :: (ParamClass p, CIO m) => p -> OSImage -> [Tgt] -> m [Target]
+countAndPrepareTargets :: (P.RunClass p, CIO m) => p -> OSImage -> [Tgt] -> m [Target]
 countAndPrepareTargets params os targets =
     countTasks (zip (map show targets) (map (prepareTarget params os) targets))
 
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: (ParamClass p, CIO m) => p -> OSImage -> Tgt -> m Target
+prepareTarget :: (P.RunClass p, CIO m) => p -> OSImage -> Tgt -> m Target
 prepareTarget params os tgt@(Tgt source) =
     do tree <- prepareBuild params os source >>= 
                return . maybe (error $ "Could not find Debian build tree for " ++ show source) id
@@ -153,7 +152,7 @@ prepareTarget params os tgt@(Tgt source) =
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: (ParamClass p, BuildTarget t, CIO m) => p -> OSImage -> t -> m (Maybe DebianBuildTree)
+prepareBuild :: (P.RunClass p, BuildTarget t, CIO m) => p -> OSImage -> t -> m (Maybe DebianBuildTree)
 prepareBuild params os target =
     do debBuild <- findOneDebianBuildTree (getTop params target)
        case debBuild of
@@ -239,7 +238,7 @@ _formatVersions buildDeps =
 
 --  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
 
-readSpec :: (ParamClass p, CIO m) => p -> String -> AptIOT m (Either String Tgt)
+readSpec :: (P.RunClass p, CIO m) => p -> String -> AptIOT m (Either String Tgt)
 readSpec params text =
     do lift $ vEPutStrBl 0 (text ++ ":")
        {-setStyle (appPrefix " ")-}
@@ -290,7 +289,7 @@ readSpec params text =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t, CIO m, P.ParamClass p) => p -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIOT m (LocalRepository, [Target])
+buildTargets :: (AptCache t, CIO m, P.RunClass p) => p -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIOT m (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
@@ -511,7 +510,7 @@ instance Show BuildDecision where
 
 -- Decide whether a target needs to be built and, if so, build it.
 buildTarget ::
-    (AptCache t, CIO m, P.ParamClass p) =>
+    (AptCache t, CIO m, P.RunClass p) =>
     p ->				-- configuration info
     OSImage ->				-- cleanOS
     Relations ->			-- The build-essential relations
@@ -597,7 +596,7 @@ makeVersion package =
                , getVersion = packageVersion (packageID package) }
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: (CIO m, P.ParamClass p) => p -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT m (Either String LocalRepository)
+buildPackage :: (CIO m, P.RunClass p) => p -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT m (Either String LocalRepository)
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >>
     (lift prepareImage) >>=

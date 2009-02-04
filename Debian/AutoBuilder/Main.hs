@@ -1,13 +1,11 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances, ScopedTypeVariables #-}
 -- |AutoBuilder - application to build Debian packages in a clean
 -- environment.  In the following list, each module's dependencies
 -- appear above it:
 module Debian.AutoBuilder.Main where
 
---import		 Control.Monad.State
 import		 Control.Monad.RWS
---import qualified Debian.Config as Config
-import		 Control.Exception
+import		 Control.Exception (Exception, try, evaluate)
 import		 Control.Monad
 import qualified Data.Map as Map
 import		 Data.List
@@ -16,9 +14,21 @@ import qualified Data.Set as Set
 import           Data.Time (NominalDiffTime)
 import qualified Debian.AutoBuilder.ParamClass as P
 import           Debian.AutoBuilder.Params (params, usage)
+import qualified Debian.AutoBuilder.ParamRec as R
 import		 Debian.AutoBuilder.Target (Target, buildTargets, showTargets, readSpec, targetDocumentation)
 import qualified Debian.AutoBuilder.Version as V
-import		 Debian.Repo
+import           Debian.Repo.AptImage (prepareAptEnv)
+import           Debian.Repo.Cache (updateCacheSources)
+import           Debian.Repo.IO (AptIOT, runAptIO, tryAB, setRepoMap, getRepoMap)
+import           Debian.Repo.Insert (deleteGarbage)
+import           Debian.Repo.LocalRepository (prepareLocalRepository, flushLocalRepository)
+import           Debian.Repo.OSImage (buildEssential, prepareEnv)
+import           Debian.Repo.Release (prepareRelease)
+import           Debian.Repo.Repository (verifyUploadURI, uploadRemote)
+import		 Debian.Repo.Slice (appendSliceLists, repoSources, releaseSlices, inexactPathSlices)
+import		 Debian.Repo.Types (LocalRepository(..), Layout(Flat), parseSection', releaseRepo,
+                                    EnvPath(..), EnvRoot(..), outsidePath, Repository(..),
+                                    NamedSliceList(..), SliceName(..), releaseName')
 import		 Debian.Shell
 import		 Debian.Version
 import		 Debian.URI
@@ -36,79 +46,54 @@ import qualified System.IO as IO
 import 	         System.IO.Error (isDoesNotExistError)
 import		 System.Posix.Files (removeLink)
 
+-- | Called from the configuration script, this processes a list of
+-- parameter sets.
+main :: P.ParamClass p => [p] -> IO ()
+main [] = error $ "No parameter sets"
+main params@(p : _) =
+    do doMain (P.verbosity p) (mapM (\ params -> P.buildCache params >>= \ cache -> return (params, cache)) params)
+
+-- |Version of main that uses the configuration file directory and
+-- command line parameters.
 oldMain :: IO ()
 oldMain =
     do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
-       runTIO (setVerbosity verbosity defStyle) (tioMain verbosity)
-       IO.hFlush IO.stderr
-    where
-      tioMain :: Int -> TIO ()
-      tioMain _verbosity =
-          runAptIO (params appName [] doHelp doVersion >>= mapM doParameterSets) >>= checkResults
-      -- Process one set of parameters.  Usually there is only one, but there
-      -- can be several which are run sequentially.
-      doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], NominalDiffTime))))
-      doParameterSets set = withLock (lockFilePath set) (tryAB . runParameterSet $ set)
-      lockFilePath params = P.topDir params ++ "/lockfile"
-      -- The result of processing a set of parameters is either an
-      -- exception or a completion code, or, if we fail to get a lock,
-      -- nothing.  For a single result we can print a simple message,
-      -- for multiple paramter sets we need to print a summary.
-      checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], NominalDiffTime)))] -> m ()
-      checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
-      checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
-      checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
-      checkResults list =
-          do mapM_ (\ (num, result) -> vEPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
-             eBOL
-             case filter isLeft list of
-               [] -> liftIO (exitWith ExitSuccess)
-               _ -> liftIO (exitWith (ExitFailure 1))
-             where showResult (Right (Left e)) = show e
-                   showResult (Right (Right _)) = "Ok"
-                   showResult (Left e) = "Ok (" ++ show e ++ ")"
-                   isLeft (Right (Left _)) = True
-                   isLeft (Left _) = True
-                   isLeft (Right (Right _)) = False    
+       doMain verbosity (params appName [] doHelp doVersion)
 
--- | Convert the command line arguments into a list of flags.  Then
--- expand these flags into a list of flag lists, and then run the
--- application on each list in sequence.  You get multiple flag lists
--- when more than one identifier appears on the right side of a /Use/.
-main :: P.ParamClass p => [p] -> IO ()
-main params =
-    do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
-       runTIO (setVerbosity verbosity defStyle) (tioMain verbosity)
+-- | 
+doMain :: P.RunClass p => Int -> AptIOT TIO [p] -> IO ()
+doMain verbosity f =
+    do runTIO (setVerbosity verbosity defStyle) (runAptIO (f >>= mapM doParameterSets) >>= checkResults)
        IO.hFlush IO.stderr
+
+-- |Process one set of parameters.  Usually there is only one, but there
+-- can be several which are run sequentially.
+doParameterSets :: P.RunClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], NominalDiffTime))))
+doParameterSets set =
+    withLock (lockFilePath set) (tryAB . runParameterSet $ set)
     where
-      tioMain :: Int -> TIO ()
-      tioMain _verbosity =
-          runAptIO ({- params appName [] doHelp doVersion >>= -} mapM doParameterSets params) >>= checkResults
-      -- Process one set of parameters.  Usually there is only one, but there
-      -- can be several which are run sequentially.
-      doParameterSets :: P.ParamClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], NominalDiffTime))))
-      doParameterSets set = withLock (lockFilePath set) (tryAB . runParameterSet $ set)
       lockFilePath params = P.topDir params ++ "/lockfile"
-      -- The result of processing a set of parameters is either an
-      -- exception or a completion code, or, if we fail to get a lock,
-      -- nothing.  For a single result we can print a simple message,
-      -- for multiple paramter sets we need to print a summary.
-      checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], NominalDiffTime)))] -> m ()
-      checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
-      checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
-      checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
-      checkResults list =
-          do mapM_ (\ (num, result) -> vEPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
-             eBOL
-             case filter isLeft list of
-               [] -> liftIO (exitWith ExitSuccess)
-               _ -> liftIO (exitWith (ExitFailure 1))
-             where showResult (Right (Left e)) = show e
-                   showResult (Right (Right _)) = "Ok"
-                   showResult (Left e) = "Ok (" ++ show e ++ ")"
-                   isLeft (Right (Left _)) = True
-                   isLeft (Left _) = True
-                   isLeft (Right (Right _)) = False
+
+-- |The result of processing a set of parameters is either an
+-- exception or a completion code, or, if we fail to get a lock,
+-- nothing.  For a single result we can print a simple message,
+-- for multiple paramter sets we need to print a summary.
+checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], NominalDiffTime)))] -> m ()
+checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
+checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
+checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
+checkResults list =
+    do mapM_ (\ (num, result) -> vEPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
+       eBOL
+       case filter isLeft list of
+         [] -> liftIO (exitWith ExitSuccess)
+         _ -> liftIO (exitWith (ExitFailure 1))
+    where showResult (Right (Left e)) = show e
+          showResult (Right (Right _)) = "Ok"
+          showResult (Left e) = "Ok (" ++ show e ++ ")"
+          isLeft (Right (Left _)) = True
+          isLeft (Left _) = True
+          isLeft (Right (Right _)) = False    
 
 doHelp appName = IO.putStrLn (usage appName ++ targetDocumentation) >> exitWith ExitSuccess
 doVersion = IO.putStrLn V.version >> exitWith ExitSuccess
@@ -119,9 +104,12 @@ doVersion = IO.putStrLn V.version >> exitWith ExitSuccess
 appName :: String
 appName = "autobuilder"
 
-runParameterSet :: P.ParamClass p => p -> AptIOT TIO (Either String ([Output], NominalDiffTime))
+writeParams p = writeFile "/tmp/params" (show (R.makeParamRec p))
+
+runParameterSet :: P.RunClass p => p -> AptIOT TIO (Either String ([Output], NominalDiffTime))
 runParameterSet params =
     do
+      liftIO $ writeParams params
       lift doRequiredVersion
       lift doShowParams
       doShowSources
@@ -267,7 +255,7 @@ runParameterSet params =
       --top = P.topDir params
       --dryRun = P.dryRun params
       -- flush = P.flushSource params
-      updateRepoCache :: P.ParamClass p => p -> AptIOT TIO ()
+      updateRepoCache :: P.RunClass p => p -> AptIOT TIO ()
       updateRepoCache params =
           do let path = P.topDir params  ++ "/repoCache"
              live <- get >>= return . getRepoMap
