@@ -8,7 +8,7 @@ Cabal-Version:  >= 1.2
 Build-type:     Simple
 
 Library
-  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian >= 3.23, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath
+  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian >= 3.25, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,

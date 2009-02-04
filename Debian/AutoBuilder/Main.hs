@@ -4,7 +4,7 @@
 -- appear above it:
 module Debian.AutoBuilder.Main where
 
-import		 Control.Monad.RWS
+import		 Control.Monad.State
 import		 Control.Exception (Exception, try, evaluate)
 import		 Control.Monad
 import qualified Data.Map as Map
@@ -216,7 +216,7 @@ runParameterSet params =
       prepareTargetList =
           do lift (showTargets allTargets)
              lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
-             mapRWST (setStyle (appPrefix " ")) (mapM (readSpec params) allTargets)
+             mapStateT (setStyle (appPrefix " ")) (mapM (readSpec params) allTargets)
           where
             allTargets = listDiff (P.targets params) (P.omitTargets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
