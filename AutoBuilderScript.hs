@@ -2,7 +2,7 @@
 import Data.Maybe
 import qualified Debian.AutoBuilder.Main as M
 import qualified Debian.AutoBuilder.ParamClass as P
-import Debian.AutoBuilder.ParamRec
+import Debian.AutoBuilder.ParamRec hiding (allSources)
 import Debian.GenBuildDeps (SrcPkgName(SrcPkgName), BinPkgName(BinPkgName), RelaxInfo(RelaxInfo))
 import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
 import Debian.Repo.Types (SliceName(SliceName, sliceName), ReleaseName(ReleaseName, relName), Arch(Binary))
@@ -14,6 +14,9 @@ main =
     hPutStrLn stderr "Autobuilder starting..." >> hFlush stderr >> M.main [params]
     -- getArgs >>= \ args -> M.main [doOptions params args]
 
+-- The name of the upstream release that the the build release will be
+-- based on.  This sources.list is combined with the one constructed
+-- from the Build-URI to create the build environment.
 myBaseRelease = "sid"
 myUploadHost = "deb.seereason.com"
 myVendorTag = "seereason"
@@ -21,6 +24,8 @@ myTargets = ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTar
 myGoals = []
 myForceBuild = []
 myVerbosity = 0
+myUbuntuMirrorHost = "mirror.anl.gov"
+myDebianMirrorHost = "mirror.anl.gov"
 
 myBaseRepo = repoFromRelease myBaseRelease
 myBuildURI = parseURI $ "http://" ++ myUploadHost ++ "/" ++ myBaseRepo
@@ -38,6 +43,52 @@ myExtraEssential =
       "debian" -> []
       "ubuntu" -> ["upstart-compat-sysv"]
       _ -> error $ "Unknown base release: " ++ myBaseRelease
+
+------------------------- SOURCES --------------------------------
+
+debianSources dist =
+    [ "deb http://" ++ myDebianMirrorHost ++ "/debian " ++ dist ++ " main contrib non-free"
+    , "deb-src http://" ++ myDebianMirrorHost ++ "/debian " ++ dist ++ " main contrib non-free" ]
+
+ubuntuSources dist =
+    [ "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ " main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ " main restricted universe multiverse",
+      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-updates main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-updates main restricted universe multiverse",
+      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-backports main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-backports main restricted universe multiverse",
+      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-security main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-security main restricted universe multiverse"]
+
+seereasonSources baseDist =
+    [ "deb http://deb.seereason.com/" ++ repoFromRelease baseDist ++ " " ++ baseDist ++ "-seereason main"
+    , "deb-src http://deb.seereason.com/" ++ repoFromRelease baseDist ++ " " ++ baseDist ++ "-seereason main" ]
+
+debianReleases = ["sid", "lenny"]
+ubuntuReleases = ["jaunty", "intrepid", "hardy"]
+
+allSources =
+    map (\ name -> (name, unlines (debianSources name))) debianReleases ++
+    map (\ name -> (name, unlines (ubuntuSources name))) ubuntuReleases ++
+    map (\ name -> ((name ++ "-seereason"), unlines (debianSources name ++ seereasonSources name))) debianReleases ++
+    map (\ name -> ((name ++ "-seereason"), unlines (ubuntuSources name ++ seereasonSources name))) ubuntuReleases ++
+    [("debian-experimental", unlines (debianSources "experimental")), 
+     ("debian-multimedia",
+      (unlines ["deb http://mirror.home-dn.net/debian-multimedia stable main",
+                "deb-src http://mirror.home-dn.net/debian-multimedia stable main"])),
+     ("kanotix",
+      (unlines ["deb http://kanotix.com/files/debian sid main contrib non-free vdr",
+                "  deb-src http://kanotix.com/files/debian sid main contrib non-free vdr"]))]
+
+----------------------- BUILD RELEASE ----------------------------
+
+repoFromRelease name
+    | elem name (debianReleases ++ oldDebianReleases) = "debian"
+    | elem name (ubuntuReleases ++ oldUbuntuReleases) = "ubuntu"
+    | True = error $ "Unknown release name: " ++ show name
+
+oldDebianReleases = ["etch", "sarge"]
+oldUbuntuReleases = ["gutsy", "feisty"]
 
 ------------------------ TARGETS ---------------------
 
@@ -113,81 +164,20 @@ ghc610Targets =
 
 otherTargets = ["darcs:http://src.seereason.com/tree-widget"]
 
-------------------------- SOURCES --------------------------------
+---------------------------- THE PARAMETERS RECORD ---------------------------------
 
-debianSources dist =
-    [ " deb http://" ++ debianMirrorHost ++ "/debian " ++ dist ++ " main contrib non-free"
-    , " deb-src http://" ++ debianMirrorHost ++ "/debian " ++ dist ++ " main contrib non-free" ]
-
-ubuntuSources dist =
-    [ "  deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ " main restricted universe multiverse",
-      "  deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ " main restricted universe multiverse",
-      "  deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-updates main restricted universe multiverse",
-      "  deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-updates main restricted universe multiverse",
-      "  deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-backports main restricted universe multiverse",
-      "  deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-backports main restricted universe multiverse",
-      "  deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-security main restricted universe multiverse",
-      "  deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-security main restricted universe multiverse"]
-
-seereasonSources baseDist =
-    [ " deb http://deb.seereason.com/" ++ repoFromRelease baseDist ++ " " ++ baseDist ++ "-seereason main"
-    , " deb-src http://deb.seereason.com/" ++ repoFromRelease baseDist ++ " " ++ baseDist ++ "-seereason main" ]
-
-sid = unlines ("sid" : debianSources "sid")
-etch = unlines ("etch" : debianSources "etch")
-lenny = unlines ("lenny" : debianSources "lenny")
-sarge = unlines ("sarge" : debianSources "sarge")
-sidSeereason = unlines ("sid-seereason" : debianSources "sid" ++ seereasonSources "sid")
-lennySeereason = unlines ("lenny-seereason" : debianSources "lenny" ++ seereasonSources "lenny")
-feisty = unlines ("feisty" : ubuntuSources "feisty")
-gutsy = unlines ("gutsy" : ubuntuSources "gutsy")
-hardy = unlines ("hardy" : ubuntuSources "hardy")
-intrepid = unlines ("intrepid" : ubuntuSources "intrepid")
-jaunty = unlines ("jaunty" : ubuntuSources "jaunty")
-hardySeereason = unlines ("hardy-seereason" : ubuntuSources "hardy" ++ seereasonSources "hardy")
-intrepidSeereason = unlines ("intrepid-seereason" : ubuntuSources "intrepid" ++ seereasonSources "intrepid")
-jauntySeereason = unlines ("jaunty-seereason" : ubuntuSources "jaunty" ++ seereasonSources "jaunty")
-debianExperimental = unlines ("debian-experimental" : debianSources "experimental")
-debianMultimedia =
-    unlines ["debian-multimedia",
-             "  deb http://mirror.home-dn.net/debian-multimedia stable main",
-             "  deb-src http://mirror.home-dn.net/debian-multimedia stable main"]
-kanotix =
-    unlines ["kanotix",
-             "  deb http://kanotix.com/files/debian sid main contrib non-free vdr",
-             "  deb-src http://kanotix.com/files/debian sid main contrib non-free vdr"]
-
------------------------ BUILD RELEASE ----------------------------
-
-repoFromRelease "feisty" = "ubuntu"
-repoFromRelease "gutsy" = "ubuntu"
-repoFromRelease "hardy" = "ubuntu"
-repoFromRelease "intrepid" = "ubuntu"
-repoFromRelease "jaunty" = "ubuntu"
-repoFromRelease "etch" = "debian"
-repoFromRelease "sarge" = "debian"
-repoFromRelease "lenny" = "debian"
-repoFromRelease "sid" = "debian"
-repoFromRelease x = error $ "Unknown base release name: " ++ show x
-
------------------------ DEFAULTS ---------------------------------
-
-defaultParams =
+params =
     ParamRec
     { verbosity = myVerbosity,
       topDirParam = Nothing,
       debug = False,
       dryRun = False,
-      requiredVersion = [(parseDebianVersion "4.40",Nothing)],
+      requiredVersion = [(parseDebianVersion "4.39",Nothing)],
       showSources = False,
       showParams = False,
       flushAll = False,
       useRepoCache = True,
-      sources = [sid, etch, lenny, sarge, 
-                 sidSeereason, lennySeereason, 
-                 feisty, gutsy, hardy, intrepid, jaunty, 
-                 hardySeereason, intrepidSeereason, jauntySeereason, 
-                 debianExperimental, debianMultimedia, kanotix],
+      sources = allSources,
       targets = myTargets,
       goals = myGoals,
       omitTargets = [],
@@ -282,8 +272,3 @@ defaultParams =
       doSSHExport = False,
       autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
     }
-
---------------------------- LOCAL ------------------------------
-
-ubuntuMirrorHost = "mirror.anl.gov"
-debianMirrorHost = "mirror.anl.gov"
