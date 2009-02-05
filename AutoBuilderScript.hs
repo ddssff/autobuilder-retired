@@ -46,23 +46,28 @@ myExtraEssential =
 
 ------------------------- SOURCES --------------------------------
 
-debianSources dist =
-    [ "deb http://" ++ myDebianMirrorHost ++ "/debian " ++ dist ++ " main contrib non-free"
-    , "deb-src http://" ++ myDebianMirrorHost ++ "/debian " ++ dist ++ " main contrib non-free" ]
+debianSources release =
+    [ "deb http://" ++ myDebianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free"
+    , "deb-src http://" ++ myDebianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free" ]
 
-ubuntuSources dist =
-    [ "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ " main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ " main restricted universe multiverse",
-      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-updates main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-updates main restricted universe multiverse",
-      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-backports main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-backports main restricted universe multiverse",
-      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-security main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ dist ++ "-security main restricted universe multiverse"]
+ubuntuSources release =
+    [ "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse",
+      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse",
+      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse",
+      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse",
+      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse"]
 
-seereasonSources baseDist =
-    [ "deb http://deb.seereason.com/" ++ repoFromRelease baseDist ++ " " ++ baseDist ++ "-seereason main"
-    , "deb-src http://deb.seereason.com/" ++ repoFromRelease baseDist ++ " " ++ baseDist ++ "-seereason main" ]
+releaseSources release =
+    case repoFromRelease release of
+      "debian" -> debianSources release
+      "ubuntu" -> ubuntuSources release
+
+seereasonSources baseRelease =
+    [ "deb http://deb.seereason.com/" ++ repoFromRelease baseRelease ++ " " ++ baseRelease ++ "-seereason main"
+    , "deb-src http://deb.seereason.com/" ++ repoFromRelease baseRelease ++ " " ++ baseRelease ++ "-seereason main" ]
 
 debianReleases = ["sid", "lenny"]
 ubuntuReleases = ["jaunty", "intrepid", "hardy"]
