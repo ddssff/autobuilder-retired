@@ -8,7 +8,7 @@ Cabal-Version:  >= 1.2
 Build-type:     Simple
 
 Library
-  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian >= 3.26, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath
+  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, zlib, bzlib, pretty, HaXml, regex-posix
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,
@@ -30,19 +30,66 @@ Library
     Debian.AutoBuilder.Params,
     Debian.AutoBuilder.Target,
     Debian.AutoBuilder.Version,
-    Debian.Config
+    Debian.Config,
+    Debian.Apt.Dependencies,
+    Debian.Apt.Index,
+    Debian.Apt.Methods,
+    Debian.Apt.Package,
+    Debian.Control,
+    Debian.Control.Common,
+    Debian.Control.PrettyPrint,
+    Debian.Control.ByteString,
+    Debian.Control.String,
+    Debian.Deb,
+    Debian.Extra.CIO,
+    Debian.Extra.Files,
+    Debian.GenBuildDeps,
+    Debian.Relation,
+    Debian.Relation.ByteString,
+    Debian.Relation.Common,
+    Debian.Relation.String,
+    Debian.Repo,
+    Debian.Repo.AptImage,
+    Debian.Repo.Cache,
+    Debian.Repo.Changes,
+    Debian.Repo.Dependencies,
+    Debian.Repo.Insert,
+    Debian.Repo.IO,
+    Debian.Repo.LocalRepository,
+    Debian.Repo.OSImage,
+    Debian.Repo.Package,
+    Debian.Repo.PackageIndex,
+    Debian.Repo.Release,
+    Debian.Repo.Repository,
+    Debian.Repo.Slice,
+    Debian.Repo.SourcesList,
+    Debian.Repo.SourceTree,
+    Debian.Repo.Types,
+    Debian.Shell,
+    Debian.Time,
+    Debian.URI,
+    Debian.Version,
+    Debian.Version.Common,
+    Debian.Version.String,
+    Debian.Version.ByteString,
+    Debian.VersionPolicy,
+    Debian.Report,
+    Debian.Util.FakeChanges,
+    Text.Format
+  other-modules:
+    Debian.Version.Internal
 
 Executable autobuilder
   Main-Is:        AutoBuilder.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian >= 3.23, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
 
 Executable autobuilder-web-client
   Main-Is:        WebPage.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian >= 3.23, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
 
 Executable newdist
   Main-Is:        NewDist.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, debian >= 3.23, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic

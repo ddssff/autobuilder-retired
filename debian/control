@@ -9,10 +9,12 @@ Build-Depends: debhelper (>= 5.0),
                ghc6-prof,
                libghc6-unixutils-prof (>= 1.8),
                libghc6-unixutils-doc (>= 1.8),
-	       libghc6-debian-prof (>= 3.24),
-               libghc6-debian-doc (>= 3.24),
-               libghc6-cgi-prof,
-               libghc6-cgi-doc,
+               libghc6-zlib-prof,
+               libghc6-zlib-doc,
+               libghc6-bzlib-prof,
+               libghc6-bzlib-doc,
+               libghc6-haxml-dev,
+               haxml-doc,
                libghc6-mime-prof (>= 1.2),
                libghc6-mime-doc (>= 1.1),
                libghc6-extra-prof (>= 1.26),
@@ -30,9 +32,9 @@ Package: libghc6-autobuilder-dev
 Section: libdevel
 Architecture: any
 Depends: ${haskell:Depends}
-Conflicts: libghc6-autobuilder-prof
-Provides: libghc6-autobuilder-prof
-Replaces: libghc6-autobuilder-prof
+Conflicts: libghc6-debian-dev
+Provides: libghc6-debian-dev
+Replaces: libghc6-debian-dev
 Description: A library version of the autobuilder
  A Haskell library providing an autobuilder for Debian packages.
  .
