@@ -32,7 +32,7 @@ data ParamRec =
     , extraReleaseTag :: Maybe Int
     , flushSource :: Bool
     -- Build Environment
-    , forceBuild :: Bool
+    , forceBuild :: [String]
     , allowBuildDependencyRegressions :: Bool
     , preferred :: [String]
     , strictness :: Strictness

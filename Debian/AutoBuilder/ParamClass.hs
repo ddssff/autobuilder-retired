@@ -24,7 +24,7 @@ import		 Debian.Repo
 import		 Debian.Version
 import		 Debian.URI
 import qualified Debian.GenBuildDeps as G
-import		 Extra.TIO (CIO, ePutStrBl)
+import           Extra.CIO (CIO, ePutStrBl)
 import		 System.Directory (createDirectoryIfMissing, getPermissions, writable)
 import		 System.Environment (getEnv)
 import qualified System.IO as IO
@@ -65,7 +65,7 @@ class ParamClass a where
     extraReleaseTag :: a -> Maybe Int
     flushSource :: a -> Bool
     -- Build Environment
-    forceBuild :: a -> Bool
+    forceBuild :: a -> [String]
     allowBuildDependencyRegressions :: a -> Bool
     preferred :: a -> [String]
     strictness :: a -> Strictness

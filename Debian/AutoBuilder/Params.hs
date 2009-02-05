@@ -438,10 +438,10 @@ noCleanOpt = Param [] ["no-clean"] ["No-Clean"] (NoArg (Value "No-Clean" "yes"))
                     "build and make your edits there.  Then you will need to check them",
                     "back into your revision control system."])
 
-forceBuild :: Params -> Bool
-forceBuild params = values params forceBuildOpt /= []
-forceBuildOpt = Param [] ["force-build"] ["Force-Build"] (NoArg (Value "Force-Build" "yes")) 
-                "Build all targets whether or not they seems to need it."
+forceBuild :: Params -> [String]
+forceBuild params = values params forceBuildOpt
+forceBuildOpt = Param [] ["force-build"] ["Force-Build"] (ReqArg (Value "Force-Build") "SOURCEPACKAGE")
+                "Build the named package(s) whether or not it seems to need it."
 
 allowBuildDependencyRegressions :: Params -> Bool
 allowBuildDependencyRegressions params = values params allowBuildDependencyRegressionsOpt /= []

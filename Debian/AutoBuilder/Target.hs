@@ -561,7 +561,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
                let decision =
-                       buildDecision target (P.vendorTag params) (P.forceBuild params)
+                       buildDecision target (P.vendorTag params) (elem packageName (P.forceBuild params))
                                          (P.allowBuildDependencyRegressions params)
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
