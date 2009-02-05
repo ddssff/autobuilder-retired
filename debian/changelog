@@ -1,3 +1,13 @@
+autobuilder (4.40) unstable; urgency=low
+
+  * Work on new Haskell configuration style.
+  * Fix --use-repo-cache so it actually uses the repo cache for the first
+    time.
+  * Modify --force-build so it takes a source package name, and may be
+    repeated.
+
+ -- David Fox <dsf@seereason.com>  Wed, 04 Feb 2009 13:22:44 -0800
+
 autobuilder (4.39) unstable; urgency=low
 
   * Add the --goal option, which allows you to specify one or more 
