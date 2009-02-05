@@ -8,13 +8,36 @@ import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
 import Debian.Repo.Types (SliceName(SliceName, sliceName), ReleaseName(ReleaseName, relName), Arch(Binary))
 import Debian.URI
 import Debian.Version
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStrLn, hFlush, stderr)
 
 main =
-    hPutStrLn stderr "Autobuilder starting..." >>
-    M.main [params]
+    hPutStrLn stderr "Autobuilder starting..." >> hFlush stderr >> M.main [params]
+    -- getArgs >>= \ args -> M.main [doOptions params args]
 
-params = addTargets (setBaseRelease "hardy" defaultParams)
+myBaseRelease = "sid"
+myUploadHost = "deb.seereason.com"
+myVendorTag = "seereason"
+myTargets = ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
+myGoals = []
+myForceBuild = []
+myVerbosity = 0
+
+myBaseRepo = repoFromRelease myBaseRelease
+myBuildURI = parseURI $ "http://" ++ myUploadHost ++ "/" ++ myBaseRepo
+myUploadURI = parseURI $ "ssh://upload@" ++ myUploadHost ++ "/srv/deb/" ++ myBaseRepo
+myExtraPackages =
+    ["debian-archive-keyring"] ++
+    case repoFromRelease myBaseRelease of
+      "debian" -> []
+      "ubuntu" -> ["ubuntu-keyring"]
+      _ -> error $ "Unknown base release: " ++ myBaseRelease
+
+myExtraEssential =
+    ["belocs-locales-bin", "gnupg", "dpkg"] ++
+    case repoFromRelease myBaseRelease of
+      "debian" -> []
+      "ubuntu" -> ["upstart-compat-sysv"]
+      _ -> error $ "Unknown base release: " ++ myBaseRelease
 
 ------------------------ TARGETS ---------------------
 
@@ -45,8 +68,13 @@ ghc610Targets =
     , "darcs:http://src.seereason.com/ghc610/formlets"
     , "quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/ghc610/quilt/haskell-binary-quilt)"
     , "deb-dir:(uri:http://hackage.haskell.org/packages/archive/extensible-exceptions/0.1.1.0/extensible-exceptions-0.1.1.0.tar.gz:7aba82acc64fa2f2dc89d8ac27e24a43):(darcs:http://src.seereason.com/ghc610/debian/extensible-exceptions-debian)"
-    , "cd:HAppS-Util:darcs:http://src.seereason.com/happstack"
-    , "cd:HAppS-Data:darcs:http://src.seereason.com/happstack"
+    , "cd:happstack-util:darcs:http://src.seereason.com/happstack"
+    , "cd:happstack-data:darcs:http://src.seereason.com/happstack"
+    , "cd:happstack-ixset:darcs:http://src.seereason.com/happstack"
+    , "cd:happstack-server:darcs:http://src.seereason.com/happstack"
+    , "cd:happstack-state:darcs:http://src.seereason.com/happstack"
+    , "cd:happstack-util:darcs:http://src.seereason.com/happstack"
+    , "darcs:http://src.seereason.com/happstack-extra"
     , "darcs:http://src.seereason.com/haskell-help"
     , "deb-dir:(darcs:http://haskell.org/~kolmodin/code/hinotify):(darcs:http://src.seereason.com/ghc610/debian/hinotify-debian)"
     , "quilt:(apt:sid:haskell-hspread):(darcs:http://src.seereason.com/ghc610/quilt/haskell-hspread-quilt)"
@@ -84,8 +112,6 @@ ghc610Targets =
     ]
 
 otherTargets = ["darcs:http://src.seereason.com/tree-widget"]
-
-addTargets params = params {targets = ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets}
 
 ------------------------- SOURCES --------------------------------
 
@@ -133,10 +159,6 @@ kanotix =
 
 ----------------------- BUILD RELEASE ----------------------------
 
-setBaseRelease x params =
-    params {baseRelease = SliceName {sliceName = x},
-            buildRelease = ReleaseName {relName = x ++ "-seereason"}}
-
 repoFromRelease "feisty" = "ubuntu"
 repoFromRelease "gutsy" = "ubuntu"
 repoFromRelease "hardy" = "ubuntu"
@@ -146,17 +168,17 @@ repoFromRelease "etch" = "debian"
 repoFromRelease "sarge" = "debian"
 repoFromRelease "lenny" = "debian"
 repoFromRelease "sid" = "debian"
-repoFromRelease x = error $ "Invalid base release name: " ++ show x
+repoFromRelease x = error $ "Unknown base release name: " ++ show x
 
 ----------------------- DEFAULTS ---------------------------------
 
 defaultParams =
     ParamRec
-    { verbosity = 2,
+    { verbosity = myVerbosity,
       topDirParam = Nothing,
       debug = False,
       dryRun = False,
-      requiredVersion = [(parseDebianVersion "2.26",Nothing)],
+      requiredVersion = [(parseDebianVersion "4.40",Nothing)],
       showSources = False,
       showParams = False,
       flushAll = False,
@@ -166,13 +188,13 @@ defaultParams =
                  feisty, gutsy, hardy, intrepid, jaunty, 
                  hardySeereason, intrepidSeereason, jauntySeereason, 
                  debianExperimental, debianMultimedia, kanotix],
-      targets = [],
-      goals = [],
+      targets = myTargets,
+      goals = myGoals,
       omitTargets = [],
-      vendorTag = "seereason",
+      vendorTag = myVendorTag,
       extraReleaseTag = Nothing,
       flushSource = False,
-      forceBuild = False,
+      forceBuild = myForceBuild,
       allowBuildDependencyRegressions = False,
       preferred = [],
       strictness = P.Moderate,
@@ -236,12 +258,12 @@ defaultParams =
                                 (BinPkgName "libc6-dev",Nothing),
                                 (BinPkgName "module-init-tools",Just (SrcPkgName "linux-2.6"))],
       noClean = False,
-      extraPackages = ["ubuntu-keyring", "debian-archive-keyring", "seereason-keyring"],
-      extraEssential = ["belocs-locales-bin", "upstart-compat-sysv", "gnupg", "dpkg"],
+      extraPackages = myExtraPackages,
+      extraEssential = myExtraEssential,
       omitEssential = [],
       omitBuildEssential = False,
-      baseRelease = SliceName {sliceName = ""},
-      buildRelease = ReleaseName {relName = ""},
+      baseRelease = SliceName {sliceName = myBaseRelease},
+      buildRelease = ReleaseName {relName = myBaseRelease ++ "-" ++ myVendorTag},
       doNotChangeVersion = False,
       isDevelopmentRelease = False,
       releaseAliases = [("etch", "bpo40+"),("hardy-seereason", "hardy"),("intrepid-seereason", "intrepid"),("jaunty-seereason", "jaunty")],
@@ -252,9 +274,9 @@ defaultParams =
       doUpload = True,
       doNewDist = True,
       newDistProgram = "newdist -v",
-      uploadHost = Just "deb.seereason.com",
-      buildURI = parseURI "http://deb.seereason.com/ubuntu",
-      uploadURI = parseURI "ssh://upload@deb.seereason.com/srv/deb/ubuntu",
+      uploadHost = Just myUploadHost,
+      buildURI = myBuildURI,
+      uploadURI = myUploadURI,
       createRelease = [],
       ifSourcesChanged = SourcesChangedError,
       doSSHExport = False,
