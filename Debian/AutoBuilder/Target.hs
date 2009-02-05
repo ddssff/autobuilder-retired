@@ -329,7 +329,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                                       buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
                            (\ _ -> do cleanOS' <- updateEnv cleanOS
                                       case cleanOS' of
-                                        Left e -> error ("Failed to update clean OS: " ++ e)
+                                        Left e -> error ("Failed to update clean OS: " ++ show e)
                                         Right cleanOS'' ->
                                             buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed))
                            result
