@@ -101,30 +101,18 @@ readRelease uri name =
     where
       uri' = uri {uriPath = uriPath uri ++ "/dists/" ++ name ++ "/Release"}
 
-parseNamedSliceList :: CIO m => String -> AptIOT m (Maybe NamedSliceList)
-parseNamedSliceList text =
-    case matchRegex re text of
-      Just [name, sources] ->
-          (verifySourcesList Nothing . parseSourcesList) sources >>=
-          \ sources -> return . Just $ NamedSliceList { sliceListName = SliceName name
-                                                      , sliceList = sources }
-      _ -> return Nothing
-    where
-      re = mkRegexWithOpts "^[ \t\n]*([^ \t\n]+)[ \t\n]+(.*)$" False True
+parseNamedSliceList :: CIO m => (String, String) -> AptIOT m (Maybe NamedSliceList)
+parseNamedSliceList (name, text) =
+    (verifySourcesList Nothing . parseSourcesList) text >>=
+    \ sources -> return . Just $ NamedSliceList { sliceListName = SliceName name, sliceList = sources }
 
 -- |Create ReleaseCache info from an entry in the config file, which
 -- includes a dist name and the lines of the sources.list file.
 -- This also creates the basic 
-parseNamedSliceList' :: CIO m => String -> AptIOT m NamedSliceList
-parseNamedSliceList' text =
-    -- FIXME: This regexp is too permissive - it will match almost anything
-    case matchRegex re text of
-      Just [name, sources] -> 
-          do sources <- (verifySourcesList Nothing . parseSourcesList) sources
-             return $ NamedSliceList { sliceListName = SliceName name, sliceList = sources }
-      _ -> error "Syntax error in sources text"
-    where
-      re = mkRegexWithOpts "^[ \t\n]*([^ \t\n]+)[ \t\n]+(.*)$" False True
+parseNamedSliceList' :: CIO m => (String, String) -> AptIOT m NamedSliceList
+parseNamedSliceList' (name, text) =
+    do sources <- (verifySourcesList Nothing . parseSourcesList) text
+       return $ NamedSliceList { sliceListName = SliceName name, sliceList = sources }
 
 verifySourcesList :: CIO m => Maybe EnvRoot -> [DebSource] -> AptIOT m SliceList
 verifySourcesList chroot list =

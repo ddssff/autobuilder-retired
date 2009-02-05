@@ -24,7 +24,7 @@ data ParamRec =
     , flushAll :: Bool
     , useRepoCache :: Bool
     -- Obtaining and Preparing Source
-    , sources :: [String]
+    , sources :: [(String, String)]
     , targets :: [String]
     , goals :: [String]
     , omitTargets :: [String]

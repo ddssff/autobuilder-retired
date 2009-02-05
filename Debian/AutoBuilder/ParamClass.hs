@@ -57,7 +57,7 @@ class ParamClass a where
     flushAll :: a -> Bool
     useRepoCache :: a -> Bool
     -- Obtaining and Preparing Source
-    sources :: a -> [String]
+    sources :: a -> [(String, String)]
     targets :: a -> [String]
     goals :: a -> [String]
     omitTargets :: a -> [String]

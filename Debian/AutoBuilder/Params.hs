@@ -640,8 +640,14 @@ quieterOpt = Param ['q'] [] ["Quieter"] (OptArg (\ x -> Value "Quieter" (maybe "
              "Decreases chattyness"
 
 -- | Flag: --sources, config: Sources
-sources :: Params -> [String]
-sources params = values params sourcesOpt
+sources :: Params -> [(String, String)]
+sources params =
+    map parse (values params sourcesOpt)
+    where
+      parse text = 
+          case matchRegex re text of
+            Just [name, sources] -> (name, sources)
+      re = mkRegexWithOpts "^[ \t\n]*([^ \t\n]+)[ \t\n]+(.*)$" False True
 
 sourcesOpt = Param [] ["sources"] ["Sources"] (ReqArg (Value "Sources") "NAME LINES")
              (text ["(Config file only.)  Specify the a distribution name and, on",
