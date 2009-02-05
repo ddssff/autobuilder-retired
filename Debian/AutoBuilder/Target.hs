@@ -922,7 +922,7 @@ updateChangesFile elapsed changes =
       cpuInfo <- parseProcCpuinfo
       memInfo <- parseProcMeminfo
       machine <- commandOutput "uname -m" >>= return . listToMaybe . either (const []) lines
-      let buildInfo = ["Autobuilder-Version: " ++ V.version] ++
+      let buildInfo = ["Autobuilder-Version: " ++ V.autoBuilderVersion] ++
                       ["Time: " ++ show elapsed] ++
                       maybeField "Memory: " (lookup "MemTotal" memInfo) ++
                       maybeField "CPU: " (lookup "model name" cpuInfo) ++

@@ -96,7 +96,7 @@ checkResults list =
           isLeft (Right (Right _)) = False    
 
 doHelp appName = IO.putStrLn (usage appName ++ targetDocumentation) >> exitWith ExitSuccess
-doVersion = IO.putStrLn V.version >> exitWith ExitSuccess
+doVersion = IO.putStrLn V.autoBuilderVersion >> exitWith ExitSuccess
 
 -- |The application name is used to compute the default configuration
 -- file names and the name of the cache directory (topDir,) among
@@ -169,10 +169,10 @@ runParameterSet params =
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       doRequiredVersion :: CIO m => m ()
       doRequiredVersion =
-          case filter (\ (v, _) -> v > parseDebianVersion V.version) (P.requiredVersion params) of
+          case filter (\ (v, _) -> v > parseDebianVersion V.autoBuilderVersion) (P.requiredVersion params) of
             [] -> return ()
             reasons ->
-                do vEPutStrBl 0 ("Version " ++ V.version ++ " is too old:")
+                do vEPutStrBl 0 ("Version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)                    
           where
