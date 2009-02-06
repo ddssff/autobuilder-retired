@@ -1,4 +1,5 @@
 #!/usr/bin/env runhaskell -package=base-3.0.3.0
+import Data.List (isSuffixOf)
 import Data.Maybe
 import qualified Debian.AutoBuilder.Main as M
 import qualified Debian.AutoBuilder.ParamClass as P
@@ -17,79 +18,114 @@ main =
 -- The name of the upstream release that the the build release will be
 -- based on.  This sources.list is combined with the one constructed
 -- from the Build-URI to create the build environment.
-myBaseRelease = "sid"
+myBuildPrivateTargets = True
+myBaseRelease = "hardy" ++ if myBuildPrivateTargets then "-seereason" else ""
 myUploadHost = "deb.seereason.com"
 myVendorTag = "seereason"
-myTargets = ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
+myTargets = case myBuildPrivateTargets of
+              False -> ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
+              True -> privateTargets
 myGoals = []
 myForceBuild = []
 myVerbosity = 0
 myUbuntuMirrorHost = "mirror.anl.gov"
 myDebianMirrorHost = "mirror.anl.gov"
 
-myBaseRepo = repoFromRelease myBaseRelease
-myBuildURI = parseURI $ "http://" ++ myUploadHost ++ "/" ++ myBaseRepo
-myUploadURI = parseURI $ "ssh://upload@" ++ myUploadHost ++ "/srv/deb/" ++ myBaseRepo
+myBaseRepo = releaseRepoName myBaseRelease
+myBuildURI = case myBuildPrivateTargets of
+               False -> parseURI $ "http://" ++ myUploadHost ++ "/" ++ myBaseRepo
+               True -> parseURI $ myPrivateUploadURI ++ "/" ++ myBaseRepo
+myUploadURI =
+    parseURI $ (if myBuildPrivateTargets
+                then "ssh://upload@" ++ myUploadHost ++ "/srv/deb"
+                else myPrivateBuildURI) ++ "/" ++ myBaseRepo
+{-myUploadURI = case myBuildPrivateTargets of
+                False -> parseURI $ "ssh://upload@" ++ myUploadHost ++ "/srv/deb" ++ "/" ++ myBaseRepo
+                True -> parseURI $ myPrivateBuildURI ++ "/" ++ myBaseRepo -}
+
+myPrivateUploadURI = "ssh://upload@deb.seereason.com/srv/deb-private"
+myPrivateBuildURI = "ssh://upload@deb.seereason.com/srv/deb-private"
+myPrivateDarcsURI = "ssh://upload@src.seereason.com/srv/darcs"
+
 myExtraPackages =
     ["debian-archive-keyring"] ++
-    case repoFromRelease myBaseRelease of
+    case releaseRepoName myBaseRelease of
       "debian" -> []
       "ubuntu" -> ["ubuntu-keyring"]
       _ -> error $ "Unknown base release: " ++ myBaseRelease
 
 myExtraEssential =
     ["belocs-locales-bin", "gnupg", "dpkg"] ++
-    case repoFromRelease myBaseRelease of
+    case releaseRepoName myBaseRelease of
       "debian" -> []
       "ubuntu" -> ["upstart-compat-sysv"]
       _ -> error $ "Unknown base release: " ++ myBaseRelease
 
 ------------------------- SOURCES --------------------------------
 
-debianSources release =
+debianSourceLines release =
     [ "deb http://" ++ myDebianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free"
     , "deb-src http://" ++ myDebianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free" ]
 
-ubuntuSources release =
-    [ "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse",
-      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse",
-      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse",
-      "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse",
-      "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse"]
+ubuntuSourceLines release =
+    [ "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse"
+    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse"
+    , "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse"
+    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse"
+    , "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse"
+    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse"
+    , "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse"
+    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse" ]
 
-releaseSources release =
-    case repoFromRelease release of
-      "debian" -> debianSources release
-      "ubuntu" -> ubuntuSources release
+baseReleaseSourceLines release =
+    case releaseRepoName release of
+      "debian" -> debianSourceLines release
+      "ubuntu" -> ubuntuSourceLines release
 
-seereasonSources baseRelease =
-    [ "deb http://deb.seereason.com/" ++ repoFromRelease baseRelease ++ " " ++ baseRelease ++ "-seereason main"
-    , "deb-src http://deb.seereason.com/" ++ repoFromRelease baseRelease ++ " " ++ baseRelease ++ "-seereason main" ]
+seereasonSourceLines release =
+    releaseSourceLines (dropSuffix "-seereason" release) ++
+    [ "deb http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main"
+    , "deb-src http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
+
+privateSourceLines release =
+    releaseSourceLines (dropSuffix "-private" release) ++
+    [ "deb " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main"
+    , "deb-src " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
+
+releaseSourceLines :: String -> [String]
+releaseSourceLines release =
+    case () of
+      _ | isSuffixOf "-private" release -> privateSourceLines release
+        | isSuffixOf "-seereason" release -> seereasonSourceLines release
+        | True -> baseReleaseSourceLines release
+
+releaseSources release = (release, unlines (releaseSourceLines release))
+
+allPrivateSources = map releaseSources (map (++ "-seereason-private") (debianReleases ++ ubuntuReleases))
 
 debianReleases = ["sid", "lenny"]
 ubuntuReleases = ["jaunty", "intrepid", "hardy"]
 
+dropSuffix suff x = take (length x - length suff) x
+
 allSources =
-    map (\ name -> (name, unlines (debianSources name))) debianReleases ++
-    map (\ name -> (name, unlines (ubuntuSources name))) ubuntuReleases ++
-    map (\ name -> ((name ++ "-seereason"), unlines (debianSources name ++ seereasonSources name))) debianReleases ++
-    map (\ name -> ((name ++ "-seereason"), unlines (ubuntuSources name ++ seereasonSources name))) ubuntuReleases ++
-    [("debian-experimental", unlines (debianSources "experimental")), 
+    map releaseSources (debianReleases ++ ubuntuReleases ++ map (++ "-seereason") (debianReleases ++ ubuntuReleases)) ++
+    [("debian-experimental", unlines (debianSourceLines "experimental")),
      ("debian-multimedia",
       (unlines ["deb http://mirror.home-dn.net/debian-multimedia stable main",
                 "deb-src http://mirror.home-dn.net/debian-multimedia stable main"])),
-     ("kanotix",
-      (unlines ["deb http://kanotix.com/files/debian sid main contrib non-free vdr",
-                "  deb-src http://kanotix.com/files/debian sid main contrib non-free vdr"]))]
+      ("kanotix",
+       (unlines ["deb http://kanotix.com/files/debian sid main contrib non-free vdr",
+                 "  deb-src http://kanotix.com/files/debian sid main contrib non-free vdr"]))] ++
+    if myBuildPrivateTargets then allPrivateSources else []
 
 ----------------------- BUILD RELEASE ----------------------------
 
-repoFromRelease name
+releaseRepoName name
     | elem name (debianReleases ++ oldDebianReleases) = "debian"
     | elem name (ubuntuReleases ++ oldUbuntuReleases) = "ubuntu"
+    | isSuffixOf "-seereason" name = releaseRepoName (dropSuffix "-seereason" name)
+    | isSuffixOf "-private" name = releaseRepoName (dropSuffix "-private" name)
     | True = error $ "Unknown release name: " ++ show name
 
 oldDebianReleases = ["etch", "sarge"]
@@ -168,6 +204,15 @@ ghc610Targets =
     ]
 
 otherTargets = ["darcs:http://src.seereason.com/tree-widget"]
+
+privateTargets =
+    ["darcs:" ++ myPrivateDarcsURI ++ "/haskell-filecache",
+     "darcs:" ++ myPrivateDarcsURI ++ "/haskell-document",
+     "darcs:" ++ myPrivateDarcsURI ++ "/haskell-appraisal",
+     "darcs:" ++ myPrivateDarcsURI ++ "/mailingList",
+     "darcs:" ++ myPrivateDarcsURI ++ "/generic-formlets",
+     "darcs:" ++ myPrivateDarcsURI ++ "/AlgebraZam",
+     "darcs:" ++ myPrivateDarcsURI ++ "/SeniorityMatters"]
 
 ---------------------------- THE PARAMETERS RECORD ---------------------------------
 
@@ -258,7 +303,7 @@ params =
       omitEssential = [],
       omitBuildEssential = False,
       baseRelease = SliceName {sliceName = myBaseRelease},
-      buildRelease = ReleaseName {relName = myBaseRelease ++ "-" ++ myVendorTag},
+      buildRelease = ReleaseName {relName = myBaseRelease ++ (if myBuildPrivateTargets then "-private" else "-seereason")},
       doNotChangeVersion = False,
       isDevelopmentRelease = False,
       releaseAliases = [("etch", "bpo40+"),("hardy-seereason", "hardy"),("intrepid-seereason", "intrepid"),("jaunty-seereason", "jaunty")],
