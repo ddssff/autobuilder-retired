@@ -1,3 +1,10 @@
+autobuilder (4.42) unstable; urgency=low
+
+  * Add code to mount the ssh agent socket directory inside the
+    chroot and unmount it when we exit.
+
+ -- David Fox <dsf@seereason.com>  Fri, 06 Feb 2009 14:48:32 -0800
+
 autobuilder (4.41) unstable; urgency=low
 
   * Fix problem with new autobuilder script creating build environments,
