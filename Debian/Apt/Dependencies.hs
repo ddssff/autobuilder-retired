@@ -12,19 +12,15 @@ module Debian.Apt.Dependencies
 
 -- test gutsyPackages "libc6" (\csp -> bt csp)
 
-import Data.List
-import Data.Maybe
-import Data.Tree
---import qualified Data.Map as Map
-
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Char8 as C
-
-import Debian.Control.ByteString
---import Debian.Control.PrettyPrint
-import Debian.Relation.ByteString
-import Debian.Apt.Package
-import Debian.Version
+import Data.List((++), foldr, concat, filter, map, any, elem, null, reverse, take, zipWith, find, union)
+import Data.Maybe(Maybe(..))
+import Data.Tree(Tree(rootLabel, Node))
+import Debian.Apt.Package(PackageNameMap, packageNameMap, lookupPackageByRel)
+import Debian.Control.ByteString(ControlFunctions(stripWS, lookupP, parseControlFromFile), Field'(Field), Control'(Control), Paragraph, Control)
+import Debian.Relation.ByteString(ParseRelations(..), Relation(..), OrRelation, AndRelation, Relations, checkVersionReq)
+import Debian.Version(DebianVersion, parseDebianVersion)
 
 -- * Basic CSP Types and Functions
 

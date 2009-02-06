@@ -209,7 +209,7 @@ data SourcesChangedAction =
     SourcesChangedError |
     UpdateSources |
     RemoveRelease
-    deriving Eq
+    deriving (Eq, Show)
 
 -- |Change the sources.list of an AptCache object, subject to the
 -- value of sourcesChangedAction.

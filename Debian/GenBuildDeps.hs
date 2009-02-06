@@ -68,7 +68,7 @@ buildDependencies (Control (source:binaries)) =
 -- BINARY should always be ignored when deciding whether to build.  If the
 -- pair is (BINARY, Just SOURCE) it means that binary package BINARY should
 -- be ignored when deiciding whether to build package SOURCE.
-newtype RelaxInfo = RelaxInfo [(BinPkgName, Maybe SrcPkgName)]
+newtype RelaxInfo = RelaxInfo [(BinPkgName, Maybe SrcPkgName)] deriving (Show)
 
 -- |Remove any dependencies that are designated \"relaxed\" by relaxInfo.
 relaxDeps :: RelaxInfo -> [DepInfo] -> [DepInfo]

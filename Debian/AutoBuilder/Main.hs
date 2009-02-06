@@ -2,49 +2,55 @@
 -- |AutoBuilder - application to build Debian packages in a clean
 -- environment.  In the following list, each module's dependencies
 -- appear above it:
-module Debian.AutoBuilder.Main where
+module Debian.AutoBuilder.Main 
+    ( main
+    , oldMain
+    ) where
 
-import		 Control.Monad.State
-import		 Control.Exception (Exception, try, evaluate)
-import		 Control.Monad
+import Control.Exception(Exception, try, evaluate)
+import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), mapStateT)
+import Control.Monad(Monad(return, (>>), (>>=)), mapM_, mapM, unless, when)
 import qualified Data.Map as Map
-import		 Data.List
-import		 Data.Maybe
 import qualified Data.Set as Set
-import           Data.Time (NominalDiffTime)
+import Data.Time(NominalDiffTime)
+import Data.List((++), concat, filter, zip, map, length, intersperse)
+import Data.Maybe(Maybe(..), catMaybes, maybe)
+import qualified Debian.AutoBuilder.OldParams as O
 import qualified Debian.AutoBuilder.ParamClass as P
-import           Debian.AutoBuilder.Params (params, usage)
-import qualified Debian.AutoBuilder.ParamRec as R
-import		 Debian.AutoBuilder.Target (Target, buildTargets, showTargets, readSpec, targetDocumentation)
+import qualified Debian.AutoBuilder.Params as PP
+import Debian.AutoBuilder.ParamRec()    -- Instances only
+import Debian.AutoBuilder.Target(Target, buildTargets, readSpec, showTargets, targetDocumentation)
 import qualified Debian.AutoBuilder.Version as V
-import           Debian.Repo.AptImage (prepareAptEnv)
-import           Debian.Repo.Cache (updateCacheSources)
-import           Debian.Repo.IO (AptIOT, runAptIO, tryAB, setRepoMap, getRepoMap)
-import           Debian.Repo.Insert (deleteGarbage)
-import           Debian.Repo.LocalRepository (prepareLocalRepository, flushLocalRepository)
-import           Debian.Repo.OSImage (buildEssential, prepareEnv)
-import           Debian.Repo.Release (prepareRelease)
-import           Debian.Repo.Repository (verifyUploadURI, uploadRemote)
-import		 Debian.Repo.Slice (appendSliceLists, repoSources, releaseSlices, inexactPathSlices)
-import		 Debian.Repo.Types (LocalRepository(..), Layout(Flat), parseSection', releaseRepo,
-                                    EnvPath(..), EnvRoot(..), outsidePath, Repository(..),
-                                    NamedSliceList(..), SliceName(..), releaseName')
-import		 Debian.Shell
-import		 Debian.Version
-import		 Debian.URI
-import		 Extra.Either
-import		 Extra.List
-import		 Extra.Lock
-import		 Extra.Misc
-import		 Extra.TIO
-import		 System.Unix.Directory hiding (find)
-import		 System.Unix.Process
-import		 System.Directory
-import		 System.Environment
-import		 System.Exit
+import Debian.Repo.AptImage(prepareAptEnv)
+import Debian.Repo.Cache(updateCacheSources)
+import Debian.Repo.Insert(deleteGarbage)
+import Debian.Repo.IO(AptIOT, getRepoMap, runAptIO, tryAB)
+import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
+import Debian.Repo.OSImage(buildEssential, prepareEnv)
+import Debian.Repo.Release(prepareRelease)
+import Debian.Repo.Repository(uploadRemote, verifyUploadURI)
+import Debian.Repo.Slice(appendSliceLists, inexactPathSlices, releaseSlices, repoSources)
+import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
+                         Layout(Flat), Release(releaseRepo), SliceName(..),
+                         NamedSliceList(..), Repository(LocalRepo),
+                         LocalRepository(LocalRepository), outsidePath, parseSection',
+                         releaseName')
+import Debian.Shell(runCommandQuietlyTimed)
+import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
+import Debian.Version(DebianVersion, parseDebianVersion)
+import System.Unix.Process(Output)
+import Extra.Either(rights, partitionEithers)
+import Extra.List(consperse)
+import Extra.Lock(withLock)
+import Extra.Misc(checkSuperUser)
+import Extra.TIO(CIO(setStyle), appPrefix, defStyle, eBOL, setVerbosity, vEPutStr, vEPutStrBl, TIO, runTIO)
+import System.Directory(createDirectoryIfMissing)
+import System.Posix.Files(removeLink)
+import System.Environment(getArgs)
+import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
-import 	         System.IO.Error (isDoesNotExistError)
-import		 System.Posix.Files (removeLink)
+import System.IO.Error(isDoesNotExistError)
+import System.Unix.Directory(removeRecursiveSafely)
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
@@ -58,7 +64,7 @@ main params@(p : _) =
 oldMain :: IO ()
 oldMain =
     do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
-       doMain verbosity (params appName [] doHelp doVersion)
+       doMain verbosity (O.params appName [] doHelp doVersion)
 
 -- | 
 doMain :: P.RunClass p => Int -> AptIOT TIO [p] -> IO ()
@@ -95,7 +101,7 @@ checkResults list =
           isLeft (Left _) = True
           isLeft (Right (Right _)) = False    
 
-doHelp appName = IO.putStrLn (usage appName ++ targetDocumentation) >> exitWith ExitSuccess
+doHelp appName = IO.putStrLn (O.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
 doVersion = IO.putStrLn V.autoBuilderVersion >> exitWith ExitSuccess
 
 -- |The application name is used to compute the default configuration
@@ -104,7 +110,7 @@ doVersion = IO.putStrLn V.autoBuilderVersion >> exitWith ExitSuccess
 appName :: String
 appName = "autobuilder"
 
-writeParams p = writeFile "/tmp/params" (show (R.makeParamRec p))
+writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 
 runParameterSet :: P.RunClass p => p -> AptIOT TIO (Either String ([Output], NominalDiffTime))
 runParameterSet params =

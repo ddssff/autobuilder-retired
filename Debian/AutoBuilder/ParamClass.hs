@@ -20,6 +20,8 @@ import           Control.Monad.State (get, put)
 import		 Control.Monad.Trans (lift, liftIO)
 import		 Data.Maybe
 import           Data.Map (fromList)
+import		 Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
+--import	 Debian.Repo.IO (AptIOT)
 import		 Debian.Repo
 import		 Debian.Version
 import		 Debian.URI
@@ -225,10 +227,14 @@ buildCache :: (ParamClass p, CIO m) => p -> AptIOT m Cache
 buildCache params =
     do top <- lift $ computeTopDir params
        loadRepoCache top
-       all <- mapM parseNamedSliceList' (sources params)
+       all <- mapM parseNamedSliceList (sources params)
        let uri = maybe (uploadURI params) Just (buildURI params)
        build <- maybe (return $ SliceList { slices = [] }) (repoSources Nothing) uri
        return $ Cache {topDir' = top, allSources' = all, buildRepoSources' = build}
+    where
+      parseNamedSliceList (name, text) = 
+          do sources <- (verifySourcesList Nothing . parseSourcesList) text
+             return $ NamedSliceList { sliceListName = SliceName name, sliceList = sources }
 
 loadRepoCache :: CIO m => FilePath -> AptIOT m ()
 loadRepoCache top =

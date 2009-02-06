@@ -11,9 +11,11 @@ module Debian.Repo.Dependencies
     , testArch
     ) where
 
-import		 Debian.Control()
-import qualified Debian.Control.String as S()
-import		 Debian.Repo.Types
+import		 Debian.Control ()
+import qualified Debian.Control.String as S ()
+import		 Debian.Repo.Types (BinaryPackage, PackageVersion, PkgVersion(PkgVersion),
+                                    packageName, packageID, Arch(Binary), pkgName, getName,
+                                    pProvides, getVersion, packageVersion, pkgVersion)
 import		 Data.List
 import qualified Data.Map as Map
 import		 Data.Maybe
@@ -30,10 +32,6 @@ type SimpleRelation = Maybe PkgVersion
 
 -- |Each element is an or-list of specific package versions.
 type SimpleRelations = [[SimpleRelation]]                     
-
-instance PackageVersion BinaryPackage where
-    pkgName = packageName . packageID
-    pkgVersion = packageVersion . packageID
 
 -- Does this relation apply to this architecture?
 testArch :: Arch -> Relation -> Bool

@@ -1,7 +1,5 @@
 module Debian.AutoBuilder.ParamRec
     ( ParamRec(..)
-    , makeParamRec
-    , CacheRec(..)
     ) where
 
 import qualified Debian.GenBuildDeps as G
@@ -67,24 +65,6 @@ data ParamRec =
     , autobuilderEmail :: String
     } deriving Show 
 
-instance Show G.RelaxInfo where
-    show (G.RelaxInfo pairs) = "RelaxInfo [" ++ show pairs ++ "]"
-
-instance Show SliceName where
-    show x = "SliceName { sliceName = " ++ show (sliceName x) ++ " }"
-
-data CacheRec
-    = CacheRec'
-    { topDir :: FilePath
-    , allSources :: [NamedSliceList]
-    , buildRepoSources :: SliceList
-    }
-
-instance Show SourcesChangedAction where
-    show SourcesChangedError = "SourcesChangedError"
-    show UpdateSources = "UpdateSources"
-    show RemoveRelease = "RemoveRelease"
-
 instance ParamClass ParamRec where
     verbosity = Debian.AutoBuilder.ParamRec.verbosity
     topDirParam = Debian.AutoBuilder.ParamRec.topDirParam
@@ -133,55 +113,3 @@ instance ParamClass ParamRec where
     ifSourcesChanged = Debian.AutoBuilder.ParamRec.ifSourcesChanged
     doSSHExport = Debian.AutoBuilder.ParamRec.doSSHExport
     autobuilderEmail = Debian.AutoBuilder.ParamRec.autobuilderEmail
-
-makeParamRec :: ParamClass p => p -> ParamRec
-makeParamRec params =
-    ParamRec
-    { Debian.AutoBuilder.ParamRec.verbosity = P.verbosity params
-    , Debian.AutoBuilder.ParamRec.topDirParam = P.topDirParam params
-    , Debian.AutoBuilder.ParamRec.debug = P.debug params
-    , Debian.AutoBuilder.ParamRec.dryRun = P.dryRun params
-    , Debian.AutoBuilder.ParamRec.requiredVersion = P.requiredVersion params
-    , Debian.AutoBuilder.ParamRec.showSources = P.showSources params
-    , Debian.AutoBuilder.ParamRec.showParams = P.showParams params
-    , Debian.AutoBuilder.ParamRec.flushAll = P.flushAll params
-    , Debian.AutoBuilder.ParamRec.useRepoCache = P.useRepoCache params
-    , Debian.AutoBuilder.ParamRec.sources = P.sources params
-    , Debian.AutoBuilder.ParamRec.targets = P.targets params
-    , Debian.AutoBuilder.ParamRec.goals = P.goals params
-    , Debian.AutoBuilder.ParamRec.omitTargets = P.omitTargets params
-    , Debian.AutoBuilder.ParamRec.vendorTag = P.vendorTag params
-    , Debian.AutoBuilder.ParamRec.extraReleaseTag = P.extraReleaseTag params
-    , Debian.AutoBuilder.ParamRec.flushSource = P.flushSource params
-    , Debian.AutoBuilder.ParamRec.forceBuild = P.forceBuild params
-    , Debian.AutoBuilder.ParamRec.allowBuildDependencyRegressions = P.allowBuildDependencyRegressions params
-    , Debian.AutoBuilder.ParamRec.preferred = P.preferred params
-    , Debian.AutoBuilder.ParamRec.strictness = P.strictness params
-    , Debian.AutoBuilder.ParamRec.setEnv = P.setEnv params
-    , Debian.AutoBuilder.ParamRec.buildDepends = P.buildDepends params
-    , Debian.AutoBuilder.ParamRec.relaxDepends = P.relaxDepends params
-    , Debian.AutoBuilder.ParamRec.noClean = P.noClean params
-    , Debian.AutoBuilder.ParamRec.extraPackages = P.extraPackages params
-    , Debian.AutoBuilder.ParamRec.extraEssential = P.extraEssential params
-    , Debian.AutoBuilder.ParamRec.omitEssential = P.omitEssential params
-    , Debian.AutoBuilder.ParamRec.omitBuildEssential = P.omitBuildEssential params
-    , Debian.AutoBuilder.ParamRec.baseRelease = P.baseRelease params
-    , Debian.AutoBuilder.ParamRec.buildRelease = P.buildRelease params
-    , Debian.AutoBuilder.ParamRec.doNotChangeVersion = P.doNotChangeVersion params
-    , Debian.AutoBuilder.ParamRec.isDevelopmentRelease = P.isDevelopmentRelease params
-    , Debian.AutoBuilder.ParamRec.releaseAliases = P.releaseAliases params
-    , Debian.AutoBuilder.ParamRec.flushRoot = P.flushRoot params
-    , Debian.AutoBuilder.ParamRec.cleanUp = P.cleanUp params
-    , Debian.AutoBuilder.ParamRec.archList = P.archList params
-    , Debian.AutoBuilder.ParamRec.flushPool = P.flushPool params
-    , Debian.AutoBuilder.ParamRec.doUpload = P.doUpload params
-    , Debian.AutoBuilder.ParamRec.doNewDist = P.doNewDist params
-    , Debian.AutoBuilder.ParamRec.newDistProgram = P.newDistProgram params
-    , Debian.AutoBuilder.ParamRec.uploadHost = P.uploadHost params
-    , Debian.AutoBuilder.ParamRec.uploadURI = P.uploadURI params
-    , Debian.AutoBuilder.ParamRec.buildURI = P.buildURI params
-    , Debian.AutoBuilder.ParamRec.createRelease = P.createRelease params
-    , Debian.AutoBuilder.ParamRec.ifSourcesChanged = P.ifSourcesChanged params
-    , Debian.AutoBuilder.ParamRec.doSSHExport = P.doSSHExport params
-    , Debian.AutoBuilder.ParamRec.autobuilderEmail = P.autobuilderEmail params
-    }

@@ -13,19 +13,23 @@ module Debian.AutoBuilder.Target
     , showTargets 
     , targetDocumentation
     ) where
-
-import           Control.Arrow (second)
-import		 Control.Exception
---import		 Control.Monad.Reader
-import		 Control.Monad.RWS hiding (All)
+import Control.Arrow(second)
+import Control.Exception(evaluate)
+import Control.Monad.RWS(Monad(return, (>>), (>>=)), MonadIO(..),
+                         MonadTrans(..), mapM, when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
-import		 Data.List
+import Data.List((++), foldr, concat, filter, zip, map, elem,
+                 length, intersperse, find, intercalate, intersect, isSuffixOf,
+                 lines, nub, partition, sortBy, unlines, words, break, lookup, tail,
+                 zip3)
 import qualified Data.Map as Map
-import		 Data.Maybe (fromJust, catMaybes, isJust, isNothing, listToMaybe)
+import Data.Maybe(catMaybes, fromJust, isJust, isNothing,
+                  listToMaybe)
 import qualified Data.Set as Set
-import           Data.Time (NominalDiffTime)
-import		 Debian.AutoBuilder.BuildTarget as BuildTarget
+import Data.Time(NominalDiffTime)
+import Debian.AutoBuilder.BuildTarget(BuildTarget(..), Tgt(..), prepareDir)
+import qualified Debian.AutoBuilder.BuildTarget as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
 import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
 import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
@@ -40,31 +44,61 @@ import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Version as V
-import		 Debian.Control
+import Debian.AutoBuilder.ParamClass(P.Strictness(P.Lax),
+                                     P.ParamClass(P.strictness, P.releaseAliases, P.relaxDepends,
+                                                  P.preferred, P.noClean, P.isDevelopmentRelease,
+                                                  P.goals, P.forceBuild, P.extraReleaseTag,
+                                                  P.dryRun, P.doNotChangeVersion, P.buildRelease,
+                                                  P.baseRelease, P.autobuilderEmail,
+                                                  P.allowBuildDependencyRegressions, P.buildDepends,
+                                                  P.vendorTag),
+                                     P.RunClass, P.dirtyRoot)
+import Debian.AutoBuilder.Version(V.autoBuilderVersion)
+import Debian.Control
 import qualified Debian.Control.ByteString as B
 import qualified Debian.Control.String as S(fieldValue)
+import Debian.Extra.CIO(vMessage)
 import qualified Debian.GenBuildDeps as G
-import		 Debian.Relation.ByteString as B
-import		 Debian.Repo
-import		 Debian.Shell
-import		 Debian.Time
-import		 Debian.Version
-import		 Debian.VersionPolicy
-import		 Debian.Extra.CIO (vMessage)
-import		 Extra.TIO
-import		 Extra.Either
-import		 Extra.Files
-import		 Extra.List (dropPrefix)
-import		 Extra.Misc
---import		 Control.Monad
-import		 System.Unix.Process hiding (processOutput)
-import		 System.Directory
---import		 System.Locale
-import		 System.Exit
-import		 System.IO
-import		 System.Posix.Files
-import		 Text.Printf
-import		 Text.Regex
+import Debian.Relation.ByteString(Relations, Relation(..))
+import Debian.Repo(SourcePackage(sourceParagraph, sourcePackageID),
+                   AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
+                   SliceName(sliceName), PackageID(packageVersion, packageName),
+                   LocalRepository, PkgVersion(..),
+                   BinaryPackage(packageInfo, packageID), releaseName', AptIOT,
+                   countTasks,
+                   ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
+                   ChangedFileSpec(changedFileSize, changedFileName,
+                                   changedFileMD5sum),
+                   ChangeLogEntry(logWho, logVersion, logPackage, logDists, logDate,
+                                  logComments),
+                   save, uploadLocal, invalidRevision, readPkgVersion, showPkgVersion,
+                   simplifyRelations, solutions, aptSourcePackagesSorted,
+                   binaryPackages, buildArchOfEnv, sourcePackages,
+                   binaryPackageSourceVersion, sourcePackageBinaryNames, scanIncoming,
+                   showErrors, OSImage, chrootEnv, syncEnv, syncPool, updateEnv,
+                   findDebianSourceTree, SourcePackageStatus(..), SourceTreeC(..),
+                   DebianSourceTreeC(..), DebianSourceTree, DebianBuildTree,
+                   DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
+                   copyDebianSourceTree, explainSourcePackageStatus, findChanges,
+                   findDebianBuildTree, findOneDebianBuildTree)
+import Debian.Shell(dotOutput)
+import Debian.Time(getCurrentLocalRFC822Time)
+import Debian.Version(DebianVersion, parseDebianVersion, version)
+import Debian.VersionPolicy(dropTag, parseTag, setTag)
+import System.Unix.Process(Output(..), collectOutputUnpacked,
+                           commandOutput, lazyCommand)
+import Extra.Either(partitionEithers)
+import Extra.Files(replaceFile)
+import Extra.List(dropPrefix)
+import Extra.Misc(columns, md5sum, processOutput)
+import Extra.TIO(CIO(setStyle), appPrefix, vBOL, vEPutStr,
+                 vEPutStrBl)
+import System.Directory(renameDirectory)
+import System.Exit(ExitCode(ExitSuccess), exitWith)
+import System.IO(IO, FilePath)
+import System.Posix.Files(fileSize, getFileStatus)
+import Text.Printf(printf)
+import Text.Regex(matchRegex, mkRegex)
 
 --liftTIO = lift
 
@@ -117,10 +151,6 @@ targetName target =
       Control (paragraph : _) ->
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
-
--- | The package name in the top changelog entry
-targetName' :: Target -> String
-targetName' = logPackage . targetEntry
 
 countAndPrepareTargets :: (P.RunClass p, CIO m) => p -> OSImage -> [Tgt] -> m [Target]
 countAndPrepareTargets params os targets =
@@ -425,10 +455,6 @@ chooseNextTarget goals targets =
             aGoals = intersect goals (aReady : aBlocked)
             bGoals = intersect goals (bReady : bBlocked)
               
-
-instance Show G.RelaxInfo where
-    show (G.RelaxInfo xs) = show xs
-
 updateDependencyInfo :: CIO m => Relations -> G.RelaxInfo -> [Target] -> m [Target]
 updateDependencyInfo globalBuildDeps relaxInfo targets =
     getDependencyInfo globalBuildDeps targets >>=

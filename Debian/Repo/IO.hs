@@ -40,7 +40,7 @@ import		 Data.Maybe
 import		 Debian.URI
 import		 Extra.TIO
 import qualified System.IO as IO
-import		 System.Posix.Files
+import		 System.Posix.Files (FileStatus, deviceID, fileID, modificationTime)
 import		 Text.Printf
 
 instance Ord FileStatus where

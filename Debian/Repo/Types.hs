@@ -292,7 +292,7 @@ instance Show DebSource where
 
 -- |This is a name given to a combination of parts of one or more
 -- releases that can be specified by a sources.list file.
-data SliceName = SliceName { sliceName :: String } deriving (Eq, Ord)
+data SliceName = SliceName { sliceName :: String } deriving (Eq, Ord, Show)
 
 data Slice
     = Slice { sliceRepo :: Repository
@@ -329,6 +329,10 @@ type PackageIndexLocal = PackageIndex
 
 instance Show BinaryPackage where
     show p = packageName (packageID p) ++ "-" ++ show (packageVersion (packageID p))
+
+instance PackageVersion BinaryPackage where
+    pkgName = packageName . packageID
+    pkgVersion = packageVersion . packageID
 
 -- | The 'PackageID' type fully identifies a package by name, version,
 -- and a 'PackageIndex' which identifies the package's release,

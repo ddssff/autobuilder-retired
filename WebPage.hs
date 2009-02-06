@@ -5,25 +5,23 @@ module Main where
 import		 Control.Monad
 import		 Control.Monad.Trans(lift, liftIO)	-- required despite warning
 import		 Data.List
-import qualified Data.Map as Map
 import		 Data.Maybe
-import qualified Debian.Config as Config
 import		 Debian.Control
 import		 Debian.Repo.Slice ()
 import 		 Debian.Repo.IO (AptIOT, runAptIO)
 import		 Debian.Repo.Slice (sourceSlices, releaseSlices, parseNamedSliceList')
-import		 Debian.Repo.Types (EnvRoot(EnvRoot), Arch(Source, Binary),
+import		 Debian.Repo.Types (EnvRoot, Arch(Source, Binary),
                                     ReleaseName(ReleaseName), parseReleaseName, rootPath,
                                     SliceName(SliceName), Slice(sliceSource), NamedSliceList, 
                                     sliceList, sliceName, sliceListName, slices,
-	 			    SourceType(Deb, DebSrc), DebSource(DebSource), SliceName, )
+	 			    SourceType(Deb, DebSrc), DebSource(DebSource))
 import		 Debian.Repo.Cache (cacheRootDir, archFiles)
 import		 Debian.URI
 import		 Extra.TIO
 import qualified MyHtml
 import qualified Network.CGI as CGI
 import qualified Debian.AutoBuilder.ParamClass as P
-import           Debian.AutoBuilder.Params (params)
+import qualified Debian.AutoBuilder.OldParams as O
 import		 System.Directory
 import		 System.Environment
 import		 System.IO
@@ -44,7 +42,7 @@ application :: CIO m => [(String,String)] -> AptIOT m String
 application cgivars =
     do -- Use the same application name as the autobuilder so we
        -- see the same configuration files.
-      paramSets <- params appName ["web-config"] undefined undefined
+      paramSets <- O.params appName ["web-config"] undefined undefined
       case paramSets of
         (params : _) ->
             do html <-
@@ -132,7 +130,7 @@ distPage params cgivars =
          Nothing ->
              error ("Unknown dist: " ++ sliceName dist)
          Just distro ->
-             do (Control sourcePackages) <- sourcePackageInfo params root (P.uploadHost params) distro
+             do (Control sourcePackages) <- sourcePackageInfo root distro
                 return (form
                         (concatHtml
                          [input ! [strAttr "type" "submit",  strAttr "name" "page", strAttr "value" "apt-get-update"],
@@ -175,7 +173,7 @@ sourcePackagePage params cgivars =
       let dist = maybe (error "No dist name") SliceName (lookup "dist" cgivars)
       let distro = either (error . show) id (P.findSlice params dist)
       let root = cacheRootDir (P.topDir params) (ReleaseName . sliceName . sliceListName $ distro)
-      (Control control) <- sourcePackageInfo params root (P.uploadHost params) distro
+      (Control control) <- sourcePackageInfo root distro
       let (Paragraph info) = fromJust (find (\ info -> fieldValue "Package" info == Just package) control)
       return $ concatHtml (intersperse br (map (stringToHtml . show) info))
 
@@ -184,8 +182,8 @@ binaryPackagePage _ cgivars =
     let package = fromJust (lookup "package" cgivars) in
     return $ stringToHtml ("binaryPackagePage: " ++ package)
 
-sourcePackageInfo :: (CIO m, P.ParamClass p) => p -> EnvRoot -> (Maybe String) -> NamedSliceList -> AptIOT m Control
-sourcePackageInfo _ root uploadHost distro =
+sourcePackageInfo :: CIO m => EnvRoot -> NamedSliceList -> AptIOT m Control
+sourcePackageInfo root distro =
     do
       lift (vPutStrBl 0 ("sourcePackageFiles: " ++ show sourcePackageFiles))
       filterM (liftIO . doesFileExist) sourcePackageFiles >>=

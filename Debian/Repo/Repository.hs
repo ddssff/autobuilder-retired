@@ -23,7 +23,7 @@ import qualified Debian.Control.ByteString as B	-- required despite warning
 import qualified Debian.Control.String as S
 import Debian.Extra.CIO (tMessage, printOutput)
 import Debian.Repo.Changes
-import Debian.Repo.IO (AptIOT, getRepoMap, insertRepository, lookupRepository)
+import Debian.Repo.IO (AptIOT, insertRepository, lookupRepository)
 import Debian.Repo.LocalRepository
 import Debian.Repo.Types
 import Debian.Shell

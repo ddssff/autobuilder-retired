@@ -12,7 +12,6 @@ import Control.Monad
 import qualified Data.ByteString.Char8 as B
 import Data.List
 import Data.Maybe
-import Debian.Repo.IO (AptState)
 import Extra.CIO
 import Extra.Files
 import Extra.List(partitionM)
