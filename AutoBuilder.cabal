@@ -8,7 +8,7 @@ Cabal-Version:  >= 1.2
 Build-type:     Simple
 
 Library
-  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal
+  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,
@@ -82,7 +82,7 @@ Library
 Executable autobuilder
   Main-Is:        AutoBuilder.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic
 
 Executable autobuilder-web-client
   Main-Is:        WebPage.hs
@@ -92,4 +92,4 @@ Executable autobuilder-web-client
 Executable newdist
   Main-Is:        NewDist.hs
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, cgi, mtl, time, MIME >= 1.1, Extra, filepath, magic
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic
