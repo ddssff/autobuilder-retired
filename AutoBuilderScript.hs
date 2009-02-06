@@ -18,8 +18,12 @@ main =
 -- The name of the upstream release that the the build release will be
 -- based on.  This sources.list is combined with the one constructed
 -- from the Build-URI to create the build environment.
-myBuildPrivateTargets = True
 myBaseRelease = "hardy" ++ if myBuildPrivateTargets then "-seereason" else ""
+
+-- If True build the private targets, otherwise the public.
+myBuildPrivateTargets = True
+
+-- 
 myUploadHost = "deb.seereason.com"
 myVendorTag = "seereason"
 myTargets = case myBuildPrivateTargets of
@@ -32,21 +36,39 @@ myUbuntuMirrorHost = "mirror.anl.gov"
 myDebianMirrorHost = "mirror.anl.gov"
 
 myBaseRepo = releaseRepoName myBaseRelease
+
+myDoUpload = True
+myDoNewDist = True
+
+-- This URI is the address of the remote repository to which packages
+-- will be uploaded after a run with no failures, when the myDoUpload
+-- flag is true.  Packages are uploaded to the directory created by
+-- appending '/incoming' to this URI.  This is distinct from the
+-- local repository, where each packages is uploaded immediately after
+-- it is built for use as build dependencies of other packages during
+-- the same run.
+myUploadURI = case myBuildPrivateTargets of
+                False -> parseURI $ "ssh://upload@" ++ myUploadHost ++ "/srv/deb" ++ "/" ++ myBaseRepo
+                True -> parseURI $ myPrivateBuildURI ++ "/" ++ myBaseRepo
+
+-- An alternate url for the same repository the upload-uri points to,
+-- used for downloading packages that have already been installed
+-- there.
 myBuildURI = case myBuildPrivateTargets of
                False -> parseURI $ "http://" ++ myUploadHost ++ "/" ++ myBaseRepo
                True -> parseURI $ myPrivateUploadURI ++ "/" ++ myBaseRepo
-myUploadURI =
-    parseURI $ (if myBuildPrivateTargets
-                then "ssh://upload@" ++ myUploadHost ++ "/srv/deb"
-                else myPrivateBuildURI) ++ "/" ++ myBaseRepo
-{-myUploadURI = case myBuildPrivateTargets of
-                False -> parseURI $ "ssh://upload@" ++ myUploadHost ++ "/srv/deb" ++ "/" ++ myBaseRepo
-                True -> parseURI $ myPrivateBuildURI ++ "/" ++ myBaseRepo -}
 
 myPrivateUploadURI = "ssh://upload@deb.seereason.com/srv/deb-private"
 myPrivateBuildURI = "ssh://upload@deb.seereason.com/srv/deb-private"
 myPrivateDarcsURI = "ssh://upload@src.seereason.com/srv/darcs"
 
+-- Additional packages to include in the clean build environment.
+-- Adding packages here can speed things up when you are building many
+-- packages, because for each package it reverts the build environment
+-- to the clean environment and then installs all the build
+-- dependencies.  This only affects newly created environments, so if
+-- you change this value use the flushRoot option to get it to take
+-- effect.
 myExtraPackages =
     ["debian-archive-keyring"] ++
     case releaseRepoName myBaseRelease of
@@ -54,6 +76,9 @@ myExtraPackages =
       "ubuntu" -> ["ubuntu-keyring"]
       _ -> error $ "Unknown base release: " ++ myBaseRelease
 
+-- Specify extra packages to include as essential in the build
+-- environment.  This option was provided to add either upstart or
+-- sysvinit to the build when they ceased to be 'Required' packages.
 myExtraEssential =
     ["belocs-locales-bin", "gnupg", "dpkg"] ++
     case releaseRepoName myBaseRelease of
@@ -102,6 +127,11 @@ releaseSourceLines release =
 releaseSources release = (release, unlines (releaseSourceLines release))
 
 allPrivateSources = map releaseSources (map (++ "-seereason-private") (debianReleases ++ ubuntuReleases))
+
+topReleaseName :: String -> String
+topReleaseName name =
+    foldr dropSuff name ["-seereason", "-private"]
+    where dropSuff suff name = if isSuffixOf suff name then dropSuffix suff name else name
 
 debianReleases = ["sid", "lenny"]
 ubuntuReleases = ["jaunty", "intrepid", "hardy"]
@@ -219,27 +249,94 @@ privateTargets =
 params =
     ParamRec
     { verbosity = myVerbosity,
+      -- The directory the program will use for its working storage.
+      -- Normally this is not specified, in which case ~/.autobuilder
+      -- is used.
       topDirParam = Nothing,
+      -- Unspecified debugging behavior.
       debug = False,
       dryRun = False,
+      -- This flag says not to do anything that will affect the
+      -- outside world, such as uploads and remote newdists.  However,
+      -- the files in ~/.autobuilder may still be modified when this
+      -- is used.  It does avoids making extensive changes to the
+      -- local repository by exiting as soon as a target it identified
+      -- as needing to be built.
       requiredVersion = [(parseDebianVersion "4.39",Nothing)],
+      -- Print the sources.list for the build distro and exit.
       showSources = False,
+      -- Print the expanded runtime parameter list and continue.
       showParams = False,
+      -- Remove and re-create the entire autobuilder working directory (topDir.)
       flushAll = False,
+      -- Load the most recent cached repository information from
+      -- ~/.autobuilder/repoCache and assume that it is still good -
+      -- that no releases have been added or removed from the
+      -- repositories listed.  This is usually safe and saves some
+      -- time querying each remote repository before using it.
       useRepoCache = True,
+      -- Specify all known source.list files, associating a name
+      -- with each one.  The names can be used in apt targets.
       sources = allSources,
+      -- Specify one or more build targets, methods for obtaining the
+      -- source code of a package to be built.  See TARGET TYPES below
+      -- for information about the available target types."
       targets = myTargets,
+      -- Specify a source package which we want to build, and stop
+      -- once all goals are built.  If not given all targets are
+      -- considered goals.  (As of version 4.41 this option is not be
+      -- fully functional, sometimes specifying goals will prevent all
+      -- the builds.)
       goals = myGoals,
+      -- Obsolete
       omitTargets = [],
+      -- The string used to construct modified version numbers.
       vendorTag = myVendorTag,
+      -- use the old \"r0vendor1\" style tag instead of just \"vendor1\"
       extraReleaseTag = Nothing,
+      -- Discard and re-download all source code before building.
       flushSource = False,
+      -- Build the named source package(s) whether or not they seems
+      -- to need it.
       forceBuild = myForceBuild,
+      -- Normally, if a build dependency has an older version number
+      -- than it did on a previous build, it is an error.  This
+      -- generally means the sources.list is incorrect.  However, this
+      -- flag can be necessary if a package gets withdrawn from the build
+      -- or base release.
       allowBuildDependencyRegressions = False,
+      -- When selecting build dependencies, prefer this particular
+      -- package over other alternatives that could fulfill the
+      -- dependency, even if this package seems older than some other
+      -- alternative.  For example, the c-compiler virtual package is
+      -- provided by gcc-3.3, gcc-3.4, gcc-4.0, etc.  If 'Prefer:
+      -- gcc-3.4' is used, a dependency on c-compiler will choose
+      -- gcc-3.4 over the others if possible.
       preferred = [],
+      -- Specify how strict to be about the creation of build
+      -- environments, trading off correctness with speed.  In all
+      -- cases, a clean build environment is always maintained, and
+      -- copied before the package build is performed using rsync.
+      -- 'Strict' means the clean build environment is discarded and
+      -- recreated before each target is built.  'Moderate' means the
+      -- clean build environment is kept between successive runs, and
+      -- updated as necessary using 'apt-get update' and 'apt-get
+      -- dist-upgrade'.  'Lax' means that build dependencies are
+      -- installed into the clean build environment so that they
+      -- accumulate across runs.
       strictness = P.Moderate,
+      -- Set one or more environment variables during the build, e.g. 
+      -- setEnv = ["DEBIAN_KERNEL_JOBS=5"].
       setEnv = [],
+      -- Obsolete?  Add a missing build dependency.
       buildDepends = [],
+      -- Prevent the appearance of a new binary package from
+      -- triggering builds of its build dependencies.  Optionally, a
+      -- particular source package can be specified whose rebuild will
+      -- be prevented.  This is used to break dependency loops, For
+      -- example, 'Relax-Depends: ghc6 hscolour' means 'even if ghc6
+      -- is rebuilt, don't rebuild hscolour even though ghc6 is one of
+      -- its build dependencies.
       relaxDepends = RelaxInfo [(BinPkgName "cabal-debian",Just (SrcPkgName "haskell-cpphs")),
                                 (BinPkgName "happy",Just (SrcPkgName "haskell-happy")),
                                 (BinPkgName "haddock",Just (SrcPkgName "haskell-haddock")),
@@ -297,28 +394,88 @@ params =
                                 (BinPkgName "sysvinit",Nothing),
                                 (BinPkgName "libc6-dev",Nothing),
                                 (BinPkgName "module-init-tools",Just (SrcPkgName "linux-2.6"))],
+      -- Run dpkg-buildpackage with the -nc argument.  This also
+      -- disables syncing with the clean source tree.  This should
+      -- only be used for debugging the autobuilder or for debugging
+      -- the package build.  To edit the package you need to find the
+      -- work directory in the cached build and make your edits there.
+      -- Then you will need to check them back into your revision
+      -- control system.
       noClean = False,
       extraPackages = myExtraPackages,
       extraEssential = myExtraEssential,
+      -- Specify packages for build-env to remove from the essential
+      -- list even if they are marked essential
       omitEssential = [],
+      -- OBSOLETE: Don't automatically consider all the build
+      -- essential packages to be build dependencies.  If you are
+      -- working with an unstable repository where the core packages
+      -- are undergoing frequent revisions, and you aren't worried
+      -- that a new version of 'tar' is going to change the outcome of
+      -- your builds, this option can reduce the number of pointless
+      -- rebuilds.  (But try relaxDepends first.)
       omitBuildEssential = False,
+      -- Packages uploaded to the build release will be compatible
+      -- with packages in this release.
       baseRelease = SliceName {sliceName = myBaseRelease},
+      -- The name of the release we will be uploading to.
       buildRelease = ReleaseName {relName = myBaseRelease ++ (if myBuildPrivateTargets then "-private" else "-seereason")},
+      -- Don't modify the package's version in any way before
+      -- building.  Normally a tag is added to signify the vendor and
+      -- the base release of the package.  Using this option can lead
+      -- to attempts to upload packages that are already present in
+      -- the repository, or packages that are trumped by versions
+      -- already uploaded to the release.
       doNotChangeVersion = False,
-      isDevelopmentRelease = False,
-      releaseAliases = [("etch", "bpo40+"),("hardy-seereason", "hardy"),("intrepid-seereason", "intrepid"),("jaunty-seereason", "jaunty")],
+      -- Signifies that the release we are building for is a development
+      -- (or unstable) release.  This means we the tag we add doesn't need
+      -- to include '~release', since there are no newer releases to
+      -- worry about trumping.
+      isDevelopmentRelease = elem (topReleaseName myBaseRelease) ["sid", "jaunty"],
+      -- Use these aliases for the release name when constructing the
+      -- vendor tag used in the version number extension of built
+      -- packages.
+      releaseAliases = [("etch", "bpo40+"),
+                        ("hardy-seereason", "hardy"),
+                        ("intrepid-seereason", "intrepid"),
+                        ("jaunty-seereason", "jaunty")],
+      -- Discard and recreate the clean build environment.
       flushRoot = False,
+      -- Do a garbage collection on the local repository, move all
+      -- unreferenced files to 'removed'.  This is probably not a
+      -- useful option, as the local repository is frequently removed.
       cleanUp = False,
+      -- The list of architectures to prepare the repository to accept.
       archList = [Binary "i386",Binary "amd64"],
+      -- Discard the packages in the local pool before building.  Use
+      -- this when a bad package was uploaded to the local pool that
+      -- you don't want uploaded to the remote pool.
       flushPool = False,
-      doUpload = True,
-      doNewDist = True,
+      -- After a successful build of all the targets, dupload all the
+      -- packages in the local pool specified by the uploadURI
+      -- argument to the corresponding repository.
+      doUpload = myDoUpload,
+      -- After uploading, run newdist on the remote repository
+      -- incoming directory
+      doNewDist = myDoNewDist,
+      -- Use given executable as the newdist program, the program that
+      -- runs on the upload host to install packages in the incoming
+      -- directory to the repository. | 
       newDistProgram = "newdist -v",
       uploadHost = Just myUploadHost,
       buildURI = myBuildURI,
       uploadURI = myUploadURI,
+      -- Pass a --create NAME argument to newdist to create a new
+      -- release in the upload repository.
       createRelease = [],
+      -- What to do if the sources.list changes in the
+      -- configuration directory.  The argument may be
+      --   SourcesChangedError - (the default) print a message and exit, 
+      --   SourcesChangedUpdate - rewrite sources.list and update the environment, 
+      --   SourcesChangedRemove - discard and rebuild the environment
       ifSourcesChanged = SourcesChangedError,
+      -- Try to set up ssh keys if upload host asks for a password.
       doSSHExport = False,
+      -- Email address of autobuilder for use in generated changelog entries.
       autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
     }
