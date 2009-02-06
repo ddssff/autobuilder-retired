@@ -3,7 +3,6 @@ Version:        4.41
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments
-Extra-Tmp-Files: Debian/AutoBuilder/Version.hs
 Cabal-Version:  >= 1.2
 Build-type:     Simple
 
