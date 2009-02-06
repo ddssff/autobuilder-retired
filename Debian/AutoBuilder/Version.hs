@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Debian.Autobuilder.Version (autobuilderVersion) where
+module Debian.AutoBuilder.Version (autoBuilderVersion) where
 
 import Data.Version (showVersion)
 import Distribution.Simple.Utils (findPackageDesc)
@@ -12,8 +12,8 @@ import Language.Haskell.TH.Syntax (lift)
 
 -- Compiles in the current version of the autobuilder by looking in the .cabal file.
 -- To convert this to type Version, remove ". showVersion" from below.
-autobuilderVersion :: String
-autobuilderVersion = $(runIO (findPackageDesc "." >>=
+autoBuilderVersion :: String
+autoBuilderVersion = $(runIO (findPackageDesc "." >>=
                               readPackageDescription silent >>=
                               return . pkgVersion . package . packageDescription) >>=
                        lift . showVersion)

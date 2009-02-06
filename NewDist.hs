@@ -137,7 +137,7 @@ main =
                    case findValues flags "Version" of
                      [] -> withLock lockPath (runFlags flags) >>=
                            either (\ e -> error $ "Failed to obtain lock " ++ lockPath ++ ":\n " ++ show e) (const . lift $ vBOL 0)
-                     _ -> lift (putStrBl Version.version) >>
+                     _ -> lift (putStrBl Version.autoBuilderVersion) >>
                           liftIO (exitWith ExitSuccess)))
     where
       nameFirstSection (flags : more) = nameSection "Main" flags : more
