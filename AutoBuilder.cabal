@@ -27,6 +27,7 @@ Library
     Debian.AutoBuilder.OldParams,
     Debian.AutoBuilder.ParamClass,
     Debian.AutoBuilder.ParamRec,
+    Debian.AutoBuilder.Params,
     Debian.AutoBuilder.Target,
     Debian.AutoBuilder.Version,
     Debian.Config,

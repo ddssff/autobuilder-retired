@@ -75,7 +75,11 @@ makeParamRec params =
 defaultParams base tag email =
     R.ParamRec
     { R.verbosity = 0
+    -- The directory the program will use for its working storage.
+    -- Normally this is not specified, in which case ~/.autobuilder
+    -- is used.
     , R.topDirParam = Nothing
+    -- Unspecified debugging behavior.
     , R.debug = False
     , R.dryRun = False
     , R.requiredVersion = [(parseDebianVersion "4.41", Nothing)]
@@ -88,6 +92,7 @@ defaultParams base tag email =
     , R.goals = []
     , R.omitTargets = []
     , R.vendorTag = tag
+    -- use the old \"r0vendor1\" style tag instead of just \"vendor1\"
     , R.extraReleaseTag = Nothing
     , R.flushSource = False
     , R.forceBuild = []

@@ -3,7 +3,8 @@ import Data.List (isSuffixOf)
 import Data.Maybe
 import qualified Debian.AutoBuilder.Main as M
 import qualified Debian.AutoBuilder.ParamClass as P
-import Debian.AutoBuilder.ParamRec hiding (allSources)
+import Debian.AutoBuilder.ParamRec
+import Debian.AutoBuilder.Params (defaultParams)
 import Debian.GenBuildDeps (SrcPkgName(SrcPkgName), BinPkgName(BinPkgName), RelaxInfo(RelaxInfo))
 import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
 import Debian.Repo.Types (SliceName(SliceName, sliceName), ReleaseName(ReleaseName, relName), Arch(Binary))
