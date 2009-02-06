@@ -40,6 +40,7 @@ import qualified Debian.Version as V
 import Extra.Files (replaceFile, getSubDirectories)
 import Extra.List (dropPrefix)
 import Extra.CIO (CIO, setStyle, addPrefixes)
+import System.Chroot
 import System.Directory
 import System.Environment
 import System.IO
@@ -142,17 +143,14 @@ buildDebs noClean setEnv buildOS buildTree status =
               ++ (case status of Indep -> " -B "; _ -> "")
                      ++ (if noSecretKey then " -us -uc" else "")
                             ++ (if noClean then " -nc" else "")
-      let fullcmd = ("chroot " ++ root ++
-                     " bash -c \"unset LANG; export LOGNAME=root; " ++
+      let fullcmd = ("unset LANG; export LOGNAME=root; " ++
                      concat (map (\ x -> "export " ++ x ++ "; ") setEnv) ++
                      "cd '" ++ fromJust (dropPrefix root path) ++ "' && " ++
                      "chmod ugo+x debian/rules && " ++
                      -- Try to build twice, some packages do configuration the first
                      -- time 'so that it is NEVER run during an automated build.' :-/
-                     "{ " ++ buildcmd ++ " || " ++ buildcmd ++ " ; } "
-                     ++ "\"")
-
-      (result, elapsed) <- timeTask (liftIO (lazyCommand fullcmd L.empty) >>= setStyle (addPrefixes "[1] " "[2] ") . printOutput)
+                     "{ " ++ buildcmd ++ " || " ++ buildcmd ++ " ; } ")
+      (result, elapsed) <- timeTask (liftIO (useEnv root (lazyCommand fullcmd L.empty)) >>= setStyle (addPrefixes "[1] " "[2] ") . printOutput)
       return . checkResult (Left . (("*** FAILURE: " ++ fullcmd ++ " -> ") ++) . show) (Right elapsed) $ (discardOutput result)
     where
       path = debdir buildTree

@@ -32,10 +32,11 @@ import Debian.Repo.Types
 import Debian.URI
 import Extra.CIO (CIO, vPutStr, vPutStrBl)
 import Extra.Files (replaceFile)
-import System.Unix.Directory
-import System.Unix.Process
+import System.Chroot (useEnv)
 import System.Directory
 import System.IO
+import System.Unix.Directory
+import System.Unix.Process
 
 -- The following are path functions which can be used while
 -- constructing instances of AptCache.  Each is followed by a
@@ -169,7 +170,7 @@ archFiles' deb =
 
 buildArchOfEnv :: EnvRoot -> IO Arch
 buildArchOfEnv (EnvRoot root)  =
-    do output <- lazyCommand cmd L.empty
+    do output <- useEnv root (lazyCommand cmd L.empty)
        case exitCodeOnly output of
          [ExitSuccess] ->
              case (words . L.unpack . stdoutOnly $ output) of
@@ -177,7 +178,7 @@ buildArchOfEnv (EnvRoot root)  =
                (arch : _) -> return (Binary arch)
          _ -> error $ "Failure: " ++ cmd
     where
-      cmd = "export LOGNAME=root; chroot " ++ show root ++ " dpkg-architecture -qDEB_BUILD_ARCH"
+      cmd = "export LOGNAME=root; dpkg-architecture -qDEB_BUILD_ARCH"
 
 buildArchOfRoot :: IO Arch
 buildArchOfRoot =

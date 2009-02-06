@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        4.41
+Version:        4.42
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments
@@ -75,6 +75,7 @@ Library
     Debian.VersionPolicy,
     Debian.Report,
     Debian.Util.FakeChanges,
+    System.Chroot,
     Text.Format
   other-modules:
     Debian.Version.Internal

@@ -93,6 +93,7 @@ import Extra.List(dropPrefix)
 import Extra.Misc(columns, md5sum, processOutput)
 import Extra.TIO(CIO(setStyle), appPrefix, vBOL, vEPutStr,
                  vEPutStrBl)
+import System.Chroot (useEnv)
 import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess), exitWith)
 import System.IO(IO, FilePath)
@@ -977,7 +978,7 @@ downloadDependencies :: CIO m => OSImage -> DebianBuildTree -> [String] -> [PkgV
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        vEPutStrBl 1 . ("versions: " ++) . show $! vers
-       (out, codes) <- liftIO (lazyCommand command L.empty) >>=
+       (out, codes) <- liftIO (useEnv (rootPath root) (lazyCommand command L.empty)) >>=
                        vMessage 0 ("Downloading build dependencies into " ++ rootPath (rootDir os)) >>=
                        dotOutput 100 >>= return . partitionResult
        case codes of
@@ -985,9 +986,8 @@ downloadDependencies os source extra versions =
          codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
                   return (Left ("FAILURE: " ++ command ++ " -> " ++ show codes))
     where
-      command = ("chroot " ++ rootPath root ++ " bash -c " ++
-                 "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
-                 (if True then aptGetCommand else pbuilderCommand) ++ "\"")
+      command = ("export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
+                 (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install --download-only " ++ intercalate " " (map showPkgVersion versions ++ extra)
       path = pathBelow (rootPath root) (topdir source)
@@ -1000,7 +1000,7 @@ pathBelow root path =
 -- |Install the package's build dependencies.
 installDependencies :: CIO m => OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> m (Either String [Output])
 installDependencies os source extra versions =
-    do (out, codes) <- liftIO (lazyCommand command L.empty) >>=
+    do (out, codes) <- liftIO (useEnv (rootPath root) (lazyCommand command L.empty)) >>=
                        vMessage 0 ("Installing build dependencies into " ++ rootPath (rootDir os)) >>=
                        dotOutput 100 >>= return . partitionResult
        case codes of
@@ -1008,9 +1008,8 @@ installDependencies os source extra versions =
          codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
                   return (Left ("FAILURE: " ++ command ++ " -> " ++ show codes))
     where
-      command = ("chroot " ++ rootPath root ++ " bash -c " ++
-                 "\"export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
-                 (if True then aptGetCommand else pbuilderCommand) ++ "\"")
+      command = ("export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
+                 (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes install " ++ intercalate " " (map showPkgVersion versions ++ extra)
       path = pathBelow (rootPath root) (topdir source)
