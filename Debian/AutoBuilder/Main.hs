@@ -220,11 +220,11 @@ runParameterSet params =
                      True -> deleteGarbage repo''
                      False -> return repo''
       prepareTargetList =
-          do lift (showTargets allTargets)
+          do lift (vEPutStrBl 0 (showTargets allTargets))
              lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
-             mapStateT (setStyle (appPrefix " ")) (mapM (readSpec params) allTargets)
+             mapStateT (setStyle (appPrefix " ")) (mapM (readSpec params . P.sourceSpec) allTargets)
           where
-            allTargets = listDiff (P.targets params) (P.omitTargets params)
+            allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (P.targets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
       upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Either String ([Output], NominalDiffTime)]
       upload (repo, [])

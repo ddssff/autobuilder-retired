@@ -84,7 +84,8 @@ instance P.ParamClass Params where
     releaseAliases = releaseAliases
     verbosity = verbosity
     sources = sources
-    targets = targets
+    -- This probably won't work
+    targets = map (\ spec -> P.Target {P.sourcePackageName = "", P.sourceSpec = spec, P.relaxInfo = []}) . targets
     goals = goals
     omitTargets = omitTargets
     archList = archList

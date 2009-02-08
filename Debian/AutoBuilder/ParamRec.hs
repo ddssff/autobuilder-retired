@@ -23,7 +23,7 @@ data ParamRec =
     , useRepoCache :: Bool
     -- Obtaining and Preparing Source
     , sources :: [(String, String)]
-    , targets :: [String]
+    , targets :: [Target]
     , goals :: [String]
     , omitTargets :: [String]
     , vendorTag :: String

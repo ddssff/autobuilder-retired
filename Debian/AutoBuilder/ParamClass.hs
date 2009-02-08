@@ -6,6 +6,7 @@ module Debian.AutoBuilder.ParamClass
     , buildCache
     , RunClass
     , Strictness(Strict, Moderate, Lax)
+    , Target(..)
     , prettyPrint
     , findSlice
     , dirtyRootOfRelease
@@ -20,9 +21,11 @@ import           Control.Monad.State (get, put)
 import		 Control.Monad.Trans (lift, liftIO)
 import		 Data.Maybe
 import           Data.Map (fromList)
-import		 Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
---import	 Debian.Repo.IO (AptIOT)
-import		 Debian.Repo
+import		 Debian.Repo.Cache (SourcesChangedAction)
+import           Debian.Repo.IO (AptIOT)
+import           Debian.Repo(EnvRoot(EnvRoot), Arch, SliceName(..),
+                             SliceList(..), NamedSliceList(..), ReleaseName, releaseName',
+                             setRepoMap, parseSourcesList, verifySourcesList, repoSources)
 import		 Debian.Version
 import		 Debian.URI
 import qualified Debian.GenBuildDeps as G
@@ -45,6 +48,13 @@ instance Show Strictness where
     show Moderate = "Moderate"
     show Strict = "Strict"
 
+data Target
+    = Target
+      { sourcePackageName :: String
+      , sourceSpec :: String
+      , relaxInfo :: [String]		-- ^ Build dependencies which be ignored when deciding whether to rebuild
+      } deriving Show
+
 topDirDefault = "/var/cache/autobuilder"
 
 class ParamClass a where
@@ -60,7 +70,7 @@ class ParamClass a where
     useRepoCache :: a -> Bool
     -- Obtaining and Preparing Source
     sources :: a -> [(String, String)]
-    targets :: a -> [String]
+    targets :: a -> [Target]
     goals :: a -> [String]
     omitTargets :: a -> [String]
     vendorTag :: a -> String
@@ -162,7 +172,7 @@ prettyPrint x =
             , "flushAll=" ++ take 120 (show (flushAll x))
             , "useRepoCache=" ++ take 120 (show (useRepoCache x))
             , "sources=" ++ take 120 (show (sources x))
-            , "targets=" ++ take 120 (show (targets x))
+            , "targets=" ++ take 120 (show (map sourcePackageName (targets x)))
             , "goals=" ++ take 120 (show (goals x))
             , "omitTargets=" ++ take 120 (show (omitTargets x))
             , "vendorTag=" ++ take 120 (show (vendorTag x))

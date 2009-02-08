@@ -508,16 +508,13 @@ relax relaxInfo targets =
       deps' = G.relaxDeps relaxInfo deps
       deps = map targetDepends targets
 
---showTargets :: Show a => [a] -> IO ()
+showTargets :: [P.Target] -> String
 showTargets targets =
-    vEPutStrBl 0 ("\n" ++ 
-                  unlines
-	          (heading :
-                   map (const '-') heading :
-                   map (\ (n, name) -> printf "%4d. %s" n name) pairs) ++
-                  "\n")
+    unlines (heading :
+             map (const '-') heading :
+             map concat (columns (map (\ (n, t) -> [printf "%4d. " n, P.sourcePackageName t, " ", P.sourceSpec t]) pairs))) ++ "\n"
     where
-      (pairs :: [(Int, String)]) = zip [1..] targets
+      pairs = zip [1..] targets :: [(Int, P.Target)]
       heading = show (length targets) ++ " Targets:"
 
 -- |Represents a decision whether to build a package, with a text juststification.
