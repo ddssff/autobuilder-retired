@@ -45,7 +45,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Version as V
 import Debian.AutoBuilder.ParamClass(P.Strictness(P.Lax),
-                                     P.ParamClass(P.strictness, P.releaseAliases, P.relaxDepends,
+                                     P.ParamClass(P.strictness, P.releaseAliases, P.globalRelaxInfo,
                                                   P.preferred, P.noClean, P.developmentReleaseNames,
                                                   P.goals, P.forceBuild, P.extraReleaseTag,
                                                   P.dryRun, P.doNotChangeVersion, P.buildRelease,

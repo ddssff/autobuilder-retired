@@ -5,17 +5,17 @@ import qualified Debian.AutoBuilder.Main as M
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.AutoBuilder.ParamClass (Target(..))
 import Debian.AutoBuilder.ParamRec
-import Debian.GenBuildDeps (SrcPkgName(SrcPkgName), BinPkgName(BinPkgName), RelaxInfo(RelaxInfo))
 import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
 import Debian.Repo.Types (ReleaseName(ReleaseName, relName), Arch(Binary))
 import Debian.URI
 import Debian.Version (parseDebianVersion)
+import System.Environment (getArgs)
 import System.IO (hPutStrLn, hFlush, stderr)
 
 main =
     hPutStrLn stderr "Autobuilder starting..." >>
     hFlush stderr >>
-    M.main [params "hardy-seereason", params "hardy-seereason-private"]
+    getArgs >>= M.main . map params
 
 ---------------------------- THE PARAMETERS RECORD ---------------------------------
 
@@ -44,11 +44,7 @@ params myBuildRelease =
     , strictness = P.Moderate
     , setEnv = []
     , buildDepends = []
-    , relaxDepends =
-          RelaxInfo $ map (\ target -> (BinPkgName target, Nothing)) globalRelaxInfo ++
-                      concatMap (\ target -> map (\ binPkg -> (BinPkgName binPkg,
-                                                               Just (SrcPkgName (sourcePackageName target))))
-                                 (relaxInfo target)) (myTargets myBuildRelease)
+    , globalRelaxInfo = myGlobalRelaxInfo
     , noClean = False
     , extraPackages = myExtraPackages myBuildRelease
     , extraEssential = myExtraEssential myBuildRelease
@@ -212,7 +208,43 @@ allSources debianMirrorHost ubuntuMirrorHost includePrivate =
                                  [ "deb " ++ myPrivateUploadURI release ++ " " ++ release ++ " main"
                                  , "deb-src " ++ myPrivateUploadURI release ++ " " ++ release ++ " main" ]
 
-
+myGlobalRelaxInfo =
+    ["base-files",
+     "bash",
+     "bsdutils",
+     "devscripts",
+     "dpkg",
+     "dpkg-dev",
+     "gcc",
+     "g++",
+     "make",
+     "mount",
+     "base-passwd",
+     "mktemp",
+     "sed",
+     "util-linux",
+     "sysvinit-utils",
+     "autoconf",
+     "debhelper",
+     "debianutils",
+     "diff",
+     "e2fsprogs",
+     "findutils",
+     "flex",
+     "login",
+     "coreutils",
+     "grep",
+     "gs",
+     "gzip",
+     "hostname",
+     "intltool",
+     "ncurses-base",
+     "ncurses-bin",
+     "perl",
+     "perl-base",
+     "tar",
+     "sysvinit",
+     "libc6-dev"]
 
 ----------------------- BUILD RELEASE ----------------------------
 
@@ -608,43 +640,5 @@ Comment: Here are some more proposed targets
   tla:tos@linspire.com--skipjack/forward-oss--build-skipjack--0.3
   quilt:(apt:${base}:bcm43xx-fwcutter):(tla:tos@linspire.com--skipjack/bcm43xx-fwcutter-quilt--cnr--0)
 -}
-
-globalRelaxInfo =
-    ["base-files",
-     "bash",
-     "bsdutils",
-     "devscripts",
-     "dpkg",
-     "dpkg-dev",
-     "gcc",
-     "g++",
-     "make",
-     "mount",
-     "base-passwd",
-     "mktemp",
-     "sed",
-     "util-linux",
-     "sysvinit-utils",
-     "autoconf",
-     "debhelper",
-     "debianutils",
-     "diff",
-     "e2fsprogs",
-     "findutils",
-     "flex",
-     "login",
-     "coreutils",
-     "grep",
-     "gs",
-     "gzip",
-     "hostname",
-     "intltool",
-     "ncurses-base",
-     "ncurses-bin",
-     "perl",
-     "perl-base",
-     "tar",
-     "sysvinit",
-     "libc6-dev"]
 
 -- (BinPkgName "module-init-tools",Just (SrcPkgName "linux-2.6"))

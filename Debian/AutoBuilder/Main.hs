@@ -4,7 +4,6 @@
 -- appear above it:
 module Debian.AutoBuilder.Main 
     ( main
-    , oldMain
     ) where
 
 import Control.Exception(Exception, try, evaluate)
@@ -15,7 +14,7 @@ import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import Data.List((++), concat, filter, zip, map, length, intersperse)
 import Data.Maybe(Maybe(..), catMaybes, maybe)
-import qualified Debian.AutoBuilder.OldParams as O
+--import qualified Debian.AutoBuilder.OldParams as O
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Params as PP
 import Debian.AutoBuilder.ParamRec()    -- Instances only
@@ -61,10 +60,12 @@ main params@(p : _) =
 
 -- |Version of main that uses the configuration file directory and
 -- command line parameters.
+{-
 oldMain :: IO ()
 oldMain =
     do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
        doMain verbosity (O.params appName [] doHelp doVersion)
+-}
 
 -- | 
 doMain :: P.RunClass p => Int -> AptIOT TIO [p] -> IO ()
@@ -101,8 +102,8 @@ checkResults list =
           isLeft (Left _) = True
           isLeft (Right (Right _)) = False    
 
-doHelp appName = IO.putStrLn (O.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
-doVersion = IO.putStrLn V.autoBuilderVersion >> exitWith ExitSuccess
+--doHelp appName = IO.putStrLn (O.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
+--doVersion = IO.putStrLn V.autoBuilderVersion >> exitWith ExitSuccess
 
 -- |The application name is used to compute the default configuration
 -- file names and the name of the cache directory (topDir,) among

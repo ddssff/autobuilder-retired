@@ -89,7 +89,8 @@ instance P.ParamClass Params where
     archList = archList
     buildDepends = buildDepends
     setEnv = setEnv
-    relaxDepends = relaxDepends
+    globalRelaxInfo = undefined
+    releaseSuffixes = releaseSuffixes
 
 -- |Compute and return all the run time parameters by expanding the
 -- list of flags, generally computed from the command line arguments,
@@ -722,5 +723,3 @@ text lines =
           if length (line ++ " " ++ word) < 80
           then (line ++ " " ++ word) : lines
           else (word : line : lines)
-
-instance (P.ParamClass p) => P.RunClass (p, P.Cache)

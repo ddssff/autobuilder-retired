@@ -21,7 +21,7 @@ import		 Extra.TIO
 import qualified MyHtml
 import qualified Network.CGI as CGI
 import qualified Debian.AutoBuilder.ParamClass as P
-import qualified Debian.AutoBuilder.OldParams as O
+--import qualified Debian.AutoBuilder.OldParams as O
 import		 System.Directory
 import		 System.Environment
 import		 System.IO

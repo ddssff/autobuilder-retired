@@ -2,7 +2,6 @@ module Debian.AutoBuilder.ParamRec
     ( ParamRec(..)
     ) where
 
-import qualified Debian.GenBuildDeps as G
 import Debian.Repo
 import Debian.URI
 import Debian.Version
@@ -32,7 +31,7 @@ data ParamRec =
     , strictness :: Strictness
     , setEnv :: [String]
     , buildDepends :: [String]
-    , relaxDepends :: G.RelaxInfo
+    , globalRelaxInfo :: [String]
     , noClean :: Bool
     , extraPackages :: [String]
     , extraEssential :: [String]
@@ -81,7 +80,7 @@ instance ParamClass ParamRec where
     strictness = Debian.AutoBuilder.ParamRec.strictness
     setEnv = Debian.AutoBuilder.ParamRec.setEnv
     buildDepends = Debian.AutoBuilder.ParamRec.buildDepends
-    relaxDepends = Debian.AutoBuilder.ParamRec.relaxDepends
+    globalRelaxInfo = Debian.AutoBuilder.ParamRec.globalRelaxInfo
     noClean = Debian.AutoBuilder.ParamRec.noClean
     extraPackages = Debian.AutoBuilder.ParamRec.extraPackages
     extraEssential = Debian.AutoBuilder.ParamRec.extraEssential

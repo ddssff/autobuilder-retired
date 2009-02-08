@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Debian.AutoBuilder.ParamClass
     ( topDirDefault
     , ParamClass(..)
@@ -16,6 +17,7 @@ module Debian.AutoBuilder.ParamClass
     , localPoolDir
     , baseRelease
     , isDevelopmentRelease
+    , relaxDepends
     , dropSuffix
     , dropOneSuffix
     , dropAllSuffixes
@@ -146,14 +148,11 @@ class ParamClass a where
     -- @setEnv = ["DEBIAN_KERNEL_JOBS=5"]@.
     buildDepends :: a -> [String]
     -- ^ Obsolete?  Add a missing build dependency.
-    relaxDepends :: a -> G.RelaxInfo
-    -- ^ Prevent the appearance of a new binary package from
-    -- triggering builds of its build dependencies.  Optionally, a
-    -- particular source package can be specified whose rebuild will
-    -- be prevented.  This is used to break dependency loops, For
-    -- example, @Relax-Depends: ghc6 hscolour@ means \"even if ghc6
-    -- is rebuilt, don't rebuild hscolour even though ghc6 is one of
-    -- its build dependencies.\"
+    globalRelaxInfo :: a -> [String]
+    -- ^ A list of packages which will not trigger rebuilds when
+    -- updated.  Used to avoid massive rebuilds when package which are
+    -- build essential but are unlikely to affect the build, such as
+    -- @tar@, are updated.
     noClean :: a -> Bool
     extraPackages :: a -> [String]
     -- ^ Additional packages to include in the clean build environment.
@@ -284,7 +283,7 @@ instance ParamClass p => ParamClass (p, a) where
     strictness = strictness . fst
     setEnv = setEnv . fst
     buildDepends = buildDepends . fst
-    relaxDepends = relaxDepends . fst
+    globalRelaxInfo = globalRelaxInfo . fst
     noClean = noClean . fst
     extraPackages = extraPackages . fst
     extraEssential = extraEssential . fst
@@ -333,7 +332,7 @@ prettyPrint x =
             , "strictness=" ++ take 120 (show (strictness x))
             , "setEnv=" ++ take 120 (show (setEnv x))
             , "buildDepends=" ++ take 120 (show (buildDepends x))
-            --, "relaxDepends=" ++ take 120 (show (relaxDepends x))
+            , "globalRelaxInfo=" ++ take 120 (show (globalRelaxInfo x))
             , "noClean=" ++ take 120 (show (noClean x))
             , "extraPackages=" ++ take 120 (show (extraPackages x))
             , "extraEssential=" ++ take 120 (show (extraEssential x))
@@ -380,6 +379,8 @@ instance CacheClass Cache where
     topDir = topDir'
     allSources = allSources'
     buildRepoSources = buildRepoSources'
+
+instance (ParamClass p) => RunClass (p, Cache)
 
 buildCache :: (ParamClass p, CIO m) => p -> AptIOT m Cache
 buildCache params =
@@ -480,3 +481,15 @@ isDevelopmentRelease params =
       topReleaseName name =
           foldr dropSuff name (releaseSuffixes params)
           where dropSuff suff name = if isSuffixOf suff name then dropSuffix suff name else name
+
+-- | Prevent the appearance of a new binary package from
+-- triggering builds of its build dependencies.  Optionally, a
+-- particular source package can be specified whose rebuild will
+-- be prevented.  This is used to break dependency loops, For
+-- example, @Relax-Depends: ghc6 hscolour@ means \"even if ghc6
+-- is rebuilt, don't rebuild hscolour even though ghc6 is one of
+-- its build dependencies.\"
+relaxDepends params =
+    G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
+                  concatMap (\ target -> map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (sourcePackageName target))))
+                             (relaxInfo target)) (targets params)
