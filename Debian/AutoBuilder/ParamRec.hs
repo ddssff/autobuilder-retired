@@ -38,10 +38,10 @@ data ParamRec =
     , extraEssential :: [String]
     , omitEssential :: [String]
     , omitBuildEssential :: Bool
-    , baseRelease :: SliceName
     , buildRelease :: ReleaseName
+    , releaseSuffixes :: [String]
+    , developmentReleaseNames :: [String]
     , doNotChangeVersion :: Bool
-    , isDevelopmentRelease :: Bool
     , releaseAliases :: [(String, String)]
     , flushRoot :: Bool
     , cleanUp :: Bool
@@ -87,10 +87,10 @@ instance ParamClass ParamRec where
     extraEssential = Debian.AutoBuilder.ParamRec.extraEssential
     omitEssential = Debian.AutoBuilder.ParamRec.omitEssential
     omitBuildEssential = Debian.AutoBuilder.ParamRec.omitBuildEssential
-    baseRelease = Debian.AutoBuilder.ParamRec.baseRelease
     buildRelease = Debian.AutoBuilder.ParamRec.buildRelease
+    releaseSuffixes = Debian.AutoBuilder.ParamRec.releaseSuffixes
+    developmentReleaseNames = Debian.AutoBuilder.ParamRec.developmentReleaseNames
     doNotChangeVersion = Debian.AutoBuilder.ParamRec.doNotChangeVersion
-    isDevelopmentRelease = Debian.AutoBuilder.ParamRec.isDevelopmentRelease
     releaseAliases = Debian.AutoBuilder.ParamRec.releaseAliases
     flushRoot = Debian.AutoBuilder.ParamRec.flushRoot
     cleanUp = Debian.AutoBuilder.ParamRec.cleanUp

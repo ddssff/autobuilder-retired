@@ -14,11 +14,17 @@ module Debian.AutoBuilder.ParamClass
     , dirtyRoot
     , cleanRoot
     , localPoolDir
+    , baseRelease
+    , isDevelopmentRelease
+    , dropSuffix
+    , dropOneSuffix
+    , dropAllSuffixes
     ) where
 
 import           Control.Exception (try, evaluate)
 import           Control.Monad.State (get, put)
 import		 Control.Monad.Trans (lift, liftIO)
+import		 Data.List (isSuffixOf)
 import		 Data.Maybe
 import           Data.Map (fromList)
 import		 Debian.Repo.Cache (SourcesChangedAction)
@@ -26,6 +32,7 @@ import           Debian.Repo.IO (AptIOT)
 import           Debian.Repo(EnvRoot(EnvRoot), Arch, SliceName(..),
                              SliceList(..), NamedSliceList(..), ReleaseName, releaseName',
                              setRepoMap, parseSourcesList, verifySourcesList, repoSources)
+import           Debian.Repo.Types (ReleaseName(relName))
 import		 Debian.Version
 import		 Debian.URI
 import qualified Debian.GenBuildDeps as G
@@ -171,11 +178,15 @@ class ParamClass a where
     -- that a new version of @tar@ is going to change the outcome of
     -- your builds, this option can reduce the number of pointless
     -- rebuilds.  (But try relaxDepends first.)
-    baseRelease :: a -> SliceName
-    -- ^ Packages uploaded to the build release will be compatible
-    -- with packages in this release.
     buildRelease :: a -> ReleaseName
-    -- ^ The name of the release we will be uploading to.
+    -- ^ The name of the release we will be uploading to.  Stripping off
+    -- one of the 'releaseSuffixes' results in the base release.
+    releaseSuffixes :: a -> [String]
+    -- ^ All build releases must have one of these suffixes.  When the
+    -- suffix is stripped off the result is the corresponding base
+    -- release.  We use ["-seereason", "-private"] for this value so
+    -- we can build a public release based on any debian or ubuntu
+    -- release, and a private release based on each public release.
     doNotChangeVersion :: a -> Bool
     -- ^ Don't modify the package's version in any way before
     -- building.  Normally a tag is added to signify the vendor and
@@ -183,15 +194,21 @@ class ParamClass a where
     -- to attempts to upload packages that are already present in
     -- the repository, or packages that are trumped by versions
     -- already uploaded to the release.
-    isDevelopmentRelease :: a -> Bool
-    -- ^ Signifies that the release we are building for is a development
-    -- (or unstable) release.  This means we the tag we add doesn't need
-    -- to include @~<release>@, since there are no newer releases to
-    -- worry about trumping.
+    developmentReleaseNames :: a -> [String]
+    -- ^ The list of upstream release which are currently in
+    -- development.  This means we the tag we add doesn't need to
+    -- include @~<release>@, since there are no newer releases to
+    -- worry about trumping.  Debian's @sid@ is always in this
+    -- list, along with the development version of Ubuntu.
     releaseAliases :: a -> [(String, String)]
     -- ^ Use these aliases for the release name when constructing the
     -- vendor tag used in the version number extension of built
-    -- packages.
+    -- packages.  For example, including the pair @("hardy-seereason",
+    -- "hardy")@ here means that packages built for our
+    -- @hardy-seereason@ release will be assigned version numbers with
+    -- suffixes like @0seereason3~hardy5@ rather than
+    -- @0seereason3~hardy-seereason5@ (the latter would be an illegal
+    -- due to the dash.)
     flushRoot :: a -> Bool
     -- ^ Discard and recreate the clean build environment.
     cleanUp :: a -> Bool
@@ -273,10 +290,10 @@ instance ParamClass p => ParamClass (p, a) where
     extraEssential = extraEssential . fst
     omitEssential = omitEssential . fst
     omitBuildEssential = omitBuildEssential . fst
-    baseRelease = baseRelease . fst
     buildRelease = buildRelease . fst
+    releaseSuffixes = releaseSuffixes . fst
+    developmentReleaseNames = developmentReleaseNames . fst
     doNotChangeVersion = doNotChangeVersion . fst
-    isDevelopmentRelease = isDevelopmentRelease . fst
     releaseAliases = releaseAliases . fst
     flushRoot = flushRoot . fst
     cleanUp = cleanUp . fst
@@ -322,10 +339,10 @@ prettyPrint x =
             , "extraEssential=" ++ take 120 (show (extraEssential x))
             , "omitEssential=" ++ take 120 (show (omitEssential x))
             , "omitBuildEssential=" ++ take 120 (show (omitBuildEssential x))
-            , "baseRelease=" ++ take 120 (show (sliceName (baseRelease x)))
             , "buildRelease=" ++ take 120 (show (buildRelease x))
+            , "releaseSuffixes=" ++ take 120 (show (releaseSuffixes x))
+            , "developmentReleaseNames=" ++ take 120 (show (developmentReleaseNames x))
             , "doNotChangeVersion=" ++ take 120 (show (doNotChangeVersion x))
-            , "isDevelopmentRelease=" ++ take 120 (show (isDevelopmentRelease x))
             , "releaseAliases=" ++ take 120 (show (releaseAliases x))
             , "flushRoot=" ++ take 120 (show (flushRoot x))
             , "cleanUp=" ++ take 120 (show (cleanUp x))
@@ -340,7 +357,7 @@ prettyPrint x =
             --, "ifSourcesChanged=" ++ take 120 (show (ifSourcesChanged x))
             , "doSSHExport=" ++ take 120 (show (doSSHExport x))
             , "autobuilderEmail=" ++ take 120 (show (autobuilderEmail x))
-            , "baseRelease sources=\n" ++ show (lookup (sliceName (baseRelease x)) (sources x))
+            --, "baseRelease sources=\n" ++ show (lookup (sliceName (baseRelease x)) (sources x))
             ]
 
 class CacheClass a where
@@ -431,3 +448,35 @@ cleanRoot params = cleanRootOfRelease params (buildRelease params)
 -- |Location of the local repository for uploaded packages.
 localPoolDir :: (CacheClass a, ParamClass a) => a -> FilePath
 localPoolDir params = topDir params ++ "/localpools/" ++ releaseName' (buildRelease params)
+
+-- | Packages uploaded to the build release will be compatible
+-- with packages in this release.
+baseRelease :: ParamClass a => a -> SliceName
+baseRelease params =
+    maybe (error $ "Unknown release suffix: " ++ rel) SliceName
+              (dropOneSuffix (releaseSuffixes params) rel)
+    where rel = (relName (buildRelease params))
+
+dropSuffix suffix x = take (length x - length suffix) x
+
+dropSuffixMaybe :: String -> String -> Maybe String
+dropSuffixMaybe suffix x = if isSuffixOf suffix x then Just (dropSuffix suffix x) else Nothing
+
+dropOneSuffix suffixes s =
+    case catMaybes (map (`dropSuffixMaybe` s) suffixes) of
+      [s'] -> Just s'
+      _ -> Nothing
+
+dropAllSuffixes :: [String] -> String -> String
+dropAllSuffixes suffixes s = maybe s (dropAllSuffixes suffixes) (dropOneSuffix suffixes s)
+
+-- | Signifies that the release we are building for is a development
+-- (or unstable) release.  This means we the tag we add doesn't need
+-- to include @~<release>@, since there are no newer releases to
+-- worry about trumping.
+isDevelopmentRelease params =
+    elem (topReleaseName (relName (buildRelease params))) (developmentReleaseNames params)
+    where
+      topReleaseName name =
+          foldr dropSuff name (releaseSuffixes params)
+          where dropSuff suff name = if isSuffixOf suff name then dropSuffix suff name else name

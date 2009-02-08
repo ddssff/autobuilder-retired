@@ -46,11 +46,10 @@ import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Version as V
 import Debian.AutoBuilder.ParamClass(P.Strictness(P.Lax),
                                      P.ParamClass(P.strictness, P.releaseAliases, P.relaxDepends,
-                                                  P.preferred, P.noClean, P.isDevelopmentRelease,
+                                                  P.preferred, P.noClean, P.developmentReleaseNames,
                                                   P.goals, P.forceBuild, P.extraReleaseTag,
                                                   P.dryRun, P.doNotChangeVersion, P.buildRelease,
-                                                  P.baseRelease, P.autobuilderEmail,
-                                                  P.allowBuildDependencyRegressions, P.buildDepends,
+                                                  P.autobuilderEmail, P.allowBuildDependencyRegressions, P.buildDepends,
                                                   P.vendorTag),
                                      P.RunClass, P.dirtyRoot)
 import Debian.AutoBuilder.Version(V.autoBuilderVersion)
@@ -60,27 +59,22 @@ import qualified Debian.Control.String as S(fieldValue)
 import Debian.Extra.CIO(vMessage)
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations, Relation(..))
-import Debian.Repo(SourcePackage(sourceParagraph, sourcePackageID),
-                   AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
-                   SliceName(sliceName), PackageID(packageVersion, packageName),
-                   LocalRepository, PkgVersion(..),
-                   BinaryPackage(packageInfo, packageID), releaseName', AptIOT,
-                   countTasks,
-                   ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
-                   ChangedFileSpec(changedFileSize, changedFileName,
-                                   changedFileMD5sum),
-                   ChangeLogEntry(logWho, logVersion, logPackage, logDists, logDate,
-                                  logComments),
-                   save, uploadLocal, invalidRevision, readPkgVersion, showPkgVersion,
-                   simplifyRelations, solutions, aptSourcePackagesSorted,
-                   binaryPackages, buildArchOfEnv, sourcePackages,
-                   binaryPackageSourceVersion, sourcePackageBinaryNames, scanIncoming,
-                   showErrors, OSImage, chrootEnv, syncEnv, syncPool, updateEnv,
-                   findDebianSourceTree, SourcePackageStatus(..), SourceTreeC(..),
-                   DebianSourceTreeC(..), DebianSourceTree, DebianBuildTree,
-                   DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
-                   copyDebianSourceTree, explainSourcePackageStatus, findChanges,
-                   findDebianBuildTree, findOneDebianBuildTree)
+import Debian.Repo (countTasks, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
+                    ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum),
+                    ChangeLogEntry(logWho, logVersion, logPackage, logDists, logDate, logComments),
+                    save, uploadLocal, invalidRevision, readPkgVersion, showPkgVersion,
+                    simplifyRelations, solutions, binaryPackages, buildArchOfEnv, sourcePackages,
+                    aptSourcePackagesSorted, binaryPackageSourceVersion, sourcePackageBinaryNames,
+                    scanIncoming, showErrors, OSImage, chrootEnv, syncEnv, syncPool, updateEnv,
+                    findDebianSourceTree, SourceTreeC(..), DebianSourceTreeC(..), DebianSourceTree,
+                    DebianBuildTree, DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
+                    copyDebianSourceTree, explainSourcePackageStatus, findChanges,
+                    findDebianBuildTree, findOneDebianBuildTree, SourcePackageStatus(..))
+import Debian.Repo.IO (AptIOT)
+import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID), SliceName(..),
+                          AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
+                          PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
+                          BinaryPackage(packageInfo, packageID), releaseName')
 import Debian.Shell(dotOutput)
 import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, version)

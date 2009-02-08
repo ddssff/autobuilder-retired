@@ -7,19 +7,20 @@ import Debian.AutoBuilder.ParamClass (Target(..))
 import Debian.AutoBuilder.ParamRec
 import Debian.GenBuildDeps (SrcPkgName(SrcPkgName), BinPkgName(BinPkgName), RelaxInfo(RelaxInfo))
 import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
-import Debian.Repo.Types (SliceName(SliceName, sliceName), ReleaseName(ReleaseName, relName), Arch(Binary))
+import Debian.Repo.Types (ReleaseName(ReleaseName, relName), Arch(Binary))
 import Debian.URI
 import Debian.Version (parseDebianVersion)
 import System.IO (hPutStrLn, hFlush, stderr)
 
 main =
-    hPutStrLn stderr "Autobuilder starting..." >> hFlush stderr >> M.main [params]
-    -- getArgs >>= \ args -> M.main [doOptions params args]
+    hPutStrLn stderr "Autobuilder starting..." >>
+    hFlush stderr >>
+    M.main [params "hardy-seereason", params "hardy-seereason-private"]
 
 ---------------------------- THE PARAMETERS RECORD ---------------------------------
 
 -- |See Documentation in "Debian.AutoBuilder.ParamClass".
-params =
+params myBuildRelease =
     ParamRec
     { vendorTag = myVendorTag
     , debug = False
@@ -32,8 +33,8 @@ params =
     , showParams = False
     , flushAll = False
     , useRepoCache = True
-    , sources = allSources myDebianMirrorHost myUbuntuMirrorHost myBuildPrivateTargets
-    , targets = myTargets
+    , sources = allSources myDebianMirrorHost myUbuntuMirrorHost (myBuildPrivateTargets myBuildRelease)
+    , targets = myTargets myBuildRelease
     , omitTargets = []
     , goals = myGoals
     , flushSource = False
@@ -45,20 +46,19 @@ params =
     , buildDepends = []
     , relaxDepends =
           RelaxInfo $ map (\ target -> (BinPkgName target, Nothing)) globalRelaxInfo ++
-                      concatMap (\ target -> map (\ binPkg -> (BinPkgName binPkg, Just (SrcPkgName (sourcePackageName target)))) (relaxInfo target)) myTargets
+                      concatMap (\ target -> map (\ binPkg -> (BinPkgName binPkg,
+                                                               Just (SrcPkgName (sourcePackageName target))))
+                                 (relaxInfo target)) (myTargets myBuildRelease)
     , noClean = False
-    , extraPackages = myExtraPackages
-    , extraEssential = myExtraEssential
+    , extraPackages = myExtraPackages myBuildRelease
+    , extraEssential = myExtraEssential myBuildRelease
     , omitEssential = []
     , omitBuildEssential = False
-    , baseRelease = SliceName {sliceName = myBaseRelease}
-    , buildRelease = ReleaseName {relName = myBaseRelease ++ (if myBuildPrivateTargets then "-private" else "-seereason")}
+    , buildRelease = ReleaseName {relName = myBuildRelease}
+    , releaseSuffixes = myReleaseSuffixes
     , doNotChangeVersion = False
-    , isDevelopmentRelease = elem (topReleaseName myBaseRelease) ["sid", "jaunty"]
-    , releaseAliases = [("etch", "bpo40+"),
-                        ("hardy-seereason", "hardy"),
-                        ("intrepid-seereason", "intrepid"),
-                        ("jaunty-seereason", "jaunty")]
+    , developmentReleaseNames = myDevelopmentReleaseNames
+    , releaseAliases = myReleaseAliases
     , flushRoot = False
     , cleanUp = False
     , archList = [Binary "i386",Binary "amd64"]
@@ -66,38 +66,43 @@ params =
     , doUpload = myDoUpload
     , doNewDist = myDoNewDist
     , newDistProgram = "newdist -v"
-    , buildURI = myBuildURI
-    , uploadURI = myUploadURI
+    , buildURI = myBuildURI myBuildRelease
+    , uploadURI = myUploadURI myBuildRelease
     , createRelease = []
     , ifSourcesChanged = SourcesChangedError
-    , doSSHExport = False
+    , doSSHExport = myDoSSHExport
     , autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
     }
 
 -- The name of the upstream release that the the build release will be
 -- based on.  This sources.list is combined with the one constructed
 -- from the Build-URI to create the build environment.
-myBaseRelease = "intrepid" ++ if myBuildPrivateTargets then "-seereason" else ""
-
--- If True build the private targets, otherwise the public.
-myBuildPrivateTargets = False
+--myBuildRelease = "intrepid-seereason-private"
+myBuildPrivateTargets release = isSuffixOf "-private" release
+myReleaseSuffixes = ["-seereason", "-private"]
+myDevelopmentReleaseNames = ["sid", "jaunty"]
 
 -- 
-myUploadHost = "deb.seereason.com"
 myVendorTag = "seereason"
-myTargets = case myBuildPrivateTargets of
-              False -> ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
-              True -> privateTargets
+myTargets myBuildRelease =
+    case myBuildPrivateTargets myBuildRelease of
+      False -> ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
+      True -> privateTargets
 myGoals = []
 myForceBuild = []
 myVerbosity = 0
 myUbuntuMirrorHost = "mirror.anl.gov"
 myDebianMirrorHost = "mirror.anl.gov"
 
-myBaseRepo = releaseRepoName myBaseRelease
-
 myDoUpload = True
 myDoNewDist = True
+myDoSSHExport = True
+
+myReleaseAliases =
+    [("etch", "bpo40+"),
+     ("hardy-seereason", "hardy"),
+     ("intrepid-seereason", "intrepid"),
+     ("jaunty-seereason", "jaunty")]
 
 -- This URI is the address of the remote repository to which packages
 -- will be uploaded after a run with no failures, when the myDoUpload
@@ -106,19 +111,27 @@ myDoNewDist = True
 -- local repository, where each packages is uploaded immediately after
 -- it is built for use as build dependencies of other packages during
 -- the same run.
-myUploadURI = case myBuildPrivateTargets of
-                False -> parseURI $ "ssh://upload@deb.seereason.com/srv/deb" ++ "/" ++ myBaseRepo
-                True -> parseURI $ myPrivateBuildURI ++ "/" ++ myBaseRepo
+myUploadURI myBuildRelease =
+    case myBuildPrivateTargets myBuildRelease of
+      False -> parseURI $ myPublicUploadURI myBuildRelease
+      True -> parseURI $ myPrivateUploadURI myBuildRelease
 
 -- An alternate url for the same repository the upload-uri points to,
 -- used for downloading packages that have already been installed
 -- there.
-myBuildURI = case myBuildPrivateTargets of
-               False -> parseURI $ "http://deb.seereason.com/" ++ myBaseRepo
-               True -> parseURI $ myPrivateUploadURI ++ "/" ++ myBaseRepo
+myBuildURI myBuildRelease =
+    case myBuildPrivateTargets myBuildRelease of
+      False -> parseURI $ myPublicBuildURI myBuildRelease
+      True -> parseURI $ myPrivateBuildURI myBuildRelease
 
-myPrivateUploadURI = "ssh://upload@deb.seereason.com/srv/deb-private"
-myPrivateBuildURI = "ssh://upload@deb.seereason.com/srv/deb-private"
+myPrivateUploadURI release = "ssh://upload@deb.seereason.com/srv/deb-private/" ++ releaseRepoName release
+myPrivateBuildURI release = "ssh://upload@deb.seereason.com/srv/deb-private/" ++ releaseRepoName release
+
+myPublicUploadURI release = "ssh://upload@deb.seereason.com/srv/deb/" ++ releaseRepoName release
+myPublicBuildURI release = "http://deb.seereason.com/" ++ releaseRepoName release
+
+--myPrivateUploadURI = "ssh://upload@deb.seereason.com/srv/deb-private"
+--myPrivateBuildURI = "ssh://upload@deb.seereason.com/srv/deb-private"
 
 -- Additional packages to include in the clean build environment.
 -- Adding packages here can speed things up when you are building many
@@ -127,22 +140,22 @@ myPrivateBuildURI = "ssh://upload@deb.seereason.com/srv/deb-private"
 -- dependencies.  This only affects newly created environments, so if
 -- you change this value use the flushRoot option to get it to take
 -- effect.
-myExtraPackages =
+myExtraPackages myBuildRelease =
     ["debian-archive-keyring"] ++
-    case releaseRepoName myBaseRelease of
+    case releaseRepoName myBuildRelease of
       "debian" -> []
       "ubuntu" -> ["ubuntu-keyring"]
-      _ -> error $ "Unknown base release: " ++ myBaseRelease
+      _ -> error $ "Invalid build release: " ++ myBuildRelease
 
 -- Specify extra packages to include as essential in the build
 -- environment.  This option was provided to add either upstart or
 -- sysvinit to the build when they ceased to be 'Required' packages.
-myExtraEssential =
+myExtraEssential myBuildRelease =
     ["belocs-locales-bin", "gnupg", "dpkg"] ++
-    case releaseRepoName myBaseRelease of
+    case releaseRepoName myBuildRelease of
       "debian" -> []
       "ubuntu" -> ["upstart-compat-sysv"]
-      _ -> error $ "Unknown base release: " ++ myBaseRelease
+      _ -> error $ "Unknown build release: " ++ myBuildRelease
 
 ------------------------- SOURCES --------------------------------
 
@@ -159,11 +172,6 @@ ubuntuSourceLines ubuntuMirrorHost release =
     , "deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse"
     , "deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse"
     , "deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse" ]
-
-topReleaseName :: String -> String
-topReleaseName name =
-    foldr dropSuff name ["-seereason", "-private"]
-    where dropSuff suff name = if isSuffixOf suff name then dropSuffix suff name else name
 
 debianReleases = ["sid", "lenny"]
 ubuntuReleases = ["jaunty", "intrepid", "hardy"]
@@ -197,12 +205,12 @@ allSources debianMirrorHost ubuntuMirrorHost includePrivate =
             x -> error $ "Unknown release repository: " ++ show x
       seereasonSourceLines release =
           releaseSourceLines (dropSuffix "-seereason" release) ++
-                                 [ "deb http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main"
-                                 , "deb-src http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
+                                 [ "deb " ++ myPublicBuildURI release ++ " " ++ release ++ " main"
+                                 , "deb-src " ++ myPublicBuildURI release ++ " " ++ release ++ " main" ]
       privateSourceLines release =
           releaseSourceLines (dropSuffix "-private" release) ++
-                                 [ "deb " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main"
-                                 , "deb-src " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
+                                 [ "deb " ++ myPrivateUploadURI release ++ " " ++ release ++ " main"
+                                 , "deb-src " ++ myPrivateUploadURI release ++ " " ++ release ++ " main" ]
 
 
 

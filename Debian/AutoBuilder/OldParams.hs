@@ -74,12 +74,11 @@ instance P.ParamClass Params where
     preferred = preferred
     createRelease = createRelease
     autobuilderEmail = autobuilderEmail
-    baseRelease = baseRelease
     uploadURI = uploadURI
     buildURI = buildURI
     buildRelease = buildRelease
     doNotChangeVersion = doNotChangeVersion
-    isDevelopmentRelease = isDevelopmentRelease
+    developmentReleaseNames = const ["sid", "jaunty"]
     releaseAliases = releaseAliases
     verbosity = verbosity
     sources = sources

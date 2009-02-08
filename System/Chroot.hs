@@ -11,6 +11,7 @@ import Foreign.C.String
 
 import System.Cmd (system)
 import System.Directory (createDirectoryIfMissing)
+import System.Exit
 import System.FilePath (dropTrailingPathSeparator, dropFileName)
 import System.Posix.Env (getEnv)
 import System.Posix.IO
@@ -48,15 +49,31 @@ fchroot path action =
 -- running ssh-agent.  Therefore we mount --bind the ssh agent socket
 -- dir inside the chroot (and umount it when we exit the chroot.
 useEnv :: FilePath -> IO a -> IO a
-useEnv path action =
-    getEnv "SSH_AUTH_SOCK" >>= useSock
+useEnv rootPath action =
+    do sockPath <- try (getEnv "SSH_AUTH_SOCK") >>= either (error . show) return
+       home <- try (getEnv "HOME") >>= either (error . show) return
+       -- Do NOT preserve ownership, files must be owned by root.
+       copySSH home
+       withSock sockPath $ action
     where
-      useSock Nothing =
-          fchroot path action
-      useSock (Just sock) = 
-          do let dir = dropTrailingPathSeparator (dropFileName sock)
-             createDirectoryIfMissing True (path ++ dir)
-             system ("mount --bind " ++ dir ++ " " ++ path ++ dir)
-             result <- fchroot path action
-             system ("umount " ++ path ++ dir)
-             return result
+      copySSH Nothing = return ()
+      copySSH (Just home) =
+          system' ("rsync -rlptgDHxS " ++ home ++ "/.ssh/ " ++ rootPath ++ "/root/.ssh")
+      withSock Nothing action = action
+      withSock (Just sockPath) action =
+          withMountBind dir (rootPath ++ dir) action
+          where dir = dropTrailingPathSeparator (dropFileName sockPath)
+      withMountBind toMount mountPoint action =
+          try doMount >>= either (error . show) return
+          where
+            doMount =
+                do createDirectoryIfMissing True mountPoint
+                   system' $ "mount --bind " ++ escapePathForMount toMount ++ " " ++ escapePathForMount mountPoint
+                   result <- fchroot rootPath action
+                   system' $ "umount " ++ escapePathForMount mountPoint
+                   return result
+      escapePathForMount = id	-- FIXME - Path arguments should be escaped
+      system' s =
+          system s >>= testcode
+          where testcode (ExitFailure n) = error (show s ++ " -> " ++ show n)
+                testcode ExitSuccess = return ()
