@@ -5,17 +5,75 @@ import qualified Debian.AutoBuilder.Main as M
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.AutoBuilder.ParamClass (Target(..))
 import Debian.AutoBuilder.ParamRec
-import Debian.AutoBuilder.Params (defaultParams)
 import Debian.GenBuildDeps (SrcPkgName(SrcPkgName), BinPkgName(BinPkgName), RelaxInfo(RelaxInfo))
 import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
 import Debian.Repo.Types (SliceName(SliceName, sliceName), ReleaseName(ReleaseName, relName), Arch(Binary))
 import Debian.URI
---import Debian.Version
+import Debian.Version (parseDebianVersion)
 import System.IO (hPutStrLn, hFlush, stderr)
 
 main =
     hPutStrLn stderr "Autobuilder starting..." >> hFlush stderr >> M.main [params]
     -- getArgs >>= \ args -> M.main [doOptions params args]
+
+---------------------------- THE PARAMETERS RECORD ---------------------------------
+
+-- |See Documentation in "Debian.AutoBuilder.ParamClass".
+params =
+    ParamRec
+    { vendorTag = myVendorTag
+    , debug = False
+    , extraReleaseTag = Nothing
+    , requiredVersion = [(parseDebianVersion "4.41", Nothing)]
+    , verbosity = myVerbosity
+    , topDirParam = Nothing
+    , dryRun = False
+    , showSources = False
+    , showParams = False
+    , flushAll = False
+    , useRepoCache = True
+    , sources = allSources myDebianMirrorHost myUbuntuMirrorHost myBuildPrivateTargets
+    , targets = myTargets
+    , omitTargets = []
+    , goals = myGoals
+    , flushSource = False
+    , forceBuild = myForceBuild
+    , allowBuildDependencyRegressions = False
+    , preferred = []
+    , strictness = P.Moderate
+    , setEnv = []
+    , buildDepends = []
+    , relaxDepends =
+          RelaxInfo $ map (\ target -> (BinPkgName target, Nothing)) globalRelaxInfo ++
+                      concatMap (\ target -> map (\ binPkg -> (BinPkgName binPkg, Just (SrcPkgName (sourcePackageName target)))) (relaxInfo target)) myTargets
+    , noClean = False
+    , extraPackages = myExtraPackages
+    , extraEssential = myExtraEssential
+    , omitEssential = []
+    , omitBuildEssential = False
+    , baseRelease = SliceName {sliceName = myBaseRelease}
+    , buildRelease = ReleaseName {relName = myBaseRelease ++ (if myBuildPrivateTargets then "-private" else "-seereason")}
+    , doNotChangeVersion = False
+    , isDevelopmentRelease = elem (topReleaseName myBaseRelease) ["sid", "jaunty"]
+    , releaseAliases = [("etch", "bpo40+"),
+                        ("hardy-seereason", "hardy"),
+                        ("intrepid-seereason", "intrepid"),
+                        ("jaunty-seereason", "jaunty")]
+    , flushRoot = False
+    , cleanUp = False
+    , archList = [Binary "i386",Binary "amd64"]
+    , flushPool = False
+    , doUpload = myDoUpload
+    , doNewDist = myDoNewDist
+    , newDistProgram = "newdist -v"
+    , uploadHost = Just myUploadHost
+    , buildURI = myBuildURI
+    , uploadURI = myUploadURI
+    , createRelease = []
+    , ifSourcesChanged = SourcesChangedError
+    , doSSHExport = False
+    , autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
+    }
 
 -- The name of the upstream release that the the build release will be
 -- based on.  This sources.list is combined with the one constructed
@@ -544,179 +602,6 @@ Comment: Here are some more proposed targets
   quilt:(apt:${base}:bcm43xx-fwcutter):(tla:tos@linspire.com--skipjack/bcm43xx-fwcutter-quilt--cnr--0)
 -}
 
----------------------------- THE PARAMETERS RECORD ---------------------------------
-
-params =
-    (defaultParams
-      myBaseRelease
-      -- The string used to construct modified version numbers.
-      myVendorTag
-      -- Email address of autobuilder for use in generated changelog entries.
-      "SeeReason Autobuilder <autobuilder@seereason.org>")
-    { verbosity = myVerbosity,
-      topDirParam = Nothing,
-      -- This flag says not to do anything that will affect the
-      -- outside world, such as uploads and remote newdists.  However,
-      -- the files in ~/.autobuilder may still be modified when this
-      -- is used.  It does avoids making extensive changes to the
-      -- local repository by exiting as soon as a target it identified
-      -- as needing to be built.
-      dryRun = False,
-      -- Print the sources.list for the build distro and exit.
-      showSources = False,
-      -- Print the expanded runtime parameter list and continue.
-      showParams = False,
-      -- Remove and re-create the entire autobuilder working directory (topDir.)
-      flushAll = False,
-      -- Load the most recent cached repository information from
-      -- ~/.autobuilder/repoCache and assume that it is still good -
-      -- that no releases have been added or removed from the
-      -- repositories listed.  This is usually safe and saves some
-      -- time querying each remote repository before using it.
-      useRepoCache = True,
-      -- Specify all known source.list files, associating a name
-      -- with each one.  The names can be used in apt targets.
-      sources = allSources myDebianMirrorHost myUbuntuMirrorHost myBuildPrivateTargets,
-      -- Specify one or more build targets, methods for obtaining the
-      -- source code of a package to be built.  See TARGET TYPES below
-      -- for information about the available target types."
-      targets = myTargets,
-      -- Specify a source package which we want to build, and stop
-      -- once all goals are built.  If not given all targets are
-      -- considered goals.  (As of version 4.41 this option is not be
-      -- fully functional, sometimes specifying goals will prevent all
-      -- the builds.)
-      goals = myGoals,
-      -- Discard and re-download all source code before building.
-      flushSource = False,
-      -- Build the named source package(s) whether or not they seems
-      -- to need it.
-      forceBuild = myForceBuild,
-      -- Normally, if a build dependency has an older version number
-      -- than it did on a previous build, it is an error.  This
-      -- generally means the sources.list is incorrect.  However, this
-      -- flag can be necessary if a package gets withdrawn from the build
-      -- or base release.
-      allowBuildDependencyRegressions = False,
-      -- When selecting build dependencies, prefer this particular
-      -- package over other alternatives that could fulfill the
-      -- dependency, even if this package seems older than some other
-      -- alternative.  For example, the c-compiler virtual package is
-      -- provided by gcc-3.3, gcc-3.4, gcc-4.0, etc.  If 'Prefer:
-      -- gcc-3.4' is used, a dependency on c-compiler will choose
-      -- gcc-3.4 over the others if possible.
-      preferred = [],
-      -- Specify how strict to be about the creation of build
-      -- environments, trading off correctness with speed.  In all
-      -- cases, a clean build environment is always maintained, and
-      -- copied before the package build is performed using rsync.
-      -- 'Strict' means the clean build environment is discarded and
-      -- recreated before each target is built.  'Moderate' means the
-      -- clean build environment is kept between successive runs, and
-      -- updated as necessary using 'apt-get update' and 'apt-get
-      -- dist-upgrade'.  'Lax' means that build dependencies are
-      -- installed into the clean build environment so that they
-      -- accumulate across runs.
-      strictness = P.Moderate,
-      -- Set one or more environment variables during the build, e.g. 
-      -- setEnv = ["DEBIAN_KERNEL_JOBS=5"].
-      setEnv = [],
-      -- Obsolete?  Add a missing build dependency.
-      buildDepends = [],
-      -- Prevent the appearance of a new binary package from
-      -- triggering builds of its build dependencies.  Optionally, a
-      -- particular source package can be specified whose rebuild will
-      -- be prevented.  This is used to break dependency loops, For
-      -- example, 'Relax-Depends: ghc6 hscolour' means 'even if ghc6
-      -- is rebuilt, don't rebuild hscolour even though ghc6 is one of
-      -- its build dependencies.
-      relaxDepends =
-          RelaxInfo $ map (\ target -> (BinPkgName target, Nothing)) globalRelaxInfo ++
-                      concatMap (\ target -> map (\ binPkg -> (BinPkgName binPkg, Just (SrcPkgName (sourcePackageName target)))) (relaxInfo target)) myTargets,
-      -- Run dpkg-buildpackage with the -nc argument.  This also
-      -- disables syncing with the clean source tree.  This should
-      -- only be used for debugging the autobuilder or for debugging
-      -- the package build.  To edit the package you need to find the
-      -- work directory in the cached build and make your edits there.
-      -- Then you will need to check them back into your revision
-      -- control system.
-      noClean = False,
-      extraPackages = myExtraPackages,
-      extraEssential = myExtraEssential,
-      -- Specify packages for build-env to remove from the essential
-      -- list even if they are marked essential
-      omitEssential = [],
-      -- OBSOLETE: Don't automatically consider all the build
-      -- essential packages to be build dependencies.  If you are
-      -- working with an unstable repository where the core packages
-      -- are undergoing frequent revisions, and you aren't worried
-      -- that a new version of 'tar' is going to change the outcome of
-      -- your builds, this option can reduce the number of pointless
-      -- rebuilds.  (But try relaxDepends first.)
-      omitBuildEssential = False,
-      -- Packages uploaded to the build release will be compatible
-      -- with packages in this release.
-      baseRelease = SliceName {sliceName = myBaseRelease},
-      -- The name of the release we will be uploading to.
-      buildRelease = ReleaseName {relName = myBaseRelease ++ (if myBuildPrivateTargets then "-private" else "-seereason")},
-      -- Don't modify the package's version in any way before
-      -- building.  Normally a tag is added to signify the vendor and
-      -- the base release of the package.  Using this option can lead
-      -- to attempts to upload packages that are already present in
-      -- the repository, or packages that are trumped by versions
-      -- already uploaded to the release.
-      doNotChangeVersion = False,
-      -- Signifies that the release we are building for is a development
-      -- (or unstable) release.  This means we the tag we add doesn't need
-      -- to include '~release', since there are no newer releases to
-      -- worry about trumping.
-      isDevelopmentRelease = elem (topReleaseName myBaseRelease) ["sid", "jaunty"],
-      -- Use these aliases for the release name when constructing the
-      -- vendor tag used in the version number extension of built
-      -- packages.
-      releaseAliases = [("etch", "bpo40+"),
-                        ("hardy-seereason", "hardy"),
-                        ("intrepid-seereason", "intrepid"),
-                        ("jaunty-seereason", "jaunty")],
-      -- Discard and recreate the clean build environment.
-      flushRoot = False,
-      -- Do a garbage collection on the local repository, move all
-      -- unreferenced files to 'removed'.  This is probably not a
-      -- useful option, as the local repository is frequently removed.
-      cleanUp = False,
-      -- The list of architectures to prepare the repository to accept.
-      archList = [Binary "i386",Binary "amd64"],
-      -- Discard the packages in the local pool before building.  Use
-      -- this when a bad package was uploaded to the local pool that
-      -- you don't want uploaded to the remote pool.
-      flushPool = False,
-      -- After a successful build of all the targets, dupload all the
-      -- packages in the local pool specified by the uploadURI
-      -- argument to the corresponding repository.
-      doUpload = myDoUpload,
-      -- After uploading, run newdist on the remote repository
-      -- incoming directory
-      doNewDist = myDoNewDist,
-      -- Use given executable as the newdist program, the program that
-      -- runs on the upload host to install packages in the incoming
-      -- directory to the repository. | 
-      newDistProgram = "newdist -v",
-      uploadHost = Just myUploadHost,
-      buildURI = myBuildURI,
-      uploadURI = myUploadURI,
-      -- Pass a --create NAME argument to newdist to create a new
-      -- release in the upload repository.
-      createRelease = [],
-      -- What to do if the sources.list changes in the
-      -- configuration directory.  The argument may be
-      --   SourcesChangedError - (the default) print a message and exit, 
-      --   SourcesChangedUpdate - rewrite sources.list and update the environment, 
-      --   SourcesChangedRemove - discard and rebuild the environment
-      ifSourcesChanged = SourcesChangedError,
-      -- Try to set up ssh keys if upload host asks for a password.
-      doSSHExport = False
-    }
-
 globalRelaxInfo =
     ["base-files",
      "bash",
@@ -756,140 +641,3 @@ globalRelaxInfo =
      "libc6-dev"]
 
 -- (BinPkgName "module-init-tools",Just (SrcPkgName "linux-2.6"))
-
-{-
-  deb-dir:(darcs:http://code.haskell.org/checkers):(darcs:http://src.seereason.com/debian/checkers-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/MemoTrie/0.0/MemoTrie-0.0.tar.gz):(darcs:http://src.seereason.com/debian/MemoTrie-debian)
-  deb-dir:(darcs:http://darcs.haskell.org/packages/TypeCompose):(darcs:http://src.seereason.com/debian/TypeCompose-debian)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/Cabal/1.4.0.0/Cabal-1.4.0.0.tar.gz:5d8f10b95c42ac7419ac9673bfb6a607):(darcs:http://src.seereason.com/debian/cabal-debianization)
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/ghc-paths/0.1.0.4/ghc-paths-0.1.0.4.tar.gz:a8f36dcb5407de9907b7d78b31fc24a1):(darcs:http://src.seereason.com/debian/ghc-paths-debian)
-  quilt:(darcs:http://www.cs.york.ac.uk/fp/darcs/hscolour):(darcs:http://src.seereason.com/quilt/hscolour-quilt)
-  darcs:http://src.seereason.com/haskell-ugly
-  darcs:http://src.seereason.com/mirror
-  darcs:http://src.seereason.com/backups
-  quilt:(apt:sid:xtla):(darcs:http://src.seereason.com/xtla-quilt)
-  proc:apt:gutsy:neko
-  proc:apt:gutsy:haxe
-  deb-dir:(uri:http://hackage.haskell.org/packages/archive/colour/1.0.0/colour-1.0.0.tar.gz:97b0802abbf3a71a3606642850fe46c7):(darcs:http://src.seereason.com/debian/colour-debian)
-  apt:sid:alex
-  apt:sid:bnfc
-  deb-dir:(darcs:http://darcs.haskell.org/crypto):(darcs:http://src.seereason.com/debian/haskell-crypto-debian)
-  apt:sid:darcs
-  apt:sid:darcs-monitor
-  apt:sid:drift
-  apt:sid:frown
-  darcs:http://www.n-heptane.com/nhlab/repos/haskell-agi
-  quilt:(apt:hardy:haskell-binary):(darcs:http://src.seereason.com/quilt/haskell-binary-quilt)
-  apt:sid:haskell-doc
-  quilt:(apt:sid:haskell-edison):(darcs:http://src.seereason.com/quilt/edison-quilt)
-  apt:sid:haskell-hlist
-  quilt:(apt:sid:haskell-http):(darcs:http://src.seereason.com/quilt/haskell-http-quilt)
-  apt:sid:haskell-mode
-  apt:sid:haskell-uulib
-  apt:sid:helium
-  apt:hardy:hmake
-  quilt:(apt:sid:hslogger):(darcs:http://src.seereason.com/quilt/hslogger-quilt)
-  quilt:(apt:sid:ldap-haskell):(darcs:http://src.seereason.com/quilt/ldap-haskell-quilt)
-  apt:sid:lhs2tex
-  quilt:(apt:sid:magic-haskell):(darcs:http://src.seereason.com/quilt/magic-haskell-quilt)
-  quilt:(apt:sid:pandoc):(darcs:http://src.seereason.com/quilt/pandoc-quilt)
-  apt:sid:uuagc
-  apt:sid:whitespace
-  sourcedeb:darcs:http://src.seereason.com/haskell-wordnet
-  quilt:(apt:sid:xmonad):(darcs:http://src.seereason.com/quilt/xmonad-quilt)
-  darcs:http://src.seereason.com/hlibrary
-  apt:sid:haskelldb
-    - Needs doc architecture fix
-  apt:hardy:haskell-hsql
-    - Needs doc architecture fix
-  apt:hardy:haskell-hsql-mysql
-    - Needs doc architecture fix
-  apt:hardy:haskell-hsql-odbc
-    - Needs doc architecture fix
-  apt:sid:haskell-hsql-postgresql
-    - Needs doc architecture fix
-  apt:hardy:haskell-hsql-sqlite3
-    - Needs doc architecture fix
-  apt:sid:c2hs
-    - Needs doc architecture fix
-  apt:sid:washngo
-    - Needs patch
-  apt:sid:ftphs
-    - Needs patch
-  apt:sid:haskell-anydbm
-    - Needs patch
-  apt:sid:haskell-configfile
-    - Needs patch
-  apt:sid:haskell-hsh
-    - Needs patch
-  apt:sid:listlike
-    - Needs patch
-  quilt:(apt:sid:missingh):(darcs:http://src.seereason.com/quilt/missingh-quilt)
-    - Needs patch
-  apt:sid:gtkrsync
-    - Needs patch
-  quilt:(apt:sid:gtk2hs):(darcs:http://src.seereason.com/quilt/gtk2hs-quilt)
-    - Needs patch
-  apt:sid:arch2darcs
-    - Needs patch
-  apt:sid:hg-buildpackage
-    - Needs patch
-  apt:sid:srcinst
-    - Needs patch
-  apt:sid:dfsbuild
-    - Needs patch
-  apt:sid:darcs-buildpackage
-    - Needs patch
-  apt:sid:hat
-    - Needs patch
-  gtkrsync
-    - depends on gtk2hs
-  arch2darcs
-    - depends on missingh
-  darcs-buildpackage
-    - depends on missingh and haskell-configfile
-  dfsbuild
-    - depends on missingh, haskell-configfile, haskell-hsh
-  hg-buildpackage
-    - depends on ???
-  srcinst
-    - depends on ???
-  deb-dir:(darcs:http://code.haskell.org/vector-space):(darcs:http://src.seereason.com/debian/vector-space-debian)
-    - broken
-  apt:sid:ghc-cvs
-    - broken
-  apt:sid:haskell98-report
-    - broken
-  quilt:(apt:sid:hdbc):(darcs:http://src.seereason.com/quilt/hdbc-quilt)
-    - broken
-  apt:sid:hdbc-odbc
-    - broken
-  apt:sid:hdbc-postgresql
-    - broken
-  apt:sid:hdbc-sqlite3
-    - broken
-  apt:sid:hpodder
-    - broken
-  quilt:(darcs:http://code.haskell.org/encoding):(darcs:file:///home/david/darcs/haskell-encoding)
-    - Patches won't apply:
-  apt:sid:hdbc-missingh
-    - Depends on ghc6 (<< 6.6+) or (<< 6.6-999)
-  apt:sid:kaya
-    - Error parsing build depends (unexpected #):
-  apt:sid:missingpy
-    - Disabled due to flaw in the autobuilder's build dependency parser:
-  sourcedeb:tla:dsf@foxthompson.net--2004/haskell-binary--dsf--0.3.0
-  tla:dsf@foxthompson.net--2004/hxt--dsf--7.0
-  sourcedeb:tla:dsf@foxthompson.net--2004/cpphs--dsf--1.3
-  quilt:(apt:feisty:haskell-http):(tla:dsf@foxthompson.net--2004/haskell-http-quilt--dsf--0)
-  sourcedeb:tla:dsf@foxthompson.net--2004/yhc--dsf--0.7.0
-Name: kernel-targets
-Targets:
-  apt:gutsy:linux-source-2.6.22
-  apt:gutsy:linux-meta
-  quilt:(apt:gutsy:linux-restricted-modules-2.6.22):(tla:tos@linspire.com--skipjack/linux-restricted-modules-quilt--ubuntu--0)
-Comment: Here are some more proposed targets
-  tla:tos@linspire.com--skipjack/forward-oss-kernel-module--cnr--20070605
-  tla:tos@linspire.com--skipjack/forward-oss--build-skipjack--0.3
-  quilt:(apt:${base}:bcm43xx-fwcutter):(tla:tos@linspire.com--skipjack/bcm43xx-fwcutter-quilt--cnr--0)
--}
