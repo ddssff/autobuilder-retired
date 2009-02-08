@@ -66,7 +66,6 @@ params =
     , doUpload = myDoUpload
     , doNewDist = myDoNewDist
     , newDistProgram = "newdist -v"
-    , uploadHost = Just myUploadHost
     , buildURI = myBuildURI
     , uploadURI = myUploadURI
     , createRelease = []
@@ -108,14 +107,14 @@ myDoNewDist = True
 -- it is built for use as build dependencies of other packages during
 -- the same run.
 myUploadURI = case myBuildPrivateTargets of
-                False -> parseURI $ "ssh://upload@" ++ myUploadHost ++ "/srv/deb" ++ "/" ++ myBaseRepo
+                False -> parseURI $ "ssh://upload@deb.seereason.com/srv/deb" ++ "/" ++ myBaseRepo
                 True -> parseURI $ myPrivateBuildURI ++ "/" ++ myBaseRepo
 
 -- An alternate url for the same repository the upload-uri points to,
 -- used for downloading packages that have already been installed
 -- there.
 myBuildURI = case myBuildPrivateTargets of
-               False -> parseURI $ "http://" ++ myUploadHost ++ "/" ++ myBaseRepo
+               False -> parseURI $ "http://deb.seereason.com/" ++ myBaseRepo
                True -> parseURI $ myPrivateUploadURI ++ "/" ++ myBaseRepo
 
 myPrivateUploadURI = "ssh://upload@deb.seereason.com/srv/deb-private"

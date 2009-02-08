@@ -76,7 +76,6 @@ instance P.ParamClass Params where
     autobuilderEmail = autobuilderEmail
     baseRelease = baseRelease
     uploadURI = uploadURI
-    uploadHost = uploadHost
     buildURI = buildURI
     buildRelease = buildRelease
     doNotChangeVersion = doNotChangeVersion
@@ -589,10 +588,6 @@ uploadURIOpt = Param [] ["upload-uri"] ["Upload-URI"] (ReqArg (Value "Upload-URI
                       "to this URI.  This is different from the local repository, where each packages is",
                       "uploaded immediately after it is built for use as build dependnecies of other",
                       "packages during the same run."])
-
--- | Derived from uploadURI
-uploadHost :: Params -> Maybe String
-uploadHost params = maybe Nothing (Just . uriRegName) . maybe Nothing uriAuthority . uploadURI $ params
 
 -- |Return the name of the release we will be building packages for.
 buildRelease :: Params -> ReleaseName

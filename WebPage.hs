@@ -74,7 +74,7 @@ aptGetUpdate params cgivars =
 heading :: P.ParamClass p => p -> [(String,String)] -> Html
 heading params cgivars =
     let nav = td (concatHtml topNav) in
-    let info = td (concatHtml [stringToHtml "Upload Host: ", stringToHtml (maybe "None" id (P.uploadHost params))])
+    let info = td (concatHtml [stringToHtml "Upload URI: ", stringToHtml (maybe "None" show (P.uploadURI params))])
                ! [strAttr "align" "right"] in
     (table . tr . concatHtml) [nav, info] ! [strAttr "width" "100%"]
     where
@@ -198,10 +198,10 @@ sourcePackageInfo root distro =
 
 showSource :: P.ParamClass p => p -> DebSource -> Html
 showSource params src@(DebSource DebSrc uri _)
-    | uriHost uri == (P.uploadHost params) =
+    | Just uri == (P.uploadURI params) =
         concatHtml [stringToHtml "uploadable source: ", (stringToHtml . show) src]
 showSource params src@(DebSource Deb uri _)
-    | uriHost uri == (P.uploadHost params) =
+    | Just uri == (P.uploadURI params) =
         concatHtml [stringToHtml "uploadable binary: ", (stringToHtml . show) src]
 showSource _ src = (stringToHtml . show) src
 

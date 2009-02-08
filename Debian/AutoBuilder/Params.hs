@@ -5,12 +5,7 @@ module Debian.AutoBuilder.Params
 
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.ParamRec as R
-import qualified Debian.GenBuildDeps as G
-import		 Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
-import           Debian.Repo.Types (NamedSliceList, SliceList, Arch(Binary),
-                                    SliceName(SliceName, sliceName),
-                                    ReleaseName(ReleaseName, relName))
-import           Debian.Version (parseDebianVersion)
+import           Debian.Repo.Types (NamedSliceList, SliceList)
 
 data CacheRec
     = CacheRec'
@@ -62,7 +57,6 @@ makeParamRec params =
     , R.doUpload = P.doUpload params
     , R.doNewDist = P.doNewDist params
     , R.newDistProgram = P.newDistProgram params
-    , R.uploadHost = P.uploadHost params
     , R.uploadURI = P.uploadURI params
     , R.buildURI = P.buildURI params
     , R.createRelease = P.createRelease params

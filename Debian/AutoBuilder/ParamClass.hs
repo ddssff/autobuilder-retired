@@ -215,7 +215,6 @@ class ParamClass a where
     -- ^ Use given executable as the newdist program, the program that
     -- runs on the upload host to install packages in the incoming
     -- directory to the repository.
-    uploadHost :: a -> Maybe String
     uploadURI :: a -> Maybe URI
     -- ^ This URI is the address of the remote repository to which packages
     -- will be uploaded after a run with no failures, when the myDoUpload
@@ -286,7 +285,6 @@ instance ParamClass p => ParamClass (p, a) where
     doUpload = doUpload . fst
     doNewDist = doNewDist . fst
     newDistProgram = newDistProgram . fst
-    uploadHost = uploadHost . fst
     uploadURI = uploadURI . fst
     buildURI = buildURI . fst
     createRelease = createRelease . fst
@@ -336,7 +334,6 @@ prettyPrint x =
             , "doUpload=" ++ take 120 (show (doUpload x))
             , "doNewDist=" ++ take 120 (show (doNewDist x))
             , "newDistProgram=" ++ take 120 (show (newDistProgram x))
-            , "uploadHost=" ++ take 120 (show (uploadHost x))
             , "uploadURI=" ++ take 120 (show (uploadURI x))
             , "buildURI=" ++ take 120 (show (buildURI x))
             , "createRelease=" ++ take 120 (show (createRelease x))

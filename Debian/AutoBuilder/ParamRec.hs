@@ -50,7 +50,6 @@ data ParamRec =
     , doUpload :: Bool
     , doNewDist :: Bool
     , newDistProgram :: String
-    , uploadHost :: Maybe String
     , uploadURI :: Maybe URI
     , buildURI :: Maybe URI
     , createRelease :: [String]
@@ -100,7 +99,6 @@ instance ParamClass ParamRec where
     doUpload = Debian.AutoBuilder.ParamRec.doUpload
     doNewDist = Debian.AutoBuilder.ParamRec.doNewDist
     newDistProgram = Debian.AutoBuilder.ParamRec.newDistProgram
-    uploadHost = Debian.AutoBuilder.ParamRec.uploadHost
     uploadURI = Debian.AutoBuilder.ParamRec.uploadURI
     buildURI = Debian.AutoBuilder.ParamRec.buildURI
     createRelease = Debian.AutoBuilder.ParamRec.createRelease
