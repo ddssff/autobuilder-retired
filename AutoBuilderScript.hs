@@ -10,7 +10,7 @@ import Debian.GenBuildDeps (SrcPkgName(SrcPkgName), BinPkgName(BinPkgName), Rela
 import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
 import Debian.Repo.Types (SliceName(SliceName, sliceName), ReleaseName(ReleaseName, relName), Arch(Binary))
 import Debian.URI
-import Debian.Version
+--import Debian.Version
 import System.IO (hPutStrLn, hFlush, stderr)
 
 main =
@@ -89,45 +89,19 @@ myExtraEssential =
 
 ------------------------- SOURCES --------------------------------
 
-debianSourceLines release =
-    [ "deb http://" ++ myDebianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free"
-    , "deb-src http://" ++ myDebianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free" ]
+debianSourceLines debianMirrorHost release =
+    [ "deb http://" ++ debianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free"
+    , "deb-src http://" ++ debianMirrorHost ++ "/debian " ++ release ++ " main contrib non-free" ]
 
-ubuntuSourceLines release =
-    [ "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse"
-    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse"
-    , "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse"
-    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse"
-    , "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse"
-    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse"
-    , "deb http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse"
-    , "deb-src http://" ++ myUbuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse" ]
-
-baseReleaseSourceLines release =
-    case releaseRepoName release of
-      "debian" -> debianSourceLines release
-      "ubuntu" -> ubuntuSourceLines release
-
-seereasonSourceLines release =
-    releaseSourceLines (dropSuffix "-seereason" release) ++
-    [ "deb http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main"
-    , "deb-src http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
-
-privateSourceLines release =
-    releaseSourceLines (dropSuffix "-private" release) ++
-    [ "deb " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main"
-    , "deb-src " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
-
-releaseSourceLines :: String -> [String]
-releaseSourceLines release =
-    case () of
-      _ | isSuffixOf "-private" release -> privateSourceLines release
-        | isSuffixOf "-seereason" release -> seereasonSourceLines release
-        | True -> baseReleaseSourceLines release
-
-releaseSources release = (release, unlines (releaseSourceLines release))
-
-allPrivateSources = map releaseSources (map (++ "-seereason-private") (debianReleases ++ ubuntuReleases))
+ubuntuSourceLines ubuntuMirrorHost release =
+    [ "deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse"
+    , "deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ " main restricted universe multiverse"
+    , "deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse"
+    , "deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-updates main restricted universe multiverse"
+    , "deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse"
+    , "deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-backports main restricted universe multiverse"
+    , "deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse"
+    , "deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse" ]
 
 topReleaseName :: String -> String
 topReleaseName name =
@@ -139,16 +113,41 @@ ubuntuReleases = ["jaunty", "intrepid", "hardy"]
 
 dropSuffix suff x = take (length x - length suff) x
 
-allSources =
-    map releaseSources (debianReleases ++ ubuntuReleases ++ map (++ "-seereason") (debianReleases ++ ubuntuReleases)) ++
-    [("debian-experimental", unlines (debianSourceLines "experimental")),
+allSources debianMirrorHost ubuntuMirrorHost includePrivate =
+    map releaseSources
+            (debianReleases ++ ubuntuReleases ++
+             map (++ "-seereason") (debianReleases ++ ubuntuReleases) ++
+             if includePrivate then map (++ "-seereason-private") (debianReleases ++ ubuntuReleases) else []) ++
+    [("debian-experimental", unlines (debianSourceLines debianMirrorHost "experimental")),
      ("debian-multimedia",
       (unlines ["deb http://mirror.home-dn.net/debian-multimedia stable main",
                 "deb-src http://mirror.home-dn.net/debian-multimedia stable main"])),
       ("kanotix",
        (unlines ["deb http://kanotix.com/files/debian sid main contrib non-free vdr",
-                 "  deb-src http://kanotix.com/files/debian sid main contrib non-free vdr"]))] ++
-    if myBuildPrivateTargets then allPrivateSources else []
+                 "  deb-src http://kanotix.com/files/debian sid main contrib non-free vdr"]))]
+    where
+      releaseSources release = (release, unlines (releaseSourceLines release))
+      releaseSourceLines :: String -> [String]
+      releaseSourceLines release =
+          case () of
+            _ | isSuffixOf "-private" release -> privateSourceLines release
+              | isSuffixOf "-seereason" release -> seereasonSourceLines release
+              | True -> baseReleaseSourceLines release
+      baseReleaseSourceLines release =
+          case releaseRepoName release of
+            "debian" -> debianSourceLines debianMirrorHost release
+            "ubuntu" -> ubuntuSourceLines ubuntuMirrorHost release
+            x -> error $ "Unknown release repository: " ++ show x
+      seereasonSourceLines release =
+          releaseSourceLines (dropSuffix "-seereason" release) ++
+                                 [ "deb http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main"
+                                 , "deb-src http://deb.seereason.com/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
+      privateSourceLines release =
+          releaseSourceLines (dropSuffix "-private" release) ++
+                                 [ "deb " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main"
+                                 , "deb-src " ++ myPrivateUploadURI ++ "/" ++ releaseRepoName release ++ " " ++ release ++ " main" ]
+
+
 
 ----------------------- BUILD RELEASE ----------------------------
 
@@ -577,7 +576,7 @@ params =
       useRepoCache = True,
       -- Specify all known source.list files, associating a name
       -- with each one.  The names can be used in apt targets.
-      sources = allSources,
+      sources = allSources myDebianMirrorHost myUbuntuMirrorHost myBuildPrivateTargets,
       -- Specify one or more build targets, methods for obtaining the
       -- source code of a package to be built.  See TARGET TYPES below
       -- for information about the available target types."
