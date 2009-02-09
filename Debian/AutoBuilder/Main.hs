@@ -283,23 +283,3 @@ runParameterSet params =
                                                          Nothing -> Nothing
                                                          Just uri -> Just (uri, x)) pairs)
                    return . Map.fromList . filter isRemote $ pairs'
-
--- | Return the sources.list for the union of all the dists in the
--- upload repository plus the local repository.  This is used to
--- find an unused version number for the package being built.
-{-
-localRepoSources :: Repository -> ReleaseName -> IO [DebSourceVerified]
-findPoolSources localRepo dist =
-    case (repoRoot localRepo, repoReleaseNames localRepo) of
-      (Right _, _) -> error "Local repository is remote!"
-      (Left root, dists) ->
-          do
-            let sources = ReleaseCache.sources distro
-            let distros = catMaybes $ map (either (const Nothing) Just . P.findRelease params . fst) dists
-            return $ sources ++ concat (map local distros)
-    where
-      -- FIXME: this is cheating
-      localSources distro =
-          [DebSourceVerified (DebSource Deb (repoURI localRepo) (Right (show (dist distro), ["main"]))) localRepo,
-           DebSourceVerified (DebSource DebSrc (repoURI localRepo) (Right (show (dist distro), ["main"]))) localRepo]
--}
