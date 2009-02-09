@@ -23,77 +23,95 @@ main =
 params myBuildRelease =
     ParamRec
     { vendorTag = myVendorTag
-    , debug = False
-    , extraReleaseTag = Nothing
-    , requiredVersion = [(parseDebianVersion "4.41", Nothing)]
-    , verbosity = myVerbosity
-    , topDirParam = Nothing
+    , autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
+    , releaseSuffixes = myReleaseSuffixes
+    , buildRelease = ReleaseName {relName = myBuildRelease}
+    , uploadURI = myUploadURI myBuildRelease
+    , buildURI = myBuildURI myBuildRelease
+    , targets = myTargets myBuildRelease
+    , doUpload = myDoUpload
+    , doNewDist = myDoNewDist
+    , flushPool = False
+    , useRepoCache = True
+    , forceBuild = myForceBuild
+    , doSSHExport = myDoSSHExport
+    -- Things that are occasionally useful
+    , goals = myGoals
     , dryRun = False
+    , allowBuildDependencyRegressions = False
+    , setEnv = []
     , showSources = False
     , showParams = False
     , flushAll = False
-    , useRepoCache = True
-    , sources = allSources myDebianMirrorHost myUbuntuMirrorHost (myBuildPrivateTargets myBuildRelease)
-    , targets = myTargets myBuildRelease
-    , omitTargets = []
-    , goals = myGoals
     , flushSource = False
-    , forceBuild = myForceBuild
-    , allowBuildDependencyRegressions = False
-    , preferred = []
-    , strictness = P.Moderate
-    , setEnv = []
-    , buildDepends = []
+    , flushRoot = False
+    , verbosity = myVerbosity
+    , topDirParam = Nothing
+    , createRelease = []
+    , doNotChangeVersion = False
+    -- Things that rarely change
+    , sources = allSources myDebianMirrorHost myUbuntuMirrorHost (isPrivateRelease myBuildRelease)
     , globalRelaxInfo = myGlobalRelaxInfo
-    , noClean = False
+    , strictness = P.Moderate
     , extraPackages = myExtraPackages myBuildRelease
     , extraEssential = myExtraEssential myBuildRelease
     , omitEssential = []
     , omitBuildEssential = False
-    , buildRelease = ReleaseName {relName = myBuildRelease}
-    , releaseSuffixes = myReleaseSuffixes
-    , doNotChangeVersion = False
     , developmentReleaseNames = myDevelopmentReleaseNames
     , releaseAliases = myReleaseAliases
-    , flushRoot = False
-    , cleanUp = False
     , archList = [Binary "i386",Binary "amd64"]
-    , flushPool = False
-    , doUpload = myDoUpload
-    , doNewDist = myDoNewDist
     , newDistProgram = "newdist -v"
-    , buildURI = myBuildURI myBuildRelease
-    , uploadURI = myUploadURI myBuildRelease
-    , createRelease = []
+    -- Things that are probably obsolete
+    , requiredVersion = [(parseDebianVersion "4.41", Nothing)]
+    , debug = False
+    , omitTargets = []
+    , extraReleaseTag = Nothing
+    , preferred = []
+    , buildDepends = []
+    , noClean = False
+    , cleanUp = False
     , ifSourcesChanged = SourcesChangedError
-    , doSSHExport = myDoSSHExport
-    , autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
     }
 
 -- The name of the upstream release that the the build release will be
 -- based on.  This sources.list is combined with the one constructed
 -- from the Build-URI to create the build environment.
 --myBuildRelease = "intrepid-seereason-private"
-myBuildPrivateTargets release = isSuffixOf "-private" release
+isPrivateRelease release = isSuffixOf "-private" release
 myReleaseSuffixes = ["-seereason", "-private"]
 myDevelopmentReleaseNames = ["sid", "jaunty"]
 
 -- 
 myVendorTag = "seereason"
-myTargets myBuildRelease =
-    case myBuildPrivateTargets myBuildRelease of
-      False -> ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
-      True -> privateTargets
-myGoals = []
 myForceBuild = []
 myVerbosity = 0
-myUbuntuMirrorHost = "mirror.anl.gov"
+
+myTargets myBuildRelease =
+    case isPrivateRelease myBuildRelease of
+      False -> myPublicTargets
+      True -> myPrivateTargets
+myPublicTargets = ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
+myPrivateTargets = privateTargets
+myGoals = []
+
+-- Use this to find one or more targets by name for use as the value
+-- of myTargets.
+findTargets :: [String] -> [Target] -> [Target]
+findTargets names targets = filter (\ target -> elem (sourcePackageName target) names) targets
+
+-- These host names are used to construct the sources.list lines to
+-- access the Debian and Ubuntu repositories.  The anl.gov values here
+-- probably won't work outside the United States.
 myDebianMirrorHost = "mirror.anl.gov"
+myUbuntuMirrorHost = "mirror.anl.gov"
 
 myDoUpload = True
 myDoNewDist = True
 myDoSSHExport = True
 
+-- There is a debian standard for constructing the version numbers of
+-- packages backported to older releases.  To follow this standard we
+-- use bpo40+ for Debian 4.0, aka etch.
 myReleaseAliases =
     [("etch", "bpo40+"),
      ("hardy-seereason", "hardy"),
@@ -108,7 +126,7 @@ myReleaseAliases =
 -- it is built for use as build dependencies of other packages during
 -- the same run.
 myUploadURI myBuildRelease =
-    case myBuildPrivateTargets myBuildRelease of
+    case isPrivateRelease myBuildRelease of
       False -> parseURI $ myPublicUploadURI myBuildRelease
       True -> parseURI $ myPrivateUploadURI myBuildRelease
 
@@ -116,7 +134,7 @@ myUploadURI myBuildRelease =
 -- used for downloading packages that have already been installed
 -- there.
 myBuildURI myBuildRelease =
-    case myBuildPrivateTargets myBuildRelease of
+    case isPrivateRelease myBuildRelease of
       False -> parseURI $ myPublicBuildURI myBuildRelease
       True -> parseURI $ myPrivateBuildURI myBuildRelease
 
@@ -138,6 +156,10 @@ myPublicBuildURI release = "http://deb.seereason.com/" ++ releaseRepoName releas
 -- effect.
 myExtraPackages myBuildRelease =
     ["debian-archive-keyring"] ++
+    -- Private releases generally have ssh URIs in their sources.list,
+    -- I have observed that this solves the "ssh died unexpectedly"
+    -- errors.
+    (if isPrivateRelease myBuildRelease then ["ssh"] else []) ++
     case releaseRepoName myBuildRelease of
       "debian" -> []
       "ubuntu" -> ["ubuntu-keyring"]

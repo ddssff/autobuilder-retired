@@ -2,7 +2,16 @@ Name:           AutoBuilder
 Version:        4.43
 License:        BSD3
 Author:         David Fox
-Synopsis:       Build Debian source packages in suitable environments
+Synopsis:       Build Debian source packages in suitable environments.
+Description:
+  The autobuilder program is now shipped as a haskell source file
+  which uses the autobuilder library.  To configure it make a copy of
+  /usr/bin/AutoBuilder.hs to somewhere such as ~/AutoBuilder.hs, edit
+  the parameters in that file, and then use the command @runhaskell
+  ~/AutoBuilder.hs@.  Documentation for the parameters is found in the
+  'ParamClass' type class in the "Debian.AutoBuilder.ParamClass"
+  module, and for the different build target types in the description
+  of "Debian.AutoBuilder.BuildTarget".
 Cabal-Version:  >= 1.2
 Build-type:     Simple
 

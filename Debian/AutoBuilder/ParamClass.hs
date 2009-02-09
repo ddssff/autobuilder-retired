@@ -1,9 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Debian.AutoBuilder.ParamClass
-    ( topDirDefault
-    , ParamClass(..)
+    ( ParamClass(..)
     , CacheClass(..)
-    , Cache(..)
     , buildCache
     , RunClass
     , Strictness(Strict, Moderate, Lax)
@@ -64,17 +62,90 @@ data Target
       , relaxInfo :: [String]		-- ^ Build dependencies which be ignored when deciding whether to rebuild
       } deriving Show
 
-topDirDefault = "/var/cache/autobuilder"
-
+-- |An instance of 'ParamClass' contains the configuration parameters
+-- for a run of the autobuilder.  Among other things, it defined a set
+-- of target packages to build and a single build environment to build
+-- them in.  (This typeclass and those belowe were used to transition
+-- from a command line option based interface, they could probably be
+-- replaced by records now.)  The methods are given in approximate
+-- order of importance.
 class ParamClass a where
-    -- Global Parameters
-    verbosity :: a -> Int
-    -- ^ Higher numbers increase the amount of progress reporting.
-    topDirParam :: a -> Maybe FilePath
-    -- ^ Normally the autobuilder uses @$HOME\/.autobuilder@ for semi-permanent
-    -- storage, use this flag to specify a different location.
-    debug :: a -> Bool
-    -- ^ Unspecified debugging behavior.
+    vendorTag :: a -> String
+    -- ^ The string used to construct modified version numbers to identify
+    -- them as part of your repository (rather than Debian's or Ubuntu's.)
+    autobuilderEmail :: a -> String
+    -- ^ Email return address of autobuilder for use in generated
+    -- changelog entries.
+    releaseSuffixes :: a -> [String]
+    -- ^ All build releases must have one of these suffixes.  When the
+    -- suffix is stripped off the result is the corresponding base
+    -- release.  We use ["-seereason", "-private"] for this value so
+    -- we can build a public release based on any debian or ubuntu
+    -- release, and a private release based on each public release.
+    buildRelease :: a -> ReleaseName
+    -- ^ The name of the release we will be uploading to.  It must end
+    -- with one of the 'releaseSuffixes', and stripping off
+    -- one of them results in the base release.
+    uploadURI :: a -> Maybe URI
+    -- ^ This URI is the address of the remote repository to which packages
+    -- will be uploaded after a run with no failures, when the myDoUpload
+    -- flag is true.  Packages are uploaded to the directory created by
+    -- appending @\/incoming@ to this URI.  This is distinct from the
+    -- local repository, where each packages is uploaded immediately after
+    -- it is built for use as build dependencies of other packages during
+    -- the same run.
+    buildURI :: a -> Maybe URI
+    -- ^ An alternate url for the same repository the @uploadURI@ points to,
+    -- used for downloading packages that have already been installed
+    -- there.
+    targets :: a -> [Target]
+    -- ^ The packages to build.  The 'Target' record includes the
+    -- source package name, a string describing how the source is to
+    -- be obtained, and a dependency relaxation list, a list of binary
+    -- packages which normally would trigger a rebuild when they
+    -- changed.  some methods for obtaining the source code of a
+    -- package to be built.  See "Debian.AutoBuilder.BuildTarget" for
+    -- information about the available target types.
+    doUpload :: a -> Bool
+    -- ^ After a successful build of all the targets, dupload all the
+    -- packages in the local pool specified by the @uploadURI@
+    -- argument to the corresponding repository.
+    doNewDist :: a -> Bool
+    -- ^ After uploading, run newdist on the remote repository
+    -- incoming directory
+    flushPool :: a -> Bool
+    -- ^ Discard the packages in the local pool before building.  Use
+    -- this when a bad package was uploaded to the local pool that
+    -- you don't want uploaded to the remote pool.
+    useRepoCache :: a -> Bool
+    -- ^ Load the most recent cached repository information from
+    -- @~\/.autobuilder\/repoCache@ and assume that it is still good -
+    -- that no releases have been added or removed from the
+    -- repositories listed.  This is usually safe and saves some
+    -- time querying each remote repository before using it.
+    forceBuild :: a -> [String]
+    -- ^ Build the named source package(s) whether or not they seem
+    -- to need it.
+    doSSHExport :: a -> Bool
+    -- ^ Try to set up ssh keys if upload host asks for a password.
+
+    -- THINGS THAT ARE OCCASIONALLY USEFUL
+
+    goals :: a -> [String]
+    -- ^ Specify a source package which we want to build, and stop
+    -- once all goals are built.  If not given all targets are
+    -- considered goals.  (As of version 4.41 this option is not be
+    -- fully functional, sometimes specifying goals will prevent all
+    -- the builds.)
+    allowBuildDependencyRegressions :: a -> Bool
+    -- ^ Normally, if a build dependency has an older version number
+    -- than it did on a previous build, it is an error.  This
+    -- generally means the sources.list is incorrect.  However, this
+    -- flag can be necessary if a package gets withdrawn from the build
+    -- or base release.
+    setEnv :: a -> [String]
+    -- ^ Set one or more environment variables during the build, e.g. [_$_]
+    -- @setEnv = ["DEBIAN_KERNEL_JOBS=5"]@.
     dryRun :: a -> Bool
     -- ^ This flag says not to do anything that will affect the
     -- outside world, such as uploads and remote newdists.  However,
@@ -82,55 +153,42 @@ class ParamClass a where
     -- is used.  It does avoids making extensive changes to the
     -- local repository by exiting as soon as a target it identified
     -- as needing to be built.
-    requiredVersion :: a -> [(DebianVersion, Maybe String)]
     showSources :: a -> Bool
     -- ^ Print the @sources.list@ for the build distro and exit.
     showParams :: a -> Bool
     -- ^ Print the expanded runtime parameter list and continue.
     flushAll :: a -> Bool
     -- ^ Remove and re-create the entire autobuilder working directory (topDir.)
-    useRepoCache :: a -> Bool
-    -- ^ Load the most recent cached repository information from
-    -- @~\/.autobuilder\/repoCache@ and assume that it is still good -
-    -- that no releases have been added or removed from the
-    -- repositories listed.  This is usually safe and saves some
-    -- time querying each remote repository before using it.
+    flushSource :: a -> Bool
+    -- ^ Discard and re-download all source code before building.
+    flushRoot :: a -> Bool
+    -- ^ Discard and recreate the clean build environment.
+    verbosity :: a -> Int
+    -- ^ Higher numbers increase the amount of progress reporting.
+    topDirParam :: a -> Maybe FilePath
+    -- ^ Normally the autobuilder uses @$HOME\/.autobuilder@ for semi-permanent
+    -- storage, use this flag to specify a different location.
+    createRelease :: a -> [String]
+    -- ^ Pass a @--create <name>@ argument to newdist to create a new
+    -- release in the upload repository.
+    doNotChangeVersion :: a -> Bool
+    -- ^ DANGER!  Prevents any modification of the package's version
+    -- number before building.  Normally a tag is added to signify the
+    -- vendor and the base release of the package.  Using this option
+    -- can lead to attempts to upload packages that are already
+    -- present in the repository, or packages that are trumped by
+    -- versions already uploaded to the release.
+
+    -- THINGS THAT RARELY CHANGE
+
     sources :: a -> [(String, String)]
     -- ^ Specify all known @source.list@ files, associating a name
     -- with each one.  The names can be used in apt targets.
-    targets :: a -> [Target]
-    -- ^ Specify one or more build targets, methods for obtaining the
-    -- source code of a package to be built.  See "Debian.AutoBuilder.BuildTarget"
-    -- for information about the available target types.
-    goals :: a -> [String]
-    -- ^ Specify a source package which we want to build, and stop
-    -- once all goals are built.  If not given all targets are
-    -- considered goals.  (As of version 4.41 this option is not be
-    -- fully functional, sometimes specifying goals will prevent all
-    -- the builds.)
-    omitTargets :: a -> [String]
-    vendorTag :: a -> String
-    -- ^ The string used to construct modified version numbers.
-    extraReleaseTag :: a -> Maybe Int
-    flushSource :: a -> Bool
-    -- ^ Discard and re-download all source code before building.
-    forceBuild :: a -> [String]
-    -- ^ Build the named source package(s) whether or not they seem
-    -- to need it.
-    allowBuildDependencyRegressions :: a -> Bool
-    -- ^ Normally, if a build dependency has an older version number
-    -- than it did on a previous build, it is an error.  This
-    -- generally means the sources.list is incorrect.  However, this
-    -- flag can be necessary if a package gets withdrawn from the build
-    -- or base release.
-    preferred :: a -> [String]
-    -- ^ When selecting build dependencies, prefer this particular
-    -- package over other alternatives that could fulfill the
-    -- dependency, even if this package seems older than some other
-    -- alternative.  For example, the c-compiler virtual package is
-    -- provided by @gcc-3.3@, @gcc-3.4@, @gcc-4.0@, etc.  If @gcc-3.4@ is
-    -- in this list, a dependency on c-compiler will choose @gcc-3.4@
-    -- over the others if possible.
+    globalRelaxInfo :: a -> [String]
+    -- ^ A list of packages which will not trigger rebuilds when
+    -- updated.  Used to avoid massive rebuilds when package which are
+    -- build essential but are unlikely to affect the build, such as
+    -- @tar@, are updated.
     strictness :: a -> Strictness
     -- ^ Specify how strict to be about the creation of build
     -- environments, trading off correctness with speed.  In all
@@ -143,17 +201,6 @@ class ParamClass a where
     -- dist-upgrade@.  'Lax' means that build dependencies are
     -- installed into the clean build environment so that they
     -- accumulate across runs.
-    setEnv :: a -> [String]
-    -- ^ Set one or more environment variables during the build, e.g. [_$_]
-    -- @setEnv = ["DEBIAN_KERNEL_JOBS=5"]@.
-    buildDepends :: a -> [String]
-    -- ^ Obsolete?  Add a missing build dependency.
-    globalRelaxInfo :: a -> [String]
-    -- ^ A list of packages which will not trigger rebuilds when
-    -- updated.  Used to avoid massive rebuilds when package which are
-    -- build essential but are unlikely to affect the build, such as
-    -- @tar@, are updated.
-    noClean :: a -> Bool
     extraPackages :: a -> [String]
     -- ^ Additional packages to include in the clean build environment.
     -- Adding packages here can speed things up when you are building many
@@ -177,22 +224,6 @@ class ParamClass a where
     -- that a new version of @tar@ is going to change the outcome of
     -- your builds, this option can reduce the number of pointless
     -- rebuilds.  (But try relaxDepends first.)
-    buildRelease :: a -> ReleaseName
-    -- ^ The name of the release we will be uploading to.  Stripping off
-    -- one of the 'releaseSuffixes' results in the base release.
-    releaseSuffixes :: a -> [String]
-    -- ^ All build releases must have one of these suffixes.  When the
-    -- suffix is stripped off the result is the corresponding base
-    -- release.  We use ["-seereason", "-private"] for this value so
-    -- we can build a public release based on any debian or ubuntu
-    -- release, and a private release based on each public release.
-    doNotChangeVersion :: a -> Bool
-    -- ^ Don't modify the package's version in any way before
-    -- building.  Normally a tag is added to signify the vendor and
-    -- the base release of the package.  Using this option can lead
-    -- to attempts to upload packages that are already present in
-    -- the repository, or packages that are trumped by versions
-    -- already uploaded to the release.
     developmentReleaseNames :: a -> [String]
     -- ^ The list of upstream release which are currently in
     -- development.  This means we the tag we add doesn't need to
@@ -208,44 +239,36 @@ class ParamClass a where
     -- suffixes like @0seereason3~hardy5@ rather than
     -- @0seereason3~hardy-seereason5@ (the latter would be an illegal
     -- due to the dash.)
-    flushRoot :: a -> Bool
-    -- ^ Discard and recreate the clean build environment.
-    cleanUp :: a -> Bool
-    -- ^ Do a garbage collection on the local repository, move all
-    -- unreferenced files to @removed@.  This is probably not a
-    -- useful option, as the local repository is frequently removed.
     archList :: a -> [Arch]
     -- ^ The list of architectures to prepare the repository to accept.
-    flushPool :: a -> Bool
-    -- ^ Discard the packages in the local pool before building.  Use
-    -- this when a bad package was uploaded to the local pool that
-    -- you don't want uploaded to the remote pool.
-    doUpload :: a -> Bool
-    -- ^ After a successful build of all the targets, dupload all the
-    -- packages in the local pool specified by the @uploadURI@
-    -- argument to the corresponding repository.
-    doNewDist :: a -> Bool
-    -- ^ After uploading, run newdist on the remote repository
-    -- incoming directory
     newDistProgram :: a -> String
     -- ^ Use given executable as the newdist program, the program that
     -- runs on the upload host to install packages in the incoming
     -- directory to the repository.
-    uploadURI :: a -> Maybe URI
-    -- ^ This URI is the address of the remote repository to which packages
-    -- will be uploaded after a run with no failures, when the myDoUpload
-    -- flag is true.  Packages are uploaded to the directory created by
-    -- appending @\/incoming@ to this URI.  This is distinct from the
-    -- local repository, where each packages is uploaded immediately after
-    -- it is built for use as build dependencies of other packages during
-    -- the same run.
-    buildURI :: a -> Maybe URI
-    -- ^ An alternate url for the same repository the @uploadURI@ points to,
-    -- used for downloading packages that have already been installed
-    -- there.
-    createRelease :: a -> [String]
-    -- ^ Pass a @--create <name>@ argument to newdist to create a new
-    -- release in the upload repository.
+
+    -- THINGS THAT ARE PROBABLY OBSOLETE
+
+    requiredVersion :: a -> [(DebianVersion, Maybe String)]
+    -- ^ Specifies the version of the library required.  (Obsolete?)
+    debug :: a -> Bool
+    -- ^ Unspecified debugging behavior.
+    omitTargets :: a -> [String]
+    extraReleaseTag :: a -> Maybe Int
+    preferred :: a -> [String]
+    -- ^ When selecting build dependencies, prefer this particular
+    -- package over other alternatives that could fulfill the
+    -- dependency, even if this package seems older than some other
+    -- alternative.  For example, the c-compiler virtual package is
+    -- provided by @gcc-3.3@, @gcc-3.4@, @gcc-4.0@, etc.  If @gcc-3.4@ is
+    -- in this list, a dependency on c-compiler will choose @gcc-3.4@
+    -- over the others if possible.
+    buildDepends :: a -> [String]
+    -- ^ Obsolete?  Add a missing build dependency.
+    noClean :: a -> Bool
+    cleanUp :: a -> Bool
+    -- ^ Do a garbage collection on the local repository, move all
+    -- unreferenced files to @removed@.  This is probably not a
+    -- useful option, as the local repository is frequently removed.
     ifSourcesChanged :: a -> SourcesChangedAction
     -- ^ What to do if the sources.list changes in the
     -- configuration directory.  The argument may be
@@ -255,59 +278,8 @@ class ParamClass a where
     --  * 'SourcesChangedUpdate' - rewrite sources.list and update the environment, [_$_]
     --
     --  * 'SourcesChangedRemove' - discard and rebuild the environment
-    doSSHExport :: a -> Bool
-    -- ^ Try to set up ssh keys if upload host asks for a password.
-    autobuilderEmail :: a -> String
-    -- ^ Email address of autobuilder for use in generated changelog entries.
 
-instance ParamClass p => ParamClass (p, a) where
-    verbosity = verbosity . fst
-    topDirParam = topDirParam . fst
-    debug = debug . fst
-    dryRun = dryRun . fst
-    requiredVersion = requiredVersion . fst
-    showSources = showSources . fst
-    showParams = showParams . fst
-    flushAll = flushAll . fst
-    useRepoCache = useRepoCache . fst
-    sources = sources . fst
-    targets = targets . fst
-    goals = goals . fst
-    omitTargets = omitTargets . fst
-    vendorTag = vendorTag . fst
-    extraReleaseTag = extraReleaseTag . fst
-    flushSource = flushSource . fst
-    forceBuild = forceBuild . fst
-    allowBuildDependencyRegressions = allowBuildDependencyRegressions . fst
-    preferred = preferred . fst
-    strictness = strictness . fst
-    setEnv = setEnv . fst
-    buildDepends = buildDepends . fst
-    globalRelaxInfo = globalRelaxInfo . fst
-    noClean = noClean . fst
-    extraPackages = extraPackages . fst
-    extraEssential = extraEssential . fst
-    omitEssential = omitEssential . fst
-    omitBuildEssential = omitBuildEssential . fst
-    buildRelease = buildRelease . fst
-    releaseSuffixes = releaseSuffixes . fst
-    developmentReleaseNames = developmentReleaseNames . fst
-    doNotChangeVersion = doNotChangeVersion . fst
-    releaseAliases = releaseAliases . fst
-    flushRoot = flushRoot . fst
-    cleanUp = cleanUp . fst
-    archList = archList . fst
-    flushPool = flushPool . fst
-    doUpload = doUpload . fst
-    doNewDist = doNewDist . fst
-    newDistProgram = newDistProgram . fst
-    uploadURI = uploadURI . fst
-    buildURI = buildURI . fst
-    createRelease = createRelease . fst
-    ifSourcesChanged = ifSourcesChanged . fst
-    doSSHExport = doSSHExport . fst
-    autobuilderEmail = autobuilderEmail . fst
-
+-- |Output a (somewhat) readable representation of the parameter set.
 prettyPrint :: ParamClass p => p -> String
 prettyPrint x =
     unlines [ "verbosity=" ++ take 120 (show (verbosity x))
@@ -359,29 +331,17 @@ prettyPrint x =
             --, "baseRelease sources=\n" ++ show (lookup (sliceName (baseRelease x)) (sources x))
             ]
 
-class CacheClass a where
-    topDir :: a -> FilePath
-    allSources :: a -> [NamedSliceList]
-    buildRepoSources :: a -> SliceList
-
-instance CacheClass c => CacheClass (a, c) where
-    topDir = topDir . snd
-    allSources = allSources . snd
-    buildRepoSources = buildRepoSources . snd
-
+-- |Along with an instance of 'ParamClass' we need an instance of
+-- 'CacheClass', which contains the result examining the local and
+-- remote environment to determine the home directory and the status
+-- of all the remote repositories we want to use.
 data Cache
     = Cache { topDir' :: FilePath
             , allSources' :: [NamedSliceList]
             , buildRepoSources' :: SliceList
             }
 
-instance CacheClass Cache where
-    topDir = topDir'
-    allSources = allSources'
-    buildRepoSources = buildRepoSources'
-
-instance (ParamClass p) => RunClass (p, Cache)
-
+-- |Create a Cache object from a parameter set.
 buildCache :: (ParamClass p, CIO m) => p -> AptIOT m Cache
 buildCache params =
     do top <- lift $ computeTopDir params
@@ -394,6 +354,79 @@ buildCache params =
       parseNamedSliceList (name, text) = 
           do sources <- (verifySourcesList Nothing . parseSourcesList) text
              return $ NamedSliceList { sliceListName = SliceName name, sliceList = sources }
+
+-- |Create a type class for Cache objects so we can make a
+-- (ParamClass, Cache) pair an instance of it.
+class CacheClass a where
+    topDir :: a -> FilePath
+    allSources :: a -> [NamedSliceList]
+    buildRepoSources :: a -> SliceList
+
+instance CacheClass Cache where
+    topDir = topDir'
+    allSources = allSources'
+    buildRepoSources = buildRepoSources'
+
+-- |An instance of RunClass contains all the information we need to
+-- run the autobuilder.
+class (ParamClass a, CacheClass a) => RunClass a
+
+-- |Make a ('ParamClass', 'CacheClass') pair an instance ParamClass,
+-- CacheClass, and RunClass.
+instance (ParamClass p) => RunClass (p, Cache)
+
+instance CacheClass c => CacheClass (a, c) where
+    topDir = topDir . snd
+    allSources = allSources . snd
+    buildRepoSources = buildRepoSources . snd
+
+instance ParamClass p => ParamClass (p, a) where
+    verbosity = verbosity . fst
+    topDirParam = topDirParam . fst
+    debug = debug . fst
+    dryRun = dryRun . fst
+    requiredVersion = requiredVersion . fst
+    showSources = showSources . fst
+    showParams = showParams . fst
+    flushAll = flushAll . fst
+    useRepoCache = useRepoCache . fst
+    sources = sources . fst
+    targets = targets . fst
+    goals = goals . fst
+    omitTargets = omitTargets . fst
+    vendorTag = vendorTag . fst
+    extraReleaseTag = extraReleaseTag . fst
+    flushSource = flushSource . fst
+    forceBuild = forceBuild . fst
+    allowBuildDependencyRegressions = allowBuildDependencyRegressions . fst
+    preferred = preferred . fst
+    strictness = strictness . fst
+    setEnv = setEnv . fst
+    buildDepends = buildDepends . fst
+    globalRelaxInfo = globalRelaxInfo . fst
+    noClean = noClean . fst
+    extraPackages = extraPackages . fst
+    extraEssential = extraEssential . fst
+    omitEssential = omitEssential . fst
+    omitBuildEssential = omitBuildEssential . fst
+    buildRelease = buildRelease . fst
+    releaseSuffixes = releaseSuffixes . fst
+    developmentReleaseNames = developmentReleaseNames . fst
+    doNotChangeVersion = doNotChangeVersion . fst
+    releaseAliases = releaseAliases . fst
+    flushRoot = flushRoot . fst
+    cleanUp = cleanUp . fst
+    archList = archList . fst
+    flushPool = flushPool . fst
+    doUpload = doUpload . fst
+    doNewDist = doNewDist . fst
+    newDistProgram = newDistProgram . fst
+    uploadURI = uploadURI . fst
+    buildURI = buildURI . fst
+    createRelease = createRelease . fst
+    ifSourcesChanged = ifSourcesChanged . fst
+    doSSHExport = doSSHExport . fst
+    autobuilderEmail = autobuilderEmail . fst
 
 loadRepoCache :: CIO m => FilePath -> AptIOT m ()
 loadRepoCache top =
@@ -416,9 +449,7 @@ computeTopDir params =
          Right False -> error "Cache directory not writable (are you root?)"
          Right True -> return top
     where
-      homeDir = liftIO (try (getEnv "HOME")) >>= return . either (const topDirDefault) (++ "/.autobuilder")
-
-class (ParamClass a, CacheClass a) => RunClass a
+      homeDir = liftIO (try (getEnv "HOME")) >>= return . either (error "Environment variable @HOME@ not set") (++ "/.autobuilder")
 
 -- |Find a release by name, among all the "Sources" entries given in the configuration.
 findSlice :: CacheClass c => c -> SliceName -> Either String NamedSliceList
