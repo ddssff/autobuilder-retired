@@ -56,6 +56,7 @@ Architecture: any
 Recommends: subversion
 Depends: ${shlibs:Depends},
          ${haskell:Depends},
+         libghc6-autobuilder-dev,
          build-env (>= 2.28),
          rsync,
          dupload,
@@ -78,12 +79,3 @@ Depends: ${shlibs:Depends},
          ${haskell:Depends}
 Suggests: freespire-archive-keyring
 Description: Debian pool manager
-
-Package: autobuilder-web-client
-Section: devel
-Architecture: any
-Depends: ${shlibs:Depends},
-         ${haskell:Depends},
-         autobuilder,
-         apache | httpd-cgi
-Description: Web client for autobuilder (Unimplemented)
