@@ -6,9 +6,12 @@ Synopsis:       Build Debian source packages in suitable environments.
 Description:
   The autobuilder program is now shipped as a haskell source file
   which uses the autobuilder library.  To configure it make a copy of
-  /usr/bin/AutoBuilder.hs to somewhere such as ~/AutoBuilder.hs, edit
-  the parameters in that file, and then use the command @runhaskell
-  ~/AutoBuilder.hs@.  Documentation for the parameters is found in the
+  @\/usr\/bin\/AutoBuilder.hs@ to somewhere such as @~\/AutoBuilder.hs@, edit
+  the parameters in that file, and then use the command 
+  @
+    sudo runhaskell -package=base-3.0.3.0 ~\/AutoBuilder.hs
+  @
+  Documentation for the parameters is found in the
   'ParamClass' type class in the "Debian.AutoBuilder.ParamClass"
   module, and for the different build target types in the description
   of "Debian.AutoBuilder.BuildTarget".
