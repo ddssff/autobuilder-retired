@@ -475,6 +475,13 @@ ghc610Targets =
     , Target { sourcePackageName = "haskell-cc-delconto"
              , sourceSpec = "deb-dir:(uri:http://hackage.haskell.org/packages/archive/CC-delcont/0.2/CC-delcont-0.2.tar.gz:e52149fca9bf76330a7c159917152790):(darcs:http://src.seereason.com/ghc610/debian/CC-delcont-debian)"
              , relaxInfo = [] }
+    , Target { sourcePackageName = "haskell-debian-mirror"
+             , sourceSpec = "darcs:http://src.seereason.com/mirror"
+             , relaxInfo = [] }
+    , Target { sourcePackageName = "haskell-archive"
+             , sourceSpec = "darcs:http://src.seereason.com/backups"
+             , relaxInfo = [] }
+
 {-
   "quilt:(apt:sid:hs-plugins):(darcs:http://src.seereason.com/ghc610/quilt/hs-plugins-quilt)"
     - Needs an older cabal
