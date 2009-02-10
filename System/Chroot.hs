@@ -2,6 +2,7 @@
 module System.Chroot
     ( fchroot
     , useEnv
+    , forceList
     ) where
 
 import Control.Exception
@@ -48,13 +49,13 @@ fchroot path action =
 -- |The ssh inside of the chroot needs to be able to talk to the
 -- running ssh-agent.  Therefore we mount --bind the ssh agent socket
 -- dir inside the chroot (and umount it when we exit the chroot.
-useEnv :: FilePath -> IO a -> IO a
-useEnv rootPath action =
+useEnv :: FilePath -> (a -> IO a) -> IO a -> IO a
+useEnv rootPath force action =
     do sockPath <- try (getEnv "SSH_AUTH_SOCK") >>= either (error . show) return
        home <- try (getEnv "HOME") >>= either (error . show) return
        -- Do NOT preserve ownership, files must be owned by root.
        copySSH home
-       withSock sockPath . fchroot rootPath $ action
+       withSock sockPath . fchroot rootPath $ (action >>= force)
     where
       copySSH Nothing = return ()
       copySSH (Just home) =
@@ -77,3 +78,5 @@ useEnv rootPath action =
           system s >>= testcode
           where testcode (ExitFailure n) = error (show s ++ " -> " ++ show n)
                 testcode ExitSuccess = return ()
+
+forceList output = evaluate (length output) >> return output

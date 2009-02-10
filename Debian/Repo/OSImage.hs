@@ -37,7 +37,7 @@ import		 System.FilePath
 import		 System.Unix.Directory
 import		 System.Unix.Mount
 import		 System.Unix.Process
-import           System.Chroot (useEnv)
+import           System.Chroot (useEnv, forceList)
 import		 System.Cmd
 import		 System.Directory
 import qualified System.IO as IO
@@ -488,7 +488,7 @@ updateLists :: CIO m => OSImage -> m (Either String NominalDiffTime)
 updateLists os =
     do vMessage 1 ("Updating OSImage " ++ stripDist (rootPath root) ++ " ") ()
        vMessage 2 ("# " ++ cmd) ()
-       ((_out, err, code), elapsed) <- liftIO . timeTask $ useEnv (rootPath root) (lazyCommand cmd L.empty) >>= return . collectOutputUnpacked
+       ((_out, err, code), elapsed) <- liftIO . timeTask $ useEnv (rootPath root) forceList (lazyCommand cmd L.empty) >>= return . collectOutputUnpacked
        return $ case code of
                   [ExitSuccess] -> Right elapsed
                   result -> Left $ "*** FAILURE: Could not update environment: " ++ cmd ++ " -> " ++ show result ++ "\n" ++ err

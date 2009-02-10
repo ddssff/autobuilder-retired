@@ -32,7 +32,7 @@ import Debian.Repo.Types
 import Debian.URI
 import Extra.CIO (CIO, vPutStr, vPutStrBl)
 import Extra.Files (replaceFile)
-import System.Chroot (useEnv)
+import System.Chroot (useEnv, forceList)
 import System.Directory
 import System.IO
 import System.Unix.Directory
@@ -170,7 +170,7 @@ archFiles' deb =
 
 buildArchOfEnv :: EnvRoot -> IO Arch
 buildArchOfEnv (EnvRoot root)  =
-    do output <- useEnv root (lazyCommand cmd L.empty)
+    do output <- useEnv root forceList (lazyCommand cmd L.empty)
        case exitCodeOnly output of
          [ExitSuccess] ->
              case (words . L.unpack . stdoutOnly $ output) of

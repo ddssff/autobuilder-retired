@@ -87,7 +87,7 @@ import Extra.List(dropPrefix)
 import Extra.Misc(columns, md5sum, processOutput)
 import Extra.TIO(CIO(setStyle), appPrefix, vBOL, vEPutStr,
                  vEPutStrBl)
-import System.Chroot (useEnv)
+import System.Chroot (useEnv, forceList)
 import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess), exitWith)
 import System.IO(IO, FilePath)
@@ -969,7 +969,7 @@ downloadDependencies :: CIO m => OSImage -> DebianBuildTree -> [String] -> [PkgV
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        vEPutStrBl 1 . ("versions: " ++) . show $! vers
-       (out, codes) <- liftIO (useEnv (rootPath root) (lazyCommand command L.empty)) >>=
+       (out, codes) <- liftIO (useEnv (rootPath root) forceList (lazyCommand command L.empty)) >>=
                        vMessage 0 ("Downloading build dependencies into " ++ rootPath (rootDir os)) >>=
                        dotOutput 100 >>= return . partitionResult
        case codes of
@@ -991,7 +991,7 @@ pathBelow root path =
 -- |Install the package's build dependencies.
 installDependencies :: CIO m => OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> m (Either String [Output])
 installDependencies os source extra versions =
-    do (out, codes) <- liftIO (useEnv (rootPath root) (lazyCommand command L.empty)) >>=
+    do (out, codes) <- liftIO (useEnv (rootPath root) forceList (lazyCommand command L.empty)) >>=
                        vMessage 0 ("Installing build dependencies into " ++ rootPath (rootDir os)) >>=
                        dotOutput 100 >>= return . partitionResult
        case codes of
