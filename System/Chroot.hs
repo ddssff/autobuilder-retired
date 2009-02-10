@@ -59,7 +59,7 @@ useEnv rootPath force action =
     where
       copySSH Nothing = return ()
       copySSH (Just home) =
-          system' ("rsync -rlptgDHxS " ++ home ++ "/.ssh/ " ++ rootPath ++ "/root/.ssh")
+          system' ("rsync -rlptgDHxS --delete " ++ home ++ "/.ssh/ " ++ rootPath ++ "/root/.ssh")
       withSock Nothing action = action
       withSock (Just sockPath) action =
           withMountBind dir (rootPath ++ dir) action
