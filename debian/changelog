@@ -1,3 +1,12 @@
+autobuilder (4.44) unstable; urgency=low
+
+  * Create a wrapper script named autobuilder that runs the configuration
+    file in ~/.autobuilder/AutoBuilder.hs.  If that script doesn't exist
+    it creates it by coping an example script.
+  * Fix a bug in useEnv.
+
+ -- David Fox <dsf@seereason.com>  Mon, 09 Feb 2009 18:12:37 -0800
+
 autobuilder (4.43) unstable; urgency=low
 
   * Support for running multiple parameter sets

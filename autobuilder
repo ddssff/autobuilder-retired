@@ -1,0 +1,9 @@
+#!/bin/sh
+
+[ -d $HOME/.autobuilder ] || mkdir -p $HOME/.autobuilder
+[ -f $HOME/.autobuilder/autobuilder.hs ] || {
+   cp /usr/lib/autobuilder/AutoBuilder.hs $HOME/.autobuilder/autobuilder.hs
+   echo "Creating a default configuration file at $HOME/.autobuilder/autobuilder.hs.  Please edit it and re-run."
+   exit 0
+}
+sudo runhaskell -package=base-3.0.3.0 $HOME/.autobuilder/autobuilder.hs $*
