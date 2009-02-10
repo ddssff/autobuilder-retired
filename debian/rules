@@ -9,7 +9,7 @@ include /usr/share/cdbs/1/rules/hlibrary.mk
 #	rm -rf debian/autobuilder-web-client/usr/bin
 
 binary-fixup/autobuilder::
-	install -d 755 -D autobuilder debian/autobuilder/usr/bin/autobuilder
+	install -m 755 -D autobuilder debian/autobuilder/usr/bin/autobuilder
 	install -m 644 -D AutoBuilder.hs debian/autobuilder/usr/lib/autobuilder/AutoBuilder.hs
 
 clean::
