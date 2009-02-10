@@ -54,7 +54,7 @@ useEnv rootPath action =
        home <- try (getEnv "HOME") >>= either (error . show) return
        -- Do NOT preserve ownership, files must be owned by root.
        copySSH home
-       withSock sockPath $ action
+       withSock sockPath . fchroot rootPath $ action
     where
       copySSH Nothing = return ()
       copySSH (Just home) =
@@ -69,7 +69,7 @@ useEnv rootPath action =
             doMount =
                 do createDirectoryIfMissing True mountPoint
                    system' $ "mount --bind " ++ escapePathForMount toMount ++ " " ++ escapePathForMount mountPoint
-                   result <- fchroot rootPath action
+                   result <- action
                    system' $ "umount " ++ escapePathForMount mountPoint
                    return result
       escapePathForMount = id	-- FIXME - Path arguments should be escaped
