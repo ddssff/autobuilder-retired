@@ -980,7 +980,7 @@ downloadDependencies os source extra versions =
       command = ("export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
-      aptGetCommand = "apt-get --yes install --download-only " ++ intercalate " " (map showPkgVersion versions ++ extra)
+      aptGetCommand = "apt-get --yes install -o APT::Install-Recommends=False --download-only " ++ intercalate " " (map showPkgVersion versions ++ extra)
       path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
 
@@ -1002,7 +1002,7 @@ installDependencies os source extra versions =
       command = ("export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
                  (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
-      aptGetCommand = "apt-get --yes install " ++ intercalate " " (map showPkgVersion versions ++ extra)
+      aptGetCommand = "apt-get --yes install -o APT::Install-Recommends=False " ++ intercalate " " (map showPkgVersion versions ++ extra)
       path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
 
