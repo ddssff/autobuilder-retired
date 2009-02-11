@@ -155,7 +155,7 @@ myPublicBuildURI release = "http://deb.seereason.com/" ++ releaseRepoName releas
 -- you change this value use the flushRoot option to get it to take
 -- effect.
 myExtraPackages myBuildRelease =
-    ["debian-archive-keyring"] ++
+    ["debian-archive-keyring", "seereason-keyring"] ++
     -- Private releases generally have ssh URIs in their sources.list,
     -- I have observed that this solves the "ssh died unexpectedly"
     -- errors.
