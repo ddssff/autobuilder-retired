@@ -1,3 +1,12 @@
+autobuilder (4.45) unstable; urgency=low
+
+  * Add a force argument to useEnv to make sure we complete the
+    computation before we tear down the changeroot environment.
+    Unfortunately, this force argument can only run in the regular IO
+    monad, so we can't use our nicer terminal formatting monad TIO.
+
+ -- David Fox <dsf@seereason.com>  Wed, 11 Feb 2009 06:10:30 -0800
+
 autobuilder (4.44) unstable; urgency=low
 
   * Create a wrapper script named autobuilder that runs the configuration
