@@ -3,9 +3,12 @@ module System.Chroot
     ( fchroot
     , useEnv
     , forceList
+    , forceList'
     ) where
 
 import Control.Exception
+
+import qualified Data.ByteString.Char8 as B
 
 import Foreign.C.Error
 import Foreign.C.String
@@ -14,9 +17,12 @@ import System.Cmd (system)
 import System.Directory (createDirectoryIfMissing)
 import System.Exit
 import System.FilePath (dropTrailingPathSeparator, dropFileName)
+import System.IO (hPutStr, stderr)
 import System.Posix.Env (getEnv)
 import System.Posix.IO
 import System.Posix.Directory
+
+import System.Unix.Process (Output(..))
 
 foreign import ccall unsafe "chroot" c_chroot :: CString -> IO Int
 
@@ -53,12 +59,15 @@ useEnv :: FilePath -> (a -> IO a) -> IO a -> IO a
 useEnv rootPath force action =
     do sockPath <- try (getEnv "SSH_AUTH_SOCK") >>= either (error . show) return
        home <- try (getEnv "HOME") >>= either (error . show) return
-       -- Do NOT preserve ownership, files must be owned by root.
        copySSH home
+       -- We need to force the output before we exit the changeroot.
+       -- Otherwise we lose our ability to communicate with the ssh
+       -- agent and we get errors.
        withSock sockPath . fchroot rootPath $ (action >>= force)
     where
       copySSH Nothing = return ()
       copySSH (Just home) =
+          -- Do NOT preserve ownership, files must be owned by root.
           system' ("rsync -rlptgDHxS --delete " ++ home ++ "/.ssh/ " ++ rootPath ++ "/root/.ssh")
       withSock Nothing action = action
       withSock (Just sockPath) action =
@@ -79,4 +88,18 @@ useEnv rootPath force action =
           where testcode (ExitFailure n) = error (show s ++ " -> " ++ show n)
                 testcode ExitSuccess = return ()
 
+forceList :: [a] -> IO [a]
 forceList output = evaluate (length output) >> return output
+
+forceList' :: [Output] -> IO [Output]
+forceList' output = printOutput output >>= forceList
+
+-- |Print all the output to the appropriate output channel
+printOutput :: [Output] -> IO [Output]
+printOutput output =
+    mapM print output
+    where
+      print x@(Stdout s) = putStr (B.unpack s) >> return x
+      print x@(Stderr s) = hPutStr stderr (B.unpack s) >> return x
+      print x = return x
+

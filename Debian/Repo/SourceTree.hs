@@ -150,7 +150,7 @@ buildDebs noClean setEnv buildOS buildTree status =
                      -- Try to build twice, some packages do configuration the first
                      -- time 'so that it is NEVER run during an automated build.' :-/
                      "{ " ++ buildcmd ++ " || " ++ buildcmd ++ " ; } ")
-      (result, elapsed) <- timeTask (liftIO (useEnv root forceList (lazyCommand fullcmd L.empty)) >>= setStyle (addPrefixes "[1] " "[2] ") . printOutput)
+      (result, elapsed) <- timeTask (liftIO (useEnv root forceList' (lazyCommand fullcmd L.empty)) >>= setStyle (addPrefixes "[1] " "[2] ") . printOutput)
       return . checkResult (Left . (("*** FAILURE: " ++ fullcmd ++ " -> ") ++) . show) (Right elapsed) $ (discardOutput result)
     where
       path = debdir buildTree
