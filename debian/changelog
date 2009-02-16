@@ -1,3 +1,10 @@
+autobuilder (4.46) unstable; urgency=low
+
+  * Add a help message.
+  * Fix path to configuration directory (~/.autobuilder.d, not ~/.autobuilder)
+
+ -- David Fox <dsf@seereason.com>  Mon, 16 Feb 2009 06:19:58 -0800
+
 autobuilder (4.45) unstable; urgency=low
 
   * Add a force argument to useEnv to make sure we complete the

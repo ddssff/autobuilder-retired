@@ -13,7 +13,7 @@ import System.Environment (getArgs)
 import System.IO (hPutStrLn, hFlush, stderr)
 
 main =
-    hPutStrLn stderr "Autobuilder starting..." >>
+    hPutStrLn stderr "Please see http://seereason.com/doc/ghc/libraries/AutoBuilder/Debian-AutoBuilder-ParamClass.html#t%3AParamClass for documentation of the parameters that can be set in the configuration file...\nAutobuilder starting..." >>
     hFlush stderr >>
     getArgs >>= M.main . map params
 
