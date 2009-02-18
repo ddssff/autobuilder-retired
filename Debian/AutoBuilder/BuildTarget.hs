@@ -3,7 +3,7 @@
 -- a list giving the syntax of the supported target types:
 --
 -- [@apt:\<distribution\>:\<packagename\>@] - a target of this form looks up
---                the sources.list named \<distribution\> and retrieves the package with
+--                the sources.list named @\<distribution\>@ and retrieves the package with
 --                the given name from that distribution.
 --
 -- [@cd:\<relpath\>:\<target\>@] - A target of this form modifies another target by
@@ -11,9 +11,9 @@
 --                used for repositories where the debian directory is in a subdirectory.
 --
 -- [@darcs:\<string\>@] - a target of this form obtains the source code by running
---                darcs get \<string\>.  If the argument needs to use ssh to reach the darcs
+--                darcs get @\<string\>@.  If the argument needs to use ssh to reach the darcs
 --                repository, it is necessary to set up ssh keys to allow access without
---                typing a password.  See the --ssh-export option for help doing this.
+--                typing a password.  See 'Debian.AutoBuilder.ParamClass.doSSHExport' for help doing this.
 --
 -- [@deb-dir:(\<target\>):(\<target\>)@] - A target of this form combines two targets,
 --                where one points to an un-debianized source tree and the other contains
@@ -25,26 +25,26 @@
 --              since they include no revision control information.
 --
 -- [@hg:\<string\>@] - A target of this form target obtains the source
---                code by running the Mercurial command 'hg clone \<string\>'.
+--                code by running the Mercurial command @hg clone \<string\>@.
 --
 -- [@proc:\<target\>@] - A target of this form modifies another target by ensuring
---                that /proc is mounted during the build.  This target should only be
+--                that @/proc@ is mounted during the build.  This target should only be
 --                used if absolutely necessary, because it reveals details of the build
 --                machine which might be different from the machine on which the package
 --                is ultimately installed.
 --
 -- [@quilt:(\<target1\>):(\<target2\>)@] - In a target of this form, target1 is
 --                any source tree, and target2 is a quilt directory which contains
---                a debian style changelog file named 'changelog', a file named
---                'series' with a list of patch file names, and finally the patch
+--                a debian style changelog file named @changelog@, a file named
+--                @series@ with a list of patch file names, and finally the patch
 --                files listed in the series file.  The quilt system is used to apply
 --                the patches to the source tree before building.
 --
 -- [@sourcedeb:\<target\>@] - A target of this form unpacks the source deb
 --                retrieved by the original target and presents an unpacked source
 --                tree for building.  Thus, the original target should retrieve a
---                directory containing a .dsc file, a .tar.gz, and an optional
---                .diff.gz file.
+--                directory containing a @.dsc@ file, a @.tar.gz@, and an optional
+--                @.diff.gz@ file.
 --
 -- [@svn:\<uri\>@] - A target of this form retrieves the source code from
 --                a subversion repository.
