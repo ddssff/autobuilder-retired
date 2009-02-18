@@ -1,3 +1,10 @@
+autobuilder (5.0) unstable; urgency=low
+
+  * Bump major version number to reflect new configuration style.
+  * Use new split off debian-repo library
+
+ -- David Fox <dsf@seereason.com>  Wed, 18 Feb 2009 11:23:38 -0800
+
 autobuilder (4.46) unstable; urgency=low
 
   * Add a help message.

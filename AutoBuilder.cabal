@@ -19,7 +19,7 @@ Cabal-Version:  >= 1.2
 Build-type:     Simple
 
 Library
-  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal
+  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian >= 3.30, debian-repo >= 3.30
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,
@@ -40,58 +40,4 @@ Library
     Debian.AutoBuilder.ParamRec,
     Debian.AutoBuilder.Params,
     Debian.AutoBuilder.Target,
-    Debian.AutoBuilder.Version,
-    Debian.Config,
-    Debian.Apt.Dependencies,
-    Debian.Apt.Index,
-    Debian.Apt.Methods,
-    Debian.Apt.Package,
-    Debian.Control,
-    Debian.Control.Common,
-    Debian.Control.PrettyPrint,
-    Debian.Control.ByteString,
-    Debian.Control.String,
-    Debian.Deb,
-    Debian.Extra.CIO,
-    Debian.Extra.Files,
-    Debian.GenBuildDeps,
-    Debian.Relation,
-    Debian.Relation.ByteString,
-    Debian.Relation.Common,
-    Debian.Relation.String,
-    Debian.Repo,
-    Debian.Repo.AptImage,
-    Debian.Repo.Cache,
-    Debian.Repo.Changes,
-    Debian.Repo.Dependencies,
-    Debian.Repo.Insert,
-    Debian.Repo.IO,
-    Debian.Repo.LocalRepository,
-    Debian.Repo.OSImage,
-    Debian.Repo.Package,
-    Debian.Repo.PackageIndex,
-    Debian.Repo.Release,
-    Debian.Repo.Repository,
-    Debian.Repo.Slice,
-    Debian.Repo.SourcesList,
-    Debian.Repo.SourceTree,
-    Debian.Repo.Types,
-    Debian.Shell,
-    Debian.Time,
-    Debian.URI,
-    Debian.Version,
-    Debian.Version.Common,
-    Debian.Version.String,
-    Debian.Version.ByteString,
-    Debian.VersionPolicy,
-    Debian.Report,
-    Debian.Util.FakeChanges,
-    System.Chroot,
-    Text.Format
-  other-modules:
-    Debian.Version.Internal
-
-Executable newdist
-  Main-Is:        NewDist.hs
-  GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic
+    Debian.AutoBuilder.Version
