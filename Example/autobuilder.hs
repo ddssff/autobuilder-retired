@@ -1,4 +1,10 @@
 #!/usr/bin/env runhaskell -package=base-3.0.3.0
+-- Currently this will not run as a script even with the line above.
+-- The reason is unclear.  Either use the wrapper script in
+-- /usr/bin/autobuilder or run
+--   sudo runhaskell -package=base-3.0.3.0 <path to this configuration file> release1 release2 ...
+
+-- Import the symbols we use below.
 import Data.List (isSuffixOf)
 import Data.Maybe
 import qualified Debian.AutoBuilder.Main as M
@@ -9,111 +15,111 @@ import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
 import Debian.Repo.Types (ReleaseName(ReleaseName, relName), Arch(Binary))
 import Debian.URI
 import Debian.Version (parseDebianVersion)
+import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.IO (hPutStrLn, hFlush, stderr)
 
-main =
-    hPutStrLn stderr "Please see http://seereason.com/doc/ghc/libraries/AutoBuilder/Debian-AutoBuilder-ParamClass.html#t%3AParamClass for documentation of the parameters that can be set in the configuration file...\nAutobuilder starting..." >>
-    hFlush stderr >>
-    getArgs >>= M.main . map params
-
----------------------------- THE PARAMETERS RECORD ---------------------------------
-
--- |See Documentation in "Debian.AutoBuilder.ParamClass".
-params myBuildRelease =
-    ParamRec
-    { vendorTag = myVendorTag
-    , autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
-    , releaseSuffixes = myReleaseSuffixes
-    , buildRelease = ReleaseName {relName = myBuildRelease}
-    , uploadURI = myUploadURI myBuildRelease
-    , buildURI = myBuildURI myBuildRelease
-    , targets = myTargets myBuildRelease
-    , doUpload = myDoUpload
-    , doNewDist = myDoNewDist
-    , flushPool = False
-    , useRepoCache = True
-    , forceBuild = myForceBuild
-    , doSSHExport = myDoSSHExport
-    -- Things that are occasionally useful
-    , goals = myGoals
-    , dryRun = False
-    , allowBuildDependencyRegressions = False
-    , setEnv = []
-    , showSources = False
-    , showParams = False
-    , flushAll = False
-    , flushSource = False
-    , flushRoot = False
-    , verbosity = myVerbosity
-    , topDirParam = Nothing
-    , createRelease = []
-    , doNotChangeVersion = False
-    -- Things that rarely change
-    , sources = allSources myDebianMirrorHost myUbuntuMirrorHost (isPrivateRelease myBuildRelease)
-    , globalRelaxInfo = myGlobalRelaxInfo
-    , strictness = P.Moderate
-    , extraPackages = myExtraPackages myBuildRelease
-    , extraEssential = myExtraEssential myBuildRelease
-    , omitEssential = []
-    , omitBuildEssential = False
-    , developmentReleaseNames = myDevelopmentReleaseNames
-    , releaseAliases = myReleaseAliases
-    , archList = [Binary "i386",Binary "amd64"]
-    , newDistProgram = "newdist -v"
-    -- Things that are probably obsolete
-    , requiredVersion = [(parseDebianVersion "4.41", Nothing)]
-    , debug = False
-    , omitTargets = []
-    , extraReleaseTag = Nothing
-    , preferred = []
-    , buildDepends = []
-    , noClean = False
-    , cleanUp = False
-    , ifSourcesChanged = SourcesChangedError
-    }
-
--- The name of the upstream release that the the build release will be
--- based on.  This sources.list is combined with the one constructed
--- from the Build-URI to create the build environment.
---myBuildRelease = "intrepid-seereason-private"
-isPrivateRelease release = isSuffixOf "-private" release
+-- The known suffixes for build releases.
 myReleaseSuffixes = ["-seereason", "-private"]
+
+-- The current list of development releases.  The version numbers for
+-- these releases do not need to be tagged with the base release name,
+-- only with the vendor tag.  Sid is always a development release,
+-- Ubuntu creates a new one for each cycle.
+--
 myDevelopmentReleaseNames = ["sid", "jaunty"]
 
--- 
+-- This tag is used to construct the customized part of the version
+-- number for any package the autobuilder builds.
+--
 myVendorTag = "seereason"
+
+-- Put the names of any source packages you wish to rebuild whether or
+-- not they appear to need it.  If you modified the package source but
+-- did not modify the version number in the changelog this will force
+-- a build.  This can lead to problems if you build the package for
+-- multiple release or multiple architectures - you can end up with
+-- different source for seemingly identical uploaded versions.
+--
 myForceBuild = []
+
+-- Clear all the entries in the local pool before starting build.  Use
+-- this when there is stuff already in there that you don't want to
+-- upload to the remote repository.
+--
+myFlushPool = False
+
+-- Make the output more or less chatty.  Zero is normal, -1 is
+-- quieter, and so on.
+--
 myVerbosity = 0
 
+-- The list of packages we want to build.  The myBuildRelease argument
+-- comes from the autobuilder argument list.
+--
 myTargets myBuildRelease =
     case isPrivateRelease myBuildRelease of
       False -> myPublicTargets
       True -> myPrivateTargets
+
+-- The list of targets which are uploaded to the public repository
+--
 myPublicTargets = ghc610CoreTargets ++ autobuilderTargets ++ ghc610Targets ++ otherTargets
+
+-- The list of targets which are uploaded to the private repository
+--
 myPrivateTargets = privateTargets
+
+-- If you are not interested in building everything, put one or more
+-- source package names you want to build in this list.  Only these
+-- packages and their build dependencies will be considered for
+-- building.
+--
 myGoals = []
 
--- Use this to find one or more targets by name for use as the value
--- of myTargets.
+-- Helper function to identify private releases.
+--
+isPrivateRelease release = isSuffixOf "-private" release
+
+-- Use this to find one or more targets by Debian source package name,
+-- for use as the value of myTargets.
+--
 findTargets :: [String] -> [Target] -> [Target]
 findTargets names targets = filter (\ target -> elem (sourcePackageName target) names) targets
 
 -- These host names are used to construct the sources.list lines to
 -- access the Debian and Ubuntu repositories.  The anl.gov values here
 -- probably won't work outside the United States.
+--
 myDebianMirrorHost = "mirror.anl.gov"
 myUbuntuMirrorHost = "mirror.anl.gov"
+--myDebianMirrorHost = "mirrors.usc.edu"
+--myUbuntuMirrorHost = "mirrors.usc.edu"
 
+-- If true, upload the packages after a successful build
+--
 myDoUpload = True
+
+-- If true, run newdist on the upload repository after a successful
+-- build and upload, making them available to apt-get install.
+--
 myDoNewDist = True
+
+-- If true, try to set up ssh access to the upload host if necessary.
+--
 myDoSSHExport = True
 
 -- There is a debian standard for constructing the version numbers of
 -- packages backported to older releases.  To follow this standard we
--- use bpo40+ for Debian 4.0, aka etch.
+-- use bpo40+ for Debian 4.0, aka etch.  Don't start building for a new
+-- Debian release without adding a bpo alias, otherwise you won't be able
+-- to build when you add one because the existing packages will look too
+-- new to trump.
+--
 myReleaseAliases =
     [("etch", "bpo40+"),
+     ("lenny", "bpo50+"),
+     ("squeeze", "bpo59+"),
      ("hardy-seereason", "hardy"),
      ("intrepid-seereason", "intrepid"),
      ("jaunty-seereason", "jaunty")]
@@ -125,6 +131,7 @@ myReleaseAliases =
 -- local repository, where each packages is uploaded immediately after
 -- it is built for use as build dependencies of other packages during
 -- the same run.
+--
 myUploadURI myBuildRelease =
     case isPrivateRelease myBuildRelease of
       False -> parseURI $ myPublicUploadURI myBuildRelease
@@ -133,6 +140,7 @@ myUploadURI myBuildRelease =
 -- An alternate url for the same repository the upload-uri points to,
 -- used for downloading packages that have already been installed
 -- there.
+--
 myBuildURI myBuildRelease =
     case isPrivateRelease myBuildRelease of
       False -> parseURI $ myPublicBuildURI myBuildRelease
@@ -144,9 +152,6 @@ myPrivateBuildURI release = "ssh://upload@deb.seereason.com/srv/deb-private/" ++
 myPublicUploadURI release = "ssh://upload@deb.seereason.com/srv/deb/" ++ releaseRepoName release
 myPublicBuildURI release = "http://deb.seereason.com/" ++ releaseRepoName release
 
---myPrivateUploadURI = "ssh://upload@deb.seereason.com/srv/deb-private"
---myPrivateBuildURI = "ssh://upload@deb.seereason.com/srv/deb-private"
-
 -- Additional packages to include in the clean build environment.
 -- Adding packages here can speed things up when you are building many
 -- packages, because for each package it reverts the build environment
@@ -154,8 +159,9 @@ myPublicBuildURI release = "http://deb.seereason.com/" ++ releaseRepoName releas
 -- dependencies.  This only affects newly created environments, so if
 -- you change this value use the flushRoot option to get it to take
 -- effect.
+--
 myExtraPackages myBuildRelease =
-    ["debian-archive-keyring", "seereason-keyring"] ++
+    ["debian-archive-keyring", "seereason-keyring", "ghc6","ghc6-doc", "ghc6-prof"] ++
     -- Private releases generally have ssh URIs in their sources.list,
     -- I have observed that this solves the "ssh died unexpectedly"
     -- errors.
@@ -168,6 +174,7 @@ myExtraPackages myBuildRelease =
 -- Specify extra packages to include as essential in the build
 -- environment.  This option was provided to add either upstart or
 -- sysvinit to the build when they ceased to be 'Required' packages.
+--
 myExtraEssential myBuildRelease =
     ["belocs-locales-bin", "gnupg", "dpkg"] ++
     case releaseRepoName myBuildRelease of
@@ -191,7 +198,7 @@ ubuntuSourceLines ubuntuMirrorHost release =
     , "deb http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse"
     , "deb-src http://" ++ ubuntuMirrorHost ++ "/ubuntu/ " ++ release ++ "-security main restricted universe multiverse" ]
 
-debianReleases = ["sid", "lenny"]
+debianReleases = ["sid", "squeeze", "lenny"]
 ubuntuReleases = ["jaunty", "intrepid", "hardy"]
 
 dropSuffix suff x = take (length x - length suff) x
@@ -230,10 +237,13 @@ allSources debianMirrorHost ubuntuMirrorHost includePrivate =
                                  [ "deb " ++ myPrivateUploadURI release ++ " " ++ release ++ " main"
                                  , "deb-src " ++ myPrivateUploadURI release ++ " " ++ release ++ " main" ]
 
+-- Any package listed here will not trigger rebuilds when updated.
+--
 myGlobalRelaxInfo =
     ["base-files",
      "bash",
      "bsdutils",
+     "cdbs",
      "devscripts",
      "dpkg",
      "dpkg-dev",
@@ -270,6 +280,9 @@ myGlobalRelaxInfo =
 
 ----------------------- BUILD RELEASE ----------------------------
 
+-- Given a release name, return the subdirectory of myUploadURI which
+-- contains the repository.
+--
 releaseRepoName name
     | elem name (debianReleases ++ oldDebianReleases) = "debian"
     | elem name (ubuntuReleases ++ oldUbuntuReleases) = "ubuntu"
@@ -277,10 +290,16 @@ releaseRepoName name
     | isSuffixOf "-private" name = releaseRepoName (dropSuffix "-private" name)
     | True = error $ "Unknown release name: " ++ show name
 
+-- These are releases which are not unsupported for building, but from
+-- which we could, if we had to, pull source from using an Apt target.
+--
 oldDebianReleases = ["etch", "sarge"]
 oldUbuntuReleases = ["gutsy", "feisty"]
 
 ------------------------ TARGETS ---------------------
+
+-- Information about how to obtain and assemble the source code for
+-- the packages we want to build. | 
 
 ghc610CoreTargets =
     [ Target { sourcePackageName = "haskell-bzlib"
@@ -307,6 +326,9 @@ ghc610CoreTargets =
     , Target { sourcePackageName = "haskell-debian"
              , sourceSpec = "darcs:http://src.seereason.com/ghc610/haskell-debian-3"
              , relaxInfo = ["cabal-debian"] }
+    , Target { sourcePackageName = "haskell-debian-repo"
+             , sourceSpec = "darcs:http://src.seereason.com/haskell-debian-repo"
+             , relaxInfo = [] }
     , Target { sourcePackageName = "ghc6"
              , sourceSpec = "deb-dir:(uri:http://www.haskell.org/ghc/dist/6.10.1/ghc-6.10.1-src.tar.bz2:54c676a632b3d73cf526b06347522c32):(darcs:http://src.seereason.com/ghc610/debian/ghc610-debian)"
              , relaxInfo = ["ghc6"
@@ -479,7 +501,7 @@ ghc610Targets =
              , sourceSpec = "darcs:http://src.seereason.com/mirror"
              , relaxInfo = [] }
     , Target { sourcePackageName = "haskell-archive"
-             , sourceSpec = "darcs:http://src.seereason.com/backups"
+             , sourceSpec = "darcs:http://src.seereason.com/archive"
              , relaxInfo = [] }
 
 {-
@@ -671,3 +693,88 @@ Comment: Here are some more proposed targets
 -}
 
 -- (BinPkgName "module-init-tools",Just (SrcPkgName "linux-2.6"))
+
+-- Nothing below here should need to be modified.
+
+---------------------------- THE PARAMETERS RECORD ---------------------------------
+-- Assemble all the configuration info above.
+
+-- |See Documentation in "Debian.AutoBuilder.ParamClass".
+params myBuildRelease =
+    ParamRec
+    { vendorTag = myVendorTag
+    , autobuilderEmail = "SeeReason Autobuilder <autobuilder@seereason.org>"
+    , releaseSuffixes = myReleaseSuffixes
+    , buildRelease = ReleaseName {relName = myBuildRelease}
+    , uploadURI = myUploadURI myBuildRelease
+    , buildURI = myBuildURI myBuildRelease
+    , targets = myTargets myBuildRelease
+    , doUpload = myDoUpload
+    , doNewDist = myDoNewDist
+    , flushPool = myFlushPool
+    , useRepoCache = True
+    , forceBuild = myForceBuild
+    , doSSHExport = myDoSSHExport
+    -- Things that are occasionally useful
+    , goals = myGoals
+    , dryRun = False
+    , allowBuildDependencyRegressions = False
+    , setEnv = []
+    , showSources = False
+    , showParams = False
+    , flushAll = False
+    , flushSource = False
+    , flushRoot = False
+    , verbosity = myVerbosity
+    , topDirParam = Nothing
+    , createRelease = []
+    , doNotChangeVersion = False
+    -- Things that rarely change
+    , sources = allSources myDebianMirrorHost myUbuntuMirrorHost (isPrivateRelease myBuildRelease)
+    , globalRelaxInfo = myGlobalRelaxInfo
+    , strictness = P.Moderate
+    , extraPackages = myExtraPackages myBuildRelease
+    , extraEssential = myExtraEssential myBuildRelease
+    , omitEssential = []
+    , omitBuildEssential = False
+    , developmentReleaseNames = myDevelopmentReleaseNames
+    , releaseAliases = myReleaseAliases
+    , archList = [Binary "i386",Binary "amd64"]
+    , newDistProgram = "newdist -v"
+    -- Things that are probably obsolete
+    , requiredVersion = [(parseDebianVersion "4.41", Nothing)]
+    , debug = False
+    , omitTargets = []
+    , extraReleaseTag = Nothing
+    , preferred = []
+    , buildDepends = []
+    , noClean = False
+    , cleanUp = False
+    , ifSourcesChanged = SourcesChangedError
+    }
+
+main =
+    do hPutStrLn stderr "Autobuilder starting..."
+       hFlush stderr
+       args <- getArgs
+       case getOpt' Permute optSpecs args of
+         (fns, dists, [], []) ->
+             do hPutStrLn stderr ("args=" ++ show args ++ ", dists=" ++ show dists)
+                -- Apply the command line arguments to each paramter set
+                M.main . map (\ p -> foldr ($) p fns) . map params $ dists
+
+optSpecs :: [OptDescr (ParamRec -> ParamRec)]
+optSpecs =
+    [ Option ['v'] [] (NoArg (\ p -> p {verbosity = verbosity p + 1}))
+      "Increase progress reporting"
+    , Option ['q'] [] (NoArg (\ p -> p {verbosity = verbosity p - 1}))
+      "Decrease progress reporting"
+    , Option [] ["show-params"] (NoArg (\ p -> p {showParams = True}))
+      "Display the parameter set" 
+    , Option [] ["flush-pool"] (NoArg (\ p -> p {flushPool = True}))
+      "Flush the local repository before building."
+    , Option [] ["flush-pool"] (NoArg (\ p -> p {flushPool = True}))
+      "Flush the local repository before building."
+    , Option ['n'] ["dry-run"] (NoArg (\ p -> p {dryRun = True}))
+      "Exit as soon as we discover a package that needs to be built."
+    ]
