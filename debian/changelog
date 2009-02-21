@@ -1,3 +1,9 @@
+autobuilder (5.1) unstable; urgency=low
+
+  * Add support for splitting up the configuration file, use feature in example.
+
+ -- David Fox <dsf@seereason.com>  Sat, 21 Feb 2009 08:57:24 -0800
+
 autobuilder (5.0) unstable; urgency=low
 
   * Bump major version number to reflect new configuration style.
