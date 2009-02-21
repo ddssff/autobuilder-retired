@@ -371,6 +371,7 @@ main =
 maybeDoHelp xs@(x : _)
     | doHelp x = hPutStr stderr (usage "Usage: " optSpecs) >> exitWith ExitSuccess >> return xs
     | True = return xs
+maybeDoHelp [] = return []
 
 optSpecs :: [OptDescr (ParamRec -> ParamRec)]
 optSpecs =
