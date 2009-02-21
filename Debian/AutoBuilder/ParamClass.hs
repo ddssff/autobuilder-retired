@@ -128,6 +128,8 @@ class ParamClass a where
     -- to need it.
     doSSHExport :: a -> Bool
     -- ^ Try to set up ssh keys if upload host asks for a password.
+    doHelp :: a -> Bool
+    -- ^ Print a usage message and exit.
 
     -- THINGS THAT ARE OCCASIONALLY USEFUL
 
@@ -426,6 +428,7 @@ instance ParamClass p => ParamClass (p, a) where
     createRelease = createRelease . fst
     ifSourcesChanged = ifSourcesChanged . fst
     doSSHExport = doSSHExport . fst
+    doHelp = doHelp . fst
     autobuilderEmail = autobuilderEmail . fst
 
 loadRepoCache :: CIO m => FilePath -> AptIOT m ()

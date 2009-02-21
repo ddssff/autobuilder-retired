@@ -179,7 +179,7 @@ runParameterSet params =
           case filter (\ (v, _) -> v > parseDebianVersion V.autoBuilderVersion) (P.requiredVersion params) of
             [] -> return ()
             reasons ->
-                do vEPutStrBl 0 ("Version " ++ V.autoBuilderVersion ++ " is too old:")
+                do vEPutStrBl 0 ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)                    
           where

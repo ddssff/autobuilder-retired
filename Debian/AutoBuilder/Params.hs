@@ -62,5 +62,6 @@ makeParamRec params =
     , R.createRelease = P.createRelease params
     , R.ifSourcesChanged = P.ifSourcesChanged params
     , R.doSSHExport = P.doSSHExport params
+    , R.doHelp = P.doHelp params
     , R.autobuilderEmail = P.autobuilderEmail params
     }

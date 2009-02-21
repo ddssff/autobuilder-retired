@@ -54,6 +54,7 @@ data ParamRec =
     , createRelease :: [String]
     , ifSourcesChanged :: SourcesChangedAction
     , doSSHExport :: Bool
+    , doHelp :: Bool
     , autobuilderEmail :: String
     } deriving Show 
 
@@ -103,4 +104,5 @@ instance ParamClass ParamRec where
     createRelease = Debian.AutoBuilder.ParamRec.createRelease
     ifSourcesChanged = Debian.AutoBuilder.ParamRec.ifSourcesChanged
     doSSHExport = Debian.AutoBuilder.ParamRec.doSSHExport
+    doHelp = Debian.AutoBuilder.ParamRec.doHelp
     autobuilderEmail = Debian.AutoBuilder.ParamRec.autobuilderEmail

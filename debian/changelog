@@ -1,3 +1,9 @@
+autobuilder (5.2) unstable; urgency=low
+
+  * Add a help/usage option.
+
+ -- David Fox <dsf@seereason.com>  Sat, 21 Feb 2009 09:56:27 -0800
+
 autobuilder (5.1) unstable; urgency=low
 
   * Add support for splitting up the configuration file, use feature in example.
