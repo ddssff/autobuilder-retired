@@ -654,7 +654,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
                                 logWho=P.autobuilderEmail params,
                                 logDate=date,
                                 logComments=
-                                         (changelogText (realSource target) sourceRevision oldDependencies sourceDependencies)}
+                                    init (logComments sourceLog) ++ changelogText (realSource target) sourceRevision oldDependencies sourceDependencies}
       setDistribution name changes =
           let (Paragraph fields) = changeInfo changes in
           let info' = map (setDist name) fields in

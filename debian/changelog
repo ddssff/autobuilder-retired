@@ -1,3 +1,12 @@
+autobuilder (5.3) unstable; urgency=low
+
+  * Put more useful text into the Changes field of the .changes file,
+    so that the newdist messages are more useful.
+  * The --goal option needs to imply the --all-targets option
+  * Fix an non-exhaustive pattern bug in the config file autobuilder.hs.
+
+ -- David Fox <dsf@seereason.com>  Sat, 21 Feb 2009 17:19:38 -0800
+
 autobuilder (5.2) unstable; urgency=low
 
   * Add a help/usage option.
