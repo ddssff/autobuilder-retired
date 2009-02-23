@@ -1120,6 +1120,8 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
                   -- If the package *was* previously built by the autobuilder we rebuild when any
                   -- of its build dependencies are revved or new ones appear.
                   Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText (revvedDependencies ++ newDependencies))
+              | releaseStatus == Indep && notArchDep (targetControl target) ->
+                  No ("Version " ++ show sourceVersion ++ " of architecture independent package is already in release.")
               | releaseStatus == Indep ->
                   -- The binary packages are missing, we need an arch only build.
                   Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
@@ -1127,6 +1129,8 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
                   No ("Version " ++ show sourceVersion ++ " is already in release.")
               | True -> 
                   error ("Unexpected releaseStatus: " ++ show releaseStatus)
+      notArchDep control =
+          all (== "all") . map (maybe "all" (\ (Field (_, s)) -> stripWS s)) . map (lookupP "Architecture") . unControl $ control
       buildDependencyChangeText dependencies =
           "  " ++ intercalate "\n  " lines
           where

@@ -1,3 +1,10 @@
+autobuilder (5.4) unstable; urgency=low
+
+  * Fix handling of architecture independent packages that were
+    already build on a machine with a different architecture.
+
+ -- David Fox <dsf@seereason.com>  Mon, 23 Feb 2009 07:02:04 -0800
+
 autobuilder (5.3) unstable; urgency=low
 
   * Put more useful text into the Changes field of the .changes file,
