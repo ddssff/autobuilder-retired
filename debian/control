@@ -29,6 +29,8 @@ Build-Depends: debhelper (>= 5.0),
                magic-haskell-doc,
                libghc6-mime-prof,
                libghc6-mime-doc,
+               libghc6-time-prof,
+               libghc6-time-doc,
                libgmp3c2,
                libghc6-mime-prof (>= 1.2),
 Standards-Version: 3.7.2.2
