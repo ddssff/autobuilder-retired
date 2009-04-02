@@ -4,7 +4,7 @@ module Debian.AutoBuilder.BuildTarget.Hg where
 import Debian.Shell
 import Debian.Repo
 
-import Control.Exception
+import Control.OldException
 import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe

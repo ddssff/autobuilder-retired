@@ -1,6 +1,6 @@
 module Debian.AutoBuilder.BuildTarget.Darcs where
 
-import Control.Exception
+import Control.OldException
 import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe (fromJust)

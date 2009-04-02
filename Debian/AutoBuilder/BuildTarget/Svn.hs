@@ -5,7 +5,7 @@ module Debian.AutoBuilder.BuildTarget.Svn
     , documentation
     ) where
 
-import Control.Exception
+import Control.OldException
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B

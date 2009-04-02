@@ -9,4 +9,4 @@ CONFIGFILE=$CONFIGDIR/autobuilder.hs
    echo "Creating a default configuration file at $CONFIGFILE.  Please edit it and re-run."
    exit 0
 }
-sudo runhaskell -i$CONFIGDIR -package=base-3.0.3.0 $CONFIGFILE $*
+sudo runhaskell -i$CONFIGDIR $CONFIGFILE $*

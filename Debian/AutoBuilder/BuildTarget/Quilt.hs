@@ -7,7 +7,7 @@ import Debian.Repo
 import Debian.Shell
 import Debian.Version
 
-import Control.Exception
+import Control.OldException
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L

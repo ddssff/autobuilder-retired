@@ -21,7 +21,7 @@ module Debian.AutoBuilder.ParamClass
     , dropAllSuffixes
     ) where
 
-import           Control.Exception (try, evaluate)
+import           Control.OldException (try, evaluate)
 import           Control.Monad.State (get, put)
 import		 Control.Monad.Trans (lift, liftIO)
 import		 Data.List (isSuffixOf)

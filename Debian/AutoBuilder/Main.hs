@@ -6,7 +6,7 @@ module Debian.AutoBuilder.Main
     ( main
     ) where
 
-import Control.Exception(Exception, try, evaluate)
+import Control.OldException(Exception, try, evaluate)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), mapStateT)
 import Control.Monad(Monad(return, (>>), (>>=)), mapM_, mapM, unless, when)
 import qualified Data.Map as Map

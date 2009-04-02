@@ -9,7 +9,7 @@ Description:
   @\/usr\/bin\/AutoBuilder.hs@ to somewhere such as @~\/AutoBuilder.hs@, edit
   the parameters in that file, and then use the command 
   @
-    sudo runhaskell -package=base-3.0.3.0 ~\/AutoBuilder.hs
+    sudo runhaskell ~\/AutoBuilder.hs
   @
   Documentation for the parameters is found in the
   'ParamClass' type class in the "Debian.AutoBuilder.ParamClass"
@@ -19,7 +19,7 @@ Cabal-Version:  >= 1.2
 Build-type:     Simple
 
 Library
-  Build-Depends:  base >= 3 && < 4, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian >= 3.30, debian-repo >= 3.30
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian >= 3.30, debian-repo >= 3.30
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,

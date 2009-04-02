@@ -2,7 +2,7 @@
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
 module Debian.AutoBuilder.BuildTarget.Uri where
 
-import Control.Exception
+import Control.OldException
 import Control.Monad
 import Control.Monad.Trans
 import Data.List (isPrefixOf)

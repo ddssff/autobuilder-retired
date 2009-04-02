@@ -1,6 +1,6 @@
 module Debian.AutoBuilder.BuildTarget.DebDir where
 
-import Control.Exception
+import Control.OldException
 import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
