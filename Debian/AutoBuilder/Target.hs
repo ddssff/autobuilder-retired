@@ -60,7 +60,7 @@ import Debian.Extra.CIO(printOutput, vMessage)
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations, Relation(..))
 import Debian.Repo (countTasks, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
-                    ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum),
+                    ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),
                     ChangeLogEntry(logWho, logVersion, logPackage, logDists, logDate, logComments),
                     save, uploadLocal, invalidRevision, readPkgVersion, showPkgVersion,
                     simplifyRelations, solutions, binaryPackages, buildArchOfEnv, sourcePackages,
@@ -80,16 +80,16 @@ import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, version)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
 import System.Unix.Process(Output(..), collectOutputUnpacked,
-                           commandOutput, lazyCommand)
+                           commandOutput, lazyCommand, lazyProcess)
 import Extra.Either(partitionEithers)
 import Extra.Files(replaceFile)
 import Extra.List(dropPrefix)
-import Extra.Misc(columns, md5sum, processOutput)
+import Extra.Misc(columns, processOutput)
 import Extra.TIO(CIO(setStyle), appPrefix, vBOL, vEPutStr,
                  vEPutStrBl)
 import System.Chroot (useEnv, forceList')
 import System.Directory(renameDirectory)
-import System.Exit(ExitCode(ExitSuccess), exitWith)
+import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.IO(IO, FilePath)
 import System.Posix.Files(fileSize, getFileStatus)
 import Text.Printf(printf)
@@ -1033,15 +1033,17 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
             let dscFilePath = changeDir changes ++ "/" ++ changedFileName file
             newDscFile <- parseControlFromFile dscFilePath >>= return . either (error . show) addField
             replaceFile dscFilePath (show newDscFile)
-            checksum <- md5sum dscFilePath
-            case checksum of
-              Left e -> error (show e)
-              Right s ->
+            md5 <- md5sum dscFilePath
+            sha1 <- sha1sum dscFilePath
+            sha256 <- sha256sum dscFilePath
+            case (md5, sha1, sha256) of
+              (Right md5, Right sha1, Right sha256) ->
                   do
                     size <- getFileStatus dscFilePath >>= return . fileSize
-                    let changes' = changes {changeFiles = (otherFiles ++ [file {changedFileMD5sum = s, changedFileSize = size}])}
+                    let changes' = changes {changeFiles = (otherFiles ++ [file {changedFileMD5sum = md5, changedFileSHA1sum = sha1, changedFileSHA256sum = sha256, changedFileSize = size}])}
                     Debian.Repo.save changes'
                     return changes'
+              e -> error (show e)
       -- A binary only build will have no .dsc file
       ([], _) -> return changes
       (several, _) -> error ("Multiple .dsc files found in source package: " ++ show several)
@@ -1054,6 +1056,24 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
       newFieldValue = maybe invalidRevision id revision ++ " " ++ show sourceVersion ++ " " ++ formatVersions versions
       formatVersions versions = intercalate " " (map showPkgVersion versions)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
+
+-- | Run a checksum command on a file, return the resulting checksum as text.
+doChecksum :: String -> (String -> String) -> FilePath -> IO (Either String String)
+doChecksum cmd f path =
+    lazyProcess cmd' [path] Nothing Nothing L.empty >>=
+    return . either (doError (cmd' ++ " " ++ path)) (Right . f) . toEither . collectOutputUnpacked
+    where cmd' = "/usr/bin/" ++ cmd
+
+md5sum = doChecksum "md5sum" (take 32)
+sha1sum = doChecksum "sha1sum" (take 40)
+sha256sum = doChecksum "sha256sum" (take 64)
+
+toEither x@(text, "", [ExitSuccess]) = Right text
+toEither x = Left x
+
+doError cmd (_, s, [ExitSuccess]) = Left $ "Unexpected error output from " ++ cmd ++ ": " ++ show s
+doError cmd (_, _, [ExitFailure n]) = Left $ "Error " ++ show n ++ " running '" ++ cmd ++ "'"
+doError cmd (_, _, _) = Left $ "Internal error running " ++ cmd
 
 -- |Decide whether to build a package.  We will build if the revision
 -- is different from the revision of the uploaded source, or if any of
