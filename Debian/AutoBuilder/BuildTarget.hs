@@ -108,7 +108,7 @@ class BuildTarget t where
     -- mounts /proc, then calls buildDebs, then unmounts /proc.
     buildPkg :: (ParamClass p, CIO m) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> m (Either String NominalDiffTime)
     buildPkg params buildOS buildTree status _target =
-        buildDebs (P.noClean params) (P.setEnv params) buildOS buildTree status
+        buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.
     logText :: t -> Maybe String -> String
 

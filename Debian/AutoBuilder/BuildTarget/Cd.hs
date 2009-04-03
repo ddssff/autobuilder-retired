@@ -25,7 +25,7 @@ instance BuildTarget Cd where
         Debian.AutoBuilder.BuildTarget.revision params s >>= return . either Left (Right . (("cd:" ++ subdir ++ ":") ++))
     buildPkg params buildOS buildTree status _ =
         do vPutStrBl 0 "chdir during target build"
-           buildDebs (P.noClean params) (P.setEnv params) buildOS buildTree status
+           buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
            -- FIXME: we need to move the resulting deb files out of the subdirectory.
            -- Or we could only copy the subdirectory into the build environment.
     logText (Cd subdir (Tgt s)) revision = logText s revision ++ " (in subdirectory " ++ subdir ++ ")"

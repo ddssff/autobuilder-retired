@@ -29,7 +29,7 @@ instance BuildTarget Proc where
     buildPkg params buildOS buildTree status _ =
         do vPutStrBl 0 "Mouting /proc during target build"
            liftIO $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 
-           result <- buildDebs (P.noClean params) (P.setEnv params) buildOS buildTree status
+           result <- buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
            liftIO $ simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]
            return result
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"

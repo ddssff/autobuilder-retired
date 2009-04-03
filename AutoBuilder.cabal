@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        5.4
+Version:        5.5
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -34,6 +34,7 @@ Library
     Debian.AutoBuilder.BuildTarget.SourceDeb,
     Debian.AutoBuilder.BuildTarget.Svn,
     Debian.AutoBuilder.BuildTarget.Tla,
+    Debian.AutoBuilder.BuildTarget.Twice,
     Debian.AutoBuilder.BuildTarget.Uri,
     Debian.AutoBuilder.Main,
     Debian.AutoBuilder.ParamClass,

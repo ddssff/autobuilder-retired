@@ -1,3 +1,18 @@
+autobuilder (5.5) unstable; urgency=low
+
+  * Add a "twice:" target to control whether we run dpkg-buildpackage a
+    second time if the first time fails.  Some packages are designed to
+    configure themselves and fail the first time you build them, and
+    succeed the second time, in order to prevent fully automated builds.
+    Up until now the autobuilder always tried dpkg-buildpackage twice, now
+    you need to add "twice:" to the front of the target to get this
+    behavior.
+  * Support the SHA1 and SHA256 checksums that debian now puts into the
+    .changes file by updating them when the autobuilder edits the .dsc
+    file.
+
+ -- David Fox <dsf@seereason.com>  Fri, 03 Apr 2009 14:52:34 -0700
+
 autobuilder (5.4) unstable; urgency=low
 
   * Fix handling of architecture independent packages that were
