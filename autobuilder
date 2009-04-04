@@ -3,10 +3,14 @@
 CONFIGDIR=$HOME/.autobuilder.d
 CONFIGFILE=$CONFIGDIR/autobuilder.hs
 
-[ -d $CONFIGDIR ] || mkdir -p $CONFIGDIR
+[ -d $CONFIGDIR ] || {
+    echo "There is no configuration directory at $CONFIGDIR, an example of this"
+    echo "directory can be obtained from http://seereason.com/autobuilder-config."
+    exit 1
+}
 [ -f $CONFIGFILE ] || {
-   cp /usr/lib/autobuilder/autobuilder.hs $CONFIGFILE
-   echo "Creating a default configuration file at $CONFIGFILE.  Please edit it and re-run."
-   exit 0
+    echo "No configuration file was found at $CONFIGFILE.  an example $CONFIGDIR"
+    echo "directory can be obtained from http://seereason.com/autobuilder-config."
+    exit 1
 }
 sudo runhaskell -i$CONFIGDIR $CONFIGFILE $*
