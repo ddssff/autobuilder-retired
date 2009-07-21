@@ -1,3 +1,11 @@
+autobuilder (5.6) unstable; urgency=low
+
+  * This version pulls in a more lenient changelog parser in haskell-debian,
+    instead of the normal two spaces at the beginning of log entry lines, it
+    allows a tab or a space and a tab.
+
+ -- David Fox <dsf@seereason.com>  Tue, 21 Jul 2009 11:55:50 -0700
+
 autobuilder (5.5) unstable; urgency=low
 
   * Add a "twice:" target to control whether we run dpkg-buildpackage a
