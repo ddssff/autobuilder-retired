@@ -2,10 +2,11 @@ Source: autobuilder
 Priority: optional
 Maintainer: David Fox <david.fox@linspire.com>
 Build-Depends: debhelper (>= 5.0),
-               cabal-debian,
+               haskell-devscripts,
                ghc6 (>= 6.8),
                ghc6-doc,
                haddock,
+               hscolour,
                ghc6-prof,
                libghc6-mtl-prof,
                libghc6-mtl-doc,
