@@ -344,8 +344,8 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
               Just (target, blocked, other) ->
                   do
                     --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
-                    lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s\n"
-                                        (count - length relaxed + 1) count (show target)))
+                    lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s - %s\n"
+                                        (count - length relaxed + 1) count (targetName target) (show target)))
                     -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
                     result <- buildTarget' target
                     either (\ e -> do lift $ vEPutStrBl 0 ("Package build failed: " ++ e)
@@ -869,13 +869,14 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
         Left message -> return (Left message)
         Right (_, relations, _) ->
             do let relations' = relations ++ globalBuildDeps
-               let relations'' = simplifyRelations packages relations' preferred arch
+                   relations'' = simplifyRelations packages relations' preferred arch
                -- Do not stare directly into the solutions!  Your head will
                -- explode (because there may be a lot of them.)
-               case Debian.Repo.solutions packages relations'' 100000 of
+               case Debian.Repo.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
                  Left error -> message 0 relations' relations'' >> return (Left error)
                  Right solutions -> message 2 relations' relations'' >> return (Right solutions)
     where
+      alwaysSatisfied xs = any isNothing xs && all isNothing xs
       packages = aptBinaryPackages os
       message n relations' relations'' =
           vEPutStrBl n ("Build dependency relations:\n " ++
