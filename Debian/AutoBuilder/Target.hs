@@ -24,8 +24,7 @@ import Data.List((++), foldr, concat, filter, zip, map, elem,
                  lines, nub, partition, sortBy, unlines, words, break, lookup, tail,
                  zip3)
 import qualified Data.Map as Map
-import Data.Maybe(catMaybes, fromJust, isJust, isNothing,
-                  listToMaybe)
+import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe, fromMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import Debian.AutoBuilder.BuildTarget(BuildTarget(..), Tgt(..), prepareDir)
@@ -50,7 +49,7 @@ import Debian.AutoBuilder.ParamClass(P.Strictness(P.Lax),
                                                   P.goals, P.forceBuild, P.extraReleaseTag,
                                                   P.dryRun, P.doNotChangeVersion, P.buildRelease,
                                                   P.autobuilderEmail, P.allowBuildDependencyRegressions, P.buildDepends,
-                                                  P.vendorTag),
+                                                  P.vendorTag, P.oldVendorTags),
                                      P.RunClass, P.dirtyRoot)
 import Debian.AutoBuilder.Version(V.autoBuilderVersion)
 import Debian.Control
@@ -423,7 +422,7 @@ chooseNextTarget goals targets =
       makeTable (G.BuildableInfo ready other) =
           unlines . map (intercalate " ") . columns $ goalsLine ++ readyLines
           where
-            goalsLine = [[" Goals: ", "[" ++ intercalate ", " (map targetName goals) ++ "]"]]
+            goalsLine = [{- [" Goals: ", "[" ++ intercalate ", " (map targetName goals) ++ "]"] -}]
             readyLines = map readyLine ready
             readyLine (ready, blocked, other) = 
                 [" Ready:", targetName ready, "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
@@ -579,7 +578,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
                let decision =
-                       buildDecision target (P.vendorTag params) (elem packageName (P.forceBuild params))
+                       buildDecision target (P.vendorTag params) (P.oldVendorTags params) (elem packageName (P.forceBuild params))
                                          (P.allowBuildDependencyRegressions params)
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
@@ -837,19 +836,20 @@ computeNewVersion params
       True -> Right sourceVersion
       False ->
           let vendor = P.vendorTag params
+              oldVendors = P.oldVendorTags params
               release = if (P.isDevelopmentRelease params) then
                             Nothing else
                             (Just (sliceName (P.baseRelease params)))
               extra = P.extraReleaseTag params 
               aliases = \ x -> maybe x id (lookup x (P.releaseAliases params)) in
-          case parseTag vendor sourceVersion of
+          case parseTag (vendor : oldVendors) sourceVersion of
 
             (_, Just tag) -> Left ("Error: the version string in the changelog has a vendor tag (" ++ show tag ++
                                    ".)  This is prohibited because the autobuilder needs to fully control suffixes" ++
                                    " of this form.  This makes it difficult for the author to know what version" ++
                                    " needs to go into debian/changelog to trigger a build by the autobuilder," ++
                                    " particularly since each distribution may have different auto-generated versions.")
-            (_, Nothing) -> setTag aliases vendor release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
+            (_, Nothing) -> setTag aliases vendor oldVendors release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
     where
       getVersion paragraph =
           maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)
@@ -1082,6 +1082,7 @@ doError cmd (_, _, _) = Left $ "Internal error running " ++ cmd
 -- encoded into the uploaded version's control file.
 buildDecision :: Target
               -> String
+              -> [String]
               -> Bool
               -> Bool
               -> Maybe DebianVersion	-- builtVersion: the version already present in the repository
@@ -1092,7 +1093,7 @@ buildDecision :: Target
               -> DebianVersion		-- sourceVersion: the version number in the newest changelog entry of the source code
               -> [PkgVersion]		-- sourceDependencies: the list of build dependency versions computed from the build environment
               -> BuildDecision
-buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
+buildDecision target vendorTag oldVendorTags forceBuild allowBuildDependencyRegressions
                   oldVersion oldSrcVersion _oldRevision builtDependencies releaseStatus
                   sourceVersion sourceDependencies =
     case (forceBuild, oldVersion == Nothing) of
@@ -1106,11 +1107,11 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
                   LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldSrcVersion) ++ ")")
                   EQ -> sameSourceTests
             False ->
-                case compare (dropTag vendorTag sourceVersion) (dropTag vendorTag (fromJust oldVersion)) of
+                case compare (dropTag allTags sourceVersion) (dropTag allTags (fromJust oldVersion)) of
                   GT -> Yes ("Source version (" ++ show sourceVersion ++ ") is newer than released source version (" ++ show (fromJust oldVersion) ++ ")")
                   LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldVersion) ++ ")")
                   EQ ->
-                      case dropTag vendorTag sourceVersion == sourceVersion of
+                      case dropTag allTags sourceVersion == sourceVersion of
                         False -> Yes ("Source version (" ++ show sourceVersion ++ ") is tagged, and old source version was not recorded")
                         True -> sameSourceTests
     where
@@ -1161,7 +1162,9 @@ buildDecision target vendorTag forceBuild allowBuildDependencyRegressions
       -- The list of the revved and new dependencies which were built by the autobuilder.
       autobuiltDependencies = filter isTagged (revvedDependencies ++ newDependencies)
       isTagged :: PkgVersion -> Bool
-      isTagged dep = isJust . snd . parseTag vendorTag . getVersion $ dep
+      isTagged dep = isJust . snd . parseTag allTags . getVersion $ dep
+      allTags :: [String]
+      allTags = vendorTag : oldVendorTags
       -- If we are deciding whether to rebuild the same version of the source package,
       -- this function checks the status of the build dependencies.  If any are older
       -- now than when the package was built previously, it is a fatal error.  Probably

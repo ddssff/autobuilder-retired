@@ -73,6 +73,10 @@ class ParamClass a where
     vendorTag :: a -> String
     -- ^ The string used to construct modified version numbers to identify
     -- them as part of your repository (rather than Debian's or Ubuntu's.)
+    oldVendorTags :: a -> [String]
+    -- ^ Additional vendor tags that should be treated as part of the local
+    -- repository, and stripped when deciding the version number of the
+    -- upstream source.
     autobuilderEmail :: a -> String
     -- ^ Email return address of autobuilder for use in generated
     -- changelog entries.
@@ -298,6 +302,7 @@ prettyPrint x =
             , "goals=" ++ take 120 (show (goals x))
             , "omitTargets=" ++ take 120 (show (omitTargets x))
             , "vendorTag=" ++ take 120 (show (vendorTag x))
+            , "oldVendorTags=" ++ take 120 (show (oldVendorTags x))
             , "extraReleaseTag=" ++ take 120 (show (extraReleaseTag x))
             , "flushSource=" ++ take 120 (show (flushSource x))
             , "forceBuild=" ++ take 120 (show (forceBuild x))
@@ -397,6 +402,7 @@ instance ParamClass p => ParamClass (p, a) where
     goals = goals . fst
     omitTargets = omitTargets . fst
     vendorTag = vendorTag . fst
+    oldVendorTags = oldVendorTags . fst
     extraReleaseTag = extraReleaseTag . fst
     flushSource = flushSource . fst
     forceBuild = forceBuild . fst

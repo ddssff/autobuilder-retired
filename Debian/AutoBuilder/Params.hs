@@ -31,6 +31,7 @@ makeParamRec params =
     , R.goals = P.goals params
     , R.omitTargets = P.omitTargets params
     , R.vendorTag = P.vendorTag params
+    , R.oldVendorTags = P.oldVendorTags params
     , R.extraReleaseTag = P.extraReleaseTag params
     , R.flushSource = P.flushSource params
     , R.forceBuild = P.forceBuild params

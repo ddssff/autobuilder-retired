@@ -23,6 +23,7 @@ data ParamRec =
     , goals :: [String]
     , omitTargets :: [String]
     , vendorTag :: String
+    , oldVendorTags :: [String]
     , extraReleaseTag :: Maybe Int
     , flushSource :: Bool
     , forceBuild :: [String]
@@ -73,6 +74,7 @@ instance ParamClass ParamRec where
     goals = Debian.AutoBuilder.ParamRec.goals
     omitTargets = Debian.AutoBuilder.ParamRec.omitTargets
     vendorTag = Debian.AutoBuilder.ParamRec.vendorTag
+    oldVendorTags = Debian.AutoBuilder.ParamRec.oldVendorTags
     extraReleaseTag = Debian.AutoBuilder.ParamRec.extraReleaseTag
     flushSource = Debian.AutoBuilder.ParamRec.flushSource
     forceBuild = Debian.AutoBuilder.ParamRec.forceBuild
