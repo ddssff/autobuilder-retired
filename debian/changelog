@@ -1,3 +1,11 @@
+autobuilder (5.7) unstable; urgency=low
+
+  * Add an oldVendorTags field to the Params structure, so we can change
+    the vendor tag we are using and still strip the old and the new tag
+    when deciding what the upstream source package version is.
+
+ -- David Fox <dsf@seereason.com>  Mon, 27 Jul 2009 10:43:46 -0700
+
 autobuilder (5.6) unstable; urgency=low
 
   * This version pulls in a more lenient changelog parser in haskell-debian,

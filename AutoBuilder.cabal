@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        5.5
+Version:        5.7
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
