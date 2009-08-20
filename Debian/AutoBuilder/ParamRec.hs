@@ -111,7 +111,7 @@ instance ParamClass ParamRec where
 
 -- |Adjust the vendor tag so we don't get trumped by Debian's new +b
 -- notion for binary uploads.  The version number of the uploaded
--- binary packages may have "+b<digits>" appended, which would cause
+-- binary packages may have "+bNNN" appended, which would cause
 -- them to trump the versions constructed by the autobuilder.  So, we
 -- prepend a "+" to the vendor string if there isn't one, and if the
 -- vendor string starts with the character b or something less, two
