@@ -73,7 +73,7 @@ instance ParamClass ParamRec where
     targets = Debian.AutoBuilder.ParamRec.targets
     goals = Debian.AutoBuilder.ParamRec.goals
     omitTargets = Debian.AutoBuilder.ParamRec.omitTargets
-    vendorTag = Debian.AutoBuilder.ParamRec.vendorTag
+    vendorTag = adjustVendorTag . Debian.AutoBuilder.ParamRec.vendorTag
     oldVendorTags = Debian.AutoBuilder.ParamRec.oldVendorTags
     extraReleaseTag = Debian.AutoBuilder.ParamRec.extraReleaseTag
     flushSource = Debian.AutoBuilder.ParamRec.flushSource
@@ -108,3 +108,17 @@ instance ParamClass ParamRec where
     doSSHExport = Debian.AutoBuilder.ParamRec.doSSHExport
     doHelp = Debian.AutoBuilder.ParamRec.doHelp
     autobuilderEmail = Debian.AutoBuilder.ParamRec.autobuilderEmail
+
+-- |Adjust the vendor tag so we don't get trumped by Debian's new +b
+-- notion for binary uploads.  The version number of the uploaded
+-- binary packages may have "+b<digits>" appended, which would cause
+-- them to trump the versions constructed by the autobuilder.  So, we
+-- prepend a "+" to the vendor string if there isn't one, and if the
+-- vendor string starts with the character b or something less, two
+-- plus signs are prepended.
+adjustVendorTag s =
+    case s of
+      ('+' : c : _) | c <= 'b' -> '+' : s
+      ('+' : _) -> s
+      (c : _) | c <= 'b' -> '+' : s
+      _ -> '+' : s
