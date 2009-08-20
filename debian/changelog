@@ -1,3 +1,11 @@
+autobuilder (5.8) unstable; urgency=low
+
+  * Make the separator between the regular and quilt versions "++" instead
+    of just "+", so that adding a quilt patch trumps versions that just had
+    the "+seereason" vendor tag appended.
+
+ -- David Fox <dsf@seereason.com>  Wed, 19 Aug 2009 17:16:35 -0700
+
 autobuilder (5.7) unstable; urgency=low
 
   * Add an oldVendorTags field to the Params structure, so we can change
