@@ -2,6 +2,7 @@ module Debian.AutoBuilder.ParamRec
     ( ParamRec(..)
     ) where
 
+import Data.List (dropWhile)
 import Debian.Repo
 import Debian.URI
 import Debian.Version
@@ -117,8 +118,5 @@ instance ParamClass ParamRec where
 -- vendor string starts with the character b or something less, two
 -- plus signs are prepended.
 adjustVendorTag s =
-    case s of
-      ('+' : c : _) | c <= 'b' -> '+' : s
-      ('+' : _) -> s
-      (c : _) | c <= 'b' -> '+' : s
-      _ -> '+' : s
+    prefix ++ dropWhile (== '+') s
+    where prefix = if s <= "b" then "++" else "+"
