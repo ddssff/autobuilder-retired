@@ -1,5 +1,6 @@
 module Debian.AutoBuilder.ParamRec
     ( ParamRec(..)
+    , adjustVendorTag -- Export for testing
     ) where
 
 import Data.List (dropWhile)

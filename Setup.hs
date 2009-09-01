@@ -1,4 +1,14 @@
 #!/usr/bin/runhaskell
 
 import Distribution.Simple
-main = defaultMainWithHooks simpleUserHooks
+import System.Cmd
+import System.Exit
+
+main = defaultMainWithHooks simpleUserHooks {
+         postBuild = runTestScript
+       , runTests = runTestScript
+       }
+
+runTestScript _args _flag _pd _lbi =
+    system "runhaskell -isrc Test/Test.hs" >>=
+    \ code -> if code == ExitSuccess then return () else error "Test Failure"
