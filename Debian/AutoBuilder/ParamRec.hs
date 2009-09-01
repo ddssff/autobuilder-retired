@@ -119,5 +119,6 @@ instance ParamClass ParamRec where
 -- vendor string starts with the character b or something less, two
 -- plus signs are prepended.
 adjustVendorTag s =
-    prefix ++ dropWhile (== '+') s
-    where prefix = if s <= "b" then "++" else "+"
+    newprefix ++ suffix
+    where (oldprefix, suffix) = span (== '+') s
+          newprefix = if suffix < "b" then "++" else "+" 
