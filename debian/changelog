@@ -1,3 +1,9 @@
+autobuilder (5.9) unstable; urgency=low
+
+  * Fix the adjustVendorTag function and add some unit tests.
+
+ -- David Fox <dsf@seereason.com>  Tue, 01 Sep 2009 06:56:28 -0700
+
 autobuilder (5.8) unstable; urgency=low
 
   * Make the separator between the regular and quilt versions "++" instead
