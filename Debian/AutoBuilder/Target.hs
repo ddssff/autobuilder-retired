@@ -141,10 +141,19 @@ instance Show Target where
 -- | The /Source:/ attribute of debian\/control.
 targetName :: Target -> String
 targetName target =
-    case targetControl target of
-      Control (paragraph : _) ->
+    case sourceParagraph (targetControl target) of
+      Just paragraph ->
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
+
+sourceParagraph (Control paragraphs) = 
+    case dropWhile isCommentParagraph paragraphs of
+      (paragraph : _) -> Just paragraph
+      _ -> Nothing
+    where
+      isCommentParagraph (Paragraph' fields) = all isCommentField fields
+      isCommentField (Comment _) = True
+      isCommentField _ = False
 
 countAndPrepareTargets :: (P.RunClass p, CIO m) => p -> OSImage -> [Tgt] -> m [Target]
 countAndPrepareTargets params os targets =
