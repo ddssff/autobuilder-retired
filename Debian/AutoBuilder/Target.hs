@@ -141,12 +141,12 @@ instance Show Target where
 -- | The /Source:/ attribute of debian\/control.
 targetName :: Target -> String
 targetName target =
-    case sourceParagraph (targetControl target) of
+    case findSourceParagraph (targetControl target) of
       Just paragraph ->
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
 
-sourceParagraph (Control paragraphs) = 
+findSourceParagraph (Control paragraphs) = 
     case dropWhile isCommentParagraph paragraphs of
       (paragraph : _) -> Just paragraph
       _ -> Nothing
