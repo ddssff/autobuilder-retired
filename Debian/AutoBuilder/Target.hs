@@ -151,7 +151,7 @@ findSourceParagraph (Control paragraphs) =
       (paragraph : _) -> Just paragraph
       _ -> Nothing
     where
-      isCommentParagraph (Paragraph' fields) = all isCommentField fields
+      isCommentParagraph (Paragraph fields) = all isCommentField fields
       isCommentField (Comment _) = True
       isCommentField _ = False
 
