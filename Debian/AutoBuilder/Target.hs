@@ -141,8 +141,8 @@ instance Show Target where
 -- | The /Source:/ attribute of debian\/control.
 targetName :: Target -> String
 targetName target =
-    case findSourceParagraph (targetControl target) of
-      Just paragraph ->
+    case removeCommentParagraphs (targetControl target) of
+      (Control (paragraph : _)) ->
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
 
@@ -150,6 +150,13 @@ findSourceParagraph (Control paragraphs) =
     case dropWhile isCommentParagraph paragraphs of
       (paragraph : _) -> Just paragraph
       _ -> Nothing
+    where
+      isCommentParagraph (Paragraph fields) = all isCommentField fields
+      isCommentField (Comment _) = True
+      isCommentField _ = False
+
+removeCommentParagraphs (Control paragraphs) =
+    Control (filter (not . isCommentParagraph) paragraphs)
     where
       isCommentParagraph (Paragraph fields) = all isCommentField fields
       isCommentField (Comment _) = True
@@ -492,7 +499,7 @@ getTargetDependencyInfo globalBuildDeps target =
     do let buildTree = cleanSource target
        --let sourceTree = debTree buildTree
        let controlPath = debdir buildTree ++ "/debian/control"
-       info <- liftIO $ parseControlFromFile controlPath >>= return . either (Left . show) (G.buildDependencies)
+       info <- liftIO $ parseControlFromFile controlPath >>= return . either (Left . show) (G.buildDependencies . removeCommentParagraphs)
        -- vEPutStrBl 0 ("getDepInfo " ++ targetName target ++ ": " ++ show info)
        return $ either Left (\ deps -> Right (addRelations globalBuildDeps deps)) info
     where
