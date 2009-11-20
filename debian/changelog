@@ -1,3 +1,10 @@
+autobuilder (5.10) unstable; urgency=low
+
+  * For karmic, we need to pass --force-yes to prevent failures when apt-get
+    gives a warning.
+
+ -- David Fox <dsf@seereason.com>  Fri, 20 Nov 2009 06:33:11 -0800
+
 autobuilder (5.9) unstable; urgency=low
 
   * Fix the adjustVendorTag function and add some unit tests.
