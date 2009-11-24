@@ -755,7 +755,7 @@ getReleaseControlInfo :: OSImage -> String -> (Maybe SourcePackage, SourcePackag
 getReleaseControlInfo cleanOS packageName =
     case zip sourcePackages (map (isComplete binaryPackages) sourcePackagesWithBinaryNames) of
       (info, status@Complete) : _ -> (Just info, All, message status)
-      (info, status@(Missing _)) : _ -> (Just info, Indep, message status)
+      (info, status@(Missing missing)) : _ -> (Just info, Indep missing, message status)
       _ -> (Nothing, None, message Complete)
     where
       message status =
@@ -1141,7 +1141,7 @@ buildDecision target vendorTag oldVendorTags forceBuild allowBuildDependencyRegr
       -- dependencies change the package will be built anyway, so we
       -- are not completely protected from this possibility.
       sameSourceTests =
-          case () of
+          case releaseStatus of
             _ | badDependencies /= [] && not allowBuildDependencyRegressions ->
                   Error ("Build dependency regression (allow with --allow-build-dependency-regressions): " ++ 
                          concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
@@ -1159,14 +1159,14 @@ buildDecision target vendorTag oldVendorTags forceBuild allowBuildDependencyRegr
                   -- If the package *was* previously built by the autobuilder we rebuild when any
                   -- of its build dependencies are revved or new ones appear.
                   Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText (revvedDependencies ++ newDependencies))
-              | releaseStatus == Indep && notArchDep (targetControl target) ->
+            Indep _ | notArchDep (targetControl target) ->
                   No ("Version " ++ show sourceVersion ++ " of architecture independent package is already in release.")
-              | releaseStatus == Indep ->
+            Indep missing ->
                   -- The binary packages are missing, we need an arch only build.
-                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build.")
-              | releaseStatus == All ->
+                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
+            All ->
                   No ("Version " ++ show sourceVersion ++ " is already in release.")
-              | True -> 
+            _ ->
                   error ("Unexpected releaseStatus: " ++ show releaseStatus)
       notArchDep control =
           all (== "all") . map (maybe "all" (\ (Field (_, s)) -> stripWS s)) . map (lookupP "Architecture") . unControl $ control
