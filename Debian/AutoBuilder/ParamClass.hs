@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, PackageImports #-}
 module Debian.AutoBuilder.ParamClass
     ( ParamClass(..)
     , CacheClass(..)
@@ -23,7 +23,7 @@ module Debian.AutoBuilder.ParamClass
 
 import           Control.OldException (try, evaluate)
 import           Control.Monad.State (get, put)
-import		 Control.Monad.Trans (lift, liftIO)
+import	"mtl"	 Control.Monad.Trans (lift, liftIO)
 import		 Data.List (isSuffixOf)
 import		 Data.Maybe
 import           Data.Map (fromList)
