@@ -52,6 +52,7 @@ import Debian.AutoBuilder.ParamClass(P.Strictness(P.Lax),
                                                   P.vendorTag, P.oldVendorTags),
                                      P.RunClass, P.dirtyRoot)
 import Debian.AutoBuilder.Version(V.autoBuilderVersion)
+import Debian.Changes (prettyChanges)
 import Debian.Control
 import qualified Debian.Control.ByteString as B
 import qualified Debian.Control.String as S(fieldValue)
@@ -1064,7 +1065,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
               e -> error (show e)
       -- A binary only build will have no .dsc file
       ([], _) -> return changes
-      (several, _) -> error ("Multiple .dsc files found in source package: " ++ show several)
+      (several, _) -> error ("Multiple .dsc files found in source package: " ++ intercalate ", " (map (show . prettyChanges) several))
     where
       addField (Control (Paragraph sourceInfo : binaryInfo)) =
           Control (newSourceInfo : binaryInfo)

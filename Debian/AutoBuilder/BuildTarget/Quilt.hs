@@ -3,10 +3,12 @@
 -- a build target with the patches applied to the source directory.
 module Debian.AutoBuilder.BuildTarget.Quilt where
 
+import Debian.Changes (prettyEntry)
 import Debian.Repo
 import Debian.Shell
 import Debian.Version
 
+import Control.Applicative.Error (Failing(..))
 import Control.OldException
 import Control.Monad
 import Control.Monad.Trans
@@ -219,16 +221,23 @@ mergeChangelogs' basePath patchPath =
     where
       replace newText = liftIO (try (replaceFile basePath $! newText)) >>= return. either (Left . show) Right
 
+partitionFailing [] = ([], [])
+partitionFailing (x : xs) =
+    f x (partitionFailing xs)
+    where
+      f (Failure _) (failures, successes) = (x : failures, successes)
+      f (Success _) (failures, successes) = (failures, x : successes)
+
 -- Merge the entries in the patch changelog into the base changelog,
 -- merging the base and patch version numbers as we go.  It is
 -- important that we read the base changelog lazily since there are
 -- lots of bizarre formats in the older entries that we can't parse.
 mergeChangelogs :: String -> String -> Either String String
 mergeChangelogs baseText patchText =
-    case partitionEithers (parseLog patchText) of
-      (bad@(_ : _), _) ->
-          Left $ "Error(s) in patch changelog:\n  " ++ intercalate "\n  " bad
-      ([], patchEntries) ->
+    case parseLog patchText of
+      Failure msgs ->
+          Left $ "Error(s) in patch changelog:\n  " ++ intercalate "\n  " msgs
+      Success patchEntries ->
           let patchEntries' = map Patch patchEntries in
           let oldest = zonedTimeToUTC . myParseTimeRFC822 . logDate . getEntry . head . reverse $ patchEntries' in
           let (baseEntries, baseText') = partitionChangelog oldest baseText in
@@ -238,7 +247,7 @@ mergeChangelogs baseText patchText =
             True ->
                 let baseEntries' = map Base baseEntries in
                 let mergedEntries = third . appendVersionNumbers . sortBy compareDate $ baseEntries' ++ patchEntries' in
-                Right $ (concat . map show $ mergedEntries) ++ baseText'
+                Right $ (intercalate "\n\n" (map (show . prettyEntry) mergedEntries)) ++ baseText'
             False ->
                 Left $ "Package name mismatch between base and patch changelogs: " ++
                        maybe "?" id basePackage ++ " /= " ++ maybe "?" id patchPackage
@@ -276,9 +285,8 @@ mergeChangelogs baseText patchText =
 partitionChangelog :: UTCTime -> String -> ([ChangeLogEntry], String)
 partitionChangelog date text =
     case parseEntry text of
-      Nothing -> ([], "")
-      Just (Left _) -> ([], text)
-      Just (Right (entry, text')) ->
+      Failure msgs -> ([], text)
+      Success (entry, text') ->
           if date >= (zonedTimeToUTC . myParseTimeRFC822 . logDate $ entry)
           then ([entry], text')
           else case partitionChangelog date text' of
