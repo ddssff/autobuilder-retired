@@ -19,7 +19,7 @@ Cabal-Version:  >= 1.2
 Build-type:     Simple
 
 Library
-  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian >= 3.32, debian-repo >= 5.6.2, applicative-extras
+  Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale, network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra, filepath, magic, zlib, bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian >= 3.32, debian-repo >= 5.6.2, applicative-extras, regex-tdfa
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,

@@ -6,19 +6,20 @@ module Debian.AutoBuilder.Main
     ( main
     ) where
 
+import Control.Applicative.Error (Failing(..))
 import Control.OldException(Exception, try, evaluate)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), mapStateT)
 import Control.Monad(Monad(return, (>>), (>>=)), mapM_, mapM, unless, when)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Data.List((++), concat, filter, zip, map, length, intersperse)
+import Data.List((++), concat, filter, zip, map, length, intercalate)
 import Data.Maybe(Maybe(..), catMaybes, maybe)
 --import qualified Debian.AutoBuilder.OldParams as O
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Params as PP
 import Debian.AutoBuilder.ParamRec()    -- Instances only
-import Debian.AutoBuilder.Target(Target, buildTargets, readSpec, showTargets, targetDocumentation)
+import Debian.AutoBuilder.Target(Target, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
@@ -75,7 +76,7 @@ doMain verbosity f =
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.
-doParameterSets :: P.RunClass p => p -> AptIOT TIO (Either Exception (Either Exception (Either String ([Output], NominalDiffTime))))
+doParameterSets :: P.RunClass p => p -> AptIOT TIO (Either Exception (Either Exception (Failing ([Output], NominalDiffTime))))
 doParameterSets set =
     withLock (lockFilePath set) (tryAB . runParameterSet $ set)
     where
@@ -85,7 +86,7 @@ doParameterSets set =
 -- exception or a completion code, or, if we fail to get a lock,
 -- nothing.  For a single result we can print a simple message,
 -- for multiple paramter sets we need to print a summary.
-checkResults :: CIO m => [Either Exception (Either Exception (Either String ([Output], NominalDiffTime)))] -> m ()
+checkResults :: CIO m => [Either Exception (Either Exception (Failing ([Output], NominalDiffTime)))] -> m ()
 checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
 checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
 checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
@@ -113,7 +114,7 @@ appName = "autobuilder"
 
 writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 
-runParameterSet :: P.RunClass p => p -> AptIOT TIO (Either String ([Output], NominalDiffTime))
+runParameterSet :: P.RunClass p => p -> AptIOT TIO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
     do
       liftIO $ writeParams params
@@ -155,10 +156,10 @@ runParameterSet params =
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
-      case partitionEithers targets of
-        ([], _ok) ->
+      case partitionFailing targets of
+        ([], ok) ->
             do -- Build all the targets
-               buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS (rights targets)
+               buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS ok
                -- If all targets succeed they may be uploaded to a remote repo
                uploadResult <- upload buildResult
                -- This processes the remote incoming dir
@@ -166,8 +167,8 @@ runParameterSet params =
                updateRepoCache params
                return result
         (bad, _) ->
-            do lift (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ concat (intersperse "\n " bad)))
-               return . Left $ "Could not prepare source code of some targets: " ++ concat (intersperse "\n " bad)
+            do lift (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ intercalate "\n " (map (intercalate "\n  ") bad)))
+               return (Failure ("Could not prepare source code of some targets:" : map (intercalate "\n  ") bad))
     where
       baseRelease =  either (error . show) id (P.findSlice params (P.baseRelease params))
       buildRepoSources = P.buildRepoSources params
@@ -227,12 +228,12 @@ runParameterSet params =
           where
             allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (P.targets params)
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
-      upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Either String ([Output], NominalDiffTime)]
+      upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Failing ([Output], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =
               case P.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> lift (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
+                Just uri -> lift (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri >>= return . map ffe
           | True = return []
       upload (_, failed) =
           do
@@ -241,23 +242,23 @@ runParameterSet params =
               True -> lift (vEPutStr 0 "Skipping upload.")
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
-      newDist :: CIO m => [Either String ([Output], NominalDiffTime)] -> m (Either String ([Output], NominalDiffTime))
+      newDist :: CIO m => [Failing ([Output], NominalDiffTime)] -> m (Failing ([Output], NominalDiffTime))
       newDist results
           | P.doNewDist params =
               case P.uploadURI params of
                 Just uri ->
-                    do vEPutStrBl 1 ("Upload results:\n  " ++ concat (intersperse "\n  " (map show results)))
+                    do vEPutStrBl 1 ("Upload results:\n  " ++ intercalate "\n  " (map show results))
                        case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ P.newDistProgram params ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . P.createRelease $ params)) in
-                             vEPutStr 0 "Running newdist on remote repository" >> runCommandQuietlyTimed cmd
+                             vEPutStr 0 "Running newdist on remote repository" >> runCommandQuietlyTimed cmd >>= return . ffe
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
-                             vEPutStr 0 "Running newdist on a local repository" >> runCommandQuietlyTimed cmd
+                             vEPutStr 0 "Running newdist on a local repository" >> runCommandQuietlyTimed cmd >>= return . ffe
                 _ -> error "Missing Upload-URI parameter"
-          | True = return (Right ([], (fromInteger 0)))
+          | True = return (Success ([], (fromInteger 0)))
       iStyle = id {- setStyle (addPrefixes " " " ") -}
       --top = P.topDir params
       --dryRun = P.dryRun params
