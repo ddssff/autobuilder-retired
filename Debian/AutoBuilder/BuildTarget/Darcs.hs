@@ -4,6 +4,7 @@ import Control.OldException
 import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe (fromJust)
+import qualified Data.ByteString.Lazy.Char8 as B
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
@@ -40,14 +41,14 @@ instance BuildTarget Darcs where
           cmd = "find " ++ path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
           cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
     revision _ tgt =
-        do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           rev <- liftIO (hGetContents outh >>= return . matchRegex (mkRegex "hash='([^']*)'") >>=
+        do rev <- liftIO (lazyCommand cmd B.empty >>=
+                          return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout >>= 
                           return . maybe (Left $ "could not find hash field in output of '" ++ cmd ++ "'") (Right . head))
            case rev of
              Left message -> return (Left message)
              Right rev' ->
-                 do liftIO $ evaluate (length rev')
-                    liftIO $ waitForProcess handle
+                 do -- Nastygram to self: thanks for not documenting this
+                    -- liftIO $ evaluate (length rev')
                     return . Right $ show tgt ++ "=" ++ rev'
         where
           path = topdir (sourceTree tgt)
