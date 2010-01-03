@@ -221,12 +221,13 @@ mergeChangelogs' basePath patchPath =
     where
       replace newText = liftIO (try (replaceFile basePath $! newText)) >>= return. either (Left . show) Right
 
+partitionFailing :: [Failing a] -> ([[String]], [a])
 partitionFailing [] = ([], [])
 partitionFailing (x : xs) =
     f x (partitionFailing xs)
     where
-      f (Failure _) (failures, successes) = (x : failures, successes)
-      f (Success _) (failures, successes) = (failures, x : successes)
+      f (Failure x) (failures, successes) = (x : failures, successes)
+      f (Success x) (failures, successes) = (failures, x : successes)
 
 -- Merge the entries in the patch changelog into the base changelog,
 -- merging the base and patch version numbers as we go.  It is
@@ -234,10 +235,8 @@ partitionFailing (x : xs) =
 -- lots of bizarre formats in the older entries that we can't parse.
 mergeChangelogs :: String -> String -> Either String String
 mergeChangelogs baseText patchText =
-    case parseLog patchText of
-      Failure msgs ->
-          Left $ "Error(s) in patch changelog:\n  " ++ intercalate "\n  " msgs
-      Success patchEntries ->
+    case partitionFailing (parseLog patchText) of
+      ([], patchEntries) ->
           let patchEntries' = map Patch patchEntries in
           let oldest = zonedTimeToUTC . myParseTimeRFC822 . logDate . getEntry . head . reverse $ patchEntries' in
           let (baseEntries, baseText') = partitionChangelog oldest baseText in
@@ -251,6 +250,8 @@ mergeChangelogs baseText patchText =
             False ->
                 Left $ "Package name mismatch between base and patch changelogs: " ++
                        maybe "?" id basePackage ++ " /= " ++ maybe "?" id patchPackage
+      (failures, _) ->
+          Left $ "Error(s) in patch changelog:\n  " ++ intercalate "\n  " (concat failures)
     where
       third (_, _, c) = c
       compareDate a b = compare (zonedTimeToUTC . myParseTimeRFC822 . getDate $ a) (zonedTimeToUTC . myParseTimeRFC822 . getDate $ b)
