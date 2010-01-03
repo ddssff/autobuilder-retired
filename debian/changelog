@@ -1,3 +1,9 @@
+autobuilder (5.12) unstable; urgency=low
+
+  * Fix at least one case of this error: fd:40: hGetContents: invalid argument (Invalid or incomplete multibyte or wide character)
+
+ -- David Fox <dsf@seereason.com>  Sat, 02 Jan 2010 17:47:11 -0800
+
 autobuilder (5.11) unstable; urgency=low
 
   * Pull in fix in haskell-debian-repo that fixes a bug in the way
