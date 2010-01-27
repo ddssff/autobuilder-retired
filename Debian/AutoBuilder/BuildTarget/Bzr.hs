@@ -41,7 +41,7 @@ instance BuildTarget Bzr where
                cmd = "cd " ++ path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           rev <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
+           rev <- liftIO (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
            liftIO $ waitForProcess handle
            return . Right $ "bzr:" ++ rev

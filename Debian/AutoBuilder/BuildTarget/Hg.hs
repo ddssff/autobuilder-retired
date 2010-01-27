@@ -34,7 +34,7 @@ instance BuildTarget Hg where
 
     revision _ (Hg _ tree) =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           rev <- liftIO (hGetContents outh) >>= return . listToMaybe . lines >>=
+           rev <- liftIO (hSetBinaryMode outh True >> hGetContents outh) >>= return . listToMaybe . lines >>=
                        return . maybe (Left $ "no revision info printed by '" ++ cmd ++ "'") Right
            result <- liftIO (try (waitForProcess handle))
            case (rev, result) of

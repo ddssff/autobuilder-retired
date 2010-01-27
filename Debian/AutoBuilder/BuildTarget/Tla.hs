@@ -37,7 +37,7 @@ instance BuildTarget Tla where
                cmd = "cd " ++ path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           revision <- liftIO (hGetContents outh >>= return . listToMaybe . lines) >>=
+           revision <- liftIO (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
            liftIO $ waitForProcess handle
            return . Right $ "tla:" ++ revision
