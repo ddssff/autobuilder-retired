@@ -24,7 +24,7 @@ import qualified Debian.AutoBuilder.Version as V
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
-import Debian.Repo.IO(AptIOT, getRepoMap, runAptIO, tryAB)
+import Debian.Repo.Monad (AptIOT, getRepoMap, runAptIO, tryAB)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(buildEssential, prepareEnv)
 import Debian.Repo.Release(prepareRelease)

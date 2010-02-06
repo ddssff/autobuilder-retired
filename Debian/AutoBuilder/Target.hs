@@ -73,7 +73,7 @@ import Debian.Repo (countTasks, ChangesFile(changeRelease, changeInfo, changeFil
                     DebianBuildTree, DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
                     copyDebianSourceTree, explainSourcePackageStatus, findChanges,
                     findDebianBuildTree, findOneDebianBuildTree, SourcePackageStatus(..))
-import Debian.Repo.IO (AptIOT)
+import Debian.Repo.Monad (AptIOT)
 import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID), SliceName(..),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
                           PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),

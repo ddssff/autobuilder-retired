@@ -28,10 +28,10 @@ import		 Data.List (isSuffixOf)
 import		 Data.Maybe
 import           Data.Map (fromList)
 import		 Debian.Repo.Cache (SourcesChangedAction)
-import           Debian.Repo.IO (AptIOT)
 import           Debian.Repo(EnvRoot(EnvRoot), Arch, SliceName(..),
                              SliceList(..), NamedSliceList(..), ReleaseName, releaseName',
                              setRepoMap, parseSourcesList, verifySourcesList, repoSources)
+import           Debian.Repo.Monad (AptIOT)
 import           Debian.Repo.Types (ReleaseName(relName))
 import		 Debian.Version
 import		 Debian.URI
