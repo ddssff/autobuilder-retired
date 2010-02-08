@@ -1019,7 +1019,7 @@ downloadDependencies os source extra versions =
          codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
                   return (Failure ["FAILURE: " ++ command ++ " -> " ++ show codes])
     where
-      command = ("export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
+      command = ("export DEBIAN_FRONTEND=noninteractive; " ++
                  (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes --force-yes install -o APT::Install-Recommends=False --download-only " ++ intercalate " " (map showPkgVersion versions ++ extra)
@@ -1041,7 +1041,7 @@ installDependencies os source extra versions =
          codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
                   return (Failure ["FAILURE: " ++ command ++ " -> " ++ show codes])
     where
-      command = ("export DEBIAN_FRONTEND=noninteractive; unset LANG; " ++
+      command = ("export DEBIAN_FRONTEND=noninteractive; " ++
                  (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
       aptGetCommand = "apt-get --yes --force-yes install -o APT::Install-Recommends=False " ++ intercalate " " (map showPkgVersion versions ++ extra)
