@@ -1167,6 +1167,9 @@ buildDecision target vendorTag oldVendorTags forceBuild allowBuildDependencyRegr
       -- are not completely protected from this possibility.
       sameSourceTests =
           case releaseStatus of
+            Indep missing | missing /= [] && not (notArchDep (targetControl target)) ->
+                  -- The binary packages are missing, we need an arch only build.
+                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
             _ | badDependencies /= [] && not allowBuildDependencyRegressions ->
                   Error ("Build dependency regression (allow with --allow-build-dependency-regressions): " ++ 
                          concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
