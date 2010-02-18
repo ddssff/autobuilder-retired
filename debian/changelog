@@ -1,3 +1,10 @@
+autobuilder (5.14) unstable; urgency=low
+
+  * Quick fix to get arch-only builds to work better.  It definitely
+    helps, but it may still get confused by build dependency regressions.
+
+ -- David Fox <dsf@seereason.com>  Wed, 17 Feb 2010 21:35:43 -0800
+
 autobuilder (5.13) unstable; urgency=low
 
   * Don't ever unset the locale variable LANG, it makes it impossible to
