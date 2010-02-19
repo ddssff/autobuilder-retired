@@ -71,7 +71,7 @@ Recommends: subversion
 Depends: ${shlibs:Depends},
          ${haskell:Depends},
          libghc6-autobuilder-dev (= ${Source-Version}),
-         build-env (>= 2.28),
+         build-env (>= 2.30),
          rsync,
          dupload,
          darcs,
