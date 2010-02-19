@@ -139,8 +139,10 @@ data Target
 instance Eq Target where
     a == b = targetName a == targetName b
 
+{-
 instance Show Target where
     show target = show . realSource $ target
+-}
 
 -- | The /Source:/ attribute of debian\/control.
 targetName :: Target -> String
@@ -375,13 +377,13 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                   do
                     --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
                     lift (vEPutStrBl 0 (printf "[%2d of %2d] TARGET: %s - %s\n"
-                                        (count - length relaxed + 1) count (targetName target) (show target)))
+                                        (count - length relaxed + 1) count (targetName target) (show (realSource target))))
                     -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
                     result <- buildTarget' target
                     failing (\ errs ->
                                  do lift $ vEPutStrBl 0 ("Package build failed:\n " ++ intercalate "\n " errs)
-                                    lift $ vEPutStrBl 0 ("Discarding " ++ show target ++ " and its dependencies:\n  " ++
-                                                         concat (intersperse "\n  " (map show blocked)))
+                                    lift $ vEPutStrBl 0 ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
+                                                         concat (intersperse "\n  " (map targetName blocked)))
                                     buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
                             (\ _ ->
                                  do cleanOS' <- updateEnv cleanOS
@@ -499,7 +501,7 @@ getDependencyInfo globalBuildDeps targets =
       finish (bad, ok) =
           do -- FIXME: Any errors here should be fatal
              vEPutStrBl 0 ("Unable to retrieve build dependency info for some targets:\n  " ++
-                           concat (intersperse "\n  " (map (\ (target, message) -> show target ++ ": " ++ message) bad)))
+                           concat (intersperse "\n  " (map (\ (target, message) -> targetName target ++ ": " ++ message) bad)))
              return (map (\ (target, deps) -> target {targetDepends = deps}) ok)
 
 partitionFailing :: [Failing a] -> ([[String]], [a])

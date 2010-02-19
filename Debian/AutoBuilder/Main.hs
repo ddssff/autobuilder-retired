@@ -19,7 +19,7 @@ import Data.Maybe(Maybe(..), catMaybes, maybe)
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Params as PP
 import Debian.AutoBuilder.ParamRec()    -- Instances only
-import Debian.AutoBuilder.Target(Target, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
+import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
@@ -237,7 +237,7 @@ runParameterSet params =
           | True = return []
       upload (_, failed) =
           do
-            lift (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map show failed) ++ "\n"))
+            lift (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n"))
             case P.doUpload params of
               True -> lift (vEPutStr 0 "Skipping upload.")
               False -> return ()
