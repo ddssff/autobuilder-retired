@@ -7,7 +7,7 @@ module Debian.AutoBuilder.Main
     ) where
 
 import Control.Applicative.Error (Failing(..))
-import Control.OldException(Exception, try, evaluate)
+import Control.Exception(SomeException, IOException, try, evaluate)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), mapStateT)
 import Control.Monad(Monad(return, (>>), (>>=)), mapM_, mapM, unless, when)
 import qualified Data.Map as Map
@@ -76,7 +76,7 @@ doMain verbosity f =
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.
-doParameterSets :: P.RunClass p => p -> AptIOT TIO (Either Exception (Either Exception (Failing ([Output], NominalDiffTime))))
+doParameterSets :: P.RunClass p => p -> AptIOT TIO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
 doParameterSets set =
     withLock (lockFilePath set) (tryAB . runParameterSet $ set)
     where
@@ -86,7 +86,7 @@ doParameterSets set =
 -- exception or a completion code, or, if we fail to get a lock,
 -- nothing.  For a single result we can print a simple message,
 -- for multiple paramter sets we need to print a summary.
-checkResults :: CIO m => [Either Exception (Either Exception (Failing ([Output], NominalDiffTime)))] -> m ()
+checkResults :: CIO m => [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> m ()
 checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
 checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
 checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
@@ -277,8 +277,8 @@ runParameterSet params =
             isRemote (uri, _) = uriScheme uri /= "file:"
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
             loadCache path =
-                do text <- try (readFile path) >>= return . either (const "") id 
-                   pairs <- try (evaluate (read text)) >>= return . either (const []) id
+                do text <- try (readFile path) >>= return . either (\ (_ :: IOException) -> "") id 
+                   pairs <- try (evaluate (read text)) >>= return . either (\ (_ :: IOException) -> []) id
                    let (pairs' :: [(URI, Maybe Repository)]) =
                            catMaybes (map (\ (s, x) -> case parseURI s of
                                                          Nothing -> Nothing
