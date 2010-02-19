@@ -120,5 +120,5 @@ instance ParamClass ParamRec where
 -- plus signs are prepended.
 adjustVendorTag s =
     newprefix ++ suffix
-    where (oldprefix, suffix) = span (== '+') s
+    where (_oldprefix, suffix) = span (== '+') s
           newprefix = if suffix < "b" then "++" else "+" 

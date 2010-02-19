@@ -1,10 +1,11 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | A Mercurial archive.
 module Debian.AutoBuilder.BuildTarget.Hg where
 
 import Debian.Shell
 import Debian.Repo
 
-import Control.OldException
+import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe
@@ -41,7 +42,7 @@ instance BuildTarget Hg where
              (Right rev', Right ExitSuccess) -> return . Right $ "hg:" ++ rev'
              (Right _, Right (ExitFailure _)) -> return . Left $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
              (Left message, _) -> return . Left $ message
-             (_, Left e) -> return . Left . show $ e
+             (_, Left (e :: SomeException)) -> return . Left . show $ e
         where
           path = topdir tree
           cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
@@ -78,7 +79,8 @@ prepareHg params archive =
       createSource dir =
           let (parent, _) = splitFileName dir in
           liftIO (try (createDirectoryIfMissing True parent)) >>=
-          either (return . Left . show) (const (runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))))) >>=
+          either (\ (e :: SomeException) -> return . Left . show $ e)
+                 (const (runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))))) >>=
           either (return . Left) (const (findSourceTree dir))
 
       verifyStyle = (setStart (Just ("Verifying Hg source archive " ++ archive)) .

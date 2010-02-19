@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Svn 
     ( BuildTarget(..)
     , prepareSvn
@@ -5,7 +6,7 @@ module Debian.AutoBuilder.BuildTarget.Svn
     , documentation
     ) where
 
-import Control.OldException
+import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
@@ -122,7 +123,7 @@ prepareSvn params target =
       createSource dir =
           let (parent, _) = splitFileName dir in
           liftIO (try (createDirectoryIfMissing True parent)) >>=
-          either (return . Left . show) (const checkout) >>=
+          either (\ (e :: SomeException) -> return . Left . show $ e) (const checkout) >>=
           either (return . Left) (const (findSourceTree dir))
       checkout :: CIO m => m (Either String [Output])
       --checkout = svn createStyle args 

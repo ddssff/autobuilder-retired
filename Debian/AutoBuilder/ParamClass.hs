@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, PackageImports #-}
+{-# LANGUAGE FlexibleInstances, PackageImports, ScopedTypeVariables #-}
 module Debian.AutoBuilder.ParamClass
     ( ParamClass(..)
     , CacheClass(..)
@@ -21,7 +21,7 @@ module Debian.AutoBuilder.ParamClass
     , dropAllSuffixes
     ) where
 
-import           Control.OldException (try, evaluate)
+import           Control.Exception (SomeException, try, evaluate)
 import           Control.Monad.State (get, put)
 import	"mtl"	 Control.Monad.Trans (lift, liftIO)
 import		 Data.List (isSuffixOf)
@@ -441,24 +441,28 @@ loadRepoCache :: CIO m => FilePath -> AptIOT m ()
 loadRepoCache top =
     do lift $ ePutStrBl "Loading repo cache..."
        state <- get
-       uris <- liftIO $ try (readFile (top ++ "/repoCache")) >>= try . evaluate . either (const []) read >>= return . either (const []) id
+       uris <- liftIO $ try (readFile (top ++ "/repoCache")) >>=
+               try . evaluate . either (\ (_ :: SomeException) -> []) read >>=
+               return . either (\ (_ :: SomeException) -> []) id
        put (setRepoMap (fromList (map fixURI uris)) state)
     where
       fixURI (s, x) = (fromJust (parseURI s), x)
 
 -- Compute the top directory, try to create it, and then make sure it
 -- exists.  Then we can safely return it from topDir below.
-computeTopDir :: (ParamClass p, CIO m) => p -> m FilePath
+computeTopDir :: forall m p. (ParamClass p, CIO m) => p -> m FilePath
 computeTopDir params =
     do top <- maybe homeDir return (topDirParam params)
-       liftIO (try $ createDirectoryIfMissing True top)
+       liftIO (try $ createDirectoryIfMissing True top) :: m (Either SomeException ())
        result <- liftIO (try $ getPermissions top >>= return . writable)
        case result of
-         Left _ -> error $ "Could not create cache directory " ++ top ++ " (are you root?)"
+         Left (e :: SomeException) -> error $ "Could not create cache directory " ++ top ++ ": " ++ show e ++ " (are you root?)"
          Right False -> error "Cache directory not writable (are you root?)"
          Right True -> return top
     where
-      homeDir = liftIO (try (getEnv "HOME")) >>= return . either (error "Environment variable @HOME@ not set") (++ "/.autobuilder")
+      homeDir = liftIO (try (getEnv "HOME")) >>=
+                return . either (\ (e :: SomeException) -> error $ "Failed to read environment variable HOME: " ++ show e)
+                                (++ "/.autobuilder")
 
 -- |Find a release by name, among all the "Sources" entries given in the configuration.
 findSlice :: CacheClass c => c -> SliceName -> Either String NamedSliceList

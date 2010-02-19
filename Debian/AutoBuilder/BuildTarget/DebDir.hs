@@ -1,6 +1,7 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.DebDir where
 
-import Control.OldException
+import Control.Exception (SomeException, try)
 import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
@@ -39,7 +40,7 @@ instance BuildTarget DebDir where
 prepareDebDir :: (RunClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
 prepareDebDir params (Tgt upstream) (Tgt debian) = 
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
-    either (return . Left . show) (const copyUpstream) >>=
+    either (\ (e :: SomeException) -> return . Left . show $ e) (const copyUpstream) >>=
     either (return . Left) (const copyDebian) >>=
     either (return . Left) (const (findDebianSourceTree dest)) >>=
     either (\ message -> return $ Left ("Couldn't find source tree at " ++ show dest ++ ": " ++ message))

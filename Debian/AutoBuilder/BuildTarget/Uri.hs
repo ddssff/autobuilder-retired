@@ -1,8 +1,9 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |A 'uri:' target is an URI that returns a tarball, with an optional
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
 module Debian.AutoBuilder.BuildTarget.Uri where
 
-import Control.OldException
+import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import Data.List (isPrefixOf)
@@ -111,7 +112,7 @@ prepareUri params target =
           where
             -- Create the unpack directory
             mkdir = liftIO (try (createDirectoryIfMissing True sourceDir))
-            untar (Left e) = return . Left . show $ e
+            untar (Left (e :: SomeException)) = return . Left . show $ e
             untar (Right ()) =
                 do c <- liftIO (unpackChar tarball)
                    runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir)
@@ -131,7 +132,8 @@ prepareUri params target =
             verify (Left message) = return . Left $ ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
             verify (Right tree) = return . Right . Tgt $ Uri uri (Just sum) tree
             getDir dir = try (getDirectoryContents dir) >>=
-                         either (return . Left . show) (return . Right . filter (not . flip elem [".", ".."]))
+                         either (\ (e :: SomeException) -> return . Left . show $ e)
+                                (return . Right . filter (not . flip elem [".", ".."]))
             checkContents :: CIO m => [FilePath] -> m (Either String SourceTree)
             checkContents [] = return (Left "Empty tarball?")
             checkContents [subdir] = findSourceTree (sourceDir ++ "/" ++ subdir)

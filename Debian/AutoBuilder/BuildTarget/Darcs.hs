@@ -1,6 +1,7 @@
+{-# LANGUAGE Rank2Types, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Darcs where
 
-import Control.OldException
+import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe (fromJust)
@@ -82,11 +83,12 @@ prepareDarcs params uriAndTag =
           either (return . Left) (const (findSourceTree dir)) >>=
           return . either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right
 
-      createSource :: CIO m => FilePath -> m (Either String SourceTree)
+      createSource :: forall m. CIO m => FilePath -> m (Either String SourceTree)
       createSource dir =
           let (parent, _) = splitFileName dir in
           do r1 <- liftIO (try (createDirectoryIfMissing True parent))
-             r2 <- either (return . Left . show) (const (runTaskAndTest (createStyle (commandTask cmd)))) r1
+             r2 <- either (\ (e :: SomeException) -> return . Left . show $ e)
+                          (const (runTaskAndTest (createStyle (commandTask cmd)))) r1
              r3 <- either (return . Left) (const (findSourceTree dir)) r2
              let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
              return r4

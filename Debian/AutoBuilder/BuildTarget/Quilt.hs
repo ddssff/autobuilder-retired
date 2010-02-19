@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | The quilt target takes two other targets, one a base source
 -- directory and another a quilt-style patch directory, and creates
 -- a build target with the patches applied to the source directory.
@@ -9,7 +10,7 @@ import Debian.Shell
 import Debian.Version
 
 import Control.Applicative.Error (Failing(..))
-import Control.OldException
+import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -189,7 +190,7 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                              findSourceTree (topdir quiltTree) >>= return . either (const . Left $ "Failed to find tree") (\ tree -> Right . Tgt $ Quilt (Tgt base) (Tgt patch) tree)
 -}
                (_, err, [ExitFailure _]) -> return (Left $ target ++ " - Unexpected output from quilt applied: " ++ err)
-               (_, _, [ExitSuccess]) -> return (Left $ target ++ " - Unexpected result code from quilt applied")
+               (_, _, [ExitSuccess]) -> return (Left $ target ++ " - Unexpected result code (ExitSuccess) from " ++ show cmd1a)
                (_, _, other) -> return (Left $ target ++ " - Bad result code from quilt applied process: " ++ show other)
           where
             cmd1a = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ quiltDir ++ "' && quilt applied")
@@ -208,7 +209,7 @@ prepareQuilt params (Tgt base) (Tgt patch) =
              
 --myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x
 
-mergeChangelogs' :: CIO m => FilePath -> FilePath -> m (Either String ())
+mergeChangelogs' :: forall m. CIO m => FilePath -> FilePath -> m (Either String ())
 mergeChangelogs' basePath patchPath =
     do patchText <- liftIO (try (readFile patchPath))
        baseText <- liftIO (try (readFile basePath))
@@ -216,10 +217,11 @@ mergeChangelogs' basePath patchPath =
          (Right patchText, Right baseText) ->
              do -- vEPutStrBl 1 $ "Merging changelogs: " ++ baseText ++ "\npatch:\n\n" ++ patchText
                 either (return . Left) replace (mergeChangelogs baseText patchText)
-         (Left e, _) -> return $ Left (show e)
-         (_, Left e) -> return $ Left (show e)
+         (Left (e :: SomeException), _) -> return $ Left (show e)
+         (_, Left (e :: SomeException)) -> return $ Left (show e)
     where
-      replace newText = liftIO (try (replaceFile basePath $! newText)) >>= return. either (Left . show) Right
+      replace newText = liftIO (try (replaceFile basePath $! newText)) >>=
+                        return. either (\ (e :: SomeException) -> Left . show $ e) Right
 
 partitionFailing :: [Failing a] -> ([[String]], [a])
 partitionFailing [] = ([], [])
