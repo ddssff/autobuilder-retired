@@ -14,6 +14,7 @@ import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
+import Data.Either (partitionEithers)
 import Data.List (intercalate, sortBy)
 import Data.Maybe
 import Data.Time
@@ -24,7 +25,6 @@ import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Extra.CIO (vMessage)
 import Extra.CIO (CIO(tryCIO), vPutStrBl, vEPutStrBl)
-import Extra.Either (partitionEithers)
 import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing)
@@ -237,7 +237,7 @@ partitionFailing (x : xs) =
 -- lots of bizarre formats in the older entries that we can't parse.
 mergeChangelogs :: String -> String -> Either String String
 mergeChangelogs baseText patchText =
-    case partitionFailing (parseLog patchText) of
+    case partitionEithers (parseLog patchText) of
       ([], patchEntries) ->
           let patchEntries' = map Patch patchEntries in
           let oldest = zonedTimeToUTC . myParseTimeRFC822 . logDate . getEntry . head . reverse $ patchEntries' in
@@ -288,8 +288,8 @@ mergeChangelogs baseText patchText =
 partitionChangelog :: UTCTime -> String -> ([ChangeLogEntry], String)
 partitionChangelog date text =
     case parseEntry text of
-      Failure msgs -> ([], text)
-      Success (entry, text') ->
+      Left msgs -> ([], text)
+      Right (entry, text') ->
           if date >= (zonedTimeToUTC . myParseTimeRFC822 . logDate $ entry)
           then ([entry], text')
           else case partitionChangelog date text' of
