@@ -9,14 +9,10 @@ import qualified Debian.Version as V
 
 import Debian.AutoBuilder.BuildTarget as BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
-import Data.Maybe
-import Control.Monad
 import System.Directory
-import Extra.CIO
 import System.Unix.Process
 
 -- | Treat the data returned by a target as a source deb.
@@ -40,7 +36,7 @@ instance BuildTarget SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: (RunClass p, CIO m) => p -> Tgt -> m (Either String Tgt)
+prepareSourceDeb :: (RunClass p) => p -> Tgt -> IO (Either String Tgt)
 prepareSourceDeb params (Tgt base) =
     do let top = getTop params base
        dscFiles <- liftIO (getDirectoryContents top) >>=

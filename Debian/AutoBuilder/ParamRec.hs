@@ -4,7 +4,6 @@ module Debian.AutoBuilder.ParamRec
     , adjustVendorTag -- Export for testing
     ) where
 
-import Data.List (dropWhile)
 import qualified Data.Set as Set
 import Debian.Repo
 import Debian.URI

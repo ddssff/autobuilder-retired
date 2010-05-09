@@ -7,7 +7,7 @@ import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import System.Unix.Process
-import Extra.CIO
+import Debian.Extra.CIO
 import Control.Monad.Trans
 
 data Proc = Proc Tgt
@@ -34,5 +34,5 @@ instance BuildTarget Proc where
            return result
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
-prepareProc :: (RunClass p, CIO m) => p -> Tgt -> m (Either String Tgt)
+prepareProc :: (RunClass p) => p -> Tgt -> IO (Either String Tgt)
 prepareProc _ base = return . Right . Tgt $ Proc base

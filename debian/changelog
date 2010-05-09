@@ -1,3 +1,10 @@
+autobuilder (5.16) unstable; urgency=low
+
+  * Eliminate the use of the CIO class and the TIO monad, use
+    IO directly.
+
+ -- David Fox <dsf@seereason.com>  Sun, 09 May 2010 13:26:29 -0700
+
 autobuilder (5.15) unstable; urgency=low
 
   * Use Sets of targets rather than lists

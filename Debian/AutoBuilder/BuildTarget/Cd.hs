@@ -7,7 +7,7 @@ import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import System.FilePath ((</>))
-import Extra.CIO
+import Debian.Extra.CIO
 
 data Cd = Cd FilePath Tgt
 
@@ -30,7 +30,7 @@ instance BuildTarget Cd where
            -- Or we could only copy the subdirectory into the build environment.
     logText (Cd subdir (Tgt s)) revision = logText s revision ++ " (in subdirectory " ++ subdir ++ ")"
 
-prepareCd :: (RunClass p, CIO m) => p -> FilePath -> Tgt -> m (Either String Tgt)
+prepareCd :: (RunClass p) => p -> FilePath -> Tgt -> IO (Either String Tgt)
 prepareCd _params subdir target =
     -- FIXME: we should verify that the subdir contains a debian source tree
     return . Right . Tgt $ Cd subdir target

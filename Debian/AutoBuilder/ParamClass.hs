@@ -37,10 +37,9 @@ import           Debian.Repo.Types (ReleaseName(relName))
 import		 Debian.Version
 import		 Debian.URI
 import qualified Debian.GenBuildDeps as G
-import           Extra.CIO (CIO, ePutStrBl)
+import           Debian.Extra.CIO (ePutStrBl)
 import		 System.Directory (createDirectoryIfMissing, getPermissions, writable)
 import		 System.Environment (getEnv)
-import qualified System.IO as IO
 
 -- Lax: dependencies are installed into clean, clean synced to build for each target
 -- Moderate: dependencies are installed into build, clean synced to build only at beginning of run
@@ -350,7 +349,7 @@ data Cache
             }
 
 -- |Create a Cache object from a parameter set.
-buildCache :: (ParamClass p, CIO m) => p -> AptIOT m Cache
+buildCache :: (ParamClass p) => p -> AptIOT IO Cache
 buildCache params =
     do top <- lift $ computeTopDir params
        loadRepoCache top
@@ -438,7 +437,7 @@ instance ParamClass p => ParamClass (p, a) where
     doHelp = doHelp . fst
     autobuilderEmail = autobuilderEmail . fst
 
-loadRepoCache :: CIO m => FilePath -> AptIOT m ()
+loadRepoCache :: FilePath -> AptIOT IO ()
 loadRepoCache top =
     do lift $ ePutStrBl "Loading repo cache..."
        state <- get
@@ -451,10 +450,10 @@ loadRepoCache top =
 
 -- Compute the top directory, try to create it, and then make sure it
 -- exists.  Then we can safely return it from topDir below.
-computeTopDir :: forall m p. (ParamClass p, CIO m) => p -> m FilePath
+computeTopDir :: forall p. (ParamClass p) => p -> IO FilePath
 computeTopDir params =
     do top <- maybe homeDir return (topDirParam params)
-       liftIO (try $ createDirectoryIfMissing True top) :: m (Either SomeException ())
+       liftIO (try $ createDirectoryIfMissing True top) :: IO (Either SomeException ())
        result <- liftIO (try $ getPermissions top >>= return . writable)
        case result of
          Left (e :: SomeException) -> error $ "Could not create cache directory " ++ top ++ ": " ++ show e ++ " (are you root?)"

@@ -12,7 +12,6 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
-import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
@@ -20,7 +19,6 @@ import Debian.Control.ByteString
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-import Extra.CIO
 import System.FilePath (splitFileName)
 import System.Unix.Directory
 import System.Unix.Process
@@ -35,7 +33,7 @@ instance Show Svn where
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: CIO m => (FullTask -> FullTask) -> Maybe FilePath -> [String] -> m (Either String [Output])
+svn :: (FullTask -> FullTask) -> Maybe FilePath -> [String] -> IO (Either String [Output])
 svn style path args =
     runTaskAndTest (style task) >>= return . either (Left . (("*** FAILURE: " ++ showCommand task ++ ": ") ++)) Right
     where
@@ -95,7 +93,7 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
 
-prepareSvn ::  (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareSvn ::  (RunClass p) => p -> String -> IO (Either String Tgt)
 prepareSvn params target =
     do when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
@@ -125,7 +123,7 @@ prepareSvn params target =
           liftIO (try (createDirectoryIfMissing True parent)) >>=
           either (\ (e :: SomeException) -> return . Left . show $ e) (const checkout) >>=
           either (return . Left) (const (findSourceTree dir))
-      checkout :: CIO m => m (Either String [Output])
+      checkout :: IO (Either String [Output])
       --checkout = svn createStyle args 
       checkout = runTask (createStyle (processTask "svn" args Nothing Nothing)) >>= return . finish
           where

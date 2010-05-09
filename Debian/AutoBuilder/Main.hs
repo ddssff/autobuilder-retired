@@ -22,6 +22,7 @@ import qualified Debian.AutoBuilder.Params as PP
 import Debian.AutoBuilder.ParamRec()    -- Instances only
 import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
 import qualified Debian.AutoBuilder.Version as V
+import Debian.Extra.CIO
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
@@ -44,7 +45,6 @@ import Extra.Either(rights, partitionEithers)
 import Extra.List(consperse)
 import Extra.Lock(withLock)
 import Extra.Misc(checkSuperUser)
-import Extra.TIO(CIO(setStyle), appPrefix, defStyle, eBOL, setVerbosity, vEPutStr, vEPutStrBl, TIO, runTIO)
 import System.Directory(createDirectoryIfMissing)
 import System.Posix.Files(removeLink)
 import System.Environment(getArgs)
@@ -70,14 +70,14 @@ oldMain =
 -}
 
 -- | 
-doMain :: P.RunClass p => Int -> AptIOT TIO [p] -> IO ()
+doMain :: P.RunClass p => Int -> AptIOT IO [p] -> IO ()
 doMain verbosity f =
-    do runTIO (setVerbosity verbosity defStyle) (runAptIO (f >>= mapM doParameterSets) >>= checkResults)
+    do runAptIO (f >>= mapM doParameterSets) >>= checkResults
        IO.hFlush IO.stderr
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.
-doParameterSets :: P.RunClass p => p -> AptIOT TIO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
+doParameterSets :: P.RunClass p => p -> AptIOT IO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
 doParameterSets set =
     withLock (lockFilePath set) (tryAB . runParameterSet $ set)
     where
@@ -87,7 +87,7 @@ doParameterSets set =
 -- exception or a completion code, or, if we fail to get a lock,
 -- nothing.  For a single result we can print a simple message,
 -- for multiple paramter sets we need to print a summary.
-checkResults :: CIO m => [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> m ()
+checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
 checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
 checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
 checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
@@ -115,7 +115,7 @@ appName = "autobuilder"
 
 writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 
-runParameterSet :: P.RunClass p => p -> AptIOT TIO (Failing ([Output], NominalDiffTime))
+runParameterSet :: P.RunClass p => p -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
     do
       liftIO $ writeParams params
@@ -176,7 +176,7 @@ runParameterSet params =
       buildReleaseSources = releaseSlices (P.buildRelease params) (inexactPathSlices buildRepoSources)
       buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (P.buildRelease params))
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
-      doRequiredVersion :: CIO m => m ()
+      doRequiredVersion :: IO ()
       doRequiredVersion =
           case filter (\ (v, _) -> v > parseDebianVersion V.autoBuilderVersion) (P.requiredVersion params) of
             [] -> return ()
@@ -185,7 +185,7 @@ runParameterSet params =
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)                    
           where
-            printReason :: CIO m => (DebianVersion, Maybe String) -> m ()
+            printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
                 vEPutStr 0 (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
       doShowParams = when (P.showParams params) (vEPutStr 0 $ "Configuration parameters:\n" ++ P.prettyPrint params)
@@ -228,8 +228,8 @@ runParameterSet params =
              mapStateT (setStyle (appPrefix " ")) (mapM (readSpec params . P.sourceSpec) allTargets)
           where
             allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (Set.toList (P.targets params))
-            listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
-      upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Failing ([Output], NominalDiffTime)]
+            --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
+      upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =
               case P.uploadURI params of
@@ -243,7 +243,7 @@ runParameterSet params =
               True -> lift (vEPutStr 0 "Skipping upload.")
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
-      newDist :: CIO m => [Failing ([Output], NominalDiffTime)] -> m (Failing ([Output], NominalDiffTime))
+      newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
       newDist results
           | P.doNewDist params =
               case P.uploadURI params of
@@ -264,7 +264,7 @@ runParameterSet params =
       --top = P.topDir params
       --dryRun = P.dryRun params
       -- flush = P.flushSource params
-      updateRepoCache :: P.RunClass p => p -> AptIOT TIO ()
+      updateRepoCache :: P.RunClass p => p -> AptIOT IO ()
       updateRepoCache params =
           do let path = P.topDir params  ++ "/repoCache"
              live <- get >>= return . getRepoMap
@@ -285,3 +285,5 @@ runParameterSet params =
                                                          Nothing -> Nothing
                                                          Just uri -> Just (uri, x)) pairs)
                    return . Map.fromList . filter isRemote $ pairs'
+
+appPrefix _ = id

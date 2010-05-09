@@ -11,7 +11,7 @@ import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-import Extra.CIO (CIO, vPutStrBl)
+import Debian.Extra.CIO (vPutStrBl)
 import System.FilePath (splitFileName)
 import System.IO
 import System.Process
@@ -48,7 +48,7 @@ instance BuildTarget Bzr where
 
     logText (Bzr _ _) revision = "Bazaar revision: " ++ maybe "none" id revision
 
-prepareBzr :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareBzr :: (RunClass p) => p -> String -> IO (Either String Tgt)
 prepareBzr params version = do
     when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir

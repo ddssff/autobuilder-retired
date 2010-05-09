@@ -8,7 +8,7 @@ import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
-import Extra.CIO
+import Debian.Extra.CIO
 import System.FilePath (splitFileName)
 import System.IO
 import System.Process
@@ -44,7 +44,7 @@ instance BuildTarget Tla where
 
     logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
 
-prepareTla :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareTla :: (RunClass p) => p -> String -> IO (Either String Tgt)
 prepareTla params version =
     do
       when (P.flushSource params) (liftIO (removeRecursiveSafely dir))

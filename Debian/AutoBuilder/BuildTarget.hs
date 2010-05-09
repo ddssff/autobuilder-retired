@@ -66,12 +66,9 @@ module Debian.AutoBuilder.BuildTarget
     ) where
 
 import Data.Time (NominalDiffTime)
-import Extra.CIO
 import Debian.Repo
 import Debian.AutoBuilder.ParamClass (ParamClass)
 import qualified Debian.AutoBuilder.ParamClass as P
-import Control.Monad
-import Data.Maybe
 import System.Unix.Process
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
@@ -92,7 +89,7 @@ class BuildTarget t where
     getTop :: ParamClass p => p -> t -> FilePath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: (ParamClass p, CIO m) => p -> t -> FilePath -> m (Either String ([Output], NominalDiffTime))
+    cleanTarget :: (ParamClass p) => p -> t -> FilePath -> IO (Either String ([Output], NominalDiffTime))
     cleanTarget _ _ _ = return . Right $ ([], fromInteger 0)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
@@ -102,11 +99,11 @@ class BuildTarget t where
     -- the build dependencies that were installed when the package was
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
-    revision :: (ParamClass p, CIO m) => p -> t -> m (Either String String)
+    revision :: (ParamClass p) => p -> t -> IO (Either String String)
     -- |Default function to build the package for this target.
     -- Currently this is only overridden by the proc: target which
     -- mounts /proc, then calls buildDebs, then unmounts /proc.
-    buildPkg :: (ParamClass p, CIO m) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> m (Either String NominalDiffTime)
+    buildPkg :: (ParamClass p) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO (Either String NominalDiffTime)
     buildPkg params buildOS buildTree status _target =
         buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.
@@ -128,7 +125,7 @@ instance BuildTarget Dir where
     logText (Dir tree) _ = "Built from local directory " ++ topdir tree
 
 -- |Prepare a Dir target
-prepareDir :: (ParamClass p, CIO m) => p -> FilePath -> m (Either String Tgt)
+prepareDir :: (ParamClass p) => p -> FilePath -> IO (Either String Tgt)
 prepareDir _params path =
     findSourceTree path >>=
     return . either (\ message -> Left $ "No source tree at " ++ path ++ ": " ++ message) (Right . Tgt . Dir)

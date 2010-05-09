@@ -18,7 +18,6 @@ import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
-import Extra.CIO
 
 data Hg = Hg String SourceTree
 
@@ -54,7 +53,7 @@ instance BuildTarget Hg where
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
-prepareHg :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareHg :: (RunClass p) => p -> String -> IO (Either String Tgt)
 prepareHg params archive =
     do
       when (P.flushSource params) (liftIO $ removeRecursiveSafely dir)

@@ -11,7 +11,6 @@ import Debian.Version
 
 import Control.Applicative.Error (Failing(..))
 import Control.Exception (SomeException, try)
-import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Either (partitionEithers)
@@ -23,8 +22,7 @@ import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, escapeForMake)
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
-import Debian.Extra.CIO (vMessage)
-import Extra.CIO (CIO(tryCIO), vPutStrBl, vEPutStrBl)
+import Debian.Extra.CIO (vMessage, vPutStrBl, vEPutStrBl)
 import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing)
@@ -79,7 +77,7 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (RunClass p, Show a, Show b, BuildTarget a, BuildTarget b, CIO m) => p -> a -> b -> m (Either String (SourceTree, FilePath))
+makeQuiltTree :: (RunClass p, Show a, Show b, BuildTarget a, BuildTarget b) => p -> a -> b -> IO (Either String (SourceTree, FilePath))
 makeQuiltTree params base patch =
     do vPutStrBl 1 $ "Quilt base: " ++ getTop params base
        vPutStrBl 1 $ "Quilt patch: " ++ getTop params patch
@@ -119,14 +117,17 @@ makeQuiltTree params base patch =
     where
       linkStyle = setStart (Just "Linking to quilt target")
 
+debug :: SomeException -> IO (Either String Tgt)
 debug e =
-    do IO.hPutStrLn IO.stderr ("Missed exception: " ++ show e) 
+    do IO.hPutStrLn IO.stderr ("Missed exception: " ++ s) 
        IO.hFlush IO.stderr
        exitWith (ExitFailure 2)
+       return (Left s)
+    where s = show e
 
-prepareQuilt :: (RunClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
+prepareQuilt :: (RunClass p) => p -> Tgt -> Tgt -> IO (Either String Tgt)
 prepareQuilt params (Tgt base) (Tgt patch) = 
-    tryCIO (makeQuiltTree params base patch >>= either (return . Left) make) >>= either (liftIO . debug) return
+    try (makeQuiltTree params base patch >>= either (return . Left) make) >>= either debug return
     where
       make (quiltTree, quiltDir) =
           do applied <- liftIO (lazyCommand cmd1a L.empty) >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
@@ -209,7 +210,7 @@ prepareQuilt params (Tgt base) (Tgt patch) =
              
 --myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x
 
-mergeChangelogs' :: forall m. CIO m => FilePath -> FilePath -> m (Either String ())
+mergeChangelogs' :: FilePath -> FilePath -> IO (Either String ())
 mergeChangelogs' basePath patchPath =
     do patchText <- liftIO (try (readFile patchPath))
        baseText <- liftIO (try (readFile basePath))

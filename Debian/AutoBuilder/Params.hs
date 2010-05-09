@@ -3,7 +3,6 @@ module Debian.AutoBuilder.Params
     , makeParamRec
     ) where
 
-import qualified Data.Set as Set
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.ParamRec as R
 import           Debian.Repo.Types (NamedSliceList, SliceList)

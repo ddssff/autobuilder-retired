@@ -8,10 +8,8 @@ import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Control.Monad
 import Control.Monad.Trans
-import Data.Maybe
 import System.Unix.Directory
 import Text.Regex
-import Extra.CIO
 
 -- | A package retrieved via apt-get in the given slice
 data Apt = Apt NamedSliceList String (Maybe DebianVersion) DebianBuildTree
@@ -32,7 +30,7 @@ instance BuildTarget Apt where
     revision _ (Apt _ _ Nothing _) = error "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) _ = "Built from " ++ sliceName (sliceListName name) ++ " apt pool"
 
-prepareApt :: (RunClass p, CIO m) => p -> String -> AptIOT m (Either String Tgt)
+prepareApt :: (RunClass p) => p -> String -> AptIOT IO (Either String Tgt)
 prepareApt params target =
     do
       let (dist, package, version) =

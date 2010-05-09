@@ -7,14 +7,12 @@ import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import Data.List (isPrefixOf)
-import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-import Extra.CIO
 import Extra.Misc
 import Magic
 import System.FilePath (splitFileName)
@@ -47,7 +45,7 @@ instance BuildTarget Uri where
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareUri :: (RunClass p) => p -> String -> IO (Either String Tgt)
 prepareUri params target =
     case parseTarget target of
       Right (uri, md5sum) -> checkTarget uri md5sum >>= downloadTarget uri md5sum >>= validateTarget md5sum >>= unpackTarget uri
@@ -67,7 +65,7 @@ prepareUri params target =
             name = snd . splitFileName . uriPath $ uri
       -- See if the file is already available in the checksum directory
       -- Download the target into the tmp directory, compute its checksum, and see if it matches.
-      downloadTarget :: CIO m => URI -> String -> Bool -> m (Either String String)
+      downloadTarget :: URI -> String -> Bool -> IO (Either String String)
       downloadTarget uri _sum True =
           return (Right name)
           where
@@ -86,7 +84,7 @@ prepareUri params target =
             sumDir = tmp ++ "/" ++ sum
             name = snd . splitFileName . uriPath $ uri
       -- Make sure what we just downloaded has the correct checksum
-      validateTarget :: CIO m => String -> Either String String -> m (Either String (String, String, String))
+      validateTarget :: String -> Either String String -> IO (Either String (String, String, String))
       validateTarget _sum (Left x) = return (Left x)
       validateTarget sum (Right name) =
           do output <- liftIO $ md5sum dest
@@ -105,7 +103,7 @@ prepareUri params target =
           where
             dest = sumDir ++ "/" ++ name
             sumDir = tmp ++ "/" ++ sum
-      unpackTarget :: CIO m => URI -> Either String (String, String, String) -> m (Either String Tgt)
+      unpackTarget :: URI -> Either String (String, String, String) -> IO (Either String Tgt)
       unpackTarget _ (Left message) = return (Left message)
       unpackTarget uri (Right (sum, sumDir, name)) =
           mkdir >>= untar >>= read >>= search >>= verify
@@ -134,7 +132,7 @@ prepareUri params target =
             getDir dir = try (getDirectoryContents dir) >>=
                          either (\ (e :: SomeException) -> return . Left . show $ e)
                                 (return . Right . filter (not . flip elem [".", ".."]))
-            checkContents :: CIO m => [FilePath] -> m (Either String SourceTree)
+            checkContents :: [FilePath] -> IO (Either String SourceTree)
             checkContents [] = return (Left "Empty tarball?")
             checkContents [subdir] = findSourceTree (sourceDir ++ "/" ++ subdir)
             checkContents _ = findSourceTree sourceDir

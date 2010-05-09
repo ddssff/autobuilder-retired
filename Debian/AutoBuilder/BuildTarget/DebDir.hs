@@ -9,7 +9,6 @@ import qualified Debian.AutoBuilder.ParamClass as P
 import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory
-import Extra.CIO
 import Debian.Shell
 --import ChangeLog
 
@@ -37,7 +36,7 @@ instance BuildTarget DebDir where
                  return . Left $ "Unimplemented: no revision method for deb-dir upstream target: " ++ message
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ maybe "none" id revision
 
-prepareDebDir :: (RunClass p, CIO m) => p -> Tgt -> Tgt -> m (Either String Tgt)
+prepareDebDir :: (RunClass p) => p -> Tgt -> Tgt -> IO (Either String Tgt)
 prepareDebDir params (Tgt upstream) (Tgt debian) = 
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
     either (\ (e :: SomeException) -> return . Left . show $ e) (const copyUpstream) >>=

@@ -11,12 +11,9 @@ import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
-import Extra.CIO
 import Network.URI (URI(..), URIAuth(..), parseURI)
 import System.Directory
 import System.FilePath
-import System.Process hiding (runCommand)
-import System.IO
 import System.Unix.Directory
 import System.Unix.Process
 import Text.Regex
@@ -56,7 +53,7 @@ instance BuildTarget Darcs where
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ maybe "none" id revision
 
-prepareDarcs :: (RunClass p, CIO m) => p -> String -> m (Either String Tgt)
+prepareDarcs :: (RunClass p) => p -> String -> IO (Either String Tgt)
 prepareDarcs params uriAndTag =
     do
       when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
@@ -66,7 +63,7 @@ prepareDarcs params uriAndTag =
         Left message -> return (Left message)
         Right tree -> return . Right . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
-      verifySource :: CIO m => FilePath -> m (Either String SourceTree)
+      verifySource :: FilePath -> IO (Either String SourceTree)
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
           do result <- runTask (verifyStyle (commandTask ("cd " ++ dir ++ " && darcs whatsnew"))) >>= return . discardOutput
@@ -74,16 +71,16 @@ prepareDarcs params uriAndTag =
                [Result (ExitFailure _)] -> updateSource dir				-- No Changes!
                [Result ExitSuccess] -> removeSource dir >> createSource dir		-- Yes changes
                _ -> error "Internal error 5"
-      removeSource :: CIO m => FilePath -> m ()
+      removeSource :: FilePath -> IO ()
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
-      updateSource :: CIO m => FilePath -> m (Either String SourceTree)
+      updateSource :: FilePath -> IO (Either String SourceTree)
       updateSource dir =
           runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>=
           either (return . Left) (const (findSourceTree dir)) >>=
           return . either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right
 
-      createSource :: forall m. CIO m => FilePath -> m (Either String SourceTree)
+      createSource :: FilePath -> IO (Either String SourceTree)
       createSource dir =
           let (parent, _) = splitFileName dir in
           do r1 <- liftIO (try (createDirectoryIfMissing True parent))
