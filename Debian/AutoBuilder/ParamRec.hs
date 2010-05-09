@@ -1,9 +1,11 @@
 module Debian.AutoBuilder.ParamRec
     ( ParamRec(..)
+    , TargetSpec(..)
     , adjustVendorTag -- Export for testing
     ) where
 
 import Data.List (dropWhile)
+import qualified Data.Set as Set
 import Debian.Repo
 import Debian.URI
 import Debian.Version
@@ -21,7 +23,7 @@ data ParamRec =
     , flushAll :: Bool
     , useRepoCache :: Bool
     , sources :: [(String, String)]
-    , targets :: [Target]
+    , targets :: TargetSpec
     , goals :: [String]
     , omitTargets :: [String]
     , vendorTag :: String
@@ -61,6 +63,16 @@ data ParamRec =
     , autobuilderEmail :: String
     } deriving Show 
 
+-- |Information about what targets to build are temporarily held in a
+-- value of this type.  Once all the command line arguments have been
+-- analyzed, this is transformed into a set of targets, which can be
+-- used to implement the ParamClass "targets" method.
+data TargetSpec
+    = AllTargets
+    | TargetNames (Set.Set String)
+    | TargetSet (Set.Set Target)
+    deriving Show
+
 instance ParamClass ParamRec where
     verbosity = Debian.AutoBuilder.ParamRec.verbosity
     topDirParam = Debian.AutoBuilder.ParamRec.topDirParam
@@ -72,7 +84,9 @@ instance ParamClass ParamRec where
     flushAll = Debian.AutoBuilder.ParamRec.flushAll
     useRepoCache = Debian.AutoBuilder.ParamRec.useRepoCache
     sources = Debian.AutoBuilder.ParamRec.sources
-    targets = Debian.AutoBuilder.ParamRec.targets
+    targets p = case Debian.AutoBuilder.ParamRec.targets p of
+                  TargetSet xs -> xs
+                  x -> error $ "Expected TargetSet, found " ++ show x
     goals = Debian.AutoBuilder.ParamRec.goals
     omitTargets = Debian.AutoBuilder.ParamRec.omitTargets
     vendorTag = adjustVendorTag . Debian.AutoBuilder.ParamRec.vendorTag

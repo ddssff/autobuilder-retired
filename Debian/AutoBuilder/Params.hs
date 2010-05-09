@@ -3,6 +3,7 @@ module Debian.AutoBuilder.Params
     , makeParamRec
     ) where
 
+import qualified Data.Set as Set
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.ParamRec as R
 import           Debian.Repo.Types (NamedSliceList, SliceList)
@@ -27,7 +28,7 @@ makeParamRec params =
     , R.flushAll = P.flushAll params
     , R.useRepoCache = P.useRepoCache params
     , R.sources = P.sources params
-    , R.targets = P.targets params
+    , R.targets = R.TargetSet . P.targets $ params
     , R.goals = P.goals params
     , R.omitTargets = P.omitTargets params
     , R.vendorTag = P.vendorTag params

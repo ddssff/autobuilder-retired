@@ -27,6 +27,7 @@ import	"mtl"	 Control.Monad.Trans (lift, liftIO)
 import		 Data.List (isSuffixOf)
 import		 Data.Maybe
 import           Data.Map (fromList)
+import qualified Data.Set as Set
 import		 Debian.Repo.Cache (SourcesChangedAction)
 import           Debian.Repo(EnvRoot(EnvRoot), Arch, SliceName(..),
                              SliceList(..), NamedSliceList(..), ReleaseName, releaseName',
@@ -60,7 +61,7 @@ data Target
       { sourcePackageName :: String
       , sourceSpec :: String
       , relaxInfo :: [String]		-- ^ Build dependencies which be ignored when deciding whether to rebuild
-      } deriving Show
+      } deriving (Show, Eq, Ord)
 
 -- |An instance of 'ParamClass' contains the configuration parameters
 -- for a run of the autobuilder.  Among other things, it defined a set
@@ -102,7 +103,7 @@ class ParamClass a where
     -- ^ An alternate url for the same repository the @uploadURI@ points to,
     -- used for downloading packages that have already been installed
     -- there.
-    targets :: a -> [Target]
+    targets :: a -> Set.Set Target
     -- ^ The packages to build.  The 'Target' record includes the
     -- source package name, a string describing how the source is to
     -- be obtained, and a dependency relaxation list, a list of binary
@@ -298,7 +299,7 @@ prettyPrint x =
             , "flushAll=" ++ take 120 (show (flushAll x))
             , "useRepoCache=" ++ take 120 (show (useRepoCache x))
             , "sources=" ++ take 120 (show (sources x))
-            , "targets=" ++ take 120 (show (map sourcePackageName (targets x)))
+            , "targets=" ++ take 120 (show (Set.map sourcePackageName (targets x)))
             , "goals=" ++ take 120 (show (goals x))
             , "omitTargets=" ++ take 120 (show (omitTargets x))
             , "vendorTag=" ++ take 120 (show (vendorTag x))
@@ -536,4 +537,4 @@ isDevelopmentRelease params =
 relaxDepends params =
     G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
                   concatMap (\ target -> map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (sourcePackageName target))))
-                             (relaxInfo target)) (targets params)
+                             (relaxInfo target)) (Set.toList (targets params))

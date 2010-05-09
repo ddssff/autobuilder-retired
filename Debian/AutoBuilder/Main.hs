@@ -15,6 +15,7 @@ import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import Data.List((++), concat, filter, zip, map, length, intercalate)
 import Data.Maybe(Maybe(..), catMaybes, maybe)
+import qualified Data.Set as Set
 --import qualified Debian.AutoBuilder.OldParams as O
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Params as PP
@@ -226,7 +227,7 @@ runParameterSet params =
              lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
              mapStateT (setStyle (appPrefix " ")) (mapM (readSpec params . P.sourceSpec) allTargets)
           where
-            allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (P.targets params)
+            allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (Set.toList (P.targets params))
             listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
       upload :: CIO m => (LocalRepository, [Target]) -> AptIOT m [Failing ([Output], NominalDiffTime)]
       upload (repo, [])
