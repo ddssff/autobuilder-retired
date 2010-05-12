@@ -60,7 +60,7 @@ deb http://mirror.anl.gov/ubuntu ${DIST}-security main restricted universe multi
 deb-src http://mirror.anl.gov/ubuntu ${DIST}-security main restricted universe multiverse
 EOF
 
-info 'Starting autobuilder with new root'
-autobuilder ${DIST}-seereason --force haskell-devscripts --target haskell-devscripts
+#info 'Starting autobuilder with new root'
+#autobuilder ${DIST}-seereason --force haskell-devscripts --target haskell-devscripts
 
 exit 0
