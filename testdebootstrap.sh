@@ -46,6 +46,7 @@ chroot ${WOOT} apt-get update
 
 info "Replacing ~/.autobuilder/dists/${DIST}-seereason/clean-Moderate"
 rm -rf ~/.autobuilder/dists/${DIST}-seereason/clean-Moderate
+mkdir -p ~/.autobuilder/dists/${DIST}-seereason/
 mv ${WOOT} ~/.autobuilder/dists/${DIST}-seereason/clean-Moderate
 
 cat <<EOF >> ~/.autobuilder/dists/${DIST}-seereason/sources
