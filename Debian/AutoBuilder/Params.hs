@@ -35,6 +35,7 @@ makeParamRec params =
     , R.extraReleaseTag = P.extraReleaseTag params
     , R.flushSource = P.flushSource params
     , R.forceBuild = P.forceBuild params
+    , R.buildTrumped = P.buildTrumped params
     , R.allowBuildDependencyRegressions = P.allowBuildDependencyRegressions params
     , R.preferred = P.preferred params
     , R.strictness = P.strictness params

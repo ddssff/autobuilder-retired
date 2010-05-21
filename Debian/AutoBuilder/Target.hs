@@ -49,7 +49,7 @@ import qualified Debian.AutoBuilder.Version as V
 import Debian.AutoBuilder.ParamClass(Strictness(Lax),
                                      ParamClass(strictness, releaseAliases, globalRelaxInfo,
                                                 preferred, noClean, developmentReleaseNames,
-                                                goals, forceBuild, extraReleaseTag,
+                                                goals, forceBuild, buildTrumped, extraReleaseTag,
                                                 dryRun, doNotChangeVersion, buildRelease,
                                                 autobuilderEmail, allowBuildDependencyRegressions, buildDepends,
                                                 vendorTag, oldVendorTags),
@@ -617,7 +617,8 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                lift (vEPutStrBl 1 ("Released version: " ++ show oldVersion))
                lift (vEPutStrBl 1 ("Current source version: " ++ show sourceVersion))
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
-               let newVersion = computeNewVersion params sourcePackages releaseControlInfo sourceVersion
+                   buildTrumped = elem packageName (P.buildTrumped params)
+               let newVersion = computeNewVersion params sourcePackages (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                let decision =
                        buildDecision target (P.vendorTag params) (P.oldVendorTags params) (elem packageName (P.forceBuild params))
                                          (P.allowBuildDependencyRegressions params)

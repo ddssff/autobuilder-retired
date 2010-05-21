@@ -30,6 +30,7 @@ data ParamRec =
     , extraReleaseTag :: Maybe Int
     , flushSource :: Bool
     , forceBuild :: [String]
+    , buildTrumped :: [String]
     , allowBuildDependencyRegressions :: Bool
     , preferred :: [String]
     , strictness :: Strictness
@@ -93,6 +94,7 @@ instance ParamClass ParamRec where
     extraReleaseTag = Debian.AutoBuilder.ParamRec.extraReleaseTag
     flushSource = Debian.AutoBuilder.ParamRec.flushSource
     forceBuild = Debian.AutoBuilder.ParamRec.forceBuild
+    buildTrumped = Debian.AutoBuilder.ParamRec.buildTrumped
     allowBuildDependencyRegressions = Debian.AutoBuilder.ParamRec.allowBuildDependencyRegressions
     preferred = Debian.AutoBuilder.ParamRec.preferred
     strictness = Debian.AutoBuilder.ParamRec.strictness

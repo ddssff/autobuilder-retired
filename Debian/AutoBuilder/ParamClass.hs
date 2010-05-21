@@ -130,6 +130,9 @@ class ParamClass a where
     forceBuild :: a -> [String]
     -- ^ Build the named source package(s) whether or not they seem
     -- to need it.
+    buildTrumped :: a -> [String]
+    -- ^ Build the named source package(s) whether or not they seem
+    -- to be older than the version already in the repository.
     doSSHExport :: a -> Bool
     -- ^ Try to set up ssh keys if upload host asks for a password.
     doHelp :: a -> Bool
@@ -306,6 +309,7 @@ prettyPrint x =
             , "extraReleaseTag=" ++ take 120 (show (extraReleaseTag x))
             , "flushSource=" ++ take 120 (show (flushSource x))
             , "forceBuild=" ++ take 120 (show (forceBuild x))
+            , "buildTrumped=" ++ take 120 (show (buildTrumped x))
             , "allowBuildDependencyRegressions=" ++ take 120 (show (allowBuildDependencyRegressions x))
             , "preferred=" ++ take 120 (show (preferred x))
             , "strictness=" ++ take 120 (show (strictness x))
@@ -406,6 +410,7 @@ instance ParamClass p => ParamClass (p, a) where
     extraReleaseTag = extraReleaseTag . fst
     flushSource = flushSource . fst
     forceBuild = forceBuild . fst
+    buildTrumped = buildTrumped . fst
     allowBuildDependencyRegressions = allowBuildDependencyRegressions . fst
     preferred = preferred . fst
     strictness = strictness . fst
