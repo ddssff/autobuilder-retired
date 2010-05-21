@@ -46,15 +46,15 @@ import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.ParamClass as P
 import qualified Debian.AutoBuilder.Version as V
-import Debian.AutoBuilder.ParamClass(P.Strictness(P.Lax),
-                                     P.ParamClass(P.strictness, P.releaseAliases, P.globalRelaxInfo,
-                                                  P.preferred, P.noClean, P.developmentReleaseNames,
-                                                  P.goals, P.forceBuild, P.extraReleaseTag,
-                                                  P.dryRun, P.doNotChangeVersion, P.buildRelease,
-                                                  P.autobuilderEmail, P.allowBuildDependencyRegressions, P.buildDepends,
-                                                  P.vendorTag, P.oldVendorTags),
-                                     P.RunClass, P.dirtyRoot)
-import Debian.AutoBuilder.Version(V.autoBuilderVersion)
+import Debian.AutoBuilder.ParamClass(Strictness(Lax),
+                                     ParamClass(strictness, releaseAliases, globalRelaxInfo,
+                                                preferred, noClean, developmentReleaseNames,
+                                                goals, forceBuild, extraReleaseTag,
+                                                dryRun, doNotChangeVersion, buildRelease,
+                                                autobuilderEmail, allowBuildDependencyRegressions, buildDepends,
+                                                vendorTag, oldVendorTags),
+                                     RunClass, dirtyRoot)
+import Debian.AutoBuilder.Version(autoBuilderVersion)
 import Debian.Changes (prettyChanges)
 import Debian.Control
 import qualified Debian.Control.ByteString as B
