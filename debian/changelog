@@ -1,3 +1,10 @@
+autobuilder (5.18) unstable; urgency=low
+
+  * Switch to debian-repo-5.8, which uses debootstrap instead of
+    build-env.
+
+ -- David Fox <dsf@seereason.com>  Wed, 26 May 2010 12:57:18 -0700
+
 autobuilder (5.17) unstable; urgency=low
 
   * Add a --build-trumped <package> option, so we can build the older
