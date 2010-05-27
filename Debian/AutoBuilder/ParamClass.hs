@@ -210,7 +210,7 @@ class ParamClass a where
     -- dist-upgrade@.  'Lax' means that build dependencies are
     -- installed into the clean build environment so that they
     -- accumulate across runs.
-    extraPackages :: a -> [String]
+    includePackages :: a -> [String]
     -- ^ Additional packages to include in the clean build environment.
     -- Adding packages here can speed things up when you are building many
     -- packages, because for each package it reverts the build environment
@@ -218,21 +218,12 @@ class ParamClass a where
     -- dependencies.  This only affects newly created environments, so if
     -- you change this value use the flushRoot option to get it to take
     -- effect.
-    extraEssential :: a -> [String]
-    -- ^ Specify extra packages to include as essential in the build
-    -- environment.  This option was provided to add either upstart or
-    -- sysvinit to the build when they ceased to be 'Required' packages.
-    omitEssential :: a -> [String]
-    -- ^ Specify packages for build-env to remove from the essential
-    -- list even if they are marked essential
-    omitBuildEssential :: a -> Bool
-    -- ^ OBSOLETE: Don't automatically consider all the build
-    -- essential packages to be build dependencies.  If you are
-    -- working with an unstable repository where the core packages
-    -- are undergoing frequent revisions, and you aren't worried
-    -- that a new version of @tar@ is going to change the outcome of
-    -- your builds, this option can reduce the number of pointless
-    -- rebuilds.  (But try relaxDepends first.)
+    excludePackages :: a -> [String]
+    -- ^ Specify packages for build-env to omit from the package list
+    -- even if they are marked essential
+    components :: a -> [String]
+    -- ^ The list of components of the base repository, for Ubuntu this is
+    -- main,restricted,universe,multiverse.
     developmentReleaseNames :: a -> [String]
     -- ^ The list of upstream release which are currently in
     -- development.  This means we the tag we add doesn't need to
@@ -317,10 +308,9 @@ prettyPrint x =
             , "buildDepends=" ++ take 120 (show (buildDepends x))
             , "globalRelaxInfo=" ++ take 120 (show (globalRelaxInfo x))
             , "noClean=" ++ take 120 (show (noClean x))
-            , "extraPackages=" ++ take 120 (show (extraPackages x))
-            , "extraEssential=" ++ take 120 (show (extraEssential x))
-            , "omitEssential=" ++ take 120 (show (omitEssential x))
-            , "omitBuildEssential=" ++ take 120 (show (omitBuildEssential x))
+            , "includePackages=" ++ take 120 (show (includePackages x))
+            , "excludePackages=" ++ take 120 (show (excludePackages x))
+            , "components=" ++ take 120 (show (components x))
             , "buildRelease=" ++ take 120 (show (buildRelease x))
             , "releaseSuffixes=" ++ take 120 (show (releaseSuffixes x))
             , "developmentReleaseNames=" ++ take 120 (show (developmentReleaseNames x))
@@ -418,10 +408,9 @@ instance ParamClass p => ParamClass (p, a) where
     buildDepends = buildDepends . fst
     globalRelaxInfo = globalRelaxInfo . fst
     noClean = noClean . fst
-    extraPackages = extraPackages . fst
-    extraEssential = extraEssential . fst
-    omitEssential = omitEssential . fst
-    omitBuildEssential = omitBuildEssential . fst
+    includePackages = includePackages . fst
+    excludePackages = excludePackages . fst
+    components = components . fst
     buildRelease = buildRelease . fst
     releaseSuffixes = releaseSuffixes . fst
     developmentReleaseNames = developmentReleaseNames . fst

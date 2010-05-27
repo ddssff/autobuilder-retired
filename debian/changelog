@@ -1,3 +1,13 @@
+autobuilder (6.0) unstable; urgency=low
+
+  * New major version number for autobuilders that use debootstrap
+    instead of build-env.
+  * Replace the fields of Params involving which packages to include
+    and exclude from the build environment with just includePackages 
+    and excludePackages.  Use debian-repo-5.9.
+
+ -- David Fox <dsf@seereason.com>  Thu, 27 May 2010 09:11:04 -0700
+
 autobuilder (5.18) unstable; urgency=low
 
   * Switch to debian-repo-5.8, which uses debootstrap instead of

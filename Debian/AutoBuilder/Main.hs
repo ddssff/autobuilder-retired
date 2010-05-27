@@ -133,14 +133,14 @@ runParameterSet params =
                          (Just localRepo)
                          (P.flushRoot params)
                          (P.ifSourcesChanged params)
-                         (P.extraEssential params)
-                         (P.omitEssential params)
-                         (P.extraPackages params ++ ["makedev", "build-essential"]))
+                         (P.includePackages params)
+                         (P.excludePackages params)
+                         (P.components params))
       updateCacheSources (P.ifSourcesChanged params) cleanOS
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
-      globalBuildDeps <- liftIO $ buildEssential cleanOS (P.omitBuildEssential params)
+      globalBuildDeps <- liftIO $ buildEssential cleanOS
       -- Get a list of all sources for the local repository.
       localSources <-
           case localRepo of

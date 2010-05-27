@@ -38,10 +38,9 @@ data ParamRec =
     , buildDepends :: [String]
     , globalRelaxInfo :: [String]
     , noClean :: Bool
-    , extraPackages :: [String]
-    , extraEssential :: [String]
-    , omitEssential :: [String]
-    , omitBuildEssential :: Bool
+    , includePackages :: [String]
+    , excludePackages :: [String]
+    , components :: [String]
     , buildRelease :: ReleaseName
     , releaseSuffixes :: [String]
     , developmentReleaseNames :: [String]
@@ -102,10 +101,9 @@ instance ParamClass ParamRec where
     buildDepends = Debian.AutoBuilder.ParamRec.buildDepends
     globalRelaxInfo = Debian.AutoBuilder.ParamRec.globalRelaxInfo
     noClean = Debian.AutoBuilder.ParamRec.noClean
-    extraPackages = Debian.AutoBuilder.ParamRec.extraPackages
-    extraEssential = Debian.AutoBuilder.ParamRec.extraEssential
-    omitEssential = Debian.AutoBuilder.ParamRec.omitEssential
-    omitBuildEssential = Debian.AutoBuilder.ParamRec.omitBuildEssential
+    includePackages = Debian.AutoBuilder.ParamRec.includePackages
+    excludePackages = Debian.AutoBuilder.ParamRec.excludePackages
+    components = Debian.AutoBuilder.ParamRec.components
     buildRelease = Debian.AutoBuilder.ParamRec.buildRelease
     releaseSuffixes = Debian.AutoBuilder.ParamRec.releaseSuffixes
     developmentReleaseNames = Debian.AutoBuilder.ParamRec.developmentReleaseNames
