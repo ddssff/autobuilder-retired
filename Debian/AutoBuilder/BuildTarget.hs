@@ -62,7 +62,7 @@ module Debian.AutoBuilder.BuildTarget
     , Dir(Dir)
     , Build(Build)
     , prepareDir
-    , escapeForMake
+    , md5sum
     ) where
 
 import Data.Time (NominalDiffTime)
@@ -70,6 +70,11 @@ import Debian.Repo
 import Debian.AutoBuilder.ParamClass (ParamClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import System.Unix.Process
+
+import Data.Char (ord)
+import Text.Printf (printf)
+import Happstack.Crypto.MD5 (md5)
+import Data.ByteString.Lazy.Char8 (pack, unpack)
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
@@ -145,6 +150,8 @@ instance BuildTarget Build where
 
 -- | There are many characters which will confuse make if they appear
 -- in a directory name.  This turns them all into something safer.
+{-
+-- Use checksums instead
 escapeForMake :: String -> String
 escapeForMake s =
     map escape s
@@ -156,3 +163,6 @@ escapeForMake s =
       --escape '@' = '_'
       escape '=' = '_'		-- Caused a failure in xtla
       escape c = c
+-}
+
+md5sum s = concatMap (printf "%02x" . ord) (unpack (md5 (pack s)))

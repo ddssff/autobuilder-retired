@@ -19,7 +19,7 @@ import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, escapeForMake)
+import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, md5sum)
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Extra.CIO (vMessage, vPutStrBl, vEPutStrBl)
@@ -82,7 +82,7 @@ makeQuiltTree params base patch =
     do vPutStrBl 1 $ "Quilt base: " ++ getTop params base
        vPutStrBl 1 $ "Quilt patch: " ++ getTop params patch
        -- This will be the top directory of the quilt target
-       let copyDir = P.topDir params ++ "/quilt/" ++ escapeForMake ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
+       let copyDir = P.topDir params ++ "/quilt/" ++ md5sum ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
        liftIO (createDirectoryIfMissing True (P.topDir params ++ "/quilt"))
        baseTree <- findSourceTree (getTop params base) >>=
                    return . either (\ message -> Left $ "Invalid source tree " ++ show (getTop params base) ++ ": " ++ message) Right

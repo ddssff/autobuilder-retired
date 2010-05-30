@@ -141,7 +141,7 @@ prepareSvn params target =
                      setError (Just (\ _ -> "svn co failed in " ++ dir)))
       uri = mustParseURI target
       userInfo = maybe "" uriUserInfo (uriAuthority uri)
-      dir = P.topDir params ++ "/svn/" ++ escapeForMake (maybe "" uriRegName (uriAuthority uri)) ++ (uriPath uri)
+      dir = P.topDir params ++ "/svn/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
 
 mustParseURI :: String -> URI
 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)

@@ -13,7 +13,7 @@ import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.Shell
 import Debian.URI
-import Extra.Misc
+import Extra.Misc as Extra
 import Magic
 import System.FilePath (splitFileName)
 import System.Unix.Directory
@@ -87,7 +87,7 @@ prepareUri params target =
       validateTarget :: String -> Either String String -> IO (Either String (String, String, String))
       validateTarget _sum (Left x) = return (Left x)
       validateTarget sum (Right name) =
-          do output <- liftIO $ md5sum dest
+          do output <- liftIO $ Extra.md5sum dest
              case output of
                Left e -> return (Left ("Could not checksum destination file " ++ dest ++ ": " ++ show e))
                -- We have checksummed the file and it either matches

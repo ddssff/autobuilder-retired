@@ -110,5 +110,5 @@ prepareBzr params version = do
         uri = mustParseURI version
             where
                 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
-        dir = (P.topDir params) ++ "/bzr/" ++ escapeForMake (maybe "" uriRegName (uriAuthority uri)) ++ (uriPath uri)
+        dir = (P.topDir params) ++ "/bzr/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
 

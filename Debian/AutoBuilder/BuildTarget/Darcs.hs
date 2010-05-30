@@ -14,6 +14,7 @@ import Debian.Shell
 import Network.URI (URI(..), URIAuth(..), parseURI)
 import System.Directory
 import System.FilePath
+import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory
 import System.Unix.Process
 import Text.Regex
@@ -59,6 +60,7 @@ prepareDarcs params uriAndTag =
       when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
+      liftIO fixLink
       case tree of 
         Left message -> return (Left message)
         Right tree -> return . Right . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
@@ -111,7 +113,13 @@ prepareDarcs params uriAndTag =
             Just [uri, "", _] -> (uri, Nothing)
             Just [uri, _, tag] -> (uri, Just tag)
             _ -> error "Internal error 6"	-- That regex should always match
-      dir = P.topDir params ++ "/darcs/" ++ name
+      -- Maybe we should include the "darcs:" in the string we checksum?
+      fixLink = let link = base ++ "/" ++ name
+                    cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
+                hPutStrLn stderr cmd >> lazyCommand cmd B.empty
+      dir = base ++ "/" ++ sum
+      sum = md5sum uriAndTag
+      base = P.topDir params ++ "/darcs"
 
 renderForDarcs :: String -> String
 renderForDarcs s =
