@@ -1,3 +1,10 @@
+autobuilder (6.0.1) unstable; urgency=low
+
+  * Fix Debian.AutoBuilder.BuildTarget.Darcs.renderForDarcs so it
+    can handle a local path as well as a URI.
+
+ -- David Fox <dsf@seereason.com>  Sun, 30 May 2010 10:20:27 -0700
+
 autobuilder (6.0) unstable; urgency=low
 
   * New major version number for autobuilders that use debootstrap

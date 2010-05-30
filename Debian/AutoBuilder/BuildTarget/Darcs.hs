@@ -115,8 +115,9 @@ prepareDarcs params uriAndTag =
 
 renderForDarcs :: String -> String
 renderForDarcs s =
-    case (uriScheme uri, uriAuthority uri) of
-      ("ssh:", Just auth) -> uriUserInfo auth ++ uriRegName auth ++ ":" ++ uriPath uri ++ uriQuery uri ++ uriFragment uri
-      (_, _) -> show uri
-    where
-      uri = fromJust (parseURI s)
+    case parseURI s of
+      Nothing -> s
+      Just uri ->
+          case (uriScheme uri, uriAuthority uri) of
+            ("ssh:", Just auth) -> uriUserInfo auth ++ uriRegName auth ++ ":" ++ uriPath uri ++ uriQuery uri ++ uriFragment uri
+            (_, _) -> show uri
