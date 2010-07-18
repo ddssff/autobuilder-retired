@@ -34,14 +34,12 @@ instance BuildTarget Hg where
 
     revision _ (Hg _ tree) =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           rev <- liftIO (hSetBinaryMode outh True >> hGetContents outh) >>= return . listToMaybe . lines >>=
-                       return . maybe (Left $ "no revision info printed by '" ++ cmd ++ "'") Right
-           result <- liftIO (try (waitForProcess handle))
+           rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
+                  return . maybe (fail $ "no revision info printed by '" ++ cmd ++ "'") id
+           result <- waitForProcess handle
            case (rev, result) of
-             (Right rev', Right ExitSuccess) -> return . Right $ "hg:" ++ rev'
-             (Right _, Right (ExitFailure _)) -> return . Left $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
-             (Left message, _) -> return . Left $ message
-             (_, Left (e :: SomeException)) -> return . Left . show $ e
+             (rev', ExitSuccess) -> return $ "hg:" ++ rev'
+             (_, ExitFailure _) -> fail $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
         where
           path = topdir tree
           cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
@@ -53,34 +51,30 @@ instance BuildTarget Hg where
 
     logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
 
-prepareHg :: (RunClass p) => p -> String -> IO (Either String Tgt)
+prepareHg :: (RunClass p) => p -> String -> IO Tgt
 prepareHg params archive =
     do
       when (P.flushSource params) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      case tree of
-        Left message -> return . Left $ "Failed to find HG source tree at " ++ show dir ++ ": " ++ message
-        Right tree -> return . Right . Tgt $ Hg archive tree
+      return . Tgt $ Hg archive tree
     where
       verifySource dir =
-          runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q ."))) >>=
-          either (\ _ -> updateSource dir)	-- failure means there were no changes
+          try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q .")))) >>=
+          either (\ (_ :: SomeException) -> updateSource dir)	-- failure means there were no changes
                  (\ _ -> removeSource dir >> createSource dir)	-- success means there was a change
 
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
-          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && hg pull -u"))) >>=
-          either (return . Left) (const (findSourceTree dir))
+          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && hg pull -u"))) >>
+          findSourceTree dir
             
 
       createSource dir =
-          let (parent, _) = splitFileName dir in
-          liftIO (try (createDirectoryIfMissing True parent)) >>=
-          either (\ (e :: SomeException) -> return . Left . show $ e)
-                 (const (runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))))) >>=
-          either (return . Left) (const (findSourceTree dir))
+          createDirectoryIfMissing True (fst (splitFileName dir)) >>
+          runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))) >>
+          findSourceTree dir
 
       verifyStyle = (setStart (Just ("Verifying Hg source archive " ++ archive)) .
                      setError (Just (\ _ -> "tla changes failed in" ++ show dir)))

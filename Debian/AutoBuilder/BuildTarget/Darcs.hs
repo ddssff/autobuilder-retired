@@ -1,10 +1,8 @@
 {-# LANGUAGE Rank2Types, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Darcs where
 
-import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
-import Data.Maybe (fromJust)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
@@ -44,53 +42,46 @@ instance BuildTarget Darcs where
                           return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout >>= 
                           return . maybe (Left $ "could not find hash field in output of '" ++ cmd ++ "'") (Right . head))
            case rev of
-             Left message -> return (Left message)
+             Left message -> fail message
              Right rev' ->
                  do -- Nastygram to self: thanks for not documenting this
                     -- liftIO $ evaluate (length rev')
-                    return . Right $ show tgt ++ "=" ++ rev'
+                    return $ show tgt ++ "=" ++ rev'
         where
           path = topdir (sourceTree tgt)
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ maybe "none" id revision
 
-prepareDarcs :: (RunClass p) => p -> String -> IO (Either String Tgt)
+prepareDarcs :: (RunClass p) => p -> String -> IO Tgt
 prepareDarcs params uriAndTag =
     do
-      when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
-      exists <- liftIO $ doesDirectoryExist dir
+      when (P.flushSource params) (removeRecursiveSafely dir)
+      exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      liftIO fixLink
-      case tree of 
-        Left message -> return (Left message)
-        Right tree -> return . Right . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
+      fixLink
+      return . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
-      verifySource :: FilePath -> IO (Either String SourceTree)
+      verifySource :: FilePath -> IO SourceTree
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
           do result <- runTask (verifyStyle (commandTask ("cd " ++ dir ++ " && darcs whatsnew"))) >>= return . discardOutput
              case result of
                [Result (ExitFailure _)] -> updateSource dir				-- No Changes!
                [Result ExitSuccess] -> removeSource dir >> createSource dir		-- Yes changes
-               _ -> error "Internal error 5"
+               _ -> fail "Internal error 5"
       removeSource :: FilePath -> IO ()
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
-      updateSource :: FilePath -> IO (Either String SourceTree)
+      updateSource :: FilePath -> IO SourceTree
       updateSource dir =
-          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>=
-          either (return . Left) (const (findSourceTree dir)) >>=
-          return . either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right
+          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>
+          findSourceTree dir
 
-      createSource :: FilePath -> IO (Either String SourceTree)
+      createSource :: FilePath -> IO SourceTree
       createSource dir =
-          let (parent, _) = splitFileName dir in
-          do r1 <- liftIO (try (createDirectoryIfMissing True parent))
-             r2 <- either (\ (e :: SomeException) -> return . Left . show $ e)
-                          (const (runTaskAndTest (createStyle (commandTask cmd)))) r1
-             r3 <- either (return . Left) (const (findSourceTree dir)) r2
-             let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
-             return r4
+          createDirectoryIfMissing True (fst (splitFileName dir)) >>
+          runTaskAndTest (createStyle (commandTask cmd)) >>
+          findSourceTree dir 
           where
             cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
 {-
@@ -116,7 +107,10 @@ prepareDarcs params uriAndTag =
       -- Maybe we should include the "darcs:" in the string we checksum?
       fixLink = let link = base ++ "/" ++ name
                     cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
-                hPutStrLn stderr cmd >> lazyCommand cmd B.empty
+                hPutStrLn stderr cmd >> lazyCommand cmd B.empty >>= return . collectOutputUnpacked >>= \ (out, err, codes) ->
+                case codes of
+                  [ExitSuccess] -> return ()
+                  _ -> fail (cmd ++ " -> " ++ show codes)
       dir = base ++ "/" ++ sum
       sum = md5sum uriAndTag
       base = P.topDir params ++ "/darcs"

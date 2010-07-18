@@ -4,8 +4,10 @@ module Debian.AutoBuilder.Params
     ) where
 
 import qualified Debian.AutoBuilder.ParamClass as P
+    ( ParamClass(..) )
 import qualified Debian.AutoBuilder.ParamRec as R
-import           Debian.Repo.Types (NamedSliceList, SliceList)
+    ( TargetSpec(TargetSet), ParamRec(..) )
+import Debian.Repo.Types ( NamedSliceList, SliceList )
 
 data CacheRec
     = CacheRec'

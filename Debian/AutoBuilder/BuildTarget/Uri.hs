@@ -3,9 +3,7 @@
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
 module Debian.AutoBuilder.BuildTarget.Uri where
 
-import Control.Exception (SomeException, try)
 import Control.Monad
-import Control.Monad.Trans
 import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
@@ -39,80 +37,78 @@ instance BuildTarget Uri where
     -- If it isn't known, we raise an error to avoid mysterious things
     -- happening with URI's that, for example, always point to the latest
     -- version of a package.
-    revision _ (Uri _ (Just c) _) = return (Right c)
-    revision _ (Uri _ Nothing _) = return (Left "Uri targets with no checksum do not have revision strings")
+    revision _ (Uri _ (Just c) _) = return c
+    revision _ (Uri _ Nothing _) = fail "Uri targets with no checksum do not have revision strings"
 
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: (RunClass p) => p -> String -> IO (Either String Tgt)
+prepareUri :: (RunClass p) => p -> String -> IO Tgt
 prepareUri params target =
-    case parseTarget target of
-      Right (uri, md5sum) -> checkTarget uri md5sum >>= downloadTarget uri md5sum >>= validateTarget md5sum >>= unpackTarget uri
-      Left message -> return $ Left ("Invalid target " ++ target ++ ": " ++ message)
+    parseTarget target >>= \ (uri, md5sum) ->
+    checkTarget uri md5sum >>=
+    downloadTarget uri md5sum >>=
+    validateTarget md5sum >>=
+    unpackTarget uri
     where
       parseTarget target =
           case matchRegex (mkRegex uriRE) target of
             Just [s, md5sum] ->
                 case parseURI s of
-                  Nothing -> Left ("Invalid uri: " ++ s)
-                  Just uri -> Right (uri, md5sum)
-            _ -> error ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
+                  Nothing -> fail ("Invalid uri: " ++ s)
+                  Just uri -> return (uri, md5sum)
+            _ -> fail ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
       checkTarget uri sum =
-          liftIO $ doesFileExist final
+          doesFileExist final
           where
             final = tmp ++ "/" ++ sum ++ "/" ++ name
             name = snd . splitFileName . uriPath $ uri
       -- See if the file is already available in the checksum directory
       -- Download the target into the tmp directory, compute its checksum, and see if it matches.
-      downloadTarget :: URI -> String -> Bool -> IO (Either String String)
+      downloadTarget :: URI -> String -> Bool -> IO String
       downloadTarget uri _sum True =
-          return (Right name)
-          where
-            name = snd . splitFileName . uriPath $ uri
+          return name
+          where name = snd . splitFileName . uriPath $ uri
       downloadTarget uri sum False =
-          do when (P.flushSource params) (liftIO . removeRecursiveSafely $ sumDir)
-             liftIO $ createDirectoryIfMissing True sumDir
-             exists <- liftIO $ doesFileExist dest
+          do when (P.flushSource params) (removeRecursiveSafely sumDir)
+             createDirectoryIfMissing True sumDir
+             exists <- doesFileExist dest
              case exists of
-               True -> return (Right name)
+               True -> return name
                False ->
-                   runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") >>=
-                   either (return . Left) (const . return . Right $ name)
+                   runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") >>
+                   return name
           where
             dest = sumDir ++ "/" ++ name
             sumDir = tmp ++ "/" ++ sum
             name = snd . splitFileName . uriPath $ uri
       -- Make sure what we just downloaded has the correct checksum
-      validateTarget :: String -> Either String String -> IO (Either String (String, String, String))
-      validateTarget _sum (Left x) = return (Left x)
-      validateTarget sum (Right name) =
-          do output <- liftIO $ Extra.md5sum dest
+      validateTarget :: String -> String -> IO (String, String, String)
+      validateTarget sum name =
+          do output <- Extra.md5sum dest
              case output of
-               Left e -> return (Left ("Could not checksum destination file " ++ dest ++ ": " ++ show e))
+               Left e -> fail ("Could not checksum destination file " ++ dest ++ ": " ++ show e)
                -- We have checksummed the file and it either matches
                -- what we expected or we don't know what checksum to
                -- expect.
                Right realSum
                    | sum == realSum ->
-                       return (Right (realSum, sumDir, name))
+                       return (realSum, sumDir, name)
                    | True ->
                        -- We have checksummed the file but it doesn't match
-                       do return (Left ("Checksum mismatch for " ++ dest ++
-                                        ": expected " ++ sum ++ ", saw " ++ realSum ++ "."))
+                       do fail ("Checksum mismatch for " ++ dest ++
+                                ": expected " ++ sum ++ ", saw " ++ realSum ++ ".")
           where
             dest = sumDir ++ "/" ++ name
             sumDir = tmp ++ "/" ++ sum
-      unpackTarget :: URI -> Either String (String, String, String) -> IO (Either String Tgt)
-      unpackTarget _ (Left message) = return (Left message)
-      unpackTarget uri (Right (sum, sumDir, name)) =
-          mkdir >>= untar >>= read >>= search >>= verify
+      unpackTarget :: URI -> (String, String, String) -> IO Tgt
+      unpackTarget uri (sum, sumDir, name) =
+          mkdir >> untar >>= read >>= search >>= verify
           where
             -- Create the unpack directory
-            mkdir = liftIO (try (createDirectoryIfMissing True sourceDir))
-            untar (Left (e :: SomeException)) = return . Left . show $ e
-            untar (Right ()) =
-                do c <- liftIO (unpackChar tarball)
+            mkdir = createDirectoryIfMissing True sourceDir
+            untar =
+                do c <- unpackChar tarball
                    runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir)
             unpackChar tarball =
                 do magic <- magicOpen []
@@ -123,17 +119,12 @@ prepareUri params target =
                             else if isPrefixOf "bzip2" fileInfo
                                  then "j"
                                  else ""
-            read (Left message) = return . Left $ message
-            read (Right (_output, _elapsed)) = liftIO (getDir sourceDir)
-            search (Left message) = return . Left $ message
-            search (Right files) = checkContents (filter (not . flip elem [".", ".."]) files)
-            verify (Left message) = return . Left $ ("Tarball in " ++ sumDir ++ " does not contain a valid debian source tree: " ++ message)
-            verify (Right tree) = return . Right . Tgt $ Uri uri (Just sum) tree
-            getDir dir = try (getDirectoryContents dir) >>=
-                         either (\ (e :: SomeException) -> return . Left . show $ e)
-                                (return . Right . filter (not . flip elem [".", ".."]))
-            checkContents :: [FilePath] -> IO (Either String SourceTree)
-            checkContents [] = return (Left "Empty tarball?")
+            read (_output, _elapsed) = getDir sourceDir
+            search files = checkContents (filter (not . flip elem [".", ".."]) files)
+            verify tree = return . Tgt $ Uri uri (Just sum) tree
+            getDir dir = getDirectoryContents dir >>= (return . filter (not . flip elem [".", ".."]))
+            checkContents :: [FilePath] -> IO SourceTree
+            checkContents [] = fail "Empty tarball?"
             checkContents [subdir] = findSourceTree (sourceDir ++ "/" ++ subdir)
             checkContents _ = findSourceTree sourceDir
             tarball = sumDir ++ "/" ++ name

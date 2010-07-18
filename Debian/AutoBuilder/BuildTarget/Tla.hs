@@ -1,5 +1,7 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Tla where
 
+import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import Data.Maybe
@@ -37,38 +39,36 @@ instance BuildTarget Tla where
                cmd = "cd " ++ path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           revision <- liftIO (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
+           revision <- (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           liftIO $ waitForProcess handle
-           return . Right $ "tla:" ++ revision
+           waitForProcess handle
+           return $ "tla:" ++ revision
 
     logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
 
-prepareTla :: (RunClass p) => p -> String -> IO (Either String Tgt)
+prepareTla :: (RunClass p) => p -> String -> IO Tgt
 prepareTla params version =
     do
       when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      case tree of
-        Left message -> return . Left $ "failed to find source tree at " ++ dir ++ ": " ++ message
-        Right tree -> return . Right . Tgt $ Tla version tree
+      return . Tgt $ Tla version tree
     where
       verifySource dir =
-          do result <- runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes")))
+          do result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))
              case result of
-               Left message -> vPutStrBl 0 message >> removeSource dir >> createSource dir	-- Failure means there is corruption
+               Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir	-- Failure means there is corruption
                Right _output -> updateSource dir						-- Success means no changes
 
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
-          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && tla update " ++ version))) >>=
+          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && tla update " ++ version))) >>
              -- At one point we did a tla undo here.  However, we are
              -- going to assume that the "clean" copies in the cache
              -- directory are clean, since some of the other target
              -- types have no way of doing this reversion.
-          either (return . Left) (const (findSourceTree dir))
+          findSourceTree dir
 
       createSource dir =
           do

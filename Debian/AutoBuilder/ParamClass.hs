@@ -21,25 +21,36 @@ module Debian.AutoBuilder.ParamClass
     , dropAllSuffixes
     ) where
 
-import           Control.Exception (SomeException, try, evaluate)
-import           Control.Monad.State (get, put)
-import	"mtl"	 Control.Monad.Trans (lift, liftIO)
-import		 Data.List (isSuffixOf)
-import		 Data.Maybe
-import           Data.Map (fromList)
-import qualified Data.Set as Set
-import		 Debian.Repo.Cache (SourcesChangedAction)
-import           Debian.Repo(EnvRoot(EnvRoot), Arch, SliceName(..),
-                             SliceList(..), NamedSliceList(..), ReleaseName, releaseName',
-                             setRepoMap, parseSourcesList, verifySourcesList, repoSources)
-import           Debian.Repo.Monad (AptIOT)
-import           Debian.Repo.Types (ReleaseName(relName))
-import		 Debian.Version
-import		 Debian.URI
+import Control.Exception ( SomeException, try, evaluate )
+import Control.Monad.State ( get, put )
+import "mtl" Control.Monad.Trans ( lift, liftIO )
+import Data.List ( isSuffixOf )
+import Data.Maybe ( catMaybes, fromJust )
+import Data.Map ( fromList )
+import qualified Data.Set as Set ( Set, map, toList )
+import Debian.Repo.Cache ( SourcesChangedAction )
+import Debian.Repo
+    ( EnvRoot(EnvRoot),
+      Arch,
+      SliceName(..),
+      SliceList(..),
+      NamedSliceList(..),
+      ReleaseName,
+      releaseName',
+      setRepoMap,
+      parseSourcesList,
+      verifySourcesList,
+      repoSources )
+import Debian.Repo.Monad ( AptIOT )
+import Debian.Repo.Types ( ReleaseName(relName) )
+import Debian.Version ( DebianVersion )
+import Debian.URI ( URI, parseURI )
 import qualified Debian.GenBuildDeps as G
-import           Debian.Extra.CIO (ePutStrBl)
-import		 System.Directory (createDirectoryIfMissing, getPermissions, writable)
-import		 System.Environment (getEnv)
+    ( RelaxInfo(..), SrcPkgName(..), BinPkgName(..) )
+import Debian.Extra.CIO ( ePutStrBl )
+import System.Directory
+    ( createDirectoryIfMissing, getPermissions, writable )
+import System.Environment ( getEnv )
 
 -- Lax: dependencies are installed into clean, clean synced to build for each target
 -- Moderate: dependencies are installed into build, clean synced to build only at beginning of run

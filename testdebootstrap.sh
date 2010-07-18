@@ -29,14 +29,16 @@ debootstrap --include=perl-base --variant=buildd --components=main,restricted,un
 (cat ${WOOT}/etc/apt/sources.list | sed -e 's/^deb /deb-src /') >>${WOOT}/etc/apt/sources.list
 
 cat <<EOF >> ${WOOT}/etc/apt/sources.list
-deb http://deb.seereason.com/ubuntu ${DIST}-seereason main
-deb-src http://deb.seereason.com/ubuntu ${DIST}-seereason main
 deb http://mirror.anl.gov/ubuntu ${DIST}-updates main restricted universe multiverse
 deb-src http://mirror.anl.gov/ubuntu ${DIST}-updates main restricted universe multiverse
 deb http://mirror.anl.gov/ubuntu ${DIST}-backports main restricted universe multiverse
 deb-src http://mirror.anl.gov/ubuntu ${DIST}-backports main restricted universe multiverse
 deb http://mirror.anl.gov/ubuntu ${DIST}-security main restricted universe multiverse
 deb-src http://mirror.anl.gov/ubuntu ${DIST}-security main restricted universe multiverse
+deb http://deb.seereason.com/ubuntu ${DIST}-seereason main
+deb-src http://deb.seereason.com/ubuntu ${DIST}-seereason main
+deb ssh://upload@deb.seereason.com/srv/deb-private/ubuntu ${DIST}-seereason-private main
+deb-src ssh://upload@deb.seereason.com/srv/deb-private/ubuntu ${DIST}-seereason-private main
 deb file:///work/localpool ${DIST}-seereason main
 deb-src file:///work/localpool ${DIST}-seereason main
 EOF

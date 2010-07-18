@@ -21,7 +21,7 @@ instance BuildTarget Twice where
     getTop params (Twice (Tgt s)) = getTop params s
     cleanTarget params (Twice (Tgt s)) source = cleanTarget params s source
     revision params (Twice (Tgt s)) =  
-        Debian.AutoBuilder.BuildTarget.revision params s >>= return . either Left (Right . ("twice:" ++))
+        Debian.AutoBuilder.BuildTarget.revision params s >>= return . ("twice:" ++)
     -- This is a quick and dirty implementation, if you nest this inside another
     -- target type it will have no effect.
     buildPkg params buildOS buildTree status _ =

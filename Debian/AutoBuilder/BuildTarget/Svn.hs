@@ -6,7 +6,6 @@ module Debian.AutoBuilder.BuildTarget.Svn
     , documentation
     ) where
 
-import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
@@ -33,9 +32,9 @@ instance Show Svn where
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: (FullTask -> FullTask) -> Maybe FilePath -> [String] -> IO (Either String [Output])
+svn :: (FullTask -> FullTask) -> Maybe FilePath -> [String] -> IO [Output]
 svn style path args =
-    runTaskAndTest (style task) >>= return . either (Left . (("*** FAILURE: " ++ showCommand task ++ ": ") ++)) Right
+    runTaskAndTest (style task)
     where
       task = processTask "svn" args path Nothing
 
@@ -62,19 +61,19 @@ instance BuildTarget Svn where
 
     revision _ (Svn uri tree) =
         svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
-        return . either (const (Left "svn info failed")) readControl
+        return . readControl
         where
-          readControl :: [Output] -> Either String String
+          readControl :: [Output] -> String
           readControl out = 
               case parseControl "svn info" (B.concat (L.toChunks (stdoutOnly out))) of
                 (Right (Control (c:_))) ->
                     -- JAS, I don't know why I did not just use the uri that was passed in
                     case (lookupP "URL" c, lookupP "Revision" c) of
                       (Just (Field (_, url)), Just (Field (_, revision))) ->
-                          Right $ "svn:" ++ (B.unpack (stripWS url)) ++"@" ++ (B.unpack (stripWS revision))
-                      _ -> Left $ "Failed to find URL and/or Revision fields in svn info"
-                (Right (Control [])) -> Left $ "svn info did not appear to produce any output"
-                Left e -> Left $ "Failed to parse svn info\n" ++ show e
+                          "svn:" ++ (B.unpack (stripWS url)) ++"@" ++ (B.unpack (stripWS revision))
+                      _ -> fail "Failed to find URL and/or Revision fields in svn info"
+                (Right (Control [])) -> fail $ "svn info did not appear to produce any output"
+                Left e -> fail $ "Failed to parse svn info\n" ++ show e
           userInfo = maybe "" uriUserInfo (uriAuthority uri)
 {-        
         do
@@ -93,22 +92,20 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
 
-prepareSvn ::  (RunClass p) => p -> String -> IO (Either String Tgt)
+prepareSvn ::  (RunClass p) => p -> String -> IO Tgt
 prepareSvn params target =
     do when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
-       case tree of
-         Left message -> return $ Left ("No source tree at " ++ show dir ++ ": " ++ message)
-         Right tree -> return . Right . Tgt $ Svn uri tree
+       return . Tgt $ Svn uri tree
     where
       verifySource dir =
-          svn verifyStyle (Just dir) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
-          either (return . Left) (\ out -> case L.append (stdoutOnly out) (stderrOnly out) == L.empty of
-                                             -- no output == nothing changed
-                                             True -> updateSource dir
-                                             -- Failure - error code or output from status means changes have occured
-                                             False ->  removeSource dir >> createSource dir)
+          svn verifyStyle (Just dir) (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>= \ out ->
+          case L.append (stdoutOnly out) (stderrOnly out) == L.empty of
+            -- no output == nothing changed
+            True -> updateSource dir
+            -- Failure - error code or output from status means changes have occured
+            False ->  removeSource dir >> createSource dir
 
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
@@ -119,10 +116,7 @@ prepareSvn params target =
             findSourceTree dir
 
       createSource dir =
-          let (parent, _) = splitFileName dir in
-          liftIO (try (createDirectoryIfMissing True parent)) >>=
-          either (\ (e :: SomeException) -> return . Left . show $ e) (const checkout) >>=
-          either (return . Left) (const (findSourceTree dir))
+          createDirectoryIfMissing True (fst (splitFileName dir)) >> checkout >> findSourceTree dir
       checkout :: IO (Either String [Output])
       --checkout = svn createStyle args 
       checkout = runTask (createStyle (processTask "svn" args Nothing Nothing)) >>= return . finish

@@ -94,8 +94,8 @@ class BuildTarget t where
     getTop :: ParamClass p => p -> t -> FilePath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: (ParamClass p) => p -> t -> FilePath -> IO (Either String ([Output], NominalDiffTime))
-    cleanTarget _ _ _ = return . Right $ ([], fromInteger 0)
+    cleanTarget :: (ParamClass p) => p -> t -> FilePath -> IO ([Output], NominalDiffTime)
+    cleanTarget _ _ _ = return ([], fromInteger 0)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
     -- is intended to characterize the build environment of the
@@ -104,11 +104,11 @@ class BuildTarget t where
     -- the build dependencies that were installed when the package was
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
-    revision :: (ParamClass p) => p -> t -> IO (Either String String)
+    revision :: (ParamClass p) => p -> t -> IO String
     -- |Default function to build the package for this target.
     -- Currently this is only overridden by the proc: target which
     -- mounts /proc, then calls buildDebs, then unmounts /proc.
-    buildPkg :: (ParamClass p) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO (Either String NominalDiffTime)
+    buildPkg :: (ParamClass p) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO NominalDiffTime
     buildPkg params buildOS buildTree status _target =
         buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.
@@ -126,14 +126,12 @@ instance Show Dir where
 
 instance BuildTarget Dir where
     getTop _ (Dir tree) = topdir tree
-    revision _ (Dir _) = return (Left "Dir targets do not have revision strings")
+    revision _ (Dir _) = fail "Dir targets do not have revision strings"
     logText (Dir tree) _ = "Built from local directory " ++ topdir tree
 
 -- |Prepare a Dir target
-prepareDir :: (ParamClass p) => p -> FilePath -> IO (Either String Tgt)
-prepareDir _params path =
-    findSourceTree path >>=
-    return . either (\ message -> Left $ "No source tree at " ++ path ++ ": " ++ message) (Right . Tgt . Dir)
+prepareDir :: (ParamClass p) => p -> FilePath -> IO Tgt
+prepareDir _params path = findSourceTree path >>= return . Tgt . Dir
 
 -- |Build is similar to Dir, except that it owns the parent directory
 -- of the source directory.  This is required for building packages
@@ -145,7 +143,7 @@ instance Show Build where
 
 instance BuildTarget Build where
     getTop _ (Build tree) = topdir tree
-    revision _ (Build _) = return (Left "Build targets do not have revision strings")
+    revision _ (Build _) = fail "Build targets do not have revision strings"
     logText (Build tree) _ = "Built from local directory " ++ topdir tree
 
 -- | There are many characters which will confuse make if they appear

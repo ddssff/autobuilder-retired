@@ -1,8 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.DebDir where
 
-import Control.Exception (SomeException, try)
-import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
@@ -25,25 +23,20 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
 instance BuildTarget DebDir where
     getTop _ (DebDir _ _ tree) = topdir tree
     cleanTarget params (DebDir (Tgt upstream) (Tgt debian) _) path =
-        do cleanTarget params upstream path
-           cleanTarget params debian (path ++ "/debian")
+        cleanTarget params upstream path >>
+        cleanTarget params debian (path ++ "/debian")
     revision params (DebDir (Tgt upstream) (Tgt debian) _) =
-        do upstreamRev <- revision params upstream
-           case upstreamRev of
-             Right rev ->
-                 revision params debian >>= return . either Left (\x -> Right ("deb-dir:(" ++ rev ++ "):(" ++ x ++")"))
-             Left message ->
-                 return . Left $ "Unimplemented: no revision method for deb-dir upstream target: " ++ message
+        revision params upstream >>= \ rev ->
+        revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ maybe "none" id revision
 
-prepareDebDir :: (RunClass p) => p -> Tgt -> Tgt -> IO (Either String Tgt)
+prepareDebDir :: (RunClass p) => p -> Tgt -> Tgt -> IO Tgt
 prepareDebDir params (Tgt upstream) (Tgt debian) = 
-    liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
-    either (\ (e :: SomeException) -> return . Left . show $ e) (const copyUpstream) >>=
-    either (return . Left) (const copyDebian) >>=
-    either (return . Left) (const (findDebianSourceTree dest)) >>=
-    either (\ message -> return $ Left ("Couldn't find source tree at " ++ show dest ++ ": " ++ message))
-           (return . Right . Tgt . DebDir (Tgt upstream) (Tgt debian))
+    createDirectoryIfMissing True (P.topDir params ++ "/deb-dir") >>
+    copyUpstream >>
+    copyDebian >>
+    findDebianSourceTree dest >>=
+    return . Tgt . DebDir (Tgt upstream) (Tgt debian)
     where
       copyUpstream = runTaskAndTest (cleanStyle (show upstream) (commandTask cmd1))
       copyDebian = runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))

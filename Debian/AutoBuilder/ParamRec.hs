@@ -4,11 +4,12 @@ module Debian.AutoBuilder.ParamRec
     , adjustVendorTag -- Export for testing
     ) where
 
-import qualified Data.Set as Set
-import Debian.Repo
-import Debian.URI
-import Debian.Version
+import qualified Data.Set as Set ( Set )
+import Debian.Repo ( ReleaseName, Arch, SourcesChangedAction )
+import Debian.URI ( URI )
+import Debian.Version ( DebianVersion )
 import Debian.AutoBuilder.ParamClass as P
+    ( ParamClass(..), Target, Strictness )
 
 data ParamRec =
     ParamRec

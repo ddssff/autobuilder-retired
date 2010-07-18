@@ -234,7 +234,7 @@ runParameterSet params =
           | P.doUpload params =
               case P.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> lift (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri >>= return . map ffe
+                Just uri -> lift (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
@@ -254,10 +254,10 @@ runParameterSet params =
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ P.newDistProgram params ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . P.createRelease $ params)) in
-                             vEPutStr 0 "Running newdist on remote repository" >> runCommandQuietlyTimed cmd >>= return . ffe
+                             vEPutStr 0 "Running newdist on remote repository" >> try (runCommandQuietlyTimed cmd) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
-                             vEPutStr 0 "Running newdist on a local repository" >> runCommandQuietlyTimed cmd >>= return . ffe
+                             vEPutStr 0 "Running newdist on a local repository" >> try (runCommandQuietlyTimed cmd) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Success ([], (fromInteger 0)))
       iStyle = id {- setStyle (addPrefixes " " " ") -}

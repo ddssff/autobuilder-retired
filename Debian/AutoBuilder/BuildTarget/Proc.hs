@@ -1,14 +1,15 @@
 -- |Modify a target so that \/proc is mounted while it builds.
 module Debian.AutoBuilder.BuildTarget.Proc where
 
-import Debian.Repo
-
+import Control.Applicative.Error (Failing(..))
+import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
-import System.Unix.Process
 import Debian.Extra.CIO
-import Control.Monad.Trans
+import Debian.Repo
+import System.Process (rawSystem)
+import System.Unix.Process
 
 data Proc = Proc Tgt
 
@@ -25,14 +26,19 @@ instance BuildTarget Proc where
     getTop params (Proc (Tgt s)) = getTop params s
     cleanTarget params (Proc (Tgt s)) source = cleanTarget params s source
     revision params (Proc (Tgt s)) =  
-        Debian.AutoBuilder.BuildTarget.revision params s >>= return . either Left (Right . ("proc:" ++))
+        Debian.AutoBuilder.BuildTarget.revision params s >>= return . ("proc:" ++)
     buildPkg params buildOS buildTree status _ =
         do vPutStrBl 0 "Mouting /proc during target build"
-           liftIO $ simpleProcess "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"] 
-           result <- buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
-           liftIO $ simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]
-           return result
+           code <- rawSystem "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"]
+           case code of
+             ExitSuccess ->
+                 do result <- buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
+                    (out, err, code) <- simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]
+                    case code of
+                      ExitSuccess -> return result
+                      _ -> fail $ intercalate " " ("umount" : [rootPath (rootDir buildOS) ++ "/proc"]) ++ " -> " ++ show code ++ "\n\n" ++ show out ++ "\n\n" ++ show err
+             _ -> fail (intercalate " " ("mount" : ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"]) ++ " -> " ++ show code)
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
-prepareProc :: (RunClass p) => p -> Tgt -> IO (Either String Tgt)
-prepareProc _ base = return . Right . Tgt $ Proc base
+prepareProc :: (RunClass p) => p -> Tgt -> IO (Failing Tgt)
+prepareProc _ base = return . Success . Tgt $ Proc base

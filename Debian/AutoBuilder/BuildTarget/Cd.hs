@@ -3,6 +3,7 @@ module Debian.AutoBuilder.BuildTarget.Cd where
 
 import Debian.Repo
 
+import Control.Applicative.Error (Failing(..))
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
@@ -22,7 +23,7 @@ instance BuildTarget Cd where
     getTop params (Cd subdir (Tgt s)) = let top = getTop params s in top </> subdir
     cleanTarget params (Cd subdir (Tgt s)) source = cleanTarget params s (source </> subdir)
     revision params (Cd subdir (Tgt s)) =  
-        Debian.AutoBuilder.BuildTarget.revision params s >>= return . either Left (Right . (("cd:" ++ subdir ++ ":") ++))
+        Debian.AutoBuilder.BuildTarget.revision params s >>= return . (("cd:" ++ subdir ++ ":") ++)
     buildPkg params buildOS buildTree status _ =
         do vPutStrBl 0 "chdir during target build"
            buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
@@ -30,7 +31,7 @@ instance BuildTarget Cd where
            -- Or we could only copy the subdirectory into the build environment.
     logText (Cd subdir (Tgt s)) revision = logText s revision ++ " (in subdirectory " ++ subdir ++ ")"
 
-prepareCd :: (RunClass p) => p -> FilePath -> Tgt -> IO (Either String Tgt)
+prepareCd :: (RunClass p) => p -> FilePath -> Tgt -> IO (Failing Tgt)
 prepareCd _params subdir target =
     -- FIXME: we should verify that the subdir contains a debian source tree
-    return . Right . Tgt $ Cd subdir target
+    return . Success . Tgt $ Cd subdir target
