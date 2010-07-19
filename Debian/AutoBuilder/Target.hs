@@ -49,6 +49,8 @@ import qualified Debian.Control.String as S(fieldValue)
 import Debian.Extra.CIO(vMessage, vEPutStrBl, setStyle, vBOL, vEPutStr)
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations, Relation(..))
+import Debian.Release (releaseName')
+import Debian.Sources (SliceName(..))
 import Debian.Repo (countTasks, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
                     ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),
                     ChangeLogEntry(logWho, logVersion, logPackage, logDists, logDate, logComments),
@@ -61,10 +63,10 @@ import Debian.Repo (countTasks, ChangesFile(changeRelease, changeInfo, changeFil
                     copyDebianSourceTree, explainSourcePackageStatus, findChanges,
                     findDebianBuildTree, findOneDebianBuildTree, SourcePackageStatus(..))
 import Debian.Repo.Monad (AptIOT)
-import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID), SliceName(..),
+import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
                           PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
-                          BinaryPackage(packageInfo, packageID), releaseName')
+                          BinaryPackage(packageInfo, packageID))
 import Debian.Shell(dotOutput)
 import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, version)
@@ -78,6 +80,7 @@ import Extra.Misc(columns, processOutput)
 import System.Chroot (useEnv, forceList')
 import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
+import System.IO (hPutStrLn, stderr)
 import System.Posix.Files(fileSize, getFileStatus)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
@@ -194,8 +197,9 @@ prepareBuild :: (P.RunClass p, BuildTarget t) => p -> OSImage -> t -> IO (Maybe 
 prepareBuild params os target =
     do debBuild <- findOneDebianBuildTree (getTop params target)
        case debBuild of
-         Just tree -> copyBuild tree >>= return . failing (const Nothing) Just
-         Nothing ->
+         Success tree -> copyBuild tree >>= return . failing (const Nothing) Just
+         Failure msgs ->
+             hPutStrLn stderr ("Build tree not found, creating new one\n  " ++ intercalate "\n  " msgs) >>
              findDebianSourceTree (getTop params target) >>=
              copySource >>=
              return . failing (const Nothing) Just
@@ -721,7 +725,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
     where
       prepareTree True _ =
           findOneDebianBuildTree newPath >>=
-          maybe (fail ("No build tree at " ++ show newPath)) return
+          failing (\ msgs -> fail ("No build tree at " ++ show newPath ++ ":\n  " ++ intercalate "\n  " msgs)) return
       prepareTree False _ =
           vBOL 0 >>
           vEPutStr 1 "Syncing buildOS" >>
@@ -740,7 +744,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
     where
       -- findTree :: Bool -> IO (Failing DebianBuildTree)
       findTree False = ffe (copyDebianBuildTree (cleanSource target) newPath)
-      findTree True = findOneDebianBuildTree newPath >>= return . maybe (Failure ["build tree not found"]) Success
+      findTree True = findOneDebianBuildTree newPath >>= return . failing (\ msgs -> Failure ["build tree not found:\n  " ++ intercalate "\n  " msgs]) Success
       -- downloadDeps :: DebianBuildTree -> IO (Failing DebianBuildTree)
       downloadDeps buildTree = iStyle (downloadDependencies cleanOS buildTree buildDepends sourceDependencies) >>=
                                failing (return . Failure) (const (return (Success buildTree)))

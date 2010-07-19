@@ -9,11 +9,11 @@ module Debian.AutoBuilder.Main
 import Control.Applicative.Error (Failing(..))
 import Control.Exception(SomeException, IOException, try, evaluate)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), mapStateT)
-import Control.Monad(Monad(return, (>>), (>>=)), mapM_, mapM, unless, when)
+import Control.Monad(when, unless)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Data.List((++), concat, filter, zip, map, length, intercalate)
+import Data.List(intercalate)
 import Data.Maybe(Maybe(..), catMaybes, maybe)
 import qualified Data.Set as Set
 --import qualified Debian.AutoBuilder.OldParams as O
@@ -23,6 +23,8 @@ import Debian.AutoBuilder.ParamRec()    -- Instances only
 import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Extra.CIO
+import Debian.Release (parseSection', releaseName')
+import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
@@ -33,10 +35,9 @@ import Debian.Repo.Release(prepareRelease)
 import Debian.Repo.Repository(uploadRemote, verifyUploadURI)
 import Debian.Repo.Slice(appendSliceLists, inexactPathSlices, releaseSlices, repoSources)
 import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
-                         Layout(Flat), Release(releaseRepo), SliceName(..),
+                         Layout(Flat), Release(releaseRepo),
                          NamedSliceList(..), Repository(LocalRepo),
-                         LocalRepository(LocalRepository), outsidePath, parseSection',
-                         releaseName')
+                         LocalRepository(LocalRepository), outsidePath,)
 import Debian.Shell(runCommandQuietlyTimed)
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
@@ -58,7 +59,7 @@ import System.Unix.Directory(removeRecursiveSafely)
 main :: P.ParamClass p => [p] -> IO ()
 main [] = error $ "No parameter sets"
 main params@(p : _) =
-    do doMain (P.verbosity p) (mapM (\ params -> P.buildCache params >>= \ cache -> return (params, cache)) params)
+    doMain (P.verbosity p) (mapM (\ params -> P.buildCache params >>= \ cache -> return (params, cache)) params)
 
 -- |Version of main that uses the configuration file directory and
 -- command line parameters.

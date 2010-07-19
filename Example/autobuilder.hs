@@ -11,8 +11,9 @@ import qualified Debian.AutoBuilder.Main as M
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.AutoBuilder.ParamClass (Target(..))
 import Debian.AutoBuilder.ParamRec
+import Debian.Release (Arch(Binary))
 import Debian.Repo.Cache (SourcesChangedAction(SourcesChangedError))
-import Debian.Repo.Types (ReleaseName(ReleaseName, relName), Arch(Binary))
+import Debian.Repo.Types (ReleaseName(ReleaseName, relName))
 import Debian.URI
 import Debian.Version (parseDebianVersion)
 import System.Console.GetOpt

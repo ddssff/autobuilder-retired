@@ -9,6 +9,7 @@ import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
+import Debian.Sources
 import Debian.Version
 import System.Unix.Directory
 import Text.Regex

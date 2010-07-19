@@ -9,7 +9,7 @@ import Debian.Repo
 import Debian.Shell
 import Debian.Version
 
-import Control.Applicative.Error (Failing(..))
+import Control.Applicative.Error (Failing(..), failing)
 import Control.Exception (SomeException, try)
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -87,7 +87,7 @@ makeQuiltTree params base patch =
        -- the patch to the subdirectory containing the DebianSourceTree.
        debTree <- findOneDebianBuildTree copyDir
        -- Compute the directory where the patches will be applied
-       let quiltDir = maybe copyDir debdir debTree
+       let quiltDir = failing (const copyDir) debdir debTree
        vPutStrBl 2 $ "copyDir: " ++ copyDir
        vPutStrBl 2 $ "quiltDir: " ++ quiltDir
        let patchDir = topdir patchTree

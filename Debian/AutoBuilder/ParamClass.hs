@@ -28,21 +28,22 @@ import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
 import qualified Data.Set as Set ( Set, map, toList )
+import Debian.Release
+    ( Arch,
+      ReleaseName(relName),
+      releaseName' )
+import Debian.Sources
+    ( SliceName(..) )
 import Debian.Repo.Cache ( SourcesChangedAction )
 import Debian.Repo
     ( EnvRoot(EnvRoot),
-      Arch,
-      SliceName(..),
-      SliceList(..),
       NamedSliceList(..),
-      ReleaseName,
-      releaseName',
       setRepoMap,
       parseSourcesList,
       verifySourcesList,
       repoSources )
 import Debian.Repo.Monad ( AptIOT )
-import Debian.Repo.Types ( ReleaseName(relName) )
+import Debian.Repo.Types ( SliceList(..) )
 import Debian.Version ( DebianVersion )
 import Debian.URI ( URI, parseURI )
 import qualified Debian.GenBuildDeps as G
@@ -80,7 +81,7 @@ data Target
 -- from a command line option based interface, they could probably be
 -- replaced by records now.)  The methods are given in approximate
 -- order of importance.
-class ParamClass a where
+class Show a => ParamClass a where
     vendorTag :: a -> String
     -- ^ The string used to construct modified version numbers to identify
     -- them as part of your repository (rather than Debian's or Ubuntu's.)
@@ -351,7 +352,7 @@ data Cache
     = Cache { topDir' :: FilePath
             , allSources' :: [NamedSliceList]
             , buildRepoSources' :: SliceList
-            }
+            } deriving Show
 
 -- |Create a Cache object from a parameter set.
 buildCache :: (ParamClass p) => p -> AptIOT IO Cache
@@ -392,7 +393,7 @@ instance CacheClass c => CacheClass (a, c) where
     allSources = allSources . snd
     buildRepoSources = buildRepoSources . snd
 
-instance ParamClass p => ParamClass (p, a) where
+instance (Show p, Show a, ParamClass p) => ParamClass (p, a) where
     verbosity = verbosity . fst
     topDirParam = topDirParam . fst
     debug = debug . fst

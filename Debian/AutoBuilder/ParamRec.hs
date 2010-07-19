@@ -5,7 +5,8 @@ module Debian.AutoBuilder.ParamRec
     ) where
 
 import qualified Data.Set as Set ( Set )
-import Debian.Repo ( ReleaseName, Arch, SourcesChangedAction )
+import Debian.Release (ReleaseName, Arch)
+import Debian.Repo (SourcesChangedAction )
 import Debian.URI ( URI )
 import Debian.Version ( DebianVersion )
 import Debian.AutoBuilder.ParamClass as P
