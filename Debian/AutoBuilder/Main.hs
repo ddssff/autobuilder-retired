@@ -39,6 +39,7 @@ import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
                          NamedSliceList(..), Repository(LocalRepo),
                          LocalRepository(LocalRepository), outsidePath,)
 import Debian.Shell(runCommandQuietlyTimed)
+import Debian.Sources (SliceName(..))
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
 import System.Unix.Process(Output)
@@ -158,6 +159,15 @@ runParameterSet params =
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
+
+      buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS targets
+      -- If all targets succeed they may be uploaded to a remote repo
+      uploadResult <- upload buildResult
+      -- This processes the remote incoming dir
+      result <- lift (newDist uploadResult)
+      updateRepoCache params
+      return result
+{-
       case partitionFailing targets of
         ([], ok) ->
             do -- Build all the targets
@@ -171,6 +181,7 @@ runParameterSet params =
         (bad, _) ->
             do lift (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ intercalate "\n " (map (intercalate "\n  ") bad)))
                return (Failure ("Could not prepare source code of some targets:" : map (intercalate "\n  ") bad))
+-}
     where
       baseRelease =  either (error . show) id (P.findSlice params (P.baseRelease params))
       buildRepoSources = P.buildRepoSources params

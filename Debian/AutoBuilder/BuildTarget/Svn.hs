@@ -116,7 +116,10 @@ prepareSvn params target =
             findSourceTree dir
 
       createSource dir =
-          createDirectoryIfMissing True (fst (splitFileName dir)) >> checkout >> findSourceTree dir
+          let (parent, _) = splitFileName dir in
+          liftIO (createDirectoryIfMissing True parent) >>
+          checkout >>
+          findSourceTree dir
       checkout :: IO (Either String [Output])
       --checkout = svn createStyle args 
       checkout = runTask (createStyle (processTask "svn" args Nothing Nothing)) >>= return . finish

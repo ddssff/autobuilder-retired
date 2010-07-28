@@ -72,7 +72,8 @@ prepareHg params archive =
             
 
       createSource dir =
-          createDirectoryIfMissing True (fst (splitFileName dir)) >>
+          let (parent, _) = splitFileName dir in
+          liftIO (createDirectoryIfMissing True parent) >>
           runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))) >>
           findSourceTree dir
 

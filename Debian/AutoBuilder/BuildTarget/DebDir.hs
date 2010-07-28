@@ -37,6 +37,14 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
     copyDebian >>
     findDebianSourceTree dest >>=
     return . Tgt . DebDir (Tgt upstream) (Tgt debian)
+{-
+    liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
+    either (\ (e :: SomeException) -> return . Left . show $ e) (const copyUpstream) >>=
+    either (return . Left) (const copyDebian) >>=
+    either (return . Left) (const (findDebianSourceTree dest)) >>=
+    either (\ message -> return $ Left ("Couldn't find source tree at " ++ show dest ++ ": " ++ message))
+           (return . Right . Tgt . DebDir (Tgt upstream) (Tgt debian))
+-}
     where
       copyUpstream = runTaskAndTest (cleanStyle (show upstream) (commandTask cmd1))
       copyDebian = runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))

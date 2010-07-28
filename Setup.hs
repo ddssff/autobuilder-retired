@@ -1,5 +1,6 @@
 #!/usr/bin/runhaskell
 
+import Control.Exception (SomeException)
 import Distribution.Simple
 import System.Cmd
 import System.Exit

@@ -4,6 +4,7 @@
 module Debian.AutoBuilder.BuildTarget.Uri where
 
 import Control.Monad
+import Control.Monad.Trans (liftIO)
 import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
@@ -45,19 +46,19 @@ instance BuildTarget Uri where
 -- |Download the tarball using the URI in the target and unpack it.
 prepareUri :: (RunClass p) => p -> String -> IO Tgt
 prepareUri params target =
-    parseTarget target >>= \ (uri, md5sum) ->
     checkTarget uri md5sum >>=
     downloadTarget uri md5sum >>=
     validateTarget md5sum >>=
     unpackTarget uri
     where
+      (uri, md5sum) = parseTarget target
       parseTarget target =
           case matchRegex (mkRegex uriRE) target of
             Just [s, md5sum] ->
                 case parseURI s of
-                  Nothing -> fail ("Invalid uri: " ++ s)
-                  Just uri -> return (uri, md5sum)
-            _ -> fail ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
+                  Nothing -> error ("Invalid uri: " ++ s)
+                  Just uri -> (uri, md5sum)
+            _ -> error ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
       checkTarget uri sum =
           doesFileExist final
           where
@@ -85,19 +86,23 @@ prepareUri params target =
       -- Make sure what we just downloaded has the correct checksum
       validateTarget :: String -> String -> IO (String, String, String)
       validateTarget sum name =
-          do output <- Extra.md5sum dest
-             case output of
-               Left e -> fail ("Could not checksum destination file " ++ dest ++ ": " ++ show e)
-               -- We have checksummed the file and it either matches
-               -- what we expected or we don't know what checksum to
-               -- expect.
-               Right realSum
-                   | sum == realSum ->
-                       return (realSum, sumDir, name)
-                   | True ->
-                       -- We have checksummed the file but it doesn't match
-                       do fail ("Checksum mismatch for " ++ dest ++
-                                ": expected " ++ sum ++ ", saw " ++ realSum ++ ".")
+          liftIO (Extra.md5sum dest) >>= \ realSum ->
+          case realSum of
+            Right realSum' | sum == realSum' -> return (realSum', sumDir, name)
+            Right realSum' -> error ("Checksum mismatch for " ++ dest ++
+                                     ": expected " ++ sum ++ ", saw " ++ realSum' ++ ".")
+            Left msg -> error ("Checksum failure for " ++ dest ++ ": " ++ msg)
+{-
+          do realSum <- liftIO $ Extra.md5sum dest
+             -- We have checksummed the file and it either matches
+             -- what we expected or we don't know what checksum to
+             -- expect.
+             if Right sum == realSum then
+                 return (realSum, sumDir, name) else
+             -- We have checksummed the file but it doesn't match
+                 error ("Checksum mismatch for " ++ dest ++
+                        ": expected " ++ sum ++ ", saw " ++ realSum ++ ".")
+-}
           where
             dest = sumDir ++ "/" ++ name
             sumDir = tmp ++ "/" ++ sum
@@ -106,9 +111,9 @@ prepareUri params target =
           mkdir >> untar >>= read >>= search >>= verify
           where
             -- Create the unpack directory
-            mkdir = createDirectoryIfMissing True sourceDir
+            mkdir = liftIO (createDirectoryIfMissing True sourceDir)
             untar =
-                do c <- unpackChar tarball
+                do c <- liftIO (unpackChar tarball)
                    runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir)
             unpackChar tarball =
                 do magic <- magicOpen []
@@ -119,12 +124,12 @@ prepareUri params target =
                             else if isPrefixOf "bzip2" fileInfo
                                  then "j"
                                  else ""
-            read (_output, _elapsed) = getDir sourceDir
+            read (_output, _elapsed) = liftIO (getDir sourceDir)
             search files = checkContents (filter (not . flip elem [".", ".."]) files)
             verify tree = return . Tgt $ Uri uri (Just sum) tree
-            getDir dir = getDirectoryContents dir >>= (return . filter (not . flip elem [".", ".."]))
+            getDir dir = getDirectoryContents dir >>= return . filter (not . flip elem [".", ".."])
             checkContents :: [FilePath] -> IO SourceTree
-            checkContents [] = fail "Empty tarball?"
+            checkContents [] = error ("Empty tarball? " ++ show uri)
             checkContents [subdir] = findSourceTree (sourceDir ++ "/" ++ subdir)
             checkContents _ = findSourceTree sourceDir
             tarball = sumDir ++ "/" ++ name

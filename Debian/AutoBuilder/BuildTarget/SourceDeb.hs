@@ -37,27 +37,27 @@ instance BuildTarget SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: (RunClass p) => p -> Tgt -> IO (Failing Tgt)
+prepareSourceDeb :: (RunClass p) => p -> Tgt -> IO Tgt
 prepareSourceDeb params (Tgt base) =
     do let top = getTop params base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> liftIO (readFile (top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
-         [] -> return $  Failure ["Invalid sourcedeb base: no .dsc file in " ++ show base]
+         [] -> return $  error ("Invalid sourcedeb base: no .dsc file in " ++ show base)
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
              do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of
                   [ExitSuccess] -> return $ makeTarget top dscInfo dscName
-                  _ -> return $ Failure ["*** FAILURE: " ++ unpack top dscName]
-         (dscName, _) : _ -> return $ Failure ["Invalid .dsc file: " ++ dscName]
+                  _ -> error ("*** FAILURE: " ++ unpack top dscName)
+         (dscName, _) : _ -> error ("Invalid .dsc file: " ++ dscName)
     where
       makeTarget top dscInfo dscName =
           case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
                      (S.fieldValue "Version" dscInfo)) of
             (Just package, Just version) ->
-                Success . Tgt $ (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
-            _ -> Failure ["Invalid .dsc file: " ++ dscName]
+                Tgt $ (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
+            _ -> error $ "Invalid .dsc file: " ++ dscName
       unpack top dscName = "cd " ++ top ++ " && dpkg-source -x " ++ dscName
       compareVersions (name2, info2) (name1, info1) =
           case (info1, info2) of

@@ -8,9 +8,12 @@ import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
 import Debian.Sources
 import Debian.Version
+import Control.Monad
+import Control.Monad.Trans
 import System.Unix.Directory
 import Text.Regex
 
@@ -33,7 +36,7 @@ instance BuildTarget Apt where
     revision _ (Apt _ _ Nothing _) = fail "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) _ = "Built from " ++ sliceName (sliceListName name) ++ " apt pool"
 
-prepareApt :: (RunClass p) => p -> String -> AptIOT IO (Failing Tgt)
+prepareApt :: (RunClass p) => p -> String -> AptIOT IO Tgt
 prepareApt params target =
     do
       let (dist, package, version) =
@@ -44,11 +47,10 @@ prepareApt params target =
       let distro = maybe (error $ "Invalid dist: " ++ sliceName dist) id (findRelease (P.allSources params) dist)
       os <- prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
-      liftIO (try (do when (P.flushSource params) (removeRecursiveSafely $ aptDir os package)
-                      tree <- Debian.Repo.aptGetSource (aptDir os package) os package version
-                      let version' = logVersion . entry $ tree
-                      return . Tgt $ Apt distro package (Just version') tree) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success)
-      
+      when (P.flushSource params) (liftIO . removeRecursiveSafely $ aptDir os package)
+      tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version
+      let version' = logVersion . entry $ tree
+      return . Tgt $ Apt distro package (Just version') tree
     where
       ms = match "([^:]+):([^=]*)(=([^ \t\n]+))?" target
       match = matchRegex . mkRegex

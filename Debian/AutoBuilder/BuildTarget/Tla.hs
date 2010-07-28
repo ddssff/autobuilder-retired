@@ -57,8 +57,8 @@ prepareTla params version =
       verifySource dir =
           do result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))
              case result of
-               Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir	-- Failure means there is corruption
-               Right _output -> updateSource dir						-- Success means no changes
+               Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir -- Failure means there is corruption
+               Right _output -> updateSource dir						         -- Success means no changes
 
       removeSource dir = liftIO $ removeRecursiveSafely dir
 

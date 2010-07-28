@@ -31,7 +31,7 @@ instance BuildTarget Cd where
            -- Or we could only copy the subdirectory into the build environment.
     logText (Cd subdir (Tgt s)) revision = logText s revision ++ " (in subdirectory " ++ subdir ++ ")"
 
-prepareCd :: (RunClass p) => p -> FilePath -> Tgt -> IO (Failing Tgt)
+prepareCd :: (RunClass p) => p -> FilePath -> Tgt -> IO Tgt
 prepareCd _params subdir target =
     -- FIXME: we should verify that the subdir contains a debian source tree
-    return . Success . Tgt $ Cd subdir target
+    return . Tgt $ Cd subdir target

@@ -40,5 +40,5 @@ instance BuildTarget Proc where
              _ -> fail (intercalate " " ("mount" : ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"]) ++ " -> " ++ show code)
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
-prepareProc :: (RunClass p) => p -> Tgt -> IO (Failing Tgt)
-prepareProc _ base = return . Success . Tgt $ Proc base
+prepareProc :: (RunClass p) => p -> Tgt -> IO Tgt
+prepareProc _ base = return . Tgt $ Proc base

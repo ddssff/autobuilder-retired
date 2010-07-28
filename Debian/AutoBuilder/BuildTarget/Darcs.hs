@@ -58,7 +58,7 @@ prepareDarcs params uriAndTag =
       when (P.flushSource params) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      fixLink
+      liftIO fixLink
       return . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
       verifySource :: FilePath -> IO SourceTree
@@ -79,9 +79,18 @@ prepareDarcs params uriAndTag =
 
       createSource :: FilePath -> IO SourceTree
       createSource dir =
-          createDirectoryIfMissing True (fst (splitFileName dir)) >>
-          runTaskAndTest (createStyle (commandTask cmd)) >>
-          findSourceTree dir 
+          let (parent, _) = splitFileName dir in
+          do r1 <- liftIO (createDirectoryIfMissing True parent)
+             r2 <- runTaskAndTest (createStyle (commandTask cmd))
+             findSourceTree dir
+{-             
+          do r1 <- liftIO (try (createDirectoryIfMissing True parent))
+             r2 <- either (\ (e :: SomeException) -> return . Left . show $ e)
+                          (const (runTaskAndTest (createStyle (commandTask cmd)))) r1
+             r3 <- either (return . Left) (const (findSourceTree dir)) r2
+             let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
+             return r4
+-}
           where
             cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
 {-

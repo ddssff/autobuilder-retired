@@ -4,13 +4,13 @@
 -- a build target with the patches applied to the source directory.
 module Debian.AutoBuilder.BuildTarget.Quilt where
 
-import Debian.Changes (prettyEntry)
+import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
 import Debian.Repo
 import Debian.Shell
 import Debian.Version
 
 import Control.Applicative.Error (Failing(..), failing)
-import Control.Exception (SomeException, try)
+import Control.Exception (SomeException, try, throw)
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Either (partitionEithers)
@@ -80,25 +80,29 @@ makeQuiltTree params base patch =
        -- This will be the top directory of the quilt target
        let copyDir = P.topDir params ++ "/quilt/" ++ md5sum ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
        liftIO (createDirectoryIfMissing True (P.topDir params ++ "/quilt"))
-       baseTree <- findSourceTree (getTop params base)
-       patchTree <- findSourceTree (getTop params patch)
-       copyTree <- copySourceTree baseTree copyDir
-       -- If this is already a DebianBuildTree we need to apply
-       -- the patch to the subdirectory containing the DebianSourceTree.
-       debTree <- findOneDebianBuildTree copyDir
-       -- Compute the directory where the patches will be applied
-       let quiltDir = failing (const copyDir) debdir debTree
-       vPutStrBl 2 $ "copyDir: " ++ copyDir
-       vPutStrBl 2 $ "quiltDir: " ++ quiltDir
-       let patchDir = topdir patchTree
-       -- Set up links to the quilt directory, and use quilt to get a
-       -- list of the unapplied patches.
-       let cmd1 = ("set -x && cd '" ++ quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++
-                   "' && ln -s '" ++ patchDir ++ "' '" ++ quiltPatchesDir ++ "'")
-       runTaskAndTest (linkStyle (commandTask cmd1))
-       -- Now we need to have created a DebianSourceTree so
-       -- that there is a changelog for us to reconstruct.
-       return (copyTree, quiltDir)
+       baseTree <- try (findSourceTree (getTop params base))
+       patchTree <- try (findSourceTree (getTop params patch))
+       case (baseTree, patchTree) of
+         (Right baseTree, Right patchTree) ->
+             do copyTree <- copySourceTree baseTree copyDir
+                -- If this is already a DebianBuildTree we need to apply
+                -- the patch to the subdirectory containing the DebianSourceTree.
+                debTree <- findOneDebianBuildTree copyDir
+                -- Compute the directory where the patches will be applied
+                let quiltDir = failing (const copyDir) debdir debTree
+                vPutStrBl 2 $ "copyDir: " ++ copyDir
+                vPutStrBl 2 $ "quiltDir: " ++ quiltDir
+                let patchDir = topdir patchTree
+                -- Set up links to the quilt directory, and use quilt to get a
+                -- list of the unapplied patches.
+                let cmd1 = ("set -x && cd '" ++ quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++
+                            "' && ln -s '" ++ patchDir ++ "' '" ++ quiltPatchesDir ++ "'")
+                runTaskAndTest (linkStyle (commandTask cmd1))
+                -- Now we need to have created a DebianSourceTree so
+                -- that there is a changelog for us to reconstruct.
+                return (copyTree, quiltDir)
+         (Left (e :: SomeException), _) -> throw e
+         (_, Left (e :: SomeException)) -> throw e
     where
       linkStyle = setStart (Just "Linking to quilt target")
 
@@ -114,8 +118,9 @@ debug e =
 
 prepareQuilt :: (RunClass p) => p -> Tgt -> Tgt -> IO Tgt
 prepareQuilt params (Tgt base) (Tgt patch) = 
-    makeQuiltTree params base patch >>= make
+    makeQuiltTree params base patch >>= make {- >>= either debug return -}
     where
+      make :: (SourceTree, FilePath) -> IO Tgt
       make (quiltTree, quiltDir) =
           do applied <- lazyCommand cmd1a L.empty >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
@@ -143,7 +148,7 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                                      False -> fail (target ++ "- Missing changelog file: " ++ show (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                                      True -> mergeChangelogs' (quiltDir ++ "/debian/changelog") (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource =
-                                do result3 <- lazyCommand cmd3 L.empty >>= vMessage 1 "Cleaning Quilt target" . collectOutput
+                                do result3 <- liftIO (lazyCommand cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
                                    case result3 of
                                      (_, _, [ExitSuccess]) ->
                                          findSourceTree (topdir quiltTree) >>= return . Tgt . Quilt (Tgt base) (Tgt patch)

@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Bzr where
 
-import Control.Exception (SomeException, try)
+import Control.Exception (SomeException, try, throw)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -62,12 +62,12 @@ prepareBzr params version = do
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =
-            try (runTaskAndTest (style (commandTask cmd))) >>= \result ->
+            try (runTaskAndTest (style (commandTask cmd))) >>= \ result ->
             case result of
-                -- if we fail then the source tree is corrupted, so get a new one
-                Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir
-                -- If we succeed then we try to merge with the parent tree
-                Right _output -> mergeSource dir
+              -- if we fail then the source tree is corrupted, so get a new one
+              Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir >> throw e
+              -- If we succeed then we try to merge with the parent tree
+              Right _output -> mergeSource dir
             where
                 cmd   = "cd " ++ dir ++ " && ! `bzr status | grep -q 'modified:'`"
                 style = (setStart (Just ("Verifying Bazaar source archive '" ++ dir ++ "'")) .
