@@ -50,7 +50,7 @@ instance BuildTarget Darcs where
         where
           path = topdir (sourceTree tgt)
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
-    logText _ revision = "Darcs revision: " ++ maybe "none" id revision
+    logText _ revision = "Darcs revision: " ++ either show id revision
 
 prepareDarcs :: (RunClass p) => p -> String -> IO Tgt
 prepareDarcs params uriAndTag =

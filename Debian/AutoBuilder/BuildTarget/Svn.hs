@@ -90,7 +90,7 @@ instance BuildTarget Svn where
         where
           userInfo = maybe "" uriUserInfo (uriAuthority uri)
 -}
-    logText (Svn _ _) revision = "SVN revision: " ++ maybe "none" id revision
+    logText (Svn _ _) revision = "SVN revision: " ++ either show id revision
 
 prepareSvn ::  (RunClass p) => p -> String -> IO Tgt
 prepareSvn params target =

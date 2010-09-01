@@ -1,3 +1,11 @@
+autobuilder (6.2.1) unstable; urgency=low
+
+  * Fix the generation of the revision string for apt targets.  If I
+    knew how I would ask darcs when this got to be the way it was, it
+    makes no sense.
+
+ -- David Fox <dsf@seereason.com>  Wed, 01 Sep 2010 08:15:15 -0700
+
 autobuilder (6.2) unstable; urgency=low
 
   * More cleanups in error and exception handling.

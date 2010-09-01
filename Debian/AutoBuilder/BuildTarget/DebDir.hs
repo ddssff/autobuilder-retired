@@ -28,7 +28,7 @@ instance BuildTarget DebDir where
     revision params (DebDir (Tgt upstream) (Tgt debian) _) =
         revision params upstream >>= \ rev ->
         revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
-    logText (DebDir _ _ _) revision = "deb-dir revision: " ++ maybe "none" id revision
+    logText (DebDir _ _ _) revision = "deb-dir revision: " ++ either show id revision
 
 prepareDebDir :: (RunClass p) => p -> Tgt -> Tgt -> IO Tgt
 prepareDebDir params (Tgt upstream) (Tgt debian) = 

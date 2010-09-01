@@ -51,7 +51,7 @@ instance BuildTarget Bzr where
              ExitSuccess -> return $ "bzr:" ++ rev
              code -> fail (cmd ++ " -> " ++ show code)
 
-    logText (Bzr _ _) revision = "Bazaar revision: " ++ maybe "none" id revision
+    logText (Bzr _ _) revision = "Bazaar revision: " ++ either show id revision
 
 prepareBzr :: (RunClass p) => p -> String -> IO Tgt
 prepareBzr params version = do

@@ -69,7 +69,7 @@ instance BuildTarget Quilt where
                     let rev = logVersion . entry $ tree
                     BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ show rev ++ "):(" ++ patchRev ++ ")")
 
-    logText (Quilt _ _ _) rev = "Quilt revision " ++ maybe "none" id rev
+    logText (Quilt _ _ _) rev = "Quilt revision " ++ either show id rev
 
 quiltPatchesDir = "quilt-patches"
 

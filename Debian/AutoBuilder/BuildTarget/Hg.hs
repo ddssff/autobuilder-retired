@@ -49,7 +49,7 @@ instance BuildTarget Hg where
           cmd = "rm -rf " ++ path ++ "/.hg"
           cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
 
-    logText (Hg _ _) revision = "Hg revision: " ++ maybe "none" id revision
+    logText (Hg _ _) revision = "Hg revision: " ++ either show id revision
 
 prepareHg :: (RunClass p) => p -> String -> IO Tgt
 prepareHg params archive =

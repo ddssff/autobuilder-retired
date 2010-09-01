@@ -44,7 +44,7 @@ instance BuildTarget Tla where
            waitForProcess handle
            return $ "tla:" ++ revision
 
-    logText (Tla _ _) revision = "TLA revision: " ++ maybe "none" id revision
+    logText (Tla _ _) revision = "TLA revision: " ++ either show id revision
 
 prepareTla :: (RunClass p) => p -> String -> IO Tgt
 prepareTla params version =

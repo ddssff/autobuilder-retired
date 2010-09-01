@@ -65,6 +65,7 @@ module Debian.AutoBuilder.BuildTarget
     , md5sum
     ) where
 
+import Control.Exception (Exception)
 import Data.Time (NominalDiffTime)
 import Debian.Repo
 import Debian.AutoBuilder.ParamClass (ParamClass)
@@ -112,7 +113,7 @@ class BuildTarget t where
     buildPkg params buildOS buildTree status _target =
         buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.
-    logText :: t -> Maybe String -> String
+    logText :: Exception e => t -> Either e String -> String
 
 -- |Dir is a simple instance of BuildTarget representing building the
 -- debian source in a local directory.  This type of target is used

@@ -34,7 +34,7 @@ instance BuildTarget Apt where
     getTop _ (Apt _ _ _ t) = topdir t
     revision _ (Apt d p (Just v) _) = return $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show v
     revision _ (Apt _ _ Nothing _) = fail "Attempt to generate revision string for unversioned apt package"
-    logText (Apt name _ _ _) _ = "Built from " ++ sliceName (sliceListName name) ++ " apt pool"
+    logText (Apt name _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
 
 prepareApt :: (RunClass p) => p -> String -> AptIOT IO Tgt
 prepareApt params target =

@@ -17,7 +17,7 @@ module Debian.AutoBuilder.Target
 
 import Control.Applicative.Error (Failing(..), failing)
 import Control.Arrow(second)
-import Control.Exception(SomeException, try, evaluate)
+import Control.Exception(Exception, SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -288,7 +288,7 @@ escapeForBuild =
 -- revision info and build dependency versions in a human readable
 -- form.  FIXME: this should also include revision control log
 -- entries.
-changelogText :: Tgt -> Maybe String -> [PkgVersion] -> [PkgVersion] -> String
+changelogText :: Exception e => Tgt -> Either e String -> [PkgVersion] -> [PkgVersion] -> String
 changelogText (Tgt spec) revision oldDeps newDeps =
     ("  * " ++ logText spec revision ++ "\n" ++ depChanges changedDeps ++ "\n")
     where
@@ -613,7 +613,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               sourceRevision <- case realSource target of (Tgt spec) -> lift (try (BuildTarget.revision params spec)) >>= return . either (\ (_ :: SomeException) -> Nothing) Just
+               sourceRevision <- case realSource target of (Tgt spec) -> lift (try (BuildTarget.revision params spec))
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -661,7 +661,7 @@ makeVersion package =
                , getVersion = packageVersion (packageID package) }
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: (P.RunClass p) => p -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Maybe String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
+buildPackage :: P.RunClass p => p -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Either SomeException String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
 buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >>
     (lift prepareImage) >>=
@@ -1078,7 +1078,7 @@ outputToString (Result r : out) = show r ++ outputToString out
 -- included in the package's entry in the Sources.gz file.  Then we
 -- can compare the revision from the uploaded package with the current
 -- TLA revision to decide whether to build.
-setRevisionInfo :: DebianVersion -> Maybe String -> [PkgVersion] -> ChangesFile -> IO ChangesFile
+setRevisionInfo :: Exception e => DebianVersion -> Either e String -> [PkgVersion] -> ChangesFile -> IO ChangesFile
 setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name version arch fields files) -} =
     case partition isDscFile (changeFiles changes) of
       ([file], otherFiles) ->
@@ -1106,7 +1106,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
           where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [newField]))
       addField (Control []) = error "Invalid control file"
       newField = Field ("Revision", " " ++ newFieldValue)
-      newFieldValue = maybe invalidRevision id revision ++ " " ++ show sourceVersion ++ " " ++ formatVersions versions
+      newFieldValue = either (error . show) id revision ++ " " ++ show sourceVersion ++ " " ++ formatVersions versions
       formatVersions versions = intercalate " " (map showPkgVersion versions)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 
