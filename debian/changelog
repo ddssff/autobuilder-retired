@@ -1,3 +1,9 @@
+autobuilder (6.2.2) unstable; urgency=low
+
+  * Output topDir at beginning of each parameter set.
+
+ -- David Fox <dsf@seereason.com>  Mon, 11 Oct 2010 21:03:30 -0700
+
 autobuilder (6.2.1) unstable; urgency=low
 
   * Fix the generation of the revision string for apt targets.  If I
