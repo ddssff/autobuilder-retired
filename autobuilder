@@ -3,6 +3,10 @@
 CONFIGDIR=$HOME/.autobuilder.d
 CONFIGFILE=$CONFIGDIR/autobuilder.hs
 
+[ "$USER" != "root" ] || {
+    echo "You should not run this program as $USER.";
+    exit 1
+}
 [ -d $CONFIGDIR ] || {
     echo "There is no configuration directory at $CONFIGDIR, an example of this directory can be obtained"
     echo "from http://seereason.com/autobuilder-config using this command:"
