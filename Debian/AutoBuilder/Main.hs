@@ -120,7 +120,7 @@ writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 runParameterSet :: P.RunClass p => p -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
     do
-      liftIO $ IO.hPutStrLn IO.stderr ("topDir=" ++ show P.topDir params)
+      liftIO $ IO.hPutStrLn IO.stderr ("topDir=" ++ show (P.topDir params))
       liftIO $ writeParams params
       lift doRequiredVersion
       lift doShowParams
