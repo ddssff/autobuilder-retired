@@ -460,7 +460,7 @@ chooseNextTarget goals targets =
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
       info ->
-          do vEPutStrBl 1 (makeTable info)
+          do hPutStrLn stderr (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
       makeTable (G.BuildableInfo ready other) =

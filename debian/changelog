@@ -1,3 +1,9 @@
+autobuilder (6.2.3) unstable; urgency=low
+
+  * Print out the table of ready and blocked packages before each target.
+
+ -- David Fox <dsf@seereason.com>  Mon, 11 Oct 2010 23:19:17 -0700
+
 autobuilder (6.2.2) unstable; urgency=low
 
   * Output topDir at beginning of each parameter set.
