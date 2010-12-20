@@ -1,3 +1,10 @@
+autobuilder (6.2.4) unstable; urgency=low
+
+  * Panic if the version number we compute for a new package looks older
+    then the current version of the package.
+
+ -- David Fox <dsf@seereason.com>  Sun, 19 Dec 2010 16:46:15 -0800
+
 autobuilder (6.2.3) unstable; urgency=low
 
   * Print out the table of ready and blocked packages before each target.

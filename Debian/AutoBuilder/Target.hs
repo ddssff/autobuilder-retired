@@ -900,12 +900,19 @@ computeNewVersion params
                                       " of this form.  This makes it difficult for the author to know what version" ++
                                       " needs to go into debian/changelog to trigger a build by the autobuilder," ++
                                       " particularly since each distribution may have different auto-generated versions."]
-            (_, Nothing) -> setTag aliases vendor oldVendors release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion
+            (_, Nothing) -> setTag aliases vendor oldVendors release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion >>= checkVersion
     where
       getVersion paragraph =
           maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)
       currentVersion =
           maybe Nothing (Just . parseDebianVersion . B.unpack) (maybe Nothing (fieldValue "Version" . sourceParagraph) current)
+      checkVersion :: DebianVersion -> Failing DebianVersion
+      checkVersion result =
+          maybe (Success result)
+                (\ v -> if result <= v
+                        then Failure ["Autobuilder bug: new version number " ++ show result ++ " is not newer than current version number " ++ show v]
+                        else Success result)
+                currentVersion
 
 -- FIXME: Most of this code should move into Debian.Repo.Dependencies
 buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> IO (Failing [(Int, [BinaryPackage])])
