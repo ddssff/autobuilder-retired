@@ -155,9 +155,7 @@ class Show a => ParamClass a where
     goals :: a -> [String]
     -- ^ Specify a source package which we want to build, and stop
     -- once all goals are built.  If not given all targets are
-    -- considered goals.  (As of version 4.41 this option is not be
-    -- fully functional, sometimes specifying goals will prevent all
-    -- the builds.)
+    -- considered goals.
     allowBuildDependencyRegressions :: a -> Bool
     -- ^ Normally, if a build dependency has an older version number
     -- than it did on a previous build, it is an error.  This

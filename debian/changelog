@@ -1,3 +1,9 @@
+autobuilder (6.2.5) unstable; urgency=low
+
+  * Allow our quilt targets to work with Debian's.
+
+ -- David Fox <dsf@seereason.com>  Mon, 20 Dec 2010 05:44:30 -0800
+
 autobuilder (6.2.4) unstable; urgency=low
 
   * Panic if the version number we compute for a new package looks older
