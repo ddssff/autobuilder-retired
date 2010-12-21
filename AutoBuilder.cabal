@@ -45,3 +45,6 @@ Library
     Debian.AutoBuilder.Params,
     Debian.AutoBuilder.Target,
     Debian.AutoBuilder.Version
+  Other-Modules:
+    Shell,
+    CIO
