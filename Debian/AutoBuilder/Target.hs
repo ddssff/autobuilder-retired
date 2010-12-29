@@ -53,36 +53,40 @@ import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations, Relation(..))
 import Debian.Release (releaseName')
 import Debian.Sources (SliceName(..))
-import Debian.Repo (countTasks, save, uploadLocal, invalidRevision, readPkgVersion, showPkgVersion,
-                    simplifyRelations, solutions, binaryPackages, buildArchOfEnv, sourcePackages,
-                    aptSourcePackagesSorted, binaryPackageSourceVersion, sourcePackageBinaryNames,
-                    scanIncoming, showErrors, OSImage, chrootEnv, syncEnv, syncPool, updateEnv,
-                    findDebianSourceTree, SourceTreeC(..), DebianSourceTreeC(..), DebianSourceTree,
-                    DebianBuildTree, DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
-                    copyDebianSourceTree, explainSourcePackageStatus, findChanges,
-                    findDebianBuildTree, findOneDebianBuildTree, SourcePackageStatus(..))
+import Debian.Repo (chrootEnv, syncEnv, syncPool, updateEnv)
+import Debian.Repo.Cache (binaryPackages, buildArchOfEnv, sourcePackages, aptSourcePackagesSorted)
+import Debian.Repo.Dependencies (simplifyRelations, solutions)
+import Debian.Repo.Changes (save, uploadLocal)
+import Debian.Repo.Insert (scanIncoming, showErrors)
+import Debian.Repo.Monad (countTasks)
+import Debian.Repo.OSImage (OSImage)
+import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
+import Debian.Repo.Repository (invalidRevision, readPkgVersion, showPkgVersion)
+import Debian.Repo.SourceTree (findDebianSourceTree, SourceTreeC(..), DebianSourceTreeC(..), DebianSourceTree,
+                               DebianBuildTree, DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
+                               copyDebianSourceTree, explainSourcePackageStatus, findChanges,
+                               findDebianBuildTree, findOneDebianBuildTree, SourcePackageStatus(..))
 import Debian.Repo.Monad (AptIOT)
 import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
                           PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
                           BinaryPackage(packageInfo, packageID))
-import Debian.Shell(dotOutput)
 import Debian.Sources (SliceName(..))
 import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, version)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
 import System.IO (hPutStrLn, stderr)
-import System.Unix.Process(Output(..), collectOutputUnpacked,
-                           commandOutput, lazyCommand, lazyProcess)
+import System.Unix.Process(Output(..), collectOutputUnpacked, lazyCommand, lazyProcess, stdoutOnly)
 import Extra.Either(partitionEithers)
 import Extra.Files(replaceFile)
 import Extra.List(dropPrefix)
-import Extra.Misc(columns, processOutput)
-import System.Chroot (useEnv, forceList')
+import Extra.Misc(columns)
+import System.Chroot (useEnv, forceList)
 import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.IO (hPutStrLn, stderr)
 import System.Posix.Files(fileSize, getFileStatus)
+import System.Unix.Progress (lazyCommandF, lazyCommandV, ePutStrLn)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
@@ -238,14 +242,15 @@ eff (Success x) = Right x
 -- executable.
 prepareBuild :: (P.RunClass p, BuildTarget t) => p -> OSImage -> t -> IO DebianBuildTree
 prepareBuild params os target =
-    do debBuild <- findOneDebianBuildTree (getTop params target)
+    do debBuild <- findOneDebianBuildTree top
        case debBuild of
          Success tree -> copyBuild tree
          Failure msgs ->
-             hPutStrLn stderr ("Build tree not found, creating new one\n  " ++ intercalate "\n  " msgs) >>
-             findDebianSourceTree (getTop params target) >>=
+             hPutStrLn stderr ("Build tree not found in " ++ top ++ ", creating new one\n  " ++ intercalate "\n  " msgs) >>
+             findDebianSourceTree top >>=
              copySource
     where
+      top = getTop params target
       copySource :: DebianSourceTree -> IO DebianBuildTree
       copySource debSource =
           do let name = logPackage . entry $ debSource
@@ -806,8 +811,8 @@ getReleaseControlInfo cleanOS packageName =
       missingMessage Complete = []
       missingMessage (Missing missing) = ["  Missing Binary Package Names: "] ++ map ("   " ++) missing
       sourcePackagesWithBinaryNames = zip sourcePackages (map sourcePackageBinaryNames sourcePackages)
-      binaryPackages = Debian.Repo.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
-      sourcePackages = sortBy compareVersion . Debian.Repo.sourcePackages cleanOS $ [packageName]
+      binaryPackages = Debian.Repo.Cache.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
+      sourcePackages = sortBy compareVersion . Debian.Repo.Cache.sourcePackages cleanOS $ [packageName]
       sourcePackageVersion package =
           case ((fieldValue "Package" . sourceParagraph $ package), (fieldValue "Version" . sourceParagraph $ package)) of
             (Just name, Just version) -> (B.unpack name, parseDebianVersion (B.unpack version))
@@ -930,7 +935,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
                    relations'' = simplifyRelations packages relations' preferred arch
                -- Do not stare directly into the solutions!  Your head will
                -- explode (because there may be a lot of them.)
-               case Debian.Repo.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
+               case Debian.Repo.Dependencies.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
                  Left error -> message 0 relations' relations'' >> return (Failure [error])
                  Right solutions -> message 2 relations' relations'' >> return (Success solutions)
     where
@@ -995,10 +1000,10 @@ updateChangesFile elapsed changes =
 {-    autobuilderVersion <- processOutput "dpkg -s autobuilder | sed -n 's/^Version: //p'" >>=
                             return . either (const Nothing) Just >>=
                             return . maybe Nothing (listToMaybe . lines) -}
-      hostname <- processOutput "hostname" >>= either (\ _ -> return Nothing) (return . listToMaybe . lines)
+      hostname <- lazyCommandF "hostname" L.empty >>= return . listToMaybe . lines . L.unpack . stdoutOnly
       cpuInfo <- parseProcCpuinfo
       memInfo <- parseProcMeminfo
-      machine <- commandOutput "uname -m" >>= return . listToMaybe . either (const []) lines
+      machine <- lazyCommandF "uname -m" L.empty >>= return . listToMaybe . lines . L.unpack . stdoutOnly
       let buildInfo = ["Autobuilder-Version: " ++ V.autoBuilderVersion] ++
                       ["Time: " ++ show elapsed] ++
                       maybeField "Memory: " (lookup "MemTotal" memInfo) ++
@@ -1028,9 +1033,9 @@ downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        vEPutStrBl 1 . ("versions: " ++) . show $! vers
-       (out, codes) <- liftIO (useEnv (rootPath root) forceList' (lazyCommand command L.empty)) >>=
-                       vMessage 0 ("Downloading build dependencies into " ++ rootPath (rootDir os)) >>=
-                       dotOutput 100 >>= return . partitionResult
+       ePutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
+       (out, codes) <- liftIO (useEnv (rootPath root) forceList (lazyCommandV command L.empty)) >>=
+                       return . partitionResult
        case codes of
          [ExitSuccess] -> return (Success out)
          codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
@@ -1050,12 +1055,12 @@ pathBelow root path =
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
 installDependencies os source extra versions =
-    do (out, codes) <- liftIO (useEnv (rootPath root) forceList' (lazyCommand command L.empty)) >>=
-                       vMessage 0 ("Installing build dependencies into " ++ rootPath (rootDir os)) >>=
-                       dotOutput 100 >>= return . partitionResult
+    do ePutStrLn ("Installing build dependencies into " ++ rootPath (rootDir os))
+       (out, codes) <- liftIO (useEnv (rootPath root) forceList (lazyCommandV command L.empty)) >>=
+                       return . partitionResult
        case codes of
          [ExitSuccess] -> return (Success out)
-         codes -> vMessage 0 ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) () >>
+         codes -> ePutStrLn ("FAILURE: " ++ command ++ " -> " ++ show codes ++ "\n" ++ outputToString out) >>
                   return (Failure ["FAILURE: " ++ command ++ " -> " ++ show codes])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
@@ -1101,7 +1106,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
                   do
                     size <- getFileStatus dscFilePath >>= return . fileSize
                     let changes' = changes {changeFiles = (otherFiles ++ [file {changedFileMD5sum = md5, changedFileSHA1sum = sha1, changedFileSHA256sum = sha256, changedFileSize = size}])}
-                    Debian.Repo.save changes'
+                    Debian.Repo.Changes.save changes'
                     return changes'
               e -> error (show e)
       -- A binary only build will have no .dsc file
@@ -1128,12 +1133,11 @@ md5sum = doChecksum "md5sum" (take 32)
 sha1sum = doChecksum "sha1sum" (take 40)
 sha256sum = doChecksum "sha256sum" (take 64)
 
-toEither x@(text, "", [ExitSuccess]) = Right text
+toEither x@(text, "", ExitSuccess) = Right text
 toEither x = Left x
 
-doError cmd (_, s, [ExitSuccess]) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]
-doError cmd (_, _, [ExitFailure n]) = Failure ["Error " ++ show n ++ " running '" ++ cmd ++ "'"]
-doError cmd (_, _, _) = Failure ["Internal error running " ++ cmd]
+doError cmd (_, s, ExitSuccess) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]
+doError cmd (_, _, ExitFailure n) = Failure ["Error " ++ show n ++ " running '" ++ cmd ++ "'"]
 
 -- |Decide whether to build a package.  We will build if the revision
 -- is different from the revision of the uploaded source, or if any of

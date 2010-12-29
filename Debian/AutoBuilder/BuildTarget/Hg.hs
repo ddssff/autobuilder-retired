@@ -2,12 +2,13 @@
 -- | A Mercurial archive.
 module Debian.AutoBuilder.BuildTarget.Hg where
 
-import Debian.Shell
+--import Debian.OldShell (timeTaskAndTest, commandTask, setStart, runTaskAndTest, setError, runTask)
 import Debian.Repo
 
 import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
+import Data.ByteString.Lazy.Char8 (empty)
 import Data.Maybe
 import System.Directory
 import System.Exit
@@ -18,6 +19,7 @@ import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import System.Unix.Progress (lazyCommandF, timeTask)
 
 data Hg = Hg String SourceTree
 
@@ -44,10 +46,11 @@ instance BuildTarget Hg where
           path = topdir tree
           cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
     cleanTarget _ (Hg _ _) path =
-        timeTaskAndTest (cleanStyle path (commandTask cmd))
+        -- timeTaskAndTest (cleanStyle path (commandTask cmd))
+        timeTask (lazyCommandF cmd empty)
         where
           cmd = "rm -rf " ++ path ++ "/.hg"
-          cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
+          -- cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
 
     logText (Hg _ _) revision = "Hg revision: " ++ either show id revision
 
@@ -60,28 +63,31 @@ prepareHg params archive =
       return . Tgt $ Hg archive tree
     where
       verifySource dir =
-          try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q .")))) >>=
+          -- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q .")))) >>=
+          try (lazyCommandF ("cd " ++ dir ++ " && hg status | grep -q .") empty) >>=
           either (\ (_ :: SomeException) -> updateSource dir)	-- failure means there were no changes
                  (\ _ -> removeSource dir >> createSource dir)	-- success means there was a change
 
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
-          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && hg pull -u"))) >>
+          -- runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && hg pull -u"))) >>
+          lazyCommandF ("cd " ++ dir ++ " && hg pull -u") empty >>
           findSourceTree dir
             
 
       createSource dir =
           let (parent, _) = splitFileName dir in
           liftIO (createDirectoryIfMissing True parent) >>
-          runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))) >>
+          -- runTaskAndTest (createStyle (commandTask ("hg clone " ++ archive ++ " " ++ dir))) >>
+          lazyCommandF ("hg clone " ++ archive ++ " " ++ dir) empty >>
           findSourceTree dir
 
-      verifyStyle = (setStart (Just ("Verifying Hg source archive " ++ archive)) .
-                     setError (Just (\ _ -> "tla changes failed in" ++ show dir)))
-      updateStyle = (setStart (Just ("Updating Hg source for " ++ archive)) .
-                     setError (Just (\ _ -> "Update Hg Source failed in " ++ show dir)))
-      createStyle = (setStart (Just ("Retrieving Hg source for " ++ archive)) .
-                     setError (Just (\ _ -> "hg clone failed in " ++ show dir)))
+      -- verifyStyle = (setStart (Just ("Verifying Hg source archive " ++ archive)) .
+      --                setError (Just (\ _ -> "tla changes failed in" ++ show dir)))
+      -- updateStyle = (setStart (Just ("Updating Hg source for " ++ archive)) .
+      --                setError (Just (\ _ -> "Update Hg Source failed in " ++ show dir)))
+      -- createStyle = (setStart (Just ("Retrieving Hg source for " ++ archive)) .
+      --                setError (Just (\ _ -> "hg clone failed in " ++ show dir)))
       dir = P.topDir params ++ "/hg/" ++ archive
 

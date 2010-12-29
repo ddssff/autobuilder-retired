@@ -11,7 +11,6 @@ import Debian.AutoBuilder.BuildTarget (BuildTarget(..), Tgt(..), md5sum)
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
-import Debian.Shell
 import Debian.URI
 import Debian.Extra.CIO (vPutStrBl)
 import System.Exit (ExitCode(..))
@@ -20,6 +19,7 @@ import System.IO
 import System.Process
 import System.Unix.Directory
 import qualified System.Unix.Process as P
+import System.Unix.Progress (timeTask, lazyCommandF, ePutStrLn)
 import System.Directory
 
 -- | A Bazaar archive
@@ -34,10 +34,10 @@ documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar
 instance BuildTarget Bzr where
     getTop _ (Bzr _ tree) = topdir tree
     cleanTarget _ (Bzr _ _) path =
-        timeTaskAndTest (cleanStyle path (commandTask cmd))
+        ePutStrLn ("Clean Bazzar target in " ++ path) >> 
+        timeTask (lazyCommandF cmd L.empty)
         where
           cmd = "find '" ++ path ++ "' -name '.bzr' -prune | xargs rm -rf"
-          cleanStyle path = setStart . Just  $ "Clean Bazzar target in " ++ path
 
     revision _ (Bzr _ tree) =
         do let path = topdir tree
@@ -62,7 +62,8 @@ prepareBzr params version = do
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =
-            try (runTaskAndTest (style (commandTask cmd))) >>= \ result ->
+            ePutStrLn ("Verifying Bazaar source archive '" ++ dir ++ "'") >>
+            try (lazyCommandF cmd L.empty) >>= \ result ->
             case result of
               -- if we fail then the source tree is corrupted, so get a new one
               Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir >> throw e
@@ -70,28 +71,26 @@ prepareBzr params version = do
               Right _output -> mergeSource dir
             where
                 cmd   = "cd " ++ dir ++ " && ! `bzr status | grep -q 'modified:'`"
-                style = (setStart (Just ("Verifying Bazaar source archive '" ++ dir ++ "'")) .
-                    setError (Just (\ _ -> "bzr status dirty in '" ++ dir ++ "'")))
         
         -- computes a diff between this archive and some other parent archive and tries to merge the changes
         mergeSource dir =
-            runTaskAndTest (style (commandTask cmd)) >>= \ b ->
+            lazyCommandF cmd L.empty >>= \ b ->
             if isInfixOf "Nothing to do." (L.unpack (P.outputOnly b))
             then findSourceTree dir
             else commitSource dir
             where
                 cmd   = "cd " ++ dir ++ " && bzr merge"
-                style = (setStart (Just ("Merging local Bazaar source archive '" ++ dir ++ "' with parent archive")).
-                    setError (Just (\ _ -> "bzr merge failed in '" ++ dir ++ "'")))
+                -- style = (setStart (Just ("Merging local Bazaar source archive '" ++ dir ++ "' with parent archive")).
+                --          setError (Just (\ _ -> "bzr merge failed in '" ++ dir ++ "'")))
         
         -- Bazaar is a distributed revision control system so you must commit to the local source
         -- tree after you merge from some other source tree
         commitSource dir =
-            runTaskAndTest (style (commandTask cmd)) >> findSourceTree dir
+            lazyCommandF cmd L.empty >> findSourceTree dir
             where
                 cmd   = "cd " ++ dir ++ " && bzr commit -m 'Merged Upstream'"
-                style = (setStart (Just ("Commiting merge to local Bazaar source archive '" ++ dir ++ "'")) .
-                    setError (Just (\ _ -> "bzr commit failed in '" ++ dir ++ "'")))
+                -- style = (setStart (Just ("Commiting merge to local Bazaar source archive '" ++ dir ++ "'")) .
+                --     setError (Just (\ _ -> "bzr commit failed in '" ++ dir ++ "'")))
         
         removeSource dir = liftIO $ removeRecursiveSafely dir
 
@@ -99,12 +98,12 @@ prepareBzr params version = do
             -- Create parent dir and let bzr create dir
             let (parent, _) = splitFileName dir
             createDirectoryIfMissing True parent
-            runTaskAndTest (style (commandTask (cmd)))
+            lazyCommandF cmd L.empty
             findSourceTree dir
             where
                 cmd   = "bzr branch " ++ version ++ " " ++ dir
-                style = (setStart (Just ("Retrieving Bazzar source for " ++ version)) .
-                    setError (Just (\ _ -> "bzr branch failed in " ++ dir)))
+                -- style = (setStart (Just ("Retrieving Bazzar source for " ++ version)) .
+                --     setError (Just (\ _ -> "bzr branch failed in " ++ dir)))
         uri = mustParseURI version
             where
                 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)

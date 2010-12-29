@@ -9,7 +9,6 @@ import qualified Debian.Version as V
 
 import Debian.AutoBuilder.BuildTarget as BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
-import Control.Applicative.Error (Failing(..))
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
@@ -48,7 +47,7 @@ prepareSourceDeb params (Tgt base) =
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
              do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of
-                  [ExitSuccess] -> return $ makeTarget top dscInfo dscName
+                  ExitSuccess -> return $ makeTarget top dscInfo dscName
                   _ -> error ("*** FAILURE: " ++ unpack top dscName)
          (dscName, _) : _ -> error ("Invalid .dsc file: " ++ dscName)
     where

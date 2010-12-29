@@ -4,17 +4,19 @@ module Debian.AutoBuilder.BuildTarget.Tla where
 import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
+import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
-import Debian.Shell
+--import Debian.OldShell (runTaskAndTest, timeTaskAndTest, commandTask, setStart, setError)
 import Debian.Extra.CIO
 import System.FilePath (splitFileName)
 import System.IO
 import System.Process
 import System.Unix.Directory
+import System.Unix.Progress (timeTask, lazyCommandF)
 import System.Directory
 
 -- | A TLA archive
@@ -29,10 +31,11 @@ documentation = [ "tla:<revision> - A target of this form retrieves the a TLA ar
 instance BuildTarget Tla where
     getTop _ (Tla _ tree) = topdir tree
     cleanTarget _ (Tla _ _) path =
-        timeTaskAndTest (cleanStyle path (commandTask cmd))
+        -- timeTaskAndTest (cleanStyle path (commandTask cmd))
+        timeTask (lazyCommandF cmd L.empty)
         where
           cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
-          cleanStyle path = setStart (Just ("Clean TLA target in " ++ path))
+          -- cleanStyle path = setStart (Just ("Clean TLA target in " ++ path))
 
     revision _ (Tla _ tree) =
         do let path = topdir tree
@@ -55,7 +58,8 @@ prepareTla params version =
       return . Tgt $ Tla version tree
     where
       verifySource dir =
-          do result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))
+          do -- result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))
+             result <- try (lazyCommandF ("cd " ++ dir ++ " && tla changes") L.empty)
              case result of
                Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir -- Failure means there is corruption
                Right _output -> updateSource dir						         -- Success means no changes
@@ -63,7 +67,8 @@ prepareTla params version =
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
-          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && tla update " ++ version))) >>
+          -- runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && tla update " ++ version))) >>
+          lazyCommandF ("cd " ++ dir ++ " && tla update " ++ version) L.empty >>
              -- At one point we did a tla undo here.  However, we are
              -- going to assume that the "clean" copies in the cache
              -- directory are clean, since some of the other target
@@ -75,13 +80,16 @@ prepareTla params version =
             -- Create parent dir and let tla create dir
             let (parent, _) = splitFileName dir
             liftIO $ createDirectoryIfMissing True parent
-            runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
+            -- runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
+            lazyCommandF ("tla get " ++ version ++ " " ++ dir) L.empty
             findSourceTree dir
 
+{-
       verifyStyle = (setStart (Just ("Verifying TLA source archive " ++ version)) .
                      setError (Just (\ _ -> "tla changes failed in" ++ dir)) {- . Output Indented-})
       updateStyle = (setStart (Just ("Updating TLA source for " ++ version)) .
                      setError (Just (\ _ -> "updateSource failed")) {- . Output Indented -})
       createStyle = (setStart (Just ("Retrieving TLA source for " ++ version)) .
                      setError (Just (\ _ -> "tla get failed in " ++ dir)))
+-}
       dir = P.topDir params ++ "/tla/" ++ version

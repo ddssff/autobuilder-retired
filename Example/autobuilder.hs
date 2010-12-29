@@ -390,6 +390,10 @@ optSpecs =
       "Discard and re-download all source code."
     , Option [] ["flush-all"] (NoArg (\ p -> p {flushAll = True}))
       "Remove and re-create the entire autobuilder working directory."
+    , Option [] ["use-repo-cache"] (NoArg (\ p -> p {useRepoCache = True}))
+      (unlines [ "Use the cached information about the remote repositories, don't try"
+               , "to verify them.  Saves time and works as long as Ubuntu doesn't"
+               , "create or remove any dists."])
     , Option [] ["do-upload"] (NoArg (\ p -> p {doUpload = True}))
       "Upload the packages to the remote server after a successful build."
     , Option [] ["do-newdist"] (NoArg (\ p -> p {doNewDist = True}))

@@ -5,18 +5,20 @@ module Debian.AutoBuilder.BuildTarget.Uri where
 
 import Control.Monad
 import Control.Monad.Trans (liftIO)
+import Data.ByteString.Lazy.Char8 (empty)
 import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
-import Debian.Shell
+--import Debian.OldShell (runCommand, runCommandTimed)
 import Debian.URI
 import Extra.Misc as Extra
 import Magic
 import System.FilePath (splitFileName)
-import System.Unix.Directory
 import System.Directory
+import System.Unix.Directory
+import System.Unix.Progress (lazyCommandF, timeTask)
 import Text.Regex
 
 -- | A URI that returns a tarball, with an optional md5sum which must
@@ -76,8 +78,9 @@ prepareUri params target =
              exists <- doesFileExist dest
              case exists of
                True -> return name
-               False ->
-                   runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") >>
+               False -> 
+                   -- runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") >>
+                   lazyCommandF ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") empty >>
                    return name
           where
             dest = sumDir ++ "/" ++ name
@@ -114,7 +117,8 @@ prepareUri params target =
             mkdir = liftIO (createDirectoryIfMissing True sourceDir)
             untar =
                 do c <- liftIO (unpackChar tarball)
-                   runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir)
+                   timeTask (lazyCommandF ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir) empty)
+                   -- runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir)
             unpackChar tarball =
                 do magic <- magicOpen []
                    magicLoadDefault magic

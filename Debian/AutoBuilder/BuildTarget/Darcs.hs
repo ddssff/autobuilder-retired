@@ -8,13 +8,14 @@ import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
-import Debian.Shell
+--import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
 import Network.URI (URI(..), URIAuth(..), parseURI)
 import System.Directory
 import System.FilePath
 import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory
 import System.Unix.Process
+import System.Unix.Progress (lazyCommandF, lazyCommandV, timeTask)
 import Text.Regex
 
 -- | A Darcs archive
@@ -33,10 +34,11 @@ instance Show Darcs where
 instance BuildTarget Darcs where
     getTop _ t = topdir (sourceTree t)
     cleanTarget _ _ path =
-        timeTaskAndTest (cleanStyle path (commandTask cmd))
+        timeTask (lazyCommandF cmd B.empty)
+        -- timeTaskAndTest (cleanStyle path (commandTask cmd))
         where 
           cmd = "find " ++ path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
-          cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
+          -- cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
     revision _ tgt =
         do rev <- liftIO (lazyCommand cmd B.empty >>=
                           return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout >>= 
@@ -64,24 +66,25 @@ prepareDarcs params uriAndTag =
       verifySource :: FilePath -> IO SourceTree
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
-          do result <- runTask (verifyStyle (commandTask ("cd " ++ dir ++ " && darcs whatsnew"))) >>= return . discardOutput
+          do result <- lazyCommandV ("cd " ++ dir ++ " && darcs whatsnew") B.empty >>= return . exitCodeOnly
              case result of
-               [Result (ExitFailure _)] -> updateSource dir				-- No Changes!
-               [Result ExitSuccess] -> removeSource dir >> createSource dir		-- Yes changes
-               _ -> fail "Internal error 5"
+               ExitFailure _ -> updateSource dir				-- No Changes!
+               ExitSuccess -> removeSource dir >> createSource dir		-- Yes changes
       removeSource :: FilePath -> IO ()
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource :: FilePath -> IO SourceTree
       updateSource dir =
-          runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>
+          lazyCommandF ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri) B.empty >>
+          -- runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>
           findSourceTree dir
 
       createSource :: FilePath -> IO SourceTree
       createSource dir =
           let (parent, _) = splitFileName dir in
           do r1 <- liftIO (createDirectoryIfMissing True parent)
-             r2 <- runTaskAndTest (createStyle (commandTask cmd))
+             r2 <- lazyCommandF cmd B.empty
+             -- r2 <- runTaskAndTest (createStyle (commandTask cmd))
              findSourceTree dir
 {-             
           do r1 <- liftIO (try (createDirectoryIfMissing True parent))
@@ -101,12 +104,14 @@ prepareDarcs params uriAndTag =
             createStyle . systemTask . unwords $ ["darcs", "get", "--partial", theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
             findSourceTree (rootEnvPath dir) >>= return . maybe (error ("Couldn't find sourceTree at " ++ dir)) id
 -}
+{-
       verifyStyle = (setStart (Just ("Verifying Darcs source archive " ++ theUri)) .
                      setError Nothing)
       updateStyle = (setStart (Just ("Updating Darcs source for " ++ theUri)) .
                      setError (Just (\ _ -> "updateSource failed")))
       createStyle = (setStart (Just ("Retrieving Darcs source for " ++  theUri)) . 
                      setError (Just (\ _ -> "darcs get failed in " ++ dir)))
+-}
       name = snd . splitFileName $ theUri
       (theUri, theTag) =
           case matchRegex (mkRegex "^(.*)(=([^=]*))?$") uriAndTag of
@@ -116,10 +121,7 @@ prepareDarcs params uriAndTag =
       -- Maybe we should include the "darcs:" in the string we checksum?
       fixLink = let link = base ++ "/" ++ name
                     cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
-                hPutStrLn stderr cmd >> lazyCommand cmd B.empty >>= return . collectOutputUnpacked >>= \ (out, err, codes) ->
-                case codes of
-                  [ExitSuccess] -> return ()
-                  _ -> fail (cmd ++ " -> " ++ show codes)
+                lazyCommandF cmd B.empty
       dir = base ++ "/" ++ sum
       sum = md5sum uriAndTag
       base = P.topDir params ++ "/darcs"

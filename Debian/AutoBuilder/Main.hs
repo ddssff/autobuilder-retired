@@ -10,6 +10,7 @@ import Control.Applicative.Error (Failing(..))
 import Control.Exception(SomeException, IOException, try, evaluate)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), mapStateT)
 import Control.Monad(when, unless)
+import qualified Data.ByteString.Lazy as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
@@ -22,7 +23,7 @@ import qualified Debian.AutoBuilder.Params as PP
 import Debian.AutoBuilder.ParamRec()    -- Instances only
 import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
 import qualified Debian.AutoBuilder.Version as V
-import Debian.Extra.CIO
+import Debian.Extra.CIO (vEPutStrBl, vEPutStr, eBOL, setStyle)
 import Debian.Release (parseSection', releaseName')
 import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
@@ -38,7 +39,6 @@ import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
                          Layout(Flat), Release(releaseRepo),
                          NamedSliceList(..), Repository(LocalRepo),
                          LocalRepository(LocalRepository), outsidePath,)
-import Debian.Shell(runCommandQuietlyTimed)
 import Debian.Sources (SliceName(..))
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
@@ -54,6 +54,7 @@ import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
+import System.Unix.Progress (modQuietness, ePutStr, ePutStrLn, timeTask, lazyCommandF)
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
@@ -74,7 +75,7 @@ oldMain =
 -- | 
 doMain :: P.RunClass p => Int -> AptIOT IO [p] -> IO ()
 doMain verbosity f =
-    do runAptIO (f >>= mapM doParameterSets) >>= checkResults
+    do modQuietness (const (- verbosity)) $ runAptIO (f >>= mapM doParameterSets) >>= checkResults
        IO.hFlush IO.stderr
 
 -- |Process one set of parameters.  Usually there is only one, but there
@@ -120,7 +121,7 @@ writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 runParameterSet :: P.RunClass p => p -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
     do
-      liftIO $ IO.hPutStrLn IO.stderr ("topDir=" ++ show (P.topDir params))
+      liftIO $ ePutStrLn $ "topDir=" ++ show (P.topDir params)
       liftIO $ writeParams params
       lift doRequiredVersion
       lift doShowParams
@@ -129,6 +130,7 @@ runParameterSet params =
       checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
+      lift $ ePutStrLn "Preparing clean build environment"
       cleanOS <- (prepareEnv
                          (P.topDir params)
                          (P.cleanRoot params)
@@ -139,12 +141,15 @@ runParameterSet params =
                          (P.includePackages params)
                          (P.excludePackages params)
                          (P.components params))
+      lift $ ePutStrLn "Updating cache sources"
       updateCacheSources (P.ifSourcesChanged params) cleanOS
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
+      lift $ ePutStrLn "Computing build essentials"
       globalBuildDeps <- liftIO $ buildEssential cleanOS
       -- Get a list of all sources for the local repository.
+      lift $ ePutStrLn "Getting local sources"
       localSources <-
           case localRepo of
             LocalRepository path _ _ ->
@@ -156,7 +161,7 @@ runParameterSet params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      lift (vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources))))
+      lift $ vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources)))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
@@ -227,14 +232,13 @@ runParameterSet params =
           do let path = EnvPath (EnvRoot "") (P.localPoolDir params)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if P.flushPool params then flushLocalRepository else return)
-             lift (vEPutStrBl 0 $ "Preparing release main in local repository at " ++ outsidePath path)
+             lift $ ePutStrLn $ "Preparing release main in local repository at " ++ outsidePath path
              release <- prepareRelease repo (P.buildRelease params) [] [parseSection' "main"] (P.archList params)
-             let repo' = releaseRepo release
-             case repo' of
-               LocalRepo repo'' ->
+             case releaseRepo release of
+               LocalRepo repo' ->
                    case P.cleanUp params of
-                     True -> deleteGarbage repo''
-                     False -> return repo''
+                     True -> deleteGarbage repo'
+                     False -> return repo'
       prepareTargetList =
           do lift (vEPutStrBl 0 (showTargets allTargets))
              lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
@@ -267,10 +271,12 @@ runParameterSet params =
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ P.newDistProgram params ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . P.createRelease $ params)) in
-                             vEPutStr 0 "Running newdist on remote repository" >> try (runCommandQuietlyTimed cmd) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
+                             ePutStr "Running newdist on remote repository" >>
+                             try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
-                             vEPutStr 0 "Running newdist on a local repository" >> try (runCommandQuietlyTimed cmd) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
+                             ePutStr "Running newdist on a local repository" >>
+                             try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Success ([], (fromInteger 0)))
       iStyle = id {- setStyle (addPrefixes " " " ") -}

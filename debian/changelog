@@ -1,3 +1,9 @@
+autobuilder (6.3) unstable; urgency=low
+
+  * Use new progress reporting code in debian-repo 5.15
+
+ -- David Fox <dsf@seereason.com>  Mon, 27 Dec 2010 06:05:55 -0800
+
 autobuilder (6.2.5) unstable; urgency=low
 
   * Allow our quilt targets to work with Debian's.

@@ -1,13 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.DebDir where
 
+import Data.ByteString.Lazy.Char8 (empty)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory
-import Debian.Shell
+import System.Unix.Progress (lazyCommandF)
+-- import Debian.OldShell (commandTask, setStart, runTaskAndTest, setError, runTask)
 --import ChangeLog
 
 -- | Get the upstream source from one location, and the debian directory from another
@@ -46,11 +48,11 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
            (return . Right . Tgt . DebDir (Tgt upstream) (Tgt debian))
 -}
     where
-      copyUpstream = runTaskAndTest (cleanStyle (show upstream) (commandTask cmd1))
-      copyDebian = runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))
+      copyUpstream = lazyCommandF cmd1 empty -- runTaskAndTest (cleanStyle (show upstream) (commandTask cmd1))
+      copyDebian = lazyCommandF cmd2 empty -- runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))
       upstreamDir = getTop params upstream
       debianDir = getTop params debian
       dest = P.topDir params ++ "/deb-dir/" ++ md5sum ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")
-      cleanStyle name = setStart (Just (" Prepare deb-dir target " ++ show name))
+      -- cleanStyle name = setStart (Just (" Prepare deb-dir target " ++ show name))

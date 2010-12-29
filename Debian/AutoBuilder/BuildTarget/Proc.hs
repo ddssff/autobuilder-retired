@@ -1,7 +1,7 @@
 -- |Modify a target so that \/proc is mounted while it builds.
 module Debian.AutoBuilder.BuildTarget.Proc where
 
-import Control.Applicative.Error (Failing(..))
+import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
@@ -10,6 +10,7 @@ import Debian.Extra.CIO
 import Debian.Repo
 import System.Process (rawSystem)
 import System.Unix.Process
+import System.Unix.Progress (lazyProcessF)
 
 data Proc = Proc Tgt
 
@@ -33,8 +34,8 @@ instance BuildTarget Proc where
            case code of
              ExitSuccess ->
                  do result <- buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
-                    (out, err, code) <- simpleProcess "umount" [rootPath (rootDir buildOS) ++ "/proc"]
-                    case code of
+                    (out, err, code2) <- lazyProcessF "umount" [rootPath (rootDir buildOS) ++ "/proc"] Nothing Nothing L.empty >>= return . collectOutputUnpacked
+                    case code2 of
                       ExitSuccess -> return result
                       _ -> fail $ intercalate " " ("umount" : [rootPath (rootDir buildOS) ++ "/proc"]) ++ " -> " ++ show code ++ "\n\n" ++ show out ++ "\n\n" ++ show err
              _ -> fail (intercalate " " ("mount" : ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"]) ++ " -> " ++ show code)
