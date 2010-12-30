@@ -23,13 +23,12 @@ import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, md5sum)
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
-import Debian.Extra.CIO (vMessage, vPutStrBl, vEPutStrBl)
 import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Unix.Process (lazyCommand, collectOutputUnpacked, collectOutput, mergeToStderr)
-import System.Unix.Progress (runProgress, ProgressFlag(..), lazyCommandF, lazyCommandV)
+import System.Unix.Progress (runProgress, ProgressFlag(..), lazyCommandF, lazyCommandV, quieter, qPutStrLn, qMessage)
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 
@@ -78,8 +77,8 @@ quiltPatchesDir = "quilt-patches"
 
 makeQuiltTree :: (RunClass p, Show a, Show b, BuildTarget a, BuildTarget b) => p -> a -> b -> IO (SourceTree, FilePath)
 makeQuiltTree params base patch =
-    do vPutStrBl 1 $ "Quilt base: " ++ getTop params base
-       vPutStrBl 1 $ "Quilt patch: " ++ getTop params patch
+    do quieter 1 (qPutStrLn $ "Quilt base: " ++ getTop params base)
+       quieter 1 (qPutStrLn $ "Quilt patch: " ++ getTop params patch)
        -- This will be the top directory of the quilt target
        let copyDir = P.topDir params ++ "/quilt/" ++ md5sum ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
        liftIO (createDirectoryIfMissing True (P.topDir params ++ "/quilt"))
@@ -93,8 +92,8 @@ makeQuiltTree params base patch =
                 debTree <- findOneDebianBuildTree copyDir
                 -- Compute the directory where the patches will be applied
                 let quiltDir = failing (const copyDir) debdir debTree
-                vPutStrBl 2 $ "copyDir: " ++ copyDir
-                vPutStrBl 2 $ "quiltDir: " ++ quiltDir
+                quieter 2 (qPutStrLn $ "copyDir: " ++ copyDir)
+                quieter 2 (qPutStrLn $ "quiltDir: " ++ quiltDir)
                 let patchDir = topdir patchTree
                 -- Set up links to the quilt directory, and use quilt to get a
                 -- list of the unapplied patches.
@@ -132,18 +131,18 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                 rmrf d = lazyCommandV ("rm -rf '"  ++ d ++ "'") L.empty
       make :: (SourceTree, FilePath) -> IO Tgt
       make (quiltTree, quiltDir) =
-          do applied <- lazyCommandV cmd1a L.empty >>= vMessage 1 "Checking for applied patches" >>= return . collectOutputUnpacked
+          do applied <- lazyCommandV cmd1a L.empty >>= quieter 1 . qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
                (_, err, ExitFailure 1)
                    | err == "No patches applied\n" ->
                           findUnapplied >>= apply >> buildLog >> cleanSource
                           where
-                            findUnapplied = do unapplied <- liftIO (lazyCommandV cmd1b L.empty) >>= vMessage 1 "Checking for unapplied patches" . collectOutputUnpacked
+                            findUnapplied = do unapplied <- liftIO (lazyCommandV cmd1b L.empty) >>= quieter 1 . qMessage "Checking for unapplied patches" . collectOutputUnpacked
                                                case unapplied of
                                                  (text, _, ExitSuccess) -> return (lines text)
                                                  _ -> fail $ target ++ " - No patches to apply"
                             apply patches =
-                                do result2 <- liftIO (lazyCommandV (cmd2 patches) L.empty) >>= vMessage 1 "Patching Quilt target" . collectOutput . mergeToStderr
+                                do result2 <- liftIO (lazyCommandV (cmd2 patches) L.empty) >>= quieter 1 . qMessage "Patching Quilt target" . collectOutput . mergeToStderr
                                    case result2 of
                                      (_, _, ExitSuccess) -> return ()
                                      (_, err, _) -> fail $ target ++ " - Failed to apply quilt patches"
@@ -152,13 +151,13 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                                 -- If there is a changelog file in the quilt directory,
                                 -- interleave its entries with those in changelog of the base
                                 -- tree by date.
-                                do vEPutStrBl 1 "Merging changelogs"
+                                do quieter 1 (qPutStrLn "Merging changelogs")
                                    exists <- doesFileExist (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                                    case exists of
                                      False -> fail (target ++ "- Missing changelog file: " ++ show (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                                      True -> mergeChangelogs' (quiltDir ++ "/debian/changelog") (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource =
-                                do result3 <- liftIO (lazyCommandV cmd3 L.empty) >>= vMessage 1 "Cleaning Quilt target" . collectOutput
+                                do result3 <- liftIO (lazyCommandV cmd3 L.empty) >>= quieter 1 . qMessage "Cleaning Quilt target" . collectOutput
                                    case result3 of
                                      (_, _, ExitSuccess) ->
                                          findSourceTree (topdir quiltTree) >>= return . Tgt . Quilt (Tgt base) (Tgt patch)

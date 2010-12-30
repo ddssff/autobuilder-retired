@@ -8,7 +8,7 @@ import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import System.FilePath ((</>))
-import Debian.Extra.CIO
+import System.Unix.Progress (qPutStrLn)
 
 data Cd = Cd FilePath Tgt
 
@@ -25,7 +25,7 @@ instance BuildTarget Cd where
     revision params (Cd subdir (Tgt s)) =  
         Debian.AutoBuilder.BuildTarget.revision params s >>= return . (("cd:" ++ subdir ++ ":") ++)
     buildPkg params buildOS buildTree status _ =
-        do vPutStrBl 0 "chdir during target build"
+        do qPutStrLn "chdir during target build"
            buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
            -- FIXME: we need to move the resulting deb files out of the subdirectory.
            -- Or we could only copy the subdirectory into the build environment.

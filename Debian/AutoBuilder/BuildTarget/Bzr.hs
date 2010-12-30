@@ -12,14 +12,13 @@ import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import Debian.URI
-import Debian.Extra.CIO (vPutStrBl)
 import System.Exit (ExitCode(..))
 import System.FilePath (splitFileName)
 import System.IO
 import System.Process
 import System.Unix.Directory
 import qualified System.Unix.Process as P
-import System.Unix.Progress (timeTask, lazyCommandF, ePutStrLn)
+import System.Unix.Progress (timeTask, lazyCommandF, ePutStrLn, qPutStrLn)
 import System.Directory
 
 -- | A Bazaar archive
@@ -66,7 +65,7 @@ prepareBzr params version = do
             try (lazyCommandF cmd L.empty) >>= \ result ->
             case result of
               -- if we fail then the source tree is corrupted, so get a new one
-              Left (e :: SomeException) -> vPutStrBl 0 (show e) >> removeSource dir >> createSource dir >> throw e
+              Left (e :: SomeException) -> qPutStrLn (show e) >> removeSource dir >> createSource dir >> throw e
               -- If we succeed then we try to merge with the parent tree
               Right _output -> mergeSource dir
             where

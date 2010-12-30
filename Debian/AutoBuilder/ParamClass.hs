@@ -48,10 +48,10 @@ import Debian.Version ( DebianVersion )
 import Debian.URI ( URI, parseURI )
 import qualified Debian.GenBuildDeps as G
     ( RelaxInfo(..), SrcPkgName(..), BinPkgName(..) )
-import Debian.Extra.CIO ( ePutStrBl )
 import System.Directory
     ( createDirectoryIfMissing, getPermissions, writable )
 import System.Environment ( getEnv )
+import System.Unix.Progress (ePutStrLn)
 
 -- Lax: dependencies are installed into clean, clean synced to build for each target
 -- Moderate: dependencies are installed into build, clean synced to build only at beginning of run
@@ -443,7 +443,7 @@ instance (Show p, Show a, ParamClass p) => ParamClass (p, a) where
 
 loadRepoCache :: FilePath -> AptIOT IO ()
 loadRepoCache top =
-    do lift $ ePutStrBl "Loading repo cache..."
+    do lift $ ePutStrLn "Loading repo cache..."
        state <- get
        uris <- liftIO $ try (readFile (top ++ "/repoCache")) >>=
                try . evaluate . either (\ (_ :: SomeException) -> []) read >>=

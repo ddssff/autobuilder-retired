@@ -6,11 +6,10 @@ import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
-import Debian.Extra.CIO
 import Debian.Repo
 import System.Process (rawSystem)
 import System.Unix.Process
-import System.Unix.Progress (lazyProcessF)
+import System.Unix.Progress (lazyProcessF, qPutStrLn)
 
 data Proc = Proc Tgt
 
@@ -29,7 +28,7 @@ instance BuildTarget Proc where
     revision params (Proc (Tgt s)) =  
         Debian.AutoBuilder.BuildTarget.revision params s >>= return . ("proc:" ++)
     buildPkg params buildOS buildTree status _ =
-        do vPutStrBl 0 "Mouting /proc during target build"
+        do qPutStrLn "Mouting /proc during target build"
            code <- rawSystem "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"]
            case code of
              ExitSuccess ->

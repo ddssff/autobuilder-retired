@@ -23,7 +23,6 @@ import qualified Debian.AutoBuilder.Params as PP
 import Debian.AutoBuilder.ParamRec()    -- Instances only
 import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
 import qualified Debian.AutoBuilder.Version as V
-import Debian.Extra.CIO (vEPutStrBl, vEPutStr, eBOL, setStyle)
 import Debian.Release (parseSection', releaseName')
 import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
@@ -54,7 +53,7 @@ import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
-import System.Unix.Progress (modQuietness, ePutStr, ePutStrLn, timeTask, lazyCommandF)
+import System.Unix.Progress (modQuietness, ePutStr, ePutStrLn, timeTask, lazyCommandF, quieter, qPutStrLn, qPutStr)
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
@@ -91,12 +90,11 @@ doParameterSets set =
 -- nothing.  For a single result we can print a simple message,
 -- for multiple paramter sets we need to print a summary.
 checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
-checkResults [Right (Left e)] = (vEPutStrBl 0 (show e)) >> liftIO (exitWith $ ExitFailure 1)
-checkResults [Right (Right _)] = eBOL >> (liftIO $ exitWith ExitSuccess)
-checkResults [Left e] = vEPutStrBl 0 ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
+checkResults [Right (Left e)] = (qPutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
+checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
+checkResults [Left e] = qPutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
 checkResults list =
-    do mapM_ (\ (num, result) -> vEPutStrBl 0 ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
-       eBOL
+    do mapM_ (\ (num, result) -> qPutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
        case filter isLeft list of
          [] -> liftIO (exitWith ExitSuccess)
          _ -> liftIO (exitWith (ExitFailure 1))
@@ -121,7 +119,7 @@ writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 runParameterSet :: P.RunClass p => p -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
     do
-      liftIO $ ePutStrLn $ "topDir=" ++ show (P.topDir params)
+      liftIO $ qPutStrLn $ "topDir=" ++ show (P.topDir params)
       liftIO $ writeParams params
       lift doRequiredVersion
       lift doShowParams
@@ -130,7 +128,7 @@ runParameterSet params =
       checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
-      lift $ ePutStrLn "Preparing clean build environment"
+      lift $ qPutStrLn "Preparing clean build environment"
       cleanOS <- (prepareEnv
                          (P.topDir params)
                          (P.cleanRoot params)
@@ -141,15 +139,15 @@ runParameterSet params =
                          (P.includePackages params)
                          (P.excludePackages params)
                          (P.components params))
-      lift $ ePutStrLn "Updating cache sources"
+      lift $ qPutStrLn "Updating cache sources"
       updateCacheSources (P.ifSourcesChanged params) cleanOS
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
-      lift $ ePutStrLn "Computing build essentials"
+      lift $ qPutStrLn "Computing build essentials"
       globalBuildDeps <- liftIO $ buildEssential cleanOS
       -- Get a list of all sources for the local repository.
-      lift $ ePutStrLn "Getting local sources"
+      lift $ qPutStrLn "Getting local sources"
       localSources <-
           case localRepo of
             LocalRepository path _ _ ->
@@ -161,7 +159,7 @@ runParameterSet params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      lift $ vEPutStrBl 1 "poolSources:" >> setStyle (appPrefix " ") (vEPutStrBl 1 (show (sliceList poolSources)))
+      lift $ quieter 1 (qPutStrLn "poolSources:" >> qPutStrLn (show (sliceList poolSources)))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
@@ -185,7 +183,7 @@ runParameterSet params =
                updateRepoCache params
                return result
         (bad, _) ->
-            do lift (vEPutStrBl 0 ("Could not prepare source code of some targets:\n " ++ intercalate "\n " (map (intercalate "\n  ") bad)))
+            do lift (qPutStrLn ("Could not prepare source code of some targets:\n " ++ intercalate "\n " (map (intercalate "\n  ") bad)))
                return (Failure ("Could not prepare source code of some targets:" : map (intercalate "\n  ") bad))
 -}
     where
@@ -199,14 +197,14 @@ runParameterSet params =
           case filter (\ (v, _) -> v > parseDebianVersion V.autoBuilderVersion) (P.requiredVersion params) of
             [] -> return ()
             reasons ->
-                do vEPutStrBl 0 ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
+                do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)                    
           where
             printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
-                vEPutStr 0 (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
-      doShowParams = when (P.showParams params) (vEPutStr 0 $ "Configuration parameters:\n" ++ P.prettyPrint params)
+                qPutStr (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
+      doShowParams = when (P.showParams params) (qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint params)
       doShowSources =
           if (P.showSources params) then
               either (error . show) doShow (P.findSlice params (SliceName (releaseName' (P.buildRelease params)))) else
@@ -226,7 +224,7 @@ runParameterSet params =
           do isRoot <- liftIO $ checkSuperUser
              case isRoot of
                True -> return ()
-               False -> do lift (vEPutStr 0 "You must be superuser to run the autobuilder (to use chroot environments.)")
+               False -> do lift (qPutStr "You must be superuser to run the autobuilder (to use chroot environments.)")
                            liftIO $ exitWith (ExitFailure 1)
       prepareLocalRepo =
           do let path = EnvPath (EnvRoot "") (P.localPoolDir params)
@@ -240,9 +238,9 @@ runParameterSet params =
                      True -> deleteGarbage repo'
                      False -> return repo'
       prepareTargetList =
-          do lift (vEPutStrBl 0 (showTargets allTargets))
-             lift (vEPutStrBl 0 "Checking all source code out of the repositories:")
-             mapStateT (setStyle (appPrefix " ")) (mapM (readSpec params . P.sourceSpec) allTargets)
+          do lift (qPutStrLn (showTargets allTargets))
+             lift (qPutStrLn "Checking all source code out of the repositories:")
+             mapM (readSpec params . P.sourceSpec) allTargets
           where
             allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (Set.toList (P.targets params))
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
@@ -251,13 +249,13 @@ runParameterSet params =
           | P.doUpload params =
               case P.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> lift (vEPutStr 0 "Uploading from local repository") >> uploadRemote repo uri
+                Just uri -> lift (qPutStr "Uploading from local repository") >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            lift (vEPutStr 0 ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n"))
+            lift (qPutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n"))
             case P.doUpload params of
-              True -> lift (vEPutStr 0 "Skipping upload.")
+              True -> lift (qPutStr "Skipping upload.")
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
@@ -265,7 +263,7 @@ runParameterSet params =
           | P.doNewDist params =
               case P.uploadURI params of
                 Just uri ->
-                    do vEPutStrBl 1 ("Upload results:\n  " ++ intercalate "\n  " (map show results))
+                    do quieter 1 (qPutStrLn ("Upload results:\n  " ++ intercalate "\n  " (map show results)))
                        case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
