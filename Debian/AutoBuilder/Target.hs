@@ -246,7 +246,7 @@ prepareBuild params os target =
        case debBuild of
          Success tree -> copyBuild tree
          Failure msgs ->
-             hPutStrLn stderr ("Build tree not found in " ++ top ++ ", creating new one\n  " ++ intercalate "\n  " msgs) >>
+             qPutStrLn ("Build tree not found in " ++ top ++ ", creating new one\n  " ++ intercalate "\n  " msgs) >>
              findDebianSourceTree top >>=
              copySource
     where
@@ -322,9 +322,9 @@ _formatVersions buildDeps =
 
 readSpec :: (P.RunClass p) => p -> String -> AptIOT IO Tgt
 readSpec params text =
-    lift (qPutStrLn (text ++ ":")) >>
-    {-setStyle (appPrefix " ")-}
-    (case text of
+    qPutStrLn (" " ++ text) >>
+    quieter 3
+         (case text of
             'a':'p':'t':':' : target -> Apt.prepareApt params target
             'd':'a':'r':'c':'s':':' : target -> lift (Darcs.prepareDarcs params target)
             'd':'e':'b':'-':'d':'i':'r':':' : target ->
@@ -374,8 +374,8 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       -- Retrieve and/or update the source code of all the targets before building.
       prepareAllTargetSource cleanOS =
           do
-            ePutStrLn "Assembling clean source tree for each target:"
-            countAndPrepareTargets params cleanOS targetSpecs
+            ePutStrLn "\nAssembling clean source tree for each target:\n"
+            quieter 3 (countAndPrepareTargets params cleanOS targetSpecs)
       -- Execute the target build loop until all the goals (or everything) is built
       buildLoop :: OSImage -> Relations -> Int -> ([Target], [Target]) -> AptIOT IO [Target]
       buildLoop _ _ _ ([], failed) = return failed

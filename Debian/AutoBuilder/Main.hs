@@ -28,7 +28,7 @@ import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
-import Debian.Repo.Monad (AptIOT, getRepoMap, runAptIO, tryAB)
+import Debian.Repo.Monad (AptIOT, getRepoMap, runAptIO, tryAB, countTasks)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(buildEssential, prepareEnv)
 import Debian.Repo.Release(prepareRelease)
@@ -238,9 +238,9 @@ runParameterSet params =
                      True -> deleteGarbage repo'
                      False -> return repo'
       prepareTargetList =
-          do lift (qPutStrLn (showTargets allTargets))
-             lift (qPutStrLn "Checking all source code out of the repositories:")
-             mapM (readSpec params . P.sourceSpec) allTargets
+          do ePutStr (showTargets allTargets)
+             ePutStrLn "Retrieving all source code:\n"
+             countTasks (map (\ target -> (P.sourcePackageName target, readSpec params (P.sourceSpec target))) allTargets)
           where
             allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (Set.toList (P.targets params))
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
