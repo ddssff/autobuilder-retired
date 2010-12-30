@@ -730,7 +730,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
             -- didn't exit when the first buildworthy target is found.
             (_, errors) <- scanIncoming True Nothing repo
             case errors of
-              [] -> return . Success $ repo
+              [] -> updateLists cleanOS >> return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
       buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot params)
 
