@@ -58,7 +58,7 @@ import Debian.Repo.Dependencies (simplifyRelations, solutions)
 import Debian.Repo.Changes (save, uploadLocal)
 import Debian.Repo.Insert (scanIncoming, showErrors)
 import Debian.Repo.Monad (countTasks)
-import Debian.Repo.OSImage (OSImage)
+import Debian.Repo.OSImage (OSImage, updateLists)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
 import Debian.Repo.Repository (invalidRevision, readPkgVersion, showPkgVersion)
 import Debian.Repo.SourceTree (findDebianSourceTree, SourceTreeC(..), DebianSourceTreeC(..), DebianSourceTree,
@@ -730,7 +730,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
             -- didn't exit when the first buildworthy target is found.
             (_, errors) <- scanIncoming True Nothing repo
             case errors of
-              [] -> updateLists cleanOS >> return (Success repo)
+              [] -> liftIO (updateLists cleanOS) >> return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
       buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot params)
 
