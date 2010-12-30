@@ -323,8 +323,7 @@ _formatVersions buildDeps =
 readSpec :: (P.RunClass p) => p -> String -> AptIOT IO Tgt
 readSpec params text =
     qPutStrLn (" " ++ text) >>
-    quieter 3
-         (case text of
+    case text of
             'a':'p':'t':':' : target -> Apt.prepareApt params target
             'd':'a':'r':'c':'s':':' : target -> lift (Darcs.prepareDarcs params target)
             'd':'e':'b':'-':'d':'i':'r':':' : target ->
@@ -344,7 +343,7 @@ readSpec params text =
             'u':'r':'i':':' : target -> lift $ Uri.prepareUri params target
             'p':'r':'o':'c':':' : target ->
                 readSpec params target >>= lift . Proc.prepareProc params
-            _ -> fail ("Error in target specification: " ++ text))
+            _ -> fail ("Error in target specification: " ++ text)
     where
       parsePair :: String -> AptIOT IO (Tgt, Tgt)
       parsePair text =

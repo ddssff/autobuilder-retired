@@ -240,7 +240,7 @@ runParameterSet params =
       prepareTargetList =
           do ePutStr (showTargets allTargets)
              ePutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.sourcePackageName target, readSpec params (P.sourceSpec target))) allTargets)
+             countTasks (map (\ target -> (P.sourcePackageName target, quieter 1 (readSpec params (P.sourceSpec target)))) allTargets)
           where
             allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (Set.toList (P.targets params))
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
