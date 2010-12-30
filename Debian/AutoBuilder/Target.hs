@@ -366,7 +366,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
       targetList <- lift $ prepareAllTargetSource cleanOS
-      lift (ePutStrLn "Building all targets:")
+      lift (ePutStrLn "\nBuilding all targets:\n")
       failed <- {- setStyle (addPrefix " ") $ -} buildLoop cleanOS globalBuildDeps (length targetList) (targetList, [])
       return (localRepo, failed)
       --buildAll cleanOS targetList globalBuildDeps
