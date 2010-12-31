@@ -92,9 +92,9 @@ doParameterSets set =
 checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
 checkResults [Right (Left e)] = (qPutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
 checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
-checkResults [Left e] = qPutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
+checkResults [Left e] = ePutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
 checkResults list =
-    do mapM_ (\ (num, result) -> qPutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
+    do mapM_ (\ (num, result) -> ePutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
        case filter isLeft list of
          [] -> liftIO (exitWith ExitSuccess)
          _ -> liftIO (exitWith (ExitFailure 1))
@@ -240,7 +240,7 @@ runParameterSet params =
       prepareTargetList =
           do ePutStr (showTargets allTargets)
              ePutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.sourcePackageName target, quieter 1 (readSpec params (P.sourceSpec target)))) allTargets)
+             countTasks (map (\ target -> (P.sourcePackageName target, quieter 3 (readSpec params (P.sourceSpec target)))) allTargets)
           where
             allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (Set.toList (P.targets params))
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
@@ -263,7 +263,7 @@ runParameterSet params =
           | P.doNewDist params =
               case P.uploadURI params of
                 Just uri ->
-                    do quieter 1 (qPutStrLn ("Upload results:\n  " ++ intercalate "\n  " (map show results)))
+                    do ePutStrLn ("Upload results:\n  " ++ intercalate "\n  " (map show results))
                        case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++

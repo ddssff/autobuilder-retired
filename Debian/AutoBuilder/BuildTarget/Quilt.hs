@@ -28,7 +28,7 @@ import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Unix.Process (lazyCommand, collectOutputUnpacked, collectOutput, mergeToStderr)
-import System.Unix.Progress (runProgress, ProgressFlag(..), lazyCommandF, lazyCommandV, quieter, qPutStrLn, qMessage)
+import System.Unix.Progress (runProgress, ProgressFlag(..), lazyCommandF, lazyCommandE, lazyCommandV, quieter, qPutStrLn, qMessage)
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 
@@ -131,18 +131,18 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                 rmrf d = lazyCommandV ("rm -rf '"  ++ d ++ "'") L.empty
       make :: (SourceTree, FilePath) -> IO Tgt
       make (quiltTree, quiltDir) =
-          do applied <- lazyCommandV cmd1a L.empty >>= quieter 1 . qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
+          do applied <- lazyCommandE cmd1a L.empty >>= quieter 1 . qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
                (_, err, ExitFailure 1)
                    | err == "No patches applied\n" ->
                           findUnapplied >>= apply >> buildLog >> cleanSource
                           where
-                            findUnapplied = do unapplied <- liftIO (lazyCommandV cmd1b L.empty) >>= quieter 1 . qMessage "Checking for unapplied patches" . collectOutputUnpacked
+                            findUnapplied = do unapplied <- liftIO (lazyCommandE cmd1b L.empty) >>= qMessage "Checking for unapplied patches" . collectOutputUnpacked
                                                case unapplied of
                                                  (text, _, ExitSuccess) -> return (lines text)
                                                  _ -> fail $ target ++ " - No patches to apply"
                             apply patches =
-                                do result2 <- liftIO (lazyCommandV (cmd2 patches) L.empty) >>= quieter 1 . qMessage "Patching Quilt target" . collectOutput . mergeToStderr
+                                do result2 <- liftIO (lazyCommandE (cmd2 patches) L.empty) >>= qMessage "Patching Quilt target" . collectOutput . mergeToStderr
                                    case result2 of
                                      (_, _, ExitSuccess) -> return ()
                                      (_, err, _) -> fail $ target ++ " - Failed to apply quilt patches"
@@ -157,7 +157,7 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                                      False -> fail (target ++ "- Missing changelog file: " ++ show (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                                      True -> mergeChangelogs' (quiltDir ++ "/debian/changelog") (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource =
-                                do result3 <- liftIO (lazyCommandV cmd3 L.empty) >>= quieter 1 . qMessage "Cleaning Quilt target" . collectOutput
+                                do result3 <- liftIO (lazyCommandE cmd3 L.empty) >>= quieter 1 . qMessage "Cleaning Quilt target" . collectOutput
                                    case result3 of
                                      (_, _, ExitSuccess) ->
                                          findSourceTree (topdir quiltTree) >>= return . Tgt . Quilt (Tgt base) (Tgt patch)

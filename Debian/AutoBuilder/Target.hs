@@ -922,22 +922,22 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
       -- whether to build, once we are building we need to install all
       -- the dependencies.  Hence this empty list.
       case G.buildDependencies debianControl of
-        Left message -> return (Failure [message])
+        Left s -> return (Failure [s])
         Right (_, relations, _) ->
             do let relations' = relations ++ globalBuildDeps
                    relations'' = simplifyRelations packages relations' preferred arch
                -- Do not stare directly into the solutions!  Your head will
                -- explode (because there may be a lot of them.)
                case Debian.Repo.Dependencies.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
-                 Left error -> message 0 relations' relations'' >> return (Failure [error])
-                 Right solutions -> message 2 relations' relations'' >> return (Success solutions)
+                 Left error -> ePutStrLn (message relations' relations'') >> return (Failure [error])
+                 Right solutions -> qPutStrLn (message relations' relations'') >> return (Success solutions)
     where
       alwaysSatisfied xs = any isNothing xs && all isNothing xs
       packages = aptBinaryPackages os
-      message n relations' relations'' =
-          quieter n (qPutStrLn ("Build dependency relations:\n " ++
-                        concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b)
-                                                   (zip relations' relations'')))))
+      message relations' relations'' =
+          "Build dependency relations:\n " ++
+          concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b)
+                                              (zip relations' relations'')))
       -- Group and merge the relations by package.  This can only be done
       -- to AND relations that include a single OR element, but these are
       -- extremely common.  (Not yet implemented.)
