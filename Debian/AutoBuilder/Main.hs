@@ -119,7 +119,7 @@ writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 runParameterSet :: P.RunClass p => p -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
     do
-      liftIO $ qPutStrLn $ "topDir=" ++ show (P.topDir params)
+      qPutStrLn $ "topDir=" ++ show (P.topDir params)
       liftIO $ writeParams params
       lift doRequiredVersion
       lift doShowParams
@@ -128,7 +128,7 @@ runParameterSet params =
       checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
-      lift $ qPutStrLn "Preparing clean build environment"
+      qPutStrLn "Preparing clean build environment"
       cleanOS <- (prepareEnv
                          (P.topDir params)
                          (P.cleanRoot params)
@@ -139,15 +139,15 @@ runParameterSet params =
                          (P.includePackages params)
                          (P.excludePackages params)
                          (P.components params))
-      lift $ qPutStrLn "Updating cache sources"
+      qPutStrLn "Updating cache sources"
       updateCacheSources (P.ifSourcesChanged params) cleanOS
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
-      lift $ qPutStrLn "Computing build essentials"
+      qPutStrLn "Computing build essentials"
       globalBuildDeps <- liftIO $ buildEssential cleanOS
       -- Get a list of all sources for the local repository.
-      lift $ qPutStrLn "Getting local sources"
+      qPutStrLn "Getting local sources"
       localSources <-
           case localRepo of
             LocalRepository path _ _ ->
@@ -159,7 +159,7 @@ runParameterSet params =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      lift $ quieter 1 (qPutStrLn "poolSources:" >> qPutStrLn (show (sliceList poolSources)))
+      quieter 1 (qPutStrLn ("poolSources:\n" ++ show (sliceList poolSources)))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
@@ -224,13 +224,13 @@ runParameterSet params =
           do isRoot <- liftIO $ checkSuperUser
              case isRoot of
                True -> return ()
-               False -> do lift (qPutStr "You must be superuser to run the autobuilder (to use chroot environments.)")
+               False -> do qPutStr "You must be superuser to run the autobuilder (to use chroot environments.)"
                            liftIO $ exitWith (ExitFailure 1)
       prepareLocalRepo =
           do let path = EnvPath (EnvRoot "") (P.localPoolDir params)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if P.flushPool params then flushLocalRepository else return)
-             lift $ ePutStrLn $ "Preparing release main in local repository at " ++ outsidePath path
+             ePutStrLn $ "Preparing release main in local repository at " ++ outsidePath path
              release <- prepareRelease repo (P.buildRelease params) [] [parseSection' "main"] (P.archList params)
              case releaseRepo release of
                LocalRepo repo' ->
@@ -249,13 +249,13 @@ runParameterSet params =
           | P.doUpload params =
               case P.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> lift (qPutStr "Uploading from local repository") >> uploadRemote repo uri
+                Just uri -> qPutStr "Uploading from local repository" >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            lift (qPutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n"))
+            qPutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n")
             case P.doUpload params of
-              True -> lift (qPutStr "Skipping upload.")
+              True -> qPutStr "Skipping upload."
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
@@ -286,9 +286,7 @@ runParameterSet params =
           do let path = P.topDir params  ++ "/repoCache"
              live <- get >>= return . getRepoMap
              cache <- liftIO $ loadCache path
-             --tio (hPutStrBl IO.stderr (show (Map.toList live)))
              let merged = show . map (\ (uri, x) -> (show uri, x)) . Map.toList $ Map.union live cache
-             --tio (hPutStrBl IO.stderr merged)
              liftIO (removeLink path `Prelude.catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> liftIO (writeFile path merged)
              return ()
           where

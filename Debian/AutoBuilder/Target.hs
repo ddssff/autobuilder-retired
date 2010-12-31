@@ -60,7 +60,7 @@ import Debian.Repo.Insert (scanIncoming, showErrors)
 import Debian.Repo.Monad (countTasks)
 import Debian.Repo.OSImage (OSImage, updateLists)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
-import Debian.Repo.Repository (invalidRevision, readPkgVersion, showPkgVersion)
+import Debian.Repo.Repository (readPkgVersion, showPkgVersion)
 import Debian.Repo.SourceTree (findDebianSourceTree, SourceTreeC(..), DebianSourceTreeC(..), DebianSourceTree,
                                DebianBuildTree, DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
                                copyDebianSourceTree, explainSourcePackageStatus, findChanges,
@@ -70,11 +70,9 @@ import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
                           PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
                           BinaryPackage(packageInfo, packageID))
-import Debian.Sources (SliceName(..))
 import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, version)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
-import System.IO (hPutStrLn, stderr)
 import System.Unix.Process(Output(..), collectOutputUnpacked, lazyCommand, lazyProcess, stdoutOnly)
 import Extra.Either(partitionEithers)
 import Extra.Files(replaceFile)
@@ -83,7 +81,6 @@ import Extra.Misc(columns)
 import System.Chroot (useEnv, forceList)
 import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
-import System.IO (hPutStrLn, stderr)
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Process (collectResult)
 import System.Unix.Progress (lazyCommandF, lazyCommandV, ePutStrLn, quieter, qPutStrLn, qPutStr, qMessage)
@@ -144,7 +141,7 @@ targetName target =
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
 
-findSourceParagraph (Control paragraphs) = 
+_findSourceParagraph (Control paragraphs) = 
     case dropWhile isCommentParagraph paragraphs of
       (paragraph : _) -> Just paragraph
       _ -> Nothing
@@ -365,7 +362,7 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
       targetList <- lift $ prepareAllTargetSource cleanOS
-      lift (ePutStrLn "\nBuilding all targets:\n")
+      ePutStrLn "\nBuilding all targets:\n"
       failed <- {- setStyle (addPrefix " ") $ -} buildLoop cleanOS globalBuildDeps (length targetList) (targetList, [])
       return (localRepo, failed)
       --buildAll cleanOS targetList globalBuildDeps
@@ -387,14 +384,14 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
               Just (target, blocked, other) ->
                   do
                     --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
-                    lift (ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s\n"
-                                        (count - length relaxed + 1) count (targetName target) (show (realSource target))))
+                    ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s\n"
+                                        (count - length relaxed + 1) count (targetName target) (show (realSource target)))
                     -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
                     result <- buildTarget' target
                     failing (\ errs ->
-                                 do lift $ ePutStrLn ("Package build failed:\n " ++ intercalate "\n " errs)
-                                    lift $ ePutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
-                                                         concat (intersperse "\n  " (map targetName blocked)))
+                                 do ePutStrLn ("Package build failed:\n " ++ intercalate "\n " errs)
+                                    ePutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
+                                               concat (intersperse "\n  " (map targetName blocked)))
                                     buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
                             (\ _ ->
                                  do cleanOS' <- updateEnv cleanOS
@@ -586,23 +583,23 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
-      lift (quieter 1 (qPutStrLn "Loading package lists and searching for build dependency solution..."))
+      quieter 1 (qPutStrLn "Loading package lists and searching for build dependency solution...")
       solutions <- lift (buildDepSolutions' (P.preferred params) cleanOS globalBuildDeps debianControl)
       case solutions of
         Failure excuses -> do let excuses' = ("Couldn't satisfy build dependencies" : excuses)
-                              lift (ePutStrLn (intercalate "\n " excuses'))
+                              ePutStrLn (intercalate "\n " excuses')
                               return $ Failure excuses
         Success [] -> error "Internal error 4"
         Success ((count, sourceDependencies) : _) ->
             do let sourceDependencies' = map makeVersion sourceDependencies
-               lift (quieter 2 (qPutStrLn ("Using build dependency solution #" ++ show count)))
-               lift (quieter 3 (qPutStr (concat (map (("\n  " ++) . show) sourceDependencies'))))
+               quieter 2 (qPutStrLn ("Using build dependency solution #" ++ show count))
+               quieter 3 (qPutStr (concat (map (("\n  " ++) . show) sourceDependencies')))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
-               lift (quieter 2 (qPutStrLn message))
-               lift (quieter 2 (qPutStrLn ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
-                             ": " ++ explainSourcePackageStatus releaseStatus)))
+               quieter 2 (qPutStrLn message)
+               quieter 2 (qPutStrLn ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
+                                     ": " ++ explainSourcePackageStatus releaseStatus))
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
                -- Get the revision info of the package currently in the dist
                let oldVersion = maybe Nothing (Just . getOldVersion) releaseControlInfo
@@ -618,9 +615,9 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
-               lift (quieter 1 (qPutStrLn ("Released source version: " ++ show oldSrcVersion)))
-               lift (quieter 1 (qPutStrLn ("Released version: " ++ show oldVersion)))
-               lift (quieter 1 (qPutStrLn ("Current source version: " ++ show sourceVersion)))
+               quieter 1 (qPutStrLn ("Released source version: " ++ show oldSrcVersion))
+               quieter 1 (qPutStrLn ("Released version: " ++ show oldVersion))
+               quieter 1 (qPutStrLn ("Current source version: " ++ show sourceVersion))
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
                    buildTrumped = elem packageName (P.buildTrumped params)
                let newVersion = computeNewVersion params sourcePackages (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
@@ -629,7 +626,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                                          (P.allowBuildDependencyRegressions params)
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
-               lift (ePutStrLn ("Build decision: " ++ show decision))
+               ePutStrLn ("Build decision: " ++ show decision)
                -- FIXME: incorporate the release status into the build decision
                case newVersion of
                  Failure messages ->
@@ -670,7 +667,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
     failing (return . Failure) (liftIO . find) >>=
     failing (return . Failure) upload
     where
-      checkDryRun = when (P.dryRun params)  (do lift (qPutStrLn "Not proceeding due to -n option.")
+      checkDryRun = when (P.dryRun params)  (do qPutStrLn "Not proceeding due to -n option."
                                                 liftIO (exitWith ExitSuccess))
       prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (P.strictness params)
       logEntry :: DebianBuildTree -> IO (Failing DebianBuildTree)

@@ -443,7 +443,7 @@ instance (Show p, Show a, ParamClass p) => ParamClass (p, a) where
 
 loadRepoCache :: FilePath -> AptIOT IO ()
 loadRepoCache top =
-    do lift $ ePutStrLn "Loading repo cache..."
+    do ePutStrLn "Loading repo cache..."
        state <- get
        uris <- liftIO $ try (readFile (top ++ "/repoCache")) >>=
                try . evaluate . either (\ (_ :: SomeException) -> []) read >>=
