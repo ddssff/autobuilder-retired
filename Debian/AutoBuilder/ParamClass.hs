@@ -41,7 +41,7 @@ import Debian.Repo
       parseSourcesList,
       verifySourcesList,
       repoSources )
-import Debian.Repo.Monad ( AptIOT )
+import Debian.Repo.Monad ( AptIOT, setRepoMap )
 import Debian.Repo.Types ( SliceList(..) )
 import Debian.Version ( DebianVersion )
 import Debian.URI ( URI, parseURI )
@@ -455,17 +455,14 @@ loadRepoCache top =
 -- exists.  Then we can safely return it from topDir below.
 computeTopDir :: forall p. (ParamClass p) => p -> IO FilePath
 computeTopDir params =
-    do top <- maybe homeDir return (topDirParam params)
-       liftIO (try $ createDirectoryIfMissing True top) :: IO (Either SomeException ())
-       result <- liftIO (try $ getPermissions top >>= return . writable)
-       case result of
-         Left (e :: SomeException) -> error $ "Could not create cache directory " ++ top ++ ": " ++ show e ++ " (are you root?)"
-         Right False -> error "Cache directory not writable (are you root?)"
-         Right True -> return top
+    try (maybe homeDir return (topDirParam params) >>= \ top ->
+         createDirectoryIfMissing True top >>
+         getPermissions top >>= return . writable >>= finish top) >>=
+    either (\ (e :: SomeException) -> error (show e)) return
     where
-      homeDir = liftIO (try (getEnv "HOME")) >>=
-                return . either (\ (e :: SomeException) -> error $ "Failed to read environment variable HOME: " ++ show e)
-                                (++ "/.autobuilder")
+      finish _ False = error "Cache directory not writable (are you root?)"
+      finish top True = return top
+      homeDir = getEnv "HOME" >>= return . (++ "/.autobuilder")
 
 -- |Find a release by name, among all the "Sources" entries given in the configuration.
 findSlice :: CacheClass c => c -> SliceName -> Either String NamedSliceList

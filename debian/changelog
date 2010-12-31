@@ -1,3 +1,9 @@
+autobuilder (6.3.1) unstable; urgency=low
+
+  * Fix repo caching
+
+ -- David Fox <dsf@seereason.com>  Fri, 31 Dec 2010 11:11:15 -0800
+
 autobuilder (6.3) unstable; urgency=low
 
   * Use new progress reporting code in debian-repo 5.15
