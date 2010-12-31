@@ -21,7 +21,7 @@ import Debian.URI
 import System.FilePath (splitFileName)
 import System.Unix.Directory
 import System.Unix.Process
-import System.Unix.Progress (timeTask, lazyCommandF, lazyProcessF, lazyProcessP)
+import System.Unix.Progress (timeTask, lazyCommandF, lazyProcessF, lazyProcessE)
 import System.Directory
 
 -- | A Subversion archive
@@ -130,7 +130,7 @@ prepareSvn params target =
           findSourceTree dir
       checkout :: IO (Either String [Output])
       --checkout = svn createStyle args 
-      checkout = lazyProcessP [] "svn" args Nothing Nothing L.empty >>= return . finish
+      checkout = lazyProcessE "svn" args Nothing Nothing L.empty >>= return . finish
           where
             args = ([ "co","--no-auth-cache","--non-interactive"] ++ 
                     (username userInfo) ++ (password userInfo) ++ 
