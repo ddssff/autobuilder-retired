@@ -3,7 +3,6 @@ module Debian.AutoBuilder.BuildTarget.Cd where
 
 import Debian.Repo
 
-import Control.Applicative.Error (Failing(..))
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P

@@ -27,8 +27,8 @@ import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
-import System.Unix.Process (lazyCommand, collectOutputUnpacked, collectOutput, mergeToStderr)
-import System.Unix.Progress (runProgress, ProgressFlag(..), lazyCommandF, lazyCommandE, lazyCommandV, quieter, qPutStrLn, qMessage)
+import System.Unix.Process (collectOutputUnpacked, collectOutput, mergeToStderr)
+import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, quieter, qPutStrLn, qMessage)
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 
@@ -145,7 +145,7 @@ prepareQuilt params (Tgt base) (Tgt patch) =
                                 do result2 <- liftIO (lazyCommandE (cmd2 patches) L.empty) >>= qMessage "Patching Quilt target" . collectOutput . mergeToStderr
                                    case result2 of
                                      (_, _, ExitSuccess) -> return ()
-                                     (_, err, _) -> fail $ target ++ " - Failed to apply quilt patches"
+                                     (_, err, _) -> fail $ target ++ " - Failed to apply quilt patches: " ++ L.unpack err
                                          -- fail $ target ++ " - Failed to apply quilt patches: " ++ (cmd2 patches) ++ " ->\n" ++ L.unpack err
                             buildLog =
                                 -- If there is a changelog file in the quilt directory,

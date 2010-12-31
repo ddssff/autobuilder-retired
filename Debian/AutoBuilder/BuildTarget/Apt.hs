@@ -1,8 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Apt where
 
-import Control.Applicative.Error (Failing(..))
-import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
@@ -12,8 +10,6 @@ import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
 import Debian.Sources
 import Debian.Version
-import Control.Monad
-import Control.Monad.Trans
 import System.Unix.Directory
 import Text.Regex
 

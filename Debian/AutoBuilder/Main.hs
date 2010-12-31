@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances, ScopedTypeVariables #-}
+{-# OPTIONS -Wall #-}
 -- |AutoBuilder - application to build Debian packages in a clean
 -- environment.  In the following list, each module's dependencies
 -- appear above it:
@@ -7,21 +8,19 @@ module Debian.AutoBuilder.Main
     ) where
 
 import Control.Applicative.Error (Failing(..))
-import Control.Exception(SomeException, IOException, try, evaluate)
-import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), mapStateT)
+import Control.Exception(SomeException, IOException, try)
+import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get))
 import Control.Monad(when, unless)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import Data.List(intercalate)
-import Data.Maybe(Maybe(..), catMaybes, maybe)
-import qualified Data.Set as Set
+import Data.Maybe(catMaybes)
 --import qualified Debian.AutoBuilder.OldParams as O
 import qualified Debian.AutoBuilder.ParamClass as P
-import qualified Debian.AutoBuilder.Params as PP
 import Debian.AutoBuilder.ParamRec()    -- Instances only
-import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets, targetDocumentation, partitionFailing, ffe)
+import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Release (parseSection', releaseName')
 import Debian.Sources (SliceName(..))
@@ -38,17 +37,14 @@ import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
                          Layout(Flat), Release(releaseRepo),
                          NamedSliceList(..), Repository(LocalRepo),
                          LocalRepository(LocalRepository), outsidePath,)
-import Debian.Sources (SliceName(..))
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
 import System.Unix.Process(Output)
-import Extra.Either(rights, partitionEithers)
 import Extra.List(consperse)
 import Extra.Lock(withLock)
 import Extra.Misc(checkSuperUser)
 import System.Directory(createDirectoryIfMissing)
 import System.Posix.Files(removeLink)
-import System.Environment(getArgs)
 import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
@@ -59,8 +55,8 @@ import System.Unix.Progress (modQuietness, ePutStr, ePutStrLn, timeTask, lazyCom
 -- parameter sets.
 main :: P.ParamClass p => [p] -> IO ()
 main [] = error $ "No parameter sets"
-main params@(p : _) =
-    doMain (P.verbosity p) (mapM (\ params -> P.buildCache params >>= \ cache -> return (params, cache)) params)
+main paramSets@(p : _) =
+    doMain (P.verbosity p) (mapM (\ params -> P.buildCache params >>= \ cache -> return (params, cache)) paramSets)
 
 -- |Version of main that uses the configuration file directory and
 -- command line parameters.
@@ -94,7 +90,7 @@ checkResults [Right (Left e)] = (qPutStrLn (show e)) >> liftIO (exitWith $ ExitF
 checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
 checkResults [Left e] = ePutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
 checkResults list =
-    do mapM_ (\ (num, result) -> ePutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [1..] list)
+    do mapM_ (\ (num, result) -> ePutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
        case filter isLeft list of
          [] -> liftIO (exitWith ExitSuccess)
          _ -> liftIO (exitWith (ExitFailure 1))
@@ -114,13 +110,13 @@ checkResults list =
 appName :: String
 appName = "autobuilder"
 
-writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
+--writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
 
 runParameterSet :: P.RunClass p => p -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
     do
       qPutStrLn $ "topDir=" ++ show (P.topDir params)
-      liftIO $ writeParams params
+      -- liftIO $ writeParams params
       lift doRequiredVersion
       lift doShowParams
       doShowSources
@@ -166,10 +162,9 @@ runParameterSet params =
 
       buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS targets
       -- If all targets succeed they may be uploaded to a remote repo
-      uploadResult <- upload buildResult
-      -- This processes the remote incoming dir
-      result <- lift (newDist uploadResult)
-      updateRepoCache params
+      result <- tryAB (upload buildResult >>= lift . newDist) >>=
+                return . either (\ e -> Failure [show e]) id
+      updateRepoCache
       return result
 {-
       case partitionFailing targets of
@@ -281,8 +276,8 @@ runParameterSet params =
       --top = P.topDir params
       --dryRun = P.dryRun params
       -- flush = P.flushSource params
-      updateRepoCache :: P.RunClass p => p -> AptIOT IO ()
-      updateRepoCache params =
+      updateRepoCache :: AptIOT IO ()
+      updateRepoCache =
           do let path = P.topDir params  ++ "/repoCache"
              live <- get >>= return . getRepoMap
              cache <- liftIO $ loadCache path
@@ -293,12 +288,10 @@ runParameterSet params =
             isRemote (uri, _) = uriScheme uri /= "file:"
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
             loadCache path =
-                do text <- try (readFile path) >>= return . either (\ (_ :: IOException) -> "") id 
-                   pairs <- try (evaluate (read text)) >>= return . either (\ (_ :: IOException) -> []) id
+                do pairs <- try (readFile path >>= return . read) >>=
+                            either (\ (e :: SomeException) -> ePutStrLn ("Couldn't load cache: " ++ show e) >> return []) return
                    let (pairs' :: [(URI, Maybe Repository)]) =
                            catMaybes (map (\ (s, x) -> case parseURI s of
                                                          Nothing -> Nothing
                                                          Just uri -> Just (uri, x)) pairs)
                    return . Map.fromList . filter isRemote $ pairs'
-
-appPrefix _ = id

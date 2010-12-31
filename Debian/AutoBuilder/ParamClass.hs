@@ -38,7 +38,6 @@ import Debian.Repo.Cache ( SourcesChangedAction )
 import Debian.Repo
     ( EnvRoot(EnvRoot),
       NamedSliceList(..),
-      setRepoMap,
       parseSourcesList,
       verifySourcesList,
       repoSources )

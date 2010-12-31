@@ -12,7 +12,6 @@ import Debian.Repo
 import Network.URI (URI(..), URIAuth(..), parseURI)
 import System.Directory
 import System.FilePath
-import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory
 import System.Unix.Process
 import System.Unix.Progress (lazyCommandF, lazyCommandV, timeTask)
@@ -82,18 +81,9 @@ prepareDarcs params uriAndTag =
       createSource :: FilePath -> IO SourceTree
       createSource dir =
           let (parent, _) = splitFileName dir in
-          do r1 <- liftIO (createDirectoryIfMissing True parent)
-             r2 <- lazyCommandF cmd B.empty
-             -- r2 <- runTaskAndTest (createStyle (commandTask cmd))
+          do createDirectoryIfMissing True parent
+             lazyCommandF cmd B.empty
              findSourceTree dir
-{-             
-          do r1 <- liftIO (try (createDirectoryIfMissing True parent))
-             r2 <- either (\ (e :: SomeException) -> return . Left . show $ e)
-                          (const (runTaskAndTest (createStyle (commandTask cmd)))) r1
-             r3 <- either (return . Left) (const (findSourceTree dir)) r2
-             let r4 = either (\ message -> Left $ "Couldn't find sourceTree at " ++ dir ++ ": " ++ message) Right r3
-             return r4
--}
           where
             cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
 {-
