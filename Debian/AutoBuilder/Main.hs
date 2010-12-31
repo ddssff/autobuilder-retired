@@ -86,7 +86,7 @@ doParameterSets set =
 -- nothing.  For a single result we can print a simple message,
 -- for multiple paramter sets we need to print a summary.
 checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
-checkResults [Right (Left e)] = (qPutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
+checkResults [Right (Left e)] = (ePutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
 checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
 checkResults [Left e] = ePutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
 checkResults list =
@@ -244,13 +244,13 @@ runParameterSet params =
           | P.doUpload params =
               case P.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> qPutStr "Uploading from local repository" >> uploadRemote repo uri
+                Just uri -> ePutStr "Uploading from local repository" >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            qPutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n")
+            ePutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n")
             case P.doUpload params of
-              True -> qPutStr "Skipping upload."
+              True -> ePutStr "Skipping upload."
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
