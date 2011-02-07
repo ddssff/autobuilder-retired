@@ -73,7 +73,7 @@ import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
 import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, version)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
-import System.Unix.Process(Output(..), collectOutputUnpacked, lazyCommand, lazyProcess, stdoutOnly)
+import System.Unix.Process(Output(..), collectOutputUnpacked, mergeToStdout, lazyCommand, lazyProcess, stdoutOnly)
 import Extra.Either(partitionEithers)
 import Extra.Files(replaceFile)
 import Extra.List(dropPrefix)
@@ -1019,17 +1019,17 @@ sinkFields f (Paragraph fields) =
           f' (Comment _) = False
 
 -- |Download the package's build dependencies into /var/cache
-downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
+downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing String)
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        quieter 1 $ qPutStrLn . ("versions: " ++) . show $! vers
        ePutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
-       (code, out) <- liftIO (useEnv (rootPath root) forceList (quieter 1 (lazyCommandV command L.empty))) >>=
-                      return . collectResult
+       (out, _, code) <- liftIO (useEnv (rootPath root) forceList (quieter 1 (lazyCommandV command L.empty))) >>=
+                         return . collectOutputUnpacked . mergeToStdout
        case code of
          ExitSuccess -> return (Success out)
-         code -> qMessage ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) () >>
-                 return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code])
+         code -> qMessage ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ out) () >>
+                 return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code ++ "\nOutput:\n" ++ out])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
                  (if True then aptGetCommand else pbuilderCommand))
