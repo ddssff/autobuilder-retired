@@ -1,3 +1,11 @@
+autobuilder (6.3.2) unstable; urgency=low
+
+  * Add a hackage: target to download source code from hackage.haskell.org.  A target
+    of the form "hackage:packagename" downloads the newest version, if the form is
+    "hackage:packagename=version" the specified version is used.
+
+ -- David Fox <dsf@seereason.com>  Sat, 25 Jun 2011 12:05:05 -0700
+
 autobuilder (6.3.1) unstable; urgency=low
 
   * Fix repo caching

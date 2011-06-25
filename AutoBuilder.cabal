@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        6.3.1
+Version:        6.3.2
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -22,7 +22,7 @@ Library
   Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale,
                   network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra >= 1.40, filepath, magic, zlib,
                   bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian-repo >= 5.19, debian >= 3.53,
-                  applicative-extras, regex-tdfa, happstack-util
+                  applicative-extras, regex-tdfa, happstack-util, tar
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,
@@ -31,6 +31,7 @@ Library
     Debian.AutoBuilder.BuildTarget.Cd,
     Debian.AutoBuilder.BuildTarget.Darcs,
     Debian.AutoBuilder.BuildTarget.DebDir,
+    Debian.AutoBuilder.BuildTarget.Hackage,
     Debian.AutoBuilder.BuildTarget.Hg,
     Debian.AutoBuilder.BuildTarget.Proc,
     Debian.AutoBuilder.BuildTarget.Quilt,

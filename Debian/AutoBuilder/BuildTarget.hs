@@ -2,7 +2,7 @@
 -- |Various ways of obtaining a Debian source code tree.  Here is
 -- a list giving the syntax of the supported target types:
 --
--- [@apt:\<distribution\>:\<packagename\>@] - a target of this form looks up
+-- [apt:\<distribution\>:\<packagename\>, @apt:\<distribution\>:\<packagename\>=\<version\>@] - a target of this form looks up
 --                the sources.list named @\<distribution\>@ and retrieves the package with
 --                the given name from that distribution.
 --
@@ -23,7 +23,11 @@
 --              the local machine at the given path as the debian source tree.
 --              Packages built using this targets are not allowed to be uploaded
 --              since they include no revision control information.
---
+-- 
+-- [@hackage:\<uri\>, hackage:\<uri\>=\<version\>@] - Similar to the URI target, this
+--                target downloads and unpacks source code from the haskell hackage
+--                repository.  Without the version number the newest version is retrieved.
+-- 
 -- [@hg:\<string\>@] - A target of this form target obtains the source
 --                code by running the Mercurial command @hg clone \<string\>@.
 --
