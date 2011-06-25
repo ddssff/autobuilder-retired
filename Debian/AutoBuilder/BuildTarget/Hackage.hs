@@ -13,23 +13,24 @@ import Data.List (isPrefixOf, isSuffixOf)
 import Data.Maybe (catMaybes)
 import Debian.AutoBuilder.BuildTarget
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.Version (DebianVersion, parseDebianVersion)
 import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Exit
 import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Unix.Process (collectOutput, collectOutputUnpacked)
-import System.Unix.Progress (lazyCommandQ, lazyCommandF)
+import System.Unix.Progress (lazyCommandE, lazyCommandF)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
 import Text.Regex
 
-data Hackage = Hackage String (Maybe String) SourceTree
+data Hackage = Hackage String (Maybe DebianVersion) SourceTree
 
 instance Show Hackage where
-    show (Hackage name version _) = "hackage:" ++ name ++ maybe "" ("=" ++) version
+    show (Hackage name version _) = "hackage:" ++ name ++ maybe "" (("=" ++) . show) version
 
 documentation = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
@@ -37,15 +38,16 @@ documentation = [ "hackage:<name> or hackage:<name>=<version> - a target of this
 instance BuildTarget Hackage where
     getTop _ (Hackage _ _ tree) = topdir tree
     revision _ (Hackage name (Just version) _) =
-        return $ "hackage:" ++ name ++ "=" ++ version
+        return $ "hackage:" ++ name ++ "=" ++ show version
     revision _ (Hackage _ Nothing _) =
         fail "Attempt to generate revision string for unversioned hackage target"
     logText (Hackage name _ _) revision =
         "Built from hackage, revision: " ++ either show id revision
+    mVersion (Hackage _ v _) = v
 
 prepare :: P.RunClass p => p -> String -> IO Tgt
 prepare params target =
-    maybe (getVersion name) return version >>= \ version' ->
+    maybe (getVersion name) return version >>= return . parseDebianVersion >>= \ version' ->
     when (P.flushSource params) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
     download top name version' >>=
     findSourceTree >>=
@@ -63,7 +65,7 @@ parse cmd output =
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-download :: String -> String -> String -> IO String
+download :: String -> String -> DebianVersion -> IO String
 download top name version =
     do let dest = destPath top name version
        exists <- doesFileExist dest
@@ -77,10 +79,10 @@ download top name version =
          False -> download' top name version
 
 -- |Download without checking whether the file was already downloaded.
-download' :: String -> String -> String -> IO String
+download' :: String -> String -> DebianVersion -> IO String
 download' top name version =
     let dest = destPath top name version in
-    lazyCommandQ (downloadCommand top name version) B.empty >>=
+    lazyCommandE (downloadCommand top name version) B.empty >>=
     return . collectOutput >>= \ (out, err, res) ->
     case (err, res) of
       (_, ExitFailure _) ->
@@ -104,7 +106,7 @@ unpack name version =
 
 downloadCommand top name version = "curl -s '" ++ versionURL name version ++ "'" {- ++ " > '" ++ destPath top name version ++ "'" -}
 destPath top name version = destDir top name version ++ ".tar.gz"
-destDir top name version = tmpDir top ++ "/" ++ name ++ "-" ++ version
+destDir top name version = tmpDir top ++ "/" ++ name ++ "-" ++ show version
 tmpDir top = top ++ "/hackage"
 
 parseTarget target =
@@ -117,7 +119,7 @@ parseTarget target =
 -- > getVersion \"binary\" -> \"0.5.0.2\"
 getVersion :: String -> IO String
 getVersion name =
-    lazyCommandQ cmd B.empty >>= return . findVersion name . parse cmd
+    lazyCommandE cmd B.empty >>= return . findVersion name . parse cmd
     where cmd = curlCmd (packageURL name)
 
 curlCmd url = "curl -s '" ++ url ++ "'"
@@ -146,6 +148,6 @@ findVersion package (Document _ _ (Elem name attrs content) _) =
 
 -- |Hackage paths
 packageURL name = "http://hackage.haskell.org/package/" ++ name
-versionURL name version = "http://hackage.haskell.org/packages/archive/" ++ name ++ "/" ++ version ++ "/" ++ name ++ "-" ++ version ++ ".tar.gz"
+versionURL name version = "http://hackage.haskell.org/packages/archive/" ++ name ++ "/" ++ show version ++ "/" ++ name ++ "-" ++ show version ++ ".tar.gz"
 
 unimplemented = undefined

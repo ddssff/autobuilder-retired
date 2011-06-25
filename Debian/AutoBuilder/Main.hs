@@ -12,6 +12,7 @@ import Control.Exception(SomeException, IOException, try)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get))
 import Control.Monad(when, unless)
 import qualified Data.ByteString.Lazy as L
+import Data.Either (partitionEithers)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
@@ -159,13 +160,16 @@ runParameterSet params =
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <- iStyle $ prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
-
-      buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS targets
-      -- If all targets succeed they may be uploaded to a remote repo
-      result <- tryAB (upload buildResult >>= lift . newDist) >>=
-                return . either (\ e -> Failure [show e]) id
-      updateRepoCache
-      return result
+      case partitionEithers targets of
+        ([], targets') ->
+            do buildResult <- buildTargets params cleanOS globalBuildDeps localRepo poolOS targets'
+               -- If all targets succeed they may be uploaded to a remote repo
+               result <- tryAB (upload buildResult >>= lift . newDist) >>=
+                         return . either (\ e -> Failure [show e]) id
+               updateRepoCache
+               return result
+        (failures, _) ->
+            error $ "Some targets could not be prepared:\n " ++ intercalate "\n " (map show failures)
 {-
       case partitionFailing targets of
         ([], ok) ->
@@ -235,7 +239,7 @@ runParameterSet params =
       prepareTargetList =
           do ePutStr (showTargets allTargets)
              ePutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.sourcePackageName target, quieter 3 (readSpec params (P.sourceSpec target)))) allTargets)
+             countTasks (map (\ target -> (P.sourcePackageName target, tryAB (quieter 3 (readSpec params (P.sourceSpec target))))) allTargets)
           where
             allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets params))) (Set.toList (P.targets params))
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))

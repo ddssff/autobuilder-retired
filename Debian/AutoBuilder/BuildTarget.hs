@@ -74,6 +74,7 @@ import Data.Time (NominalDiffTime)
 import Debian.Repo
 import Debian.AutoBuilder.ParamClass (ParamClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.Version(DebianVersion)
 import System.Unix.Process
 
 import Data.Char (ord)
@@ -118,6 +119,9 @@ class BuildTarget t where
         buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.
     logText :: Exception e => t -> Either e String -> String
+    -- |Some targets can return a debian version, use this to retrieve it.
+    mVersion :: t -> Maybe DebianVersion
+    mVersion _ = Nothing
 
 -- |Dir is a simple instance of BuildTarget representing building the
 -- debian source in a local directory.  This type of target is used

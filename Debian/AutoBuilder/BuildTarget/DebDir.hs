@@ -5,6 +5,8 @@ import Data.ByteString.Lazy.Char8 (empty)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.Changes (logVersion)
+import Debian.Version (version)
 import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory
@@ -37,8 +39,18 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
     createDirectoryIfMissing True (P.topDir params ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>
-    findDebianSourceTree dest >>=
-    return . Tgt . DebDir (Tgt upstream) (Tgt debian)
+    findDebianSourceTree dest >>= \ tree ->
+    let tgt = Tgt (DebDir (Tgt upstream) (Tgt debian) tree) in
+    -- The upstream and downstream versions must match after the epoch and revision is stripped.
+    case mVersion upstream of
+      Nothing -> return tgt
+      Just debianV ->
+          let upstreamV = logVersion (entry tree) in
+          case compare (version upstreamV) (version debianV) of
+            -- If the debian version is too old it needs to be bumped, this ensures we notice
+            -- when a new upstream appears.
+            GT -> error $ show tgt ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ version upstreamV ++ ")"
+            _ -> return tgt
 {-
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
     either (\ (e :: SomeException) -> return . Left . show $ e) (const copyUpstream) >>=
