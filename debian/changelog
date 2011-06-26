@@ -1,3 +1,10 @@
+autobuilder (6.3.3) unstable; urgency=low
+
+  * Fix the detection of a failure condition where the upstream source
+    version is newer than the version in the debian directory
+
+ -- David Fox <dsf@seereason.com>  Sun, 26 Jun 2011 10:50:05 -0700
+
 autobuilder (6.3.2) unstable; urgency=low
 
   * Add a hackage: target to download source code from hackage.haskell.org.  A target

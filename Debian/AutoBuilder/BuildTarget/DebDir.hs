@@ -44,12 +44,12 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
     -- The upstream and downstream versions must match after the epoch and revision is stripped.
     case mVersion upstream of
       Nothing -> return tgt
-      Just debianV ->
-          let upstreamV = logVersion (entry tree) in
-          case compare (version upstreamV) (version debianV) of
+      Just upstreamV ->
+          let debianV = logVersion (entry tree) in
+          case compare (version debianV) (version upstreamV) of
             -- If the debian version is too old it needs to be bumped, this ensures we notice
-            -- when a new upstream appears.
-            GT -> error $ show tgt ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ version upstreamV ++ ")"
+            -- when a new upstream appears.  We should just modify the changelog directly.
+            LT -> error $ show tgt ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ version upstreamV ++ ")"
             _ -> return tgt
 {-
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
