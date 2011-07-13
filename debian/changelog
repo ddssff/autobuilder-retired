@@ -1,3 +1,13 @@
+autobuilder (6.3.5) unstable; urgency=low
+
+  * Use unmountRecursiveSafely to unmount /proc after installing the build
+    deps, as well as after build of a proc target, in case it somehow gets
+    unmounted.
+  * Only mount /proc during the actual call to apt-get, not for all of
+    prepareBuildImage.
+
+ -- David Fox <dsf@seereason.com>  Wed, 13 Jul 2011 15:42:36 -0700
+
 autobuilder (6.3.4) unstable; urgency=low
 
   * Mount /proc while installing build dependencies - some packages

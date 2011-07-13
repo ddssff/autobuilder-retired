@@ -672,7 +672,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
     where
       checkDryRun = when (P.dryRun params)  (do qPutStrLn "Not proceeding due to -n option."
                                                 liftIO (exitWith ExitSuccess))
-      prepareImage = Proc.withProc buildOS $ prepareBuildImage params cleanOS sourceDependencies buildOS target (P.strictness params)
+      prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (P.strictness params)
       logEntry :: DebianBuildTree -> IO (Failing DebianBuildTree)
       logEntry buildTree = 
           case P.noClean params of
@@ -1049,8 +1049,8 @@ pathBelow root path =
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
 installDependencies os source extra versions =
     do ePutStrLn ("Installing build dependencies into " ++ rootPath (rootDir os))
-       (code, out) <- liftIO (useEnv (rootPath root) forceList (quieter 1 (lazyCommandV command L.empty))) >>=
-                       return . collectResult
+       (code, out) <- liftIO (useEnv (rootPath root) forceList $ quieter 1 $ Proc.withProc os $ lazyCommandV command L.empty) >>=
+                      return . collectResult
        case code of
          ExitSuccess -> return (Success out)
          code -> ePutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
