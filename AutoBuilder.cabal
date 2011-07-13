@@ -21,7 +21,7 @@ Build-type:     Simple
 Library
   Build-Depends:  base, parsec, regex-compat, bytestring, containers, directory, process, old-time, old-locale,
                   network, unix, Unixutils, xhtml, mtl, time, MIME >= 1.1, Extra >= 1.40, filepath, magic, zlib,
-                  bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian-repo >= 5.19, debian >= 3.53,
+                  bzlib, pretty, HaXml, regex-posix, template-haskell, Cabal, debian-repo >= 5.20.1, debian >= 3.53,
                   applicative-extras, regex-tdfa, happstack-util, tar
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
