@@ -1,3 +1,10 @@
+autobuilder (6.3.4) unstable; urgency=low
+
+  * Mount /proc while installing build dependencies - some packages
+    require it, and it is so normal I can't forsee any adverse effects.
+
+ -- David Fox <dsf@seereason.com>  Tue, 12 Jul 2011 22:28:53 -0700
+
 autobuilder (6.3.3) unstable; urgency=low
 
   * Fix the detection of a failure condition where the upstream source

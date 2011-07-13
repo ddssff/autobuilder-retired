@@ -672,7 +672,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
     where
       checkDryRun = when (P.dryRun params)  (do qPutStrLn "Not proceeding due to -n option."
                                                 liftIO (exitWith ExitSuccess))
-      prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (P.strictness params)
+      prepareImage = Proc.withProc buildOS $ prepareBuildImage params cleanOS sourceDependencies buildOS target (P.strictness params)
       logEntry :: DebianBuildTree -> IO (Failing DebianBuildTree)
       logEntry buildTree = 
           case P.noClean params of
