@@ -8,6 +8,7 @@ import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
+import System.IO (hPutStrLn, stderr)
 import System.Process (rawSystem)
 import System.Unix.Directory (unmountRecursiveSafely)
 import System.Unix.Process
@@ -30,7 +31,7 @@ instance BuildTarget Proc where
     revision params (Proc (Tgt s)) =  
         Debian.AutoBuilder.BuildTarget.revision params s >>= return . ("proc:" ++)
     buildPkg params buildOS buildTree status _ =
-        do qPutStrLn "Mouting /proc during target build"
+        do hPutStrLn stderr "Mounting /proc during target build"
            withProc buildOS $ buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
@@ -39,12 +40,20 @@ prepareProc _ base = return . Tgt $ Proc base
 
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =
-    do qPutStrLn "Mouting /proc during target build"
-       createDirectoryIfMissing True (rootPath (rootDir buildOS) ++ "/proc")
-       code <- rawSystem "mount" ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"]
+    do hPutStrLn stderr "Mounting /proc during target build"
+       createDirectoryIfMissing True dir
+       code <- rawSystem cmd args
        case code of
          ExitSuccess ->
-             do result <- task
-                unmountRecursiveSafely (rootPath (rootDir buildOS) ++ "/proc")
+             do hPutStrLn stderr "Mounted /proc"
+                result <- task
+                hPutStrLn stderr "Unmounting /proc..."
+                unmountRecursiveSafely dir
+                hPutStrLn stderr "Unmounted /proc."
                 return result
-         _ -> fail (intercalate " " ("mount" : ["--bind", "/proc", rootPath (rootDir buildOS) ++ "/proc"]) ++ " -> " ++ show code)
+         _ -> do hPutStrLn stderr "Mount of /proc failed!"
+                 fail (intercalate " " (cmd : args) ++ " -> " ++ show code)
+    where
+      cmd = "mount"
+      args = ["--bind", "/proc", dir]
+      dir = rootPath (rootDir buildOS) ++ "/proc"
