@@ -748,7 +748,7 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
           findOneDebianBuildTree newPath >>=
           return . failing (\ msgs -> Failure (("No build tree at " ++ show newPath) : msgs)) Success
       prepareTree False _ =
-          quieter 1 (qPutStr "Syncing buildOS") >>
+          qPutStr "Syncing buildOS..." >>
           Debian.Repo.syncEnv cleanOS buildOS >>=
           const (try (copyDebianBuildTree (cleanSource target) newPath)) >>=
           return . either (\ (e :: SomeException) -> Failure [show e]) Success
@@ -1027,7 +1027,7 @@ downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        quieter 1 $ qPutStrLn . ("versions: " ++) . show $! vers
        ePutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
-       (out, _, code) <- liftIO (useEnv (rootPath root) forceList (quieter 1 (lazyCommandV command L.empty))) >>=
+       (out, _, code) <- useEnv (rootPath root) forceList (lazyCommandV command L.empty) >>=
                          return . collectOutputUnpacked . mergeToStdout
        case code of
          ExitSuccess -> return (Success out)

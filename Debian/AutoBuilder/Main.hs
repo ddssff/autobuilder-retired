@@ -56,62 +56,19 @@ import System.Unix.Progress (modQuietness, ePutStr, ePutStrLn, timeTask, lazyCom
 -- parameter sets.
 main :: P.ParamClass p => [p] -> IO ()
 main [] = error $ "No parameter sets"
-main paramSets@(p : _) =
-    doMain (P.verbosity p) (mapM (\ params -> P.buildCache params >>= \ cache -> return (params, cache)) paramSets)
-
--- |Version of main that uses the configuration file directory and
--- command line parameters.
-{-
-oldMain :: IO ()
-oldMain =
-    do verbosity <- getArgs >>= \ args -> return (length (filter (== "-v") args) - length (filter (== "-q") args))
-       doMain verbosity (O.params appName [] doHelp doVersion)
--}
-
--- | 
-doMain :: P.RunClass p => Int -> AptIOT IO [p] -> IO ()
-doMain verbosity f =
-    do modQuietness (const (- verbosity)) $ runAptIO (f >>= mapM doParameterSets) >>= checkResults
-       IO.hFlush IO.stderr
+main paramSets =
+    runAptIO (mapM doParameterSet paramSets) >>=
+    checkResults >>
+    IO.hFlush IO.stderr
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.
-doParameterSets :: P.RunClass p => p -> AptIOT IO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
-doParameterSets set =
-    withLock (lockFilePath set) (tryAB . runParameterSet $ set)
-    where
-      lockFilePath params = P.topDir params ++ "/lockfile"
-
--- |The result of processing a set of parameters is either an
--- exception or a completion code, or, if we fail to get a lock,
--- nothing.  For a single result we can print a simple message,
--- for multiple paramter sets we need to print a summary.
-checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
-checkResults [Right (Left e)] = (ePutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
-checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
-checkResults [Left e] = ePutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
-checkResults list =
-    do mapM_ (\ (num, result) -> ePutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
-       case filter isLeft list of
-         [] -> liftIO (exitWith ExitSuccess)
-         _ -> liftIO (exitWith (ExitFailure 1))
-    where showResult (Right (Left e)) = show e
-          showResult (Right (Right _)) = "Ok"
-          showResult (Left e) = "Ok (" ++ show e ++ ")"
-          isLeft (Right (Left _)) = True
-          isLeft (Left _) = True
-          isLeft (Right (Right _)) = False    
-
---doHelp appName = IO.putStrLn (O.usage appName ++ targetDocumentation) >> exitWith ExitSuccess
---doVersion = IO.putStrLn V.autoBuilderVersion >> exitWith ExitSuccess
-
--- |The application name is used to compute the default configuration
--- file names and the name of the cache directory (topDir,) among
--- other things.
-appName :: String
-appName = "autobuilder"
-
---writeParams p = writeFile "/tmp/params" (show (PP.makeParamRec p))
+doParameterSet :: P.ParamClass p => p -> AptIOT IO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
+doParameterSet params =
+    modQuietness (const (- (P.verbosity params))) $
+    P.buildCache params >>= \ cache ->
+    let params' = (params, cache) in
+    withLock (P.topDir params' ++ "/lockfile") (tryAB . runParameterSet $ params')
 
 runParameterSet :: P.RunClass p => p -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet params =
@@ -137,7 +94,7 @@ runParameterSet params =
                          (P.excludePackages params)
                          (P.components params))
       qPutStrLn "Updating cache sources"
-      updateCacheSources (P.ifSourcesChanged params) cleanOS
+      _ <- updateCacheSources (P.ifSourcesChanged params) cleanOS
 
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
@@ -299,3 +256,23 @@ runParameterSet params =
                                                          Nothing -> Nothing
                                                          Just uri -> Just (uri, x)) pairs)
                    return . Map.fromList . filter isRemote $ pairs'
+
+-- |The result of processing a set of parameters is either an
+-- exception or a completion code, or, if we fail to get a lock,
+-- nothing.  For a single result we can print a simple message,
+-- for multiple paramter sets we need to print a summary.
+checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
+checkResults [Right (Left e)] = (ePutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
+checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
+checkResults [Left e] = ePutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
+checkResults list =
+    do mapM_ (\ (num, result) -> ePutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
+       case filter isLeft list of
+         [] -> liftIO (exitWith ExitSuccess)
+         _ -> liftIO (exitWith (ExitFailure 1))
+    where showResult (Right (Left e)) = show e
+          showResult (Right (Right _)) = "Ok"
+          showResult (Left e) = "Ok (" ++ show e ++ ")"
+          isLeft (Right (Left _)) = True
+          isLeft (Left _) = True
+          isLeft (Right (Right _)) = False    
