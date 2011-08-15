@@ -1,3 +1,11 @@
+autobuilder (6.4) unstable; urgency=low
+
+  * Run cabal-debian on hackage targets to generate debianization.
+    This means we need to remove all the deb-dir targets we wrapped around
+    our hackage targets.
+
+ -- David Fox <dsf@seereason.com>  Mon, 15 Aug 2011 10:50:41 -0700
+
 autobuilder (6.3.5) unstable; urgency=low
 
   * Use unmountRecursiveSafely to unmount /proc after installing the build

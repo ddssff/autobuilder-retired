@@ -19,7 +19,7 @@ import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Exit
 import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Process (collectOutput, collectOutputUnpacked)
+import System.Unix.Process (collectOutput, collectOutputUnpacked, lazyProcess)
 import System.Unix.Progress (lazyCommandE, lazyCommandF)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
@@ -49,7 +49,7 @@ prepare :: P.RunClass p => p -> String -> IO Tgt
 prepare params target =
     maybe (getVersion name) return version >>= return . parseDebianVersion >>= \ version' ->
     when (P.flushSource params) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
-    download top name version' >>=
+    downloadAndDebianize top name version' >>=
     findSourceTree >>=
     return . Tgt . Hackage name (Just version')
     where
@@ -65,22 +65,37 @@ parse cmd output =
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-download :: String -> String -> DebianVersion -> IO String
-download top name version =
+downloadAndDebianize :: String -> String -> DebianVersion -> IO String
+downloadAndDebianize top name version =
     do let dest = destPath top name version
        exists <- doesFileExist dest
-       case exists of
-         True -> 
-             do text <- B.readFile dest
-                let entries = Tar.read (Z.decompress text)
-                case Tar.foldEntries (\ e (Right n) -> Right (n + 1)) (Right 0) Left entries of
-                  Left s -> download' top name version
-                  Right _ -> return (destDir top name version)
-         False -> download' top name version
+       dir <-
+           case exists of
+             True -> 
+                 do text <- B.readFile dest
+                    let entries = Tar.read (Z.decompress text)
+                    case Tar.foldEntries (\ e (Right n) -> Right (n + 1)) (Right 0) Left entries of
+                      Left s -> download top name version
+                      Right _ -> return (destDir top name version)
+             False -> download top name version
+       debianize dir
+       return dir
+
+-- |FIXME: It would be better to have a cabal: target which did this
+-- debianization, then we could debianize cabal packages whatever their origin,
+-- and we wouldn't have to debianize *every* hackage target.  But I'm out of
+-- patience right now...
+debianize dir =
+    do (out, err, code) <-
+           lazyProcess "cabal-debian" ["--debianize", "--maintainer", "'Unknown Maintainer <unknown@debian.org>'"] (Just dir) Nothing B.empty >>=
+           return . collectOutputUnpacked
+       case code of
+         ExitFailure n -> error ("cabal-debian -> " ++ show n ++ "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
+         ExitSuccess -> return ()
 
 -- |Download without checking whether the file was already downloaded.
-download' :: String -> String -> DebianVersion -> IO String
-download' top name version =
+download :: String -> String -> DebianVersion -> IO String
+download top name version =
     let dest = destPath top name version in
     lazyCommandE (downloadCommand top name version) B.empty >>=
     return . collectOutput >>= \ (out, err, res) ->
