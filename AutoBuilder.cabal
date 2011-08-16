@@ -32,6 +32,7 @@ Library
     Debian.AutoBuilder.BuildTarget.Darcs,
     Debian.AutoBuilder.BuildTarget.DebDir,
     Debian.AutoBuilder.BuildTarget.Hackage,
+    Debian.AutoBuilder.BuildTarget.OldHackage,
     Debian.AutoBuilder.BuildTarget.Hg,
     Debian.AutoBuilder.BuildTarget.Proc,
     Debian.AutoBuilder.BuildTarget.Quilt,
