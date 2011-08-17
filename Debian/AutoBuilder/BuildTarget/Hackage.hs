@@ -94,9 +94,7 @@ debianize params dir =
            return . collectOutputUnpacked
        case code of
          ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian --debianize --maintainer 'Unknown Maintainer <unknown@debian.org>' --root " ++ show root ++ "\n -> " ++ show n ++ "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
-         ExitSuccess ->
-             hPutStrLn stderr ("cabal-debian output, Stdout:\n" ++ out ++ "\nStderr:\n" ++ err) >>
-             return ()
+         ExitSuccess -> return ()
     where
       root = rootPath (P.cleanRootOfRelease params (P.buildRelease params))
       ver = P.ghcVersion params
