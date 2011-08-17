@@ -233,6 +233,10 @@ class Show a => ParamClass a where
     components :: a -> [String]
     -- ^ The list of components of the base repository, for Ubuntu this is
     -- main,restricted,universe,multiverse.
+    ghcVersion :: a -> Maybe String
+    -- ^ Until we can get the code to look for the compiler version in the
+    -- changeroot, we use this to tell cabal-debian what compiler we are
+    -- going to build with.
     developmentReleaseNames :: a -> [String]
     -- ^ The list of upstream release which are currently in
     -- development.  This means we the tag we add doesn't need to
@@ -420,6 +424,7 @@ instance (Show p, Show a, ParamClass p) => ParamClass (p, a) where
     includePackages = includePackages . fst
     excludePackages = excludePackages . fst
     components = components . fst
+    ghcVersion = ghcVersion . fst
     buildRelease = buildRelease . fst
     releaseSuffixes = releaseSuffixes . fst
     developmentReleaseNames = developmentReleaseNames . fst

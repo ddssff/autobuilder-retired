@@ -43,6 +43,7 @@ data ParamRec =
     , includePackages :: [String]
     , excludePackages :: [String]
     , components :: [String]
+    , ghcVersion :: Maybe String
     , buildRelease :: ReleaseName
     , releaseSuffixes :: [String]
     , developmentReleaseNames :: [String]
@@ -106,6 +107,7 @@ instance ParamClass ParamRec where
     includePackages = Debian.AutoBuilder.ParamRec.includePackages
     excludePackages = Debian.AutoBuilder.ParamRec.excludePackages
     components = Debian.AutoBuilder.ParamRec.components
+    ghcVersion = Debian.AutoBuilder.ParamRec.ghcVersion
     buildRelease = Debian.AutoBuilder.ParamRec.buildRelease
     releaseSuffixes = Debian.AutoBuilder.ParamRec.releaseSuffixes
     developmentReleaseNames = Debian.AutoBuilder.ParamRec.developmentReleaseNames

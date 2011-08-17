@@ -49,7 +49,7 @@ prepare :: P.RunClass p => p -> String -> IO Tgt
 prepare params target =
     maybe (getVersion name) return version >>= return . parseDebianVersion >>= \ version' ->
     when (P.flushSource params) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
-    downloadAndDebianize top name version' >>=
+    downloadAndDebianize params name version' >>=
     findSourceTree >>=
     return . Tgt . Hackage name (Just version')
     where
@@ -65,8 +65,8 @@ parse cmd output =
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-downloadAndDebianize :: String -> String -> DebianVersion -> IO String
-downloadAndDebianize top name version =
+downloadAndDebianize ::  P.RunClass p => p -> String -> DebianVersion -> IO String
+downloadAndDebianize params name version =
     do let dest = destPath top name version
        exists <- doesFileExist dest
        dir <-
@@ -78,20 +78,28 @@ downloadAndDebianize top name version =
                       Left s -> download top name version
                       Right _ -> return (destDir top name version)
              False -> download top name version
-       debianize dir
+       debianize params dir
        return dir
+    where
+      top = P.topDir params
 
 -- |FIXME: It would be better to have a cabal: target which did this
 -- debianization, then we could debianize cabal packages whatever their origin,
 -- and we wouldn't have to debianize *every* hackage target.  But I'm out of
 -- patience right now...
-debianize dir =
+debianize params dir =
     do (out, err, code) <-
-           lazyProcess "cabal-debian" ["--debianize", "--maintainer", "'Unknown Maintainer <unknown@debian.org>'"] (Just dir) Nothing B.empty >>=
+           lazyProcess "cabal-debian" (["--debianize", "--maintainer", "'Unknown Maintainer <unknown@debian.org>'"] ++
+                                       [{- "--root", root -}] ++ maybe [] (\ x -> ["--ghc-version", x]) ver) (Just dir) Nothing B.empty >>=
            return . collectOutputUnpacked
        case code of
-         ExitFailure n -> error ("cabal-debian -> " ++ show n ++ "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
-         ExitSuccess -> return ()
+         ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian --debianize --maintainer 'Unknown Maintainer <unknown@debian.org>' --root " ++ show root ++ "\n -> " ++ show n ++ "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
+         ExitSuccess ->
+             hPutStrLn stderr ("cabal-debian output, Stdout:\n" ++ out ++ "\nStderr:\n" ++ err) >>
+             return ()
+    where
+      root = rootPath (P.cleanRootOfRelease params (P.buildRelease params))
+      ver = P.ghcVersion params
 
 -- |Download without checking whether the file was already downloaded.
 download :: String -> String -> DebianVersion -> IO String

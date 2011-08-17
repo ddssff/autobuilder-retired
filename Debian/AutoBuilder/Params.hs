@@ -48,6 +48,7 @@ makeParamRec params =
     , R.includePackages = P.includePackages params
     , R.excludePackages = P.excludePackages params
     , R.components = P.components params
+    , R.ghcVersion = P.ghcVersion params
     , R.buildRelease = P.buildRelease params
     , R.releaseSuffixes = P.releaseSuffixes params
     , R.doNotChangeVersion = P.doNotChangeVersion params

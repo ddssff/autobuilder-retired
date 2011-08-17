@@ -90,7 +90,7 @@ runParameterSet params =
                          (Just localRepo)
                          (P.flushRoot params)
                          (P.ifSourcesChanged params)
-                         (P.includePackages params)
+                         (P.includePackages params ++ ["haskell-debian-utils"])
                          (P.excludePackages params)
                          (P.components params))
       qPutStrLn "Updating cache sources"
