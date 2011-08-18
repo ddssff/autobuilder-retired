@@ -1,9 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
--- |The Hackage target is a variation on the URI target where we assume
--- a mapping between (packagname, version) and the corresponding URI.  The
--- form is either hackage:<name> or hackage:<name>=<version>.
-
-module Debian.AutoBuilder.BuildTarget.OldHackage (OldHackage(..), prepare, documentation) where
+-- |The intent is that this target debianize any cabal target, but currently
+-- it combines debianization with the hackage target.
+module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, documentation) where
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
@@ -27,31 +25,32 @@ import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
 import Text.Regex
 
-data OldHackage = OldHackage String (Maybe DebianVersion) SourceTree
+data Debianize = Debianize String (Maybe DebianVersion) SourceTree
 
-instance Show OldHackage where
-    show (OldHackage name version _) = "oldhackage:" ++ name ++ maybe "" (("=" ++) . show) version
+instance Show Debianize where
+    show (Debianize name version _) = "debianize:" ++ name ++ maybe "" (("=" ++) . show) version
 
-documentation = [ "oldhackage:<name> or oldhackage:<name>=<version> - a target of this form"
-                , "retrieves source code from http://hackage.haskell.org." ]
+documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
+                , "(currently) retrieves source code from http://hackage.haskell.org and runs"
+                , "cabal-debian to create the debianization." ]
 
-instance BuildTarget OldHackage where
-    getTop _ (OldHackage _ _ tree) = topdir tree
-    revision _ (OldHackage name (Just version) _) =
-        return $ "oldhackage:" ++ name ++ "=" ++ show version
-    revision _ (OldHackage _ Nothing _) =
+instance BuildTarget Debianize where
+    getTop _ (Debianize _ _ tree) = topdir tree
+    revision _ (Debianize name (Just version) _) =
+        return $ "debianize:" ++ name ++ "=" ++ show version
+    revision _ (Debianize _ Nothing _) =
         fail "Attempt to generate revision string for unversioned hackage target"
-    logText (OldHackage name _ _) revision =
+    logText (Debianize name _ _) revision =
         "Built from hackage, revision: " ++ either show id revision
-    mVersion (OldHackage _ v _) = v
+    mVersion (Debianize _ v _) = v
 
 prepare :: P.RunClass p => p -> String -> IO Tgt
 prepare params target =
     maybe (getVersion name) return version >>= return . parseDebianVersion >>= \ version' ->
     when (P.flushSource params) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
-    download top name version' >>=
+    downloadAndDebianize params name version' >>=
     findSourceTree >>=
-    return . Tgt . OldHackage name (Just version')
+    return . Tgt . Debianize name (Just version')
     where
       top = P.topDir params
       (name, version) = parseTarget target
@@ -65,22 +64,43 @@ parse cmd output =
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-download :: String -> String -> DebianVersion -> IO String
-download top name version =
+downloadAndDebianize ::  P.RunClass p => p -> String -> DebianVersion -> IO String
+downloadAndDebianize params name version =
     do let dest = destPath top name version
        exists <- doesFileExist dest
-       case exists of
-         True -> 
-             do text <- B.readFile dest
-                let entries = Tar.read (Z.decompress text)
-                case Tar.foldEntries (\ e (Right n) -> Right (n + 1)) (Right 0) Left entries of
-                  Left s -> download' top name version
-                  Right _ -> return (destDir top name version)
-         False -> download' top name version
+       dir <-
+           case exists of
+             True -> 
+                 do text <- B.readFile dest
+                    let entries = Tar.read (Z.decompress text)
+                    case Tar.foldEntries (\ e (Right n) -> Right (n + 1)) (Right 0) Left entries of
+                      Left s -> download top name version
+                      Right _ -> return (destDir top name version)
+             False -> download top name version
+       debianize params dir
+       return dir
+    where
+      top = P.topDir params
+
+-- |FIXME: It would be better to have a cabal: target which did this
+-- debianization, then we could debianize cabal packages whatever their origin,
+-- and we wouldn't have to debianize *every* hackage target.  But I'm out of
+-- patience right now...
+debianize params dir =
+    do (out, err, code) <-
+           lazyProcess "cabal-debian" (["--debianize", "--maintainer", "'Unknown Maintainer <unknown@debian.org>'"] ++
+                                       [{- "--root", root -}] ++ maybe [] (\ x -> ["--ghc-version", x]) ver) (Just dir) Nothing B.empty >>=
+           return . collectOutputUnpacked
+       case code of
+         ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian --debianize --maintainer 'Unknown Maintainer <unknown@debian.org>' --root " ++ show root ++ "\n -> " ++ show n ++ "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
+         ExitSuccess -> return ()
+    where
+      root = rootPath (P.cleanRootOfRelease params (P.buildRelease params))
+      ver = P.ghcVersion params
 
 -- |Download without checking whether the file was already downloaded.
-download' :: String -> String -> DebianVersion -> IO String
-download' top name version =
+download :: String -> String -> DebianVersion -> IO String
+download top name version =
     let dest = destPath top name version in
     lazyCommandE (downloadCommand top name version) B.empty >>=
     return . collectOutput >>= \ (out, err, res) ->
