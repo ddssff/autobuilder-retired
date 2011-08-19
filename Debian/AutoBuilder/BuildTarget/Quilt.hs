@@ -20,9 +20,10 @@ import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), Tgt(Tgt), getTop, md5sum)
+import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), getTop, md5sum)
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)

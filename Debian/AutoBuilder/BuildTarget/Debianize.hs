@@ -11,6 +11,7 @@ import Data.List (isPrefixOf, isSuffixOf)
 import Data.Maybe (catMaybes)
 import Debian.AutoBuilder.BuildTarget
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Version (DebianVersion, parseDebianVersion)
 import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing)

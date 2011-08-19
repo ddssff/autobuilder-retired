@@ -9,6 +9,7 @@ import qualified Debian.Version as V
 
 import Debian.AutoBuilder.BuildTarget as BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List

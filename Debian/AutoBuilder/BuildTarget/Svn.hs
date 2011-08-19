@@ -14,6 +14,7 @@ import Data.List
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Control.ByteString
 import Debian.Repo
 --import Debian.OldShell (FullTask, runTaskAndTest, processTask, timeTaskAndTest, commandTask, setStart, setError, runTask, processTask)
@@ -66,7 +67,7 @@ instance BuildTarget Svn where
           cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
           -- cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ path))
 
-    revision _ (Svn uri tree) =
+    revision _ (Svn uri _) =
         svn (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         -- svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         return . readControl

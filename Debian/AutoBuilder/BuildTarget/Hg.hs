@@ -19,6 +19,7 @@ import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import System.Unix.Progress (lazyCommandF, timeTask)
 
 data Hg = Hg String SourceTree

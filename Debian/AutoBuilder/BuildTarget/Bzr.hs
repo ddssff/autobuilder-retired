@@ -7,9 +7,10 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
-import Debian.AutoBuilder.BuildTarget (BuildTarget(..), Tgt(..), md5sum)
+import Debian.AutoBuilder.BuildTarget (BuildTarget(..), md5sum)
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import Debian.URI
 import System.Exit (ExitCode(..))

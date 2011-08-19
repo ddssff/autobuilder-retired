@@ -10,6 +10,7 @@ import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 --import Debian.OldShell (runCommand, runCommandTimed)
 import Debian.URI

@@ -10,17 +10,17 @@ import qualified Codec.Compression.GZip as Z
 import Control.Monad (when)
 import qualified Data.ByteString.Lazy as B
 import Data.List (isPrefixOf, isSuffixOf)
-import Data.Maybe (catMaybes)
 import Debian.AutoBuilder.BuildTarget
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Version (DebianVersion, parseDebianVersion)
 import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Exit
 import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Process (collectOutput, collectOutputUnpacked, lazyProcess)
-import System.Unix.Progress (lazyCommandE, lazyCommandF)
+import System.Unix.Process (collectOutput, collectOutputUnpacked)
+import System.Unix.Progress (lazyCommandE)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
@@ -41,7 +41,7 @@ instance BuildTarget Hackage where
         return $ "hackage:" ++ name ++ "=" ++ show version
     revision _ (Hackage _ Nothing _) =
         fail "Attempt to generate revision string for unversioned hackage target"
-    logText (Hackage name _ _) revision =
+    logText (Hackage _ _ _) revision =
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Hackage _ v _) = v
 
@@ -73,8 +73,8 @@ download top name version =
          True -> 
              do text <- B.readFile dest
                 let entries = Tar.read (Z.decompress text)
-                case Tar.foldEntries (\ e (Right n) -> Right (n + 1)) (Right 0) Left entries of
-                  Left s -> download' top name version
+                case Tar.foldEntries (\ _ (Right n) -> Right (n + 1)) (Right 0) Left entries of
+                  Left _ -> download' top name version
                   Right _ -> return (destDir top name version)
          False -> download' top name version
 
@@ -95,6 +95,7 @@ download' top name version =
              B.writeFile dest out
              return (destDir top name version)
 
+{-
 unpack name version =
     mkdir >> untar >>= readDir >>= search >>= verify
     where
@@ -103,8 +104,9 @@ unpack name version =
       readDir = unimplemented
       search = unimplemented
       verify = unimplemented
+-}
 
-downloadCommand top name version = "curl -s '" ++ versionURL name version ++ "'" {- ++ " > '" ++ destPath top name version ++ "'" -}
+downloadCommand _ name version = "curl -s '" ++ versionURL name version ++ "'" {- ++ " > '" ++ destPath top name version ++ "'" -}
 destPath top name version = destDir top name version ++ ".tar.gz"
 destDir top name version = tmpDir top ++ "/" ++ name ++ "-" ++ show version
 tmpDir top = top ++ "/hackage"
@@ -125,10 +127,10 @@ getVersion name =
 curlCmd url = "curl -s '" ++ url ++ "'"
 
 findVersion :: String -> Document Posn -> String
-findVersion package (Document _ _ (Elem name attrs content) _) =
+findVersion package (Document _ _ (Elem _ _ content) _) =
     case doContentList content of
       [s] -> s
-      ss -> error ("Could not find version number of " ++ package ++ " in " ++ show (map (htmlprint . (: [])) content))
+      _ -> error ("Could not find version number of " ++ package ++ " in " ++ show (map (htmlprint . (: [])) content))
     where
       doContentList [CElem (Elem "head" _ _) _, CElem (Elem "body" _ content) _] = doContentList content
       doContentList [CElem (Elem "div" _ _) _, CElem (Elem "div" _ content) _, CElem (Elem "div" _ _) _] = doContentList content
@@ -150,4 +152,4 @@ findVersion package (Document _ _ (Elem name attrs content) _) =
 packageURL name = "http://hackage.haskell.org/package/" ++ name
 versionURL name version = "http://hackage.haskell.org/packages/archive/" ++ name ++ "/" ++ show version ++ "/" ++ name ++ "-" ++ show version ++ ".tar.gz"
 
-unimplemented = undefined
+--unimplemented = undefined

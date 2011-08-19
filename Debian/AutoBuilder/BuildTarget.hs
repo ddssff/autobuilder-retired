@@ -62,10 +62,8 @@
 --                this checksum.  This prevents builds when the remote tarball has changed.
 module Debian.AutoBuilder.BuildTarget 
     ( BuildTarget(..)
-    , Tgt(Tgt)
     , Dir(Dir)
     , Build(Build)
-    , prepareDir
     , md5sum
     ) where
 
@@ -81,16 +79,6 @@ import Data.Char (ord)
 import Text.Printf (printf)
 import Happstack.Crypto.MD5 (md5)
 import Data.ByteString.Lazy.Char8 (pack, unpack)
-
--- | Objects of type Tgt contain an instance of the BuildTarget type
--- class.
-data Tgt = forall a. (Show a, BuildTarget a) => Tgt a
-
-instance Show Tgt where
-    show (Tgt a) = show a
-
---getSourceTree' :: Tgt -> SourceTree
---getSourceTree' (Tgt a) = getSourceTree a
 
 -- | BuildTarget represents the type class of methods for obtaining a
 -- SourceTree: tla, apt, darcs, etc.
@@ -137,10 +125,6 @@ instance BuildTarget Dir where
     getTop _ (Dir tree) = topdir tree
     revision _ (Dir _) = fail "Dir targets do not have revision strings"
     logText (Dir tree) _ = "Built from local directory " ++ topdir tree
-
--- |Prepare a Dir target
-prepareDir :: (ParamClass p) => p -> FilePath -> IO Tgt
-prepareDir _params path = findSourceTree path >>= return . Tgt . Dir
 
 -- |Build is similar to Dir, except that it owns the parent directory
 -- of the source directory.  This is required for building packages

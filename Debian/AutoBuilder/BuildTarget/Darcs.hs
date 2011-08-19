@@ -7,6 +7,7 @@ import qualified Data.ByteString.Lazy.Char8 as B
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 --import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
 import Network.URI (URI(..), URIAuth(..), parseURI)

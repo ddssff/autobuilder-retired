@@ -27,7 +27,7 @@ import qualified Data.Map as Map
 import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Debian.AutoBuilder.BuildTarget(BuildTarget(..), Tgt(..), prepareDir)
+import Debian.AutoBuilder.BuildTarget(BuildTarget(..))
 import qualified Debian.AutoBuilder.BuildTarget as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
 import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
@@ -44,6 +44,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt), prepareDir)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
                        ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),
@@ -59,7 +60,6 @@ import Debian.Repo.Cache (binaryPackages, buildArchOfEnv, sourcePackages, aptSou
 import Debian.Repo.Dependencies (simplifyRelations, solutions)
 import Debian.Repo.Changes (save, uploadLocal)
 import Debian.Repo.Insert (scanIncoming, showErrors)
-import Debian.Repo.Monad (countTasks)
 import Debian.Repo.OSImage (OSImage, updateLists)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
 import Debian.Repo.Repository (readPkgVersion, showPkgVersion)
@@ -261,7 +261,7 @@ prepareBuild params os target =
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
              copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
              -- Clean the revision control files for this target out of the copy of the source tree
-             cleanTarget params target (topdir copy)
+             (_out, _time) <- cleanTarget params target (topdir copy)
              findDebianBuildTree dest newdir
       copyBuild :: DebianBuildTree -> IO DebianBuildTree
       copyBuild debBuild =
@@ -271,7 +271,7 @@ prepareBuild params os target =
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
              copy <- copyDebianBuildTree debBuild dest
-             cleanTarget params target (topdir copy)
+             (out, time) <- cleanTarget params target (topdir copy)
              when (newdir /= (subdir debBuild))
                       (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
              findDebianBuildTree dest newdir
@@ -357,7 +357,7 @@ readSpec params text =
                    return (a, b)
             _ -> error ("Invalid spec name: " ++ text)
       match = matchRegex . mkRegex
-      addTargetName = failing (\ msgs -> Failure (("Target " ++ text ++ "failed") : msgs)) Success
+      -- addTargetName = failing (\ msgs -> Failure (("Target " ++ text ++ "failed") : msgs)) Success
 
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
@@ -467,13 +467,15 @@ chooseNextTarget goals targets =
           do ePutStrLn (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
-      makeTable (G.BuildableInfo ready other) =
+      makeTable (G.BuildableInfo ready _other) =
           unlines . map (intercalate " ") . columns $ goalsLine ++ readyLines
           where
             goalsLine = [{- [" Goals: ", "[" ++ intercalate ", " (map targetName goals) ++ "]"] -}]
             readyLines = map readyLine ready
-            readyLine (ready, blocked, other) = 
+            readyLine (ready, blocked, _other) = 
                 [" Ready:", targetName ready, "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
+      makeTable (G.CycleInfo pairs) =
+          error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (realSource a, realSource b)) pairs)
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed target1) (targetRelaxed target2)
@@ -654,7 +656,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                              (Just a', Just b') -> compare (parseDebianVersion a') (parseDebianVersion b')
                              _ -> error "Missing Version field" -}
 
-appPrefix _ = id
+-- appPrefix _ = id
 
 -- |Convert to a simple name and version record to interface with older
 -- code.
@@ -1129,7 +1131,7 @@ md5sum = doChecksum "md5sum" (take 32)
 sha1sum = doChecksum "sha1sum" (take 40)
 sha256sum = doChecksum "sha256sum" (take 64)
 
-toEither x@(text, "", ExitSuccess) = Right text
+toEither (text, "", ExitSuccess) = Right text
 toEither x = Left x
 
 doError cmd (_, s, ExitSuccess) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]

@@ -5,6 +5,7 @@ import Data.ByteString.Lazy.Char8 (empty)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (logVersion)
 import Debian.Version (version)
 import Prelude hiding (catch)

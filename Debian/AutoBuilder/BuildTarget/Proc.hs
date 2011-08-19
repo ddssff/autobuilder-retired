@@ -1,18 +1,19 @@
 -- |Modify a target so that \/proc is mounted while it builds.
 module Debian.AutoBuilder.BuildTarget.Proc where
 
-import qualified Data.ByteString.Lazy.Char8 as L
+--import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
 import System.IO (hPutStrLn, stderr)
 import System.Process (rawSystem)
 import System.Unix.Directory (unmountRecursiveSafely)
 import System.Unix.Process
-import System.Unix.Progress (qPutStrLn)
+--import System.Unix.Progress (qPutStrLn)
 
 data Proc = Proc Tgt
 

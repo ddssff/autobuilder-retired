@@ -6,6 +6,7 @@ import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
 import Debian.Sources

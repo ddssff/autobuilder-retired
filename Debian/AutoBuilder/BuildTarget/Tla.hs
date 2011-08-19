@@ -9,6 +9,7 @@ import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
 import Debian.AutoBuilder.ParamClass (RunClass)
 import qualified Debian.AutoBuilder.ParamClass as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import System.FilePath (splitFileName)
 import System.IO
