@@ -551,13 +551,13 @@ relax relaxInfo targets =
       deps' = G.relaxDeps relaxInfo deps
       deps = map targetDepends targets
 
-showTargets :: [P.Target] -> String
+showTargets :: [P.Package] -> String
 showTargets targets =
     unlines (heading :
              map (const '-') heading :
              map concat (columns (map (\ (n, t) -> [printf "%4d. " n, P.sourcePackageName t, " ", P.sourceSpec t]) pairs))) ++ "\n"
     where
-      pairs = zip [1..] targets :: [(Int, P.Target)]
+      pairs = zip [1..] targets :: [(Int, P.Package)]
       heading = show (length targets) ++ " Targets:"
 
 -- |Represents a decision whether to build a package, with a text juststification.

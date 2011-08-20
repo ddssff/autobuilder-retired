@@ -3,7 +3,7 @@ module Debian.AutoBuilder.Params
     ( Strictness(Strict, Moderate, Lax)
     , ParamRec(..)
     , CacheRec(..)
-    , Target(..)
+    , Package(..)
     , TargetSpec(..)
 
     , buildCache
@@ -72,8 +72,8 @@ instance Show Strictness where
     show Moderate = "Moderate"
     show Strict = "Strict"
 
-data Target
-    = Target
+data Package
+    = Package
       { sourcePackageName :: String
       , sourceSpec :: String
       , relaxInfo :: [String]		-- ^ Build dependencies which be ignored when deciding whether to rebuild
@@ -627,7 +627,7 @@ data ParamRec =
 data TargetSpec
     = AllTargets
     | TargetNames (Set.Set String)
-    | TargetSet (Set.Set Target)
+    | TargetSet (Set.Set Package)
     deriving Show
 
 {-
