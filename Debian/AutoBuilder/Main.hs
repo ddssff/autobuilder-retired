@@ -194,9 +194,9 @@ runParameterSet cache =
       prepareTargetList =
           do ePutStr (showTargets allTargets)
              ePutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.sourcePackageName target, tryAB (quieter 3 (readSpec cache (P.sourceSpec target))))) allTargets)
+             countTasks (map (\ target -> (P.name target, tryAB (quieter 3 (readSpec cache (P.spec target))))) allTargets)
           where
-            allTargets = filter (\ x -> not (elem (P.sourcePackageName x) (P.omitTargets (P.params cache)))) (Set.toList targetSet)
+            allTargets = filter (\ x -> not (elem (P.name x) (P.omitTargets (P.params cache)))) (Set.toList targetSet)
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
             targetSet = case P.targets (P.params cache) of
                           P.TargetSet s -> s

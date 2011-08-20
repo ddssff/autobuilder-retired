@@ -4,6 +4,7 @@ module Debian.AutoBuilder.Params
     , ParamRec(..)
     , CacheRec(..)
     , Package(..)
+    , PackageFlag(..)
     , TargetSpec(..)
 
     , buildCache
@@ -72,12 +73,22 @@ instance Show Strictness where
     show Moderate = "Moderate"
     show Strict = "Strict"
 
+data PackageFlag
+    = RelaxDep String		-- ^ Build dependencies which be ignored when deciding whether to rebuild
+    | ExtraDep String		-- ^ Build dependencies which should be added to the debian/control file
+    deriving (Show, Eq, Ord)
+
 data Package
     = Package
-      { sourcePackageName :: String
-      , sourceSpec :: String
-      , relaxInfo :: [String]		-- ^ Build dependencies which be ignored when deciding whether to rebuild
+      { name :: String
+      , spec :: String
+      , flags :: [PackageFlag]
       } deriving (Show, Eq, Ord)
+
+relaxInfo :: Package -> [String]
+relaxInfo p = foldr f [] (flags p)
+    where f (RelaxDep s) ss = s : ss
+          f _ ss = ss
 
 -- |An instance of 'ParamClass' contains the configuration parameters
 -- for a run of the autobuilder.  Among other things, it defined a set
@@ -561,7 +572,7 @@ isDevelopmentRelease params =
 -- its build dependencies.\"
 relaxDepends params@(ParamRec {targets = TargetSet s}) =
     G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
-                  concatMap (\ target -> map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (sourcePackageName target))))
+                  concatMap (\ target -> map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (name target))))
                              (relaxInfo target)) (Set.toList s)
 relaxDepends _params = error "relaxDepends: invalid target set"
 
