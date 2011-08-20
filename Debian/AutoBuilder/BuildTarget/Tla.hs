@@ -7,8 +7,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import System.FilePath (splitFileName)
@@ -43,15 +42,15 @@ instance BuildTarget Tla where
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            revision <- (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           waitForProcess handle
+           output <- waitForProcess handle
            return $ "tla:" ++ revision
 
     logText (Tla _ _) revision = "TLA revision: " ++ either show id revision
 
-prepareTla :: (RunClass p) => p -> String -> IO Tgt
-prepareTla params version =
+prepareTla :: P.CacheRec -> String -> IO Tgt
+prepareTla cache version =
     do
-      when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
+      when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       return . Tgt $ Tla version tree
@@ -80,7 +79,7 @@ prepareTla params version =
             let (parent, _) = splitFileName dir
             liftIO $ createDirectoryIfMissing True parent
             -- runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
-            lazyCommandF ("tla get " ++ version ++ " " ++ dir) L.empty
+            output <- lazyCommandF ("tla get " ++ version ++ " " ++ dir) L.empty
             findSourceTree dir
 
 {-
@@ -91,4 +90,4 @@ prepareTla params version =
       createStyle = (setStart (Just ("Retrieving TLA source for " ++ version)) .
                      setError (Just (\ _ -> "tla get failed in " ++ dir)))
 -}
-      dir = P.topDir params ++ "/tla/" ++ version
+      dir = P.topDir cache ++ "/tla/" ++ version

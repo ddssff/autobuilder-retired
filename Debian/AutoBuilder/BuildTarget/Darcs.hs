@@ -5,8 +5,7 @@ import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as B
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 --import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
@@ -54,13 +53,13 @@ instance BuildTarget Darcs where
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ either show id revision
 
-prepareDarcs :: (RunClass p) => p -> String -> IO Tgt
-prepareDarcs params uriAndTag =
+prepareDarcs :: P.CacheRec -> String -> IO Tgt
+prepareDarcs cache uriAndTag =
     do
-      when (P.flushSource params) (removeRecursiveSafely dir)
+      when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      liftIO fixLink
+      output <- liftIO fixLink
       return . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
       verifySource :: FilePath -> IO SourceTree
@@ -83,7 +82,7 @@ prepareDarcs params uriAndTag =
       createSource dir =
           let (parent, _) = splitFileName dir in
           do createDirectoryIfMissing True parent
-             lazyCommandF cmd B.empty
+             output <- lazyCommandF cmd B.empty
              findSourceTree dir
           where
             cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
@@ -115,7 +114,7 @@ prepareDarcs params uriAndTag =
                 lazyCommandF cmd B.empty
       dir = base ++ "/" ++ sum
       sum = md5sum uriAndTag
-      base = P.topDir params ++ "/darcs"
+      base = P.topDir cache ++ "/darcs"
 
 renderForDarcs :: String -> String
 renderForDarcs s =

@@ -4,8 +4,7 @@ module Debian.AutoBuilder.BuildTarget.Apt where
 import Control.Monad
 import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
@@ -33,18 +32,18 @@ instance BuildTarget Apt where
     revision _ (Apt _ _ Nothing _) = fail "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
 
-prepareApt :: (RunClass p) => p -> String -> AptIOT IO Tgt
-prepareApt params target =
+prepareApt :: P.CacheRec -> String -> AptIOT IO Tgt
+prepareApt cache target =
     do
       let (dist, package, version) =
               case ms of
                 Just [release,package,_,""] -> (SliceName release, package, Nothing)
                 Just [release,package,_,version] -> (SliceName release, package, (Just $ parseDebianVersion version))
                 _ -> error ("failed parsing apt target: (expected dist:package[:version]): " ++ target)
-      let distro = maybe (error $ "Invalid dist: " ++ sliceName dist) id (findRelease (P.allSources params) dist)
-      os <- prepareAptEnv (P.topDir params) (P.ifSourcesChanged params) distro
+      let distro = maybe (error $ "Invalid dist: " ++ sliceName dist) id (findRelease (P.allSources cache) dist)
+      os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
-      when (P.flushSource params) (liftIO . removeRecursiveSafely $ aptDir os package)
+      when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
       tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version
       let version' = logVersion . entry $ tree
       return . Tgt $ Apt distro package (Just version') tree

@@ -43,7 +43,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
 import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt), prepareDir)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
@@ -161,9 +161,9 @@ removeCommentParagraphs (Control paragraphs) =
       isCommentField (Comment _) = True
       isCommentField _ = False
 
-countAndPrepareTargets :: (P.RunClass p) => p -> OSImage -> [Tgt] -> IO [Target]
-countAndPrepareTargets params os tgts =
-    let tasks = map (prepareTarget params os) tgts in
+countAndPrepareTargets :: P.CacheRec -> OSImage -> [Tgt] -> IO [Target]
+countAndPrepareTargets cache os tgts =
+    let tasks = map (prepareTarget cache os) tgts in
     countTasks' (zip (map show tgts) tasks) >>= \ targets ->
     case partitionFailing targets of
       ([], targets') -> return targets'
@@ -189,13 +189,13 @@ partitionFailing =
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: (P.RunClass p) => p -> OSImage -> Tgt -> IO Target
-prepareTarget params os tgt@(Tgt source) =
-    prepareBuild params os source >>= target
+prepareTarget :: P.CacheRec -> OSImage -> Tgt -> IO Target
+prepareTarget cache os tgt@(Tgt source) =
+    prepareBuild cache os source >>= target
     where
       target :: DebianBuildTree -> IO Target
       target tree =
-          try (BuildTarget.revision params source) >>= \ rev ->
+          try (BuildTarget.revision (P.params cache) source) >>= \ rev ->
           return $ Target { realSource = tgt
                           , cleanSource = tree
                           , targetEntry = latest
@@ -241,8 +241,8 @@ eff (Success x) = Right x
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: (P.RunClass p, BuildTarget t) => p -> OSImage -> t -> IO DebianBuildTree
-prepareBuild params os target =
+prepareBuild :: BuildTarget t => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
+prepareBuild cache os target =
     do debBuild <- findOneDebianBuildTree top
        case debBuild of
          Success tree -> copyBuild tree
@@ -251,7 +251,7 @@ prepareBuild params os target =
              findDebianSourceTree top >>=
              copySource
     where
-      top = getTop params target
+      top = getTop (P.params cache) target
       copySource :: DebianSourceTree -> IO DebianBuildTree
       copySource debSource =
           do let name = logPackage . entry $ debSource
@@ -261,7 +261,7 @@ prepareBuild params os target =
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
              copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
              -- Clean the revision control files for this target out of the copy of the source tree
-             (_out, _time) <- cleanTarget params target (topdir copy)
+             (_out, _time) <- cleanTarget (P.params cache) target (topdir copy)
              findDebianBuildTree dest newdir
       copyBuild :: DebianBuildTree -> IO DebianBuildTree
       copyBuild debBuild =
@@ -271,7 +271,7 @@ prepareBuild params os target =
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
              copy <- copyDebianBuildTree debBuild dest
-             (out, time) <- cleanTarget params target (topdir copy)
+             (out, time) <- cleanTarget (P.params cache) target (topdir copy)
              when (newdir /= (subdir debBuild))
                       (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
              findDebianBuildTree dest newdir
@@ -321,39 +321,39 @@ _formatVersions buildDeps =
 
 --  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
 
-readSpec :: (P.RunClass p) => p -> String -> AptIOT IO Tgt
-readSpec params text =
+readSpec :: P.CacheRec -> String -> AptIOT IO Tgt
+readSpec cache text =
     qPutStrLn (" " ++ text) >>
     case text of
-            'a':'p':'t':':' : target -> Apt.prepareApt params target
-            'd':'a':'r':'c':'s':':' : target -> lift (Darcs.prepareDarcs params target)
+            'a':'p':'t':':' : target -> Apt.prepareApt cache target
+            'd':'a':'r':'c':'s':':' : target -> lift (Darcs.prepareDarcs cache target)
             'd':'e':'b':'-':'d':'i':'r':':' : target ->
-                parsePair target >>= \ (upstream, debian) -> liftIO (DebDir.prepareDebDir params upstream debian)
+                parsePair target >>= \ (upstream, debian) -> liftIO (DebDir.prepareDebDir cache upstream debian)
             'c':'d':':' : dirAndTarget ->
                 do let (subdir, target) = second tail (break (== ':') dirAndTarget)
-                   readSpec params target >>= liftIO . Cd.prepareCd params subdir
-            'd':'i':'r':':' : target -> lift $ prepareDir params target
-            'd':'e':'b':'i':'a':'n':'i':'z':'e':':' : target -> lift $ Debianize.prepare params target
-            'h':'a':'c':'k':'a':'g':'e':':' : target -> lift $ Hackage.prepare params target
-            'h':'g':':' : target -> lift $ Hg.prepareHg params target
+                   readSpec cache target >>= liftIO . Cd.prepareCd cache subdir
+            'd':'i':'r':':' : target -> lift $ prepareDir (P.params cache) target
+            'd':'e':'b':'i':'a':'n':'i':'z':'e':':' : target -> lift $ Debianize.prepare cache target
+            'h':'a':'c':'k':'a':'g':'e':':' : target -> lift $ Hackage.prepare cache target
+            'h':'g':':' : target -> lift $ Hg.prepareHg cache target
             'q':'u':'i':'l':'t':':' : target ->
-                parsePair target >>= \ (base, patch) -> lift (Quilt.prepareQuilt params base patch)
+                parsePair target >>= \ (base, patch) -> lift (Quilt.prepareQuilt cache base patch)
             's':'o':'u':'r':'c':'e':'d':'e':'b':':' : target ->
-                readSpec params target >>= liftIO . SourceDeb.prepareSourceDeb params
-            's':'v':'n':':' : target -> lift $ Svn.prepareSvn params target
-            't':'l':'a':':' : target -> lift $ Tla.prepareTla params target
-            'b':'z':'r':':' : target -> lift $ Bzr.prepareBzr params target
-            'u':'r':'i':':' : target -> lift $ Uri.prepareUri params target
+                readSpec cache target >>= liftIO . SourceDeb.prepareSourceDeb cache
+            's':'v':'n':':' : target -> lift $ Svn.prepareSvn cache target
+            't':'l':'a':':' : target -> lift $ Tla.prepareTla cache target
+            'b':'z':'r':':' : target -> lift $ Bzr.prepareBzr cache target
+            'u':'r':'i':':' : target -> lift $ Uri.prepareUri cache target
             'p':'r':'o':'c':':' : target ->
-                readSpec params target >>= lift . Proc.prepareProc params
+                readSpec cache target >>= lift . Proc.prepareProc cache
             _ -> fail ("Error in target specification: " ++ text)
     where
       parsePair :: String -> AptIOT IO (Tgt, Tgt)
       parsePair text =
           case match "\\(([^)]*)\\):\\(([^)]*)\\)" text of
             Just [baseName, patchName] ->
-                do a <- readSpec params baseName
-                   b <- readSpec params patchName
+                do a <- readSpec cache baseName
+                   b <- readSpec cache patchName
                    return (a, b)
             _ -> error ("Invalid spec name: " ++ text)
       match = matchRegex . mkRegex
@@ -362,9 +362,9 @@ readSpec params text =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t, P.RunClass p) => p -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIOT IO (LocalRepository, [Target])
+buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIOT IO (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
-buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
+buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
       targetList <- lift $ prepareAllTargetSource cleanOS
@@ -377,13 +377,13 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       prepareAllTargetSource cleanOS =
           do
             ePutStrLn "\nAssembling clean source tree for each target:\n"
-            quieter 3 (countAndPrepareTargets params cleanOS targetSpecs)
+            quieter 3 (countAndPrepareTargets cache cleanOS targetSpecs)
       -- Execute the target build loop until all the goals (or everything) is built
       buildLoop :: OSImage -> Relations -> Int -> ([Target], [Target]) -> AptIOT IO [Target]
       buildLoop _ _ _ ([], failed) = return failed
       buildLoop cleanOS globalBuildDeps count (unbuilt, failed) =
           do
-            relaxed <- lift $ updateDependencyInfo globalBuildDeps (P.relaxDepends params) unbuilt
+            relaxed <- lift $ updateDependencyInfo globalBuildDeps (P.relaxDepends (P.params cache)) unbuilt
             next <- lift $ chooseNextTarget (goals relaxed) relaxed
             case next of
               Nothing -> return failed
@@ -409,11 +409,11 @@ buildTargets params cleanOS globalBuildDeps localRepo poolOS targetSpecs =
           where
             buildTarget' target =
                 do {- showElapsed "Total elapsed for target: " $ -} 
-                   buildTarget params cleanOS globalBuildDeps localRepo poolOS target
+                   buildTarget cache cleanOS globalBuildDeps localRepo poolOS target
       -- If no goals are given in the build parameters, assume all
       -- known targets are goals.
       goals targets =
-          case P.goals params of
+          case P.goals (P.params cache) of
             [] -> targets
             goalNames -> filter (\ target -> elem (targetName target) goalNames) targets
 
@@ -577,22 +577,22 @@ instance Show BuildDecision where
 
 -- Decide whether a target needs to be built and, if so, build it.
 buildTarget ::
-    (AptCache t, P.RunClass p) =>
-    p ->				-- configuration info
+    (AptCache t) =>
+    P.CacheRec ->			-- configuration info
     OSImage ->				-- cleanOS
     Relations ->			-- The build-essential relations
     LocalRepository ->			-- The local repository the packages will be uploaded to
     t ->
     Target ->
     AptIOT IO (Failing LocalRepository)	-- The local repository after the upload, or an error message
-buildTarget params cleanOS globalBuildDeps repo poolOS target =
+buildTarget cache cleanOS globalBuildDeps repo poolOS target =
     do
-      lift (syncPool cleanOS)
+      cleanOS' <- lift (syncPool cleanOS)
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
       quieter 1 (qPutStrLn "Loading package lists and searching for build dependency solution...")
-      solutions <- lift (buildDepSolutions' (P.preferred params) cleanOS globalBuildDeps debianControl)
+      solutions <- lift (buildDepSolutions' (P.preferred (P.params cache)) cleanOS globalBuildDeps debianControl)
       case solutions of
         Failure excuses -> do let excuses' = ("Couldn't satisfy build dependencies" : excuses)
                               ePutStrLn (intercalate "\n " excuses')
@@ -619,7 +619,7 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               sourceRevision <- case realSource target of (Tgt spec) -> lift (try (BuildTarget.revision params spec))
+               sourceRevision <- case realSource target of (Tgt spec) -> lift (try (BuildTarget.revision (P.params cache) spec))
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -627,11 +627,11 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                quieter 1 (qPutStrLn ("Released version: " ++ show oldVersion))
                quieter 1 (qPutStrLn ("Current source version: " ++ show sourceVersion))
                let sourcePackages = aptSourcePackagesSorted poolOS [packageName]
-                   buildTrumped = elem packageName (P.buildTrumped params)
-               let newVersion = computeNewVersion params sourcePackages (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
+                   buildTrumped = elem packageName (P.buildTrumped (P.params cache))
+               let newVersion = computeNewVersion cache sourcePackages (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                let decision =
-                       buildDecision target (P.vendorTag params) (P.oldVendorTags params) (elem packageName (P.forceBuild params))
-                                         (P.allowBuildDependencyRegressions params)
+                       buildDecision target (P.vendorTag (P.params cache)) (P.oldVendorTags (P.params cache)) (elem packageName (P.forceBuild (P.params cache)))
+                                         (P.allowBuildDependencyRegressions (P.params cache))
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
                ePutStrLn ("Build decision: " ++ show decision)
@@ -643,9 +643,9 @@ buildTarget params cleanOS globalBuildDeps repo poolOS target =
                     case decision of
                       Error message -> return (Failure [message])
                       No _ -> return (Success repo)
-                      Yes _ ->  buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
-                      Arch _ -> buildPackage params cleanOS oldVersion oldDependencies sourceRevision sourceDependencies' target releaseStatus repo sourceLog
-                      Auto _ -> buildPackage params cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
+                      Yes _ ->  buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
+                      Arch _ -> buildPackage cache cleanOS oldVersion oldDependencies sourceRevision sourceDependencies' target releaseStatus repo sourceLog
+                      Auto _ -> buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
     where
       --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
       packageName = targetName target
@@ -666,8 +666,8 @@ makeVersion package =
                , getVersion = packageVersion (packageID package) }
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: P.RunClass p => p -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Either SomeException String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
-buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
+buildPackage :: P.CacheRec -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Either SomeException String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
+buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >>
     (lift prepareImage) >>=
     failing (return . Failure) (lift . logEntry) >>=
@@ -675,18 +675,19 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
     failing (return . Failure) (liftIO . find) >>=
     failing (return . Failure) upload
     where
-      checkDryRun = when (P.dryRun params)  (do qPutStrLn "Not proceeding due to -n option."
-                                                liftIO (exitWith ExitSuccess))
-      prepareImage = prepareBuildImage params cleanOS sourceDependencies buildOS target (P.strictness params)
+      checkDryRun = when (P.dryRun (P.params cache))
+                      (do qPutStrLn "Not proceeding due to -n option."
+                          liftIO (exitWith ExitSuccess))
+      prepareImage = prepareBuildImage cache cleanOS sourceDependencies buildOS target (P.strictness (P.params cache))
       logEntry :: DebianBuildTree -> IO (Failing DebianBuildTree)
       logEntry buildTree = 
-          case P.noClean params of
+          case P.noClean (P.params cache) of
             False -> liftIO $ maybeAddLogEntry buildTree newVersion >> return (Success buildTree)
             True -> return (Success buildTree)
       build :: DebianBuildTree -> IO (Failing (DebianBuildTree, NominalDiffTime))
       build buildTree =
           case realSource target of
-            Tgt t -> do result <- try (buildPkg params buildOS buildTree status t)
+            Tgt t -> do result <- try (buildPkg (P.params cache) buildOS buildTree status t)
                         case result of
                           Left (e :: SomeException) -> return (Failure [show e])
                           Right elapsed -> return (Success (buildTree, elapsed))
@@ -703,8 +704,8 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
           do
             date <- getCurrentLocalRFC822Time
             return $ sourceLog {logVersion=newVersion,
-                                logDists=[P.buildRelease params],
-                                logWho=P.autobuilderEmail params,
+                                logDists=[P.buildRelease (P.params cache)],
+                                logWho=P.autobuilderEmail (P.params cache),
                                 logDate=date,
                                 logComments=
                                     init (logComments sourceLog) ++ changelogText (realSource target) sourceRevision oldDependencies sourceDependencies}
@@ -721,7 +722,7 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
             (changesFile' :: ChangesFile) <-
 		-- Set the Distribution field in the .changes file to the one
                 -- specified by the autobuilder Build-Release parameter.
-                return (setDistribution (P.buildRelease params) changesFile) >>=
+                return (setDistribution (P.buildRelease (P.params cache)) changesFile) >>=
                 -- Insert information about the build into the .changes file.
                 liftIO . updateChangesFile elapsed >>=
                 -- Insert the revision info into the .dsc file and update
@@ -736,15 +737,15 @@ buildPackage params cleanOS newVersion oldDependencies sourceRevision sourceDepe
             case errors of
               [] -> liftIO (updateLists cleanOS) >> return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
-      buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot params)
+      buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot cache)
 
 -- |Prepare the build image by copying the clean image, installing
 -- dependencies, and copying the clean source tree.  For a lax build
 -- these operations take place in a different order from other types
 -- of builds.  For lax: dependencies, then image copy, then source
 -- copy.  For other: image copy, then source copy, then dependencies.
-prepareBuildImage :: (P.ParamClass p) => p -> OSImage -> [PkgVersion] -> OSImage -> Target -> P.Strictness -> IO (Failing DebianBuildTree)
-prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) P.Lax =
+prepareBuildImage :: P.CacheRec -> OSImage -> [PkgVersion] -> OSImage -> Target -> P.Strictness -> IO (Failing DebianBuildTree)
+prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) P.Lax =
     -- Install dependencies directly into the clean environment
     installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies >>=
     failing (return . Failure) (\ x -> prepareTree noClean x)
@@ -757,11 +758,11 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
           Debian.Repo.syncEnv cleanOS buildOS >>=
           const (try (copyDebianBuildTree (cleanSource target) newPath)) >>=
           return . either (\ (e :: SomeException) -> Failure [show e]) Success
-      buildDepends = (P.buildDepends params)
-      noClean = P.noClean params
+      buildDepends = (P.buildDepends (P.params cache))
+      noClean = P.noClean (P.params cache)
       newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) oldPath)
       oldPath = topdir . cleanSource $ target
-prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) _ =
+prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) _ =
     -- Install dependencies directly into the build environment
     findTree noClean >>=
     failing (return . Failure) downloadDeps >>=
@@ -782,8 +783,8 @@ prepareBuildImage params cleanOS sourceDependencies buildOS target@(Target (Tgt 
       -- installDeps :: (OSImage, DebianBuildTree) -> IO (Failing DebianBuildTree)
       installDeps (buildOS, buildTree) = installDependencies buildOS buildTree buildDepends sourceDependencies >>=
                                          failing (return . Failure) (const (return (Success buildTree)))
-      buildDepends = P.buildDepends params
-      noClean = P.noClean params
+      buildDepends = P.buildDepends (P.params cache)
+      noClean = P.noClean (P.params cache)
       newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) (topdir (cleanSource target)))
             
 -- | Get the control info for the newest version of a source package
@@ -877,8 +878,8 @@ getOldRevision package =
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
 -- dist, and distinct from versions in any other dist.
-computeNewVersion :: (P.ParamClass p) => p -> [SourcePackage] -> Maybe SourcePackage -> DebianVersion -> Failing DebianVersion
-computeNewVersion params
+computeNewVersion :: P.CacheRec -> [SourcePackage] -> Maybe SourcePackage -> DebianVersion -> Failing DebianVersion
+computeNewVersion cache
                   available		-- All the versions that exist in the pool in any dist,
 					-- the new version number must not equal any of these.
                   current		-- The control file paragraph for the currently uploaded
@@ -886,16 +887,16 @@ computeNewVersion params
                                         -- than this.
                   sourceVersion =	-- Version number in the changelog entry of the checked-out
                                         -- source code.  The new version must also be newer than this.
-    case P.doNotChangeVersion params of
+    case P.doNotChangeVersion (P.params cache) of
       True -> Success sourceVersion
       False ->
-          let vendor = P.vendorTag params
-              oldVendors = P.oldVendorTags params
-              release = if (P.isDevelopmentRelease params) then
+          let vendor = P.vendorTag (P.params cache)
+              oldVendors = P.oldVendorTags (P.params cache)
+              release = if (P.isDevelopmentRelease (P.params cache)) then
                             Nothing else
-                            (Just (sliceName (P.baseRelease params)))
-              extra = P.extraReleaseTag params 
-              aliases = \ x -> maybe x id (lookup x (P.releaseAliases params)) in
+                            (Just (sliceName (P.baseRelease (P.params cache))))
+              extra = P.extraReleaseTag (P.params cache) 
+              aliases = \ x -> maybe x id (lookup x (P.releaseAliases (P.params cache))) in
           case parseTag (vendor : oldVendors) sourceVersion of
 
             (_, Just tag) -> Failure ["Error: the version string in the changelog has a vendor tag (" ++ show tag ++

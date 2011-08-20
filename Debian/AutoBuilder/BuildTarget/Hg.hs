@@ -17,8 +17,7 @@ import System.IO
 import System.Process
 import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import System.Unix.Progress (lazyCommandF, timeTask)
 
@@ -55,10 +54,10 @@ instance BuildTarget Hg where
 
     logText (Hg _ _) revision = "Hg revision: " ++ either show id revision
 
-prepareHg :: (RunClass p) => p -> String -> IO Tgt
-prepareHg params archive =
+prepareHg :: P.CacheRec -> String -> IO Tgt
+prepareHg cache archive =
     do
-      when (P.flushSource params) (liftIO $ removeRecursiveSafely dir)
+      when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       return . Tgt $ Hg archive tree
@@ -90,5 +89,5 @@ prepareHg params archive =
       --                setError (Just (\ _ -> "Update Hg Source failed in " ++ show dir)))
       -- createStyle = (setStart (Just ("Retrieving Hg source for " ++ archive)) .
       --                setError (Just (\ _ -> "hg clone failed in " ++ show dir)))
-      dir = P.topDir params ++ "/hg/" ++ archive
+      dir = P.topDir cache ++ "/hg/" ++ archive
 

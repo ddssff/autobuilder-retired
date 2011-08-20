@@ -70,8 +70,7 @@ module Debian.AutoBuilder.BuildTarget
 import Control.Exception (Exception)
 import Data.Time (NominalDiffTime)
 import Debian.Repo
-import Debian.AutoBuilder.ParamClass (ParamClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.Version(DebianVersion)
 import System.Unix.Process
 
@@ -85,10 +84,10 @@ import Data.ByteString.Lazy.Char8 (pack, unpack)
 class BuildTarget t where
     -- | The directory containing the target's files.  For most target types, these
     --  files could be anything, not necessarily a Debian source directory.
-    getTop :: ParamClass p => p -> t -> FilePath
+    getTop :: P.ParamRec -> t -> FilePath
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: (ParamClass p) => p -> t -> FilePath -> IO ([Output], NominalDiffTime)
+    cleanTarget :: P.ParamRec -> t -> FilePath -> IO ([Output], NominalDiffTime)
     cleanTarget _ _ _ = return ([], fromInteger 0)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
@@ -98,11 +97,11 @@ class BuildTarget t where
     -- the build dependencies that were installed when the package was
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
-    revision :: (ParamClass p) => p -> t -> IO String
+    revision :: P.ParamRec -> t -> IO String
     -- |Default function to build the package for this target.
     -- Currently this is only overridden by the proc: target which
     -- mounts /proc, then calls buildDebs, then unmounts /proc.
-    buildPkg :: (ParamClass p) => p -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO NominalDiffTime
+    buildPkg :: P.ParamRec -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO NominalDiffTime
     buildPkg params buildOS buildTree status _target =
         buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     -- | Text to include in changelog entry.

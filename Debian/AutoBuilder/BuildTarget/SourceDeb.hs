@@ -8,7 +8,7 @@ import qualified Debian.Control.String as S
 import qualified Debian.Version as V
 
 import Debian.AutoBuilder.BuildTarget as BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -37,9 +37,9 @@ instance BuildTarget SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: (RunClass p) => p -> Tgt -> IO Tgt
-prepareSourceDeb params (Tgt base) =
-    do let top = getTop params base
+prepareSourceDeb :: P.CacheRec -> Tgt -> IO Tgt
+prepareSourceDeb cache (Tgt base) =
+    do let top = getTop (P.params cache) base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> liftIO (readFile (top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles

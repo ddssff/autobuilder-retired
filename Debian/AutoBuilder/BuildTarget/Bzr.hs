@@ -8,8 +8,7 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget (BuildTarget(..), md5sum)
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import Debian.URI
@@ -53,9 +52,9 @@ instance BuildTarget Bzr where
 
     logText (Bzr _ _) revision = "Bazaar revision: " ++ either show id revision
 
-prepareBzr :: (RunClass p) => p -> String -> IO Tgt
-prepareBzr params version = do
-    when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
+prepareBzr :: P.CacheRec -> String -> IO Tgt
+prepareBzr cache version = do
+    when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
     return . Tgt $ Bzr version tree
@@ -98,7 +97,7 @@ prepareBzr params version = do
             -- Create parent dir and let bzr create dir
             let (parent, _) = splitFileName dir
             createDirectoryIfMissing True parent
-            lazyCommandF cmd L.empty
+            output <- lazyCommandF cmd L.empty
             findSourceTree dir
             where
                 cmd   = "bzr branch " ++ version ++ " " ++ dir
@@ -107,5 +106,5 @@ prepareBzr params version = do
         uri = mustParseURI version
             where
                 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
-        dir = (P.topDir params) ++ "/bzr/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
+        dir = (P.topDir cache) ++ "/bzr/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
 

@@ -1,7 +1,7 @@
 module Test.ParamRec where
 
 import Test.HUnit
-import Debian.AutoBuilder.ParamRec
+import Debian.AutoBuilder.Params
 
 tests = [test1, test2, test3, test4]
 

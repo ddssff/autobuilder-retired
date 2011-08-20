@@ -3,8 +3,7 @@ module Debian.AutoBuilder.BuildTarget.DebDir where
 
 import Data.ByteString.Lazy.Char8 (empty)
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (logVersion)
 import Debian.Version (version)
@@ -35,9 +34,9 @@ instance BuildTarget DebDir where
         revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ either show id revision
 
-prepareDebDir :: (RunClass p) => p -> Tgt -> Tgt -> IO Tgt
-prepareDebDir params (Tgt upstream) (Tgt debian) = 
-    createDirectoryIfMissing True (P.topDir params ++ "/deb-dir") >>
+prepareDebDir :: P.CacheRec -> Tgt -> Tgt -> IO Tgt
+prepareDebDir cache (Tgt upstream) (Tgt debian) = 
+    createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
@@ -63,9 +62,9 @@ prepareDebDir params (Tgt upstream) (Tgt debian) =
     where
       copyUpstream = lazyCommandF cmd1 empty -- runTaskAndTest (cleanStyle (show upstream) (commandTask cmd1))
       copyDebian = lazyCommandF cmd2 empty -- runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))
-      upstreamDir = getTop params upstream
-      debianDir = getTop params debian
-      dest = P.topDir params ++ "/deb-dir/" ++ md5sum ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 
+      upstreamDir = getTop (P.params cache) upstream
+      debianDir = getTop (P.params cache) debian
+      dest = P.topDir cache ++ "/deb-dir/" ++ md5sum ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")
       -- cleanStyle name = setStart (Just (" Prepare deb-dir target " ++ show name))

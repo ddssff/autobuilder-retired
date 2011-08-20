@@ -1,3 +1,10 @@
+autobuilder (6.5) unstable; urgency=low
+
+  * Simplify the parameter handling code
+  * Replac the relaxInfo field of Target with a more general flag list.
+
+ -- David Fox <dsf@seereason.com>  Sat, 20 Aug 2011 06:40:59 -0700
+
 autobuilder (6.4) unstable; urgency=low
 
   * Run cabal-debian on hackage targets to generate debianization.

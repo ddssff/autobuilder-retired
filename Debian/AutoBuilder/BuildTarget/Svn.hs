@@ -12,8 +12,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Control.ByteString
 import Debian.Repo
@@ -101,9 +100,9 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ either show id revision
 
-prepareSvn ::  (RunClass p) => p -> String -> IO Tgt
-prepareSvn params target =
-    do when (P.flushSource params) (liftIO (removeRecursiveSafely dir))
+prepareSvn ::  P.CacheRec -> String -> IO Tgt
+prepareSvn cache target =
+    do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
        return . Tgt $ Svn uri tree
@@ -121,7 +120,7 @@ prepareSvn params target =
       updateSource dir =
           do
             -- if the original url contained a specific revision, this will do the wrong thing
-            svn (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
+            output <- svn (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
             findSourceTree dir
 
       createSource dir =
@@ -149,7 +148,7 @@ prepareSvn params target =
 -}
       uri = mustParseURI target
       userInfo = maybe "" uriUserInfo (uriAuthority uri)
-      dir = P.topDir params ++ "/svn/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
+      dir = P.topDir cache ++ "/svn/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
 
 mustParseURI :: String -> URI
 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)

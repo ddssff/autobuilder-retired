@@ -21,8 +21,7 @@ import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), getTop, md5sum)
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Extra.Files (replaceFile)
 import Extra.List ()
@@ -76,15 +75,15 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (RunClass p, Show a, Show b, BuildTarget a, BuildTarget b) => p -> a -> b -> IO (SourceTree, FilePath)
-makeQuiltTree params base patch =
-    do quieter 1 (qPutStrLn $ "Quilt base: " ++ getTop params base)
-       quieter 1 (qPutStrLn $ "Quilt patch: " ++ getTop params patch)
+makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b) => P.CacheRec -> a -> b -> IO (SourceTree, FilePath)
+makeQuiltTree cache base patch =
+    do quieter 1 (qPutStrLn $ "Quilt base: " ++ getTop (P.params cache) base)
+       quieter 1 (qPutStrLn $ "Quilt patch: " ++ getTop (P.params cache) patch)
        -- This will be the top directory of the quilt target
-       let copyDir = P.topDir params ++ "/quilt/" ++ md5sum ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
-       liftIO (createDirectoryIfMissing True (P.topDir params ++ "/quilt"))
-       baseTree <- try (findSourceTree (getTop params base))
-       patchTree <- try (findSourceTree (getTop params patch))
+       let copyDir = P.topDir cache ++ "/quilt/" ++ md5sum ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
+       liftIO (createDirectoryIfMissing True (P.topDir cache ++ "/quilt"))
+       baseTree <- try (findSourceTree (getTop (P.params cache) base))
+       patchTree <- try (findSourceTree (getTop (P.params cache) patch))
        case (baseTree, patchTree) of
          (Right baseTree, Right patchTree) ->
              do copyTree <- copySourceTree baseTree copyDir
@@ -101,7 +100,7 @@ makeQuiltTree params base patch =
                 let cmd1 = ("set -x && cd '" ++ quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++
                             "' && ln -s '" ++ patchDir ++ "' '" ++ quiltPatchesDir ++ "'")
                 -- runTaskAndTest (linkStyle (commandTask cmd1))
-                lazyCommandF cmd1 L.empty
+                output <- lazyCommandF cmd1 L.empty
                 -- Now we need to have created a DebianSourceTree so
                 -- that there is a changelog for us to reconstruct.
                 return (copyTree, quiltDir)
@@ -119,9 +118,9 @@ debug e =
     where s = show e
 -}
 
-prepareQuilt :: (RunClass p) => p -> Tgt -> Tgt -> IO Tgt
-prepareQuilt params (Tgt base) (Tgt patch) = 
-    makeQuiltTree params base patch >>= withUpstreamQuiltHidden make
+prepareQuilt :: P.CacheRec -> Tgt -> Tgt -> IO Tgt
+prepareQuilt cache (Tgt base) (Tgt patch) = 
+    makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =
           hide >> make (quiltTree, quiltDir) >>= unhide

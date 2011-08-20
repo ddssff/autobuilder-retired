@@ -4,8 +4,7 @@ module Debian.AutoBuilder.BuildTarget.Proc where
 --import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
@@ -36,8 +35,8 @@ instance BuildTarget Proc where
            withProc buildOS $ buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
-prepareProc :: (RunClass p) => p -> Tgt -> IO Tgt
-prepareProc _ base = return . Tgt $ Proc base
+prepareProc :: P.CacheRec -> Tgt -> IO Tgt
+prepareProc _cache base = return . Tgt $ Proc base
 
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =

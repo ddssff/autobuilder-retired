@@ -4,8 +4,7 @@ module Debian.AutoBuilder.BuildTarget.Twice where
 import Debian.Repo
 
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 
 data Twice = Twice Tgt
@@ -29,5 +28,5 @@ instance BuildTarget Twice where
         buildDebs (P.noClean params) True (P.setEnv params) buildOS buildTree status
     logText (Twice (Tgt s)) revision = logText s revision ++ " (twice if necessary)"
 
-prepareTwice :: (RunClass p) => p -> Tgt -> IO (Either String Tgt)
-prepareTwice _ base = return . Right . Tgt $ Twice base
+prepareTwice :: P.CacheRec -> Tgt -> IO (Either String Tgt)
+prepareTwice _cache base = return . Right . Tgt $ Twice base

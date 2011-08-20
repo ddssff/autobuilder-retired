@@ -8,8 +8,7 @@ import Control.Monad.Trans (liftIO)
 import Data.ByteString.Lazy.Char8 (empty)
 import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget
-import Debian.AutoBuilder.ParamClass (RunClass)
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 --import Debian.OldShell (runCommand, runCommandTimed)
@@ -47,8 +46,8 @@ instance BuildTarget Uri where
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: (RunClass p) => p -> String -> IO Tgt
-prepareUri params target =
+prepareUri :: P.CacheRec -> String -> IO Tgt
+prepareUri cache target =
     checkTarget uri md5sum >>=
     downloadTarget uri md5sum >>=
     validateTarget md5sum >>=
@@ -74,7 +73,7 @@ prepareUri params target =
           return name
           where name = snd . splitFileName . uriPath $ uri
       downloadTarget uri sum False =
-          do when (P.flushSource params) (removeRecursiveSafely sumDir)
+          do when (P.flushSource (P.params cache)) (removeRecursiveSafely sumDir)
              createDirectoryIfMissing True sumDir
              exists <- doesFileExist dest
              case exists of
@@ -140,7 +139,7 @@ prepareUri params target =
             tarball = sumDir ++ "/" ++ name
             sourceDir = sumDir ++ "/unpack"
 
-      tmp = P.topDir params ++ "/tmp"
+      tmp = P.topDir cache ++ "/tmp"
       uriRE = "([^:]+:[^:]+):(" ++ md5sumRE ++ ")"
       md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
 

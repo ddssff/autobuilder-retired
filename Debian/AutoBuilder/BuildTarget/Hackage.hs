@@ -11,7 +11,7 @@ import Control.Monad (when)
 import qualified Data.ByteString.Lazy as B
 import Data.List (isPrefixOf, isSuffixOf)
 import Debian.AutoBuilder.BuildTarget
-import qualified Debian.AutoBuilder.ParamClass as P
+import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Version (DebianVersion, parseDebianVersion)
 import Debian.Repo hiding (getVersion)
@@ -45,15 +45,15 @@ instance BuildTarget Hackage where
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Hackage _ v _) = v
 
-prepare :: P.RunClass p => p -> String -> IO Tgt
-prepare params target =
+prepare :: P.CacheRec -> String -> IO Tgt
+prepare cache target =
     maybe (getVersion name) return version >>= return . parseDebianVersion >>= \ version' ->
-    when (P.flushSource params) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
+    when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
     download top name version' >>=
     findSourceTree >>=
     return . Tgt . Hackage name (Just version')
     where
-      top = P.topDir params
+      top = P.topDir cache
       (name, version) = parseTarget target
 
 parse cmd output =
