@@ -19,8 +19,9 @@ import Data.Time(NominalDiffTime)
 import Data.List(intercalate)
 import Data.Maybe(catMaybes)
 --import qualified Debian.AutoBuilder.OldParams as O
+import Debian.AutoBuilder.BuildTarget (readSpec)
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Target(Target, targetName, buildTargets, readSpec, showTargets)
+import Debian.AutoBuilder.Target(Target, targetName, buildTargets, showTargets)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Release (parseSection', releaseName')
 import Debian.Sources (SliceName(..))

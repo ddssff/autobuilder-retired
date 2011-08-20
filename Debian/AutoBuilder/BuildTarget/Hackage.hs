@@ -8,11 +8,11 @@ module Debian.AutoBuilder.BuildTarget.Hackage (Hackage(..), prepare, documentati
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
 import Control.Monad (when)
+import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy as B
 import Data.List (isPrefixOf, isSuffixOf)
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Version (DebianVersion, parseDebianVersion)
 import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing)
@@ -45,13 +45,13 @@ instance BuildTarget Hackage where
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Hackage _ v _) = v
 
-prepare :: P.CacheRec -> String -> IO Tgt
-prepare cache target =
+prepare :: P.CacheRec -> String -> AptIOT IO Hackage
+prepare cache target = liftIO $
     maybe (getVersion name) return version >>= return . parseDebianVersion >>= \ version' ->
     when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
     download top name version' >>=
     findSourceTree >>=
-    return . Tgt . Hackage name (Just version')
+    return . Hackage name (Just version')
     where
       top = P.topDir cache
       (name, version) = parseTarget target

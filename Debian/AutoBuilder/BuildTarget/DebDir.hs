@@ -2,7 +2,7 @@
 module Debian.AutoBuilder.BuildTarget.DebDir where
 
 import Data.ByteString.Lazy.Char8 (empty)
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (logVersion)
@@ -34,13 +34,13 @@ instance BuildTarget DebDir where
         revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ either show id revision
 
-prepareDebDir :: P.CacheRec -> Tgt -> Tgt -> IO Tgt
-prepareDebDir cache (Tgt upstream) (Tgt debian) = 
+prepare :: P.CacheRec -> Tgt -> Tgt -> IO DebDir
+prepare cache (Tgt upstream) (Tgt debian) = 
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
-    let tgt = Tgt (DebDir (Tgt upstream) (Tgt debian) tree) in
+    let tgt = DebDir (Tgt upstream) (Tgt debian) tree in
     -- The upstream and downstream versions must match after the epoch and revision is stripped.
     case mVersion upstream of
       Nothing -> return tgt

@@ -1,13 +1,11 @@
 -- |Modify a target so we cd to a subdirectory before building
 module Debian.AutoBuilder.BuildTarget.Cd where
 
-import Debian.Repo
-
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.Repo.Monad (AptIOT)
 import System.FilePath ((</>))
-import System.Unix.Progress (qPutStrLn)
 
 data Cd = Cd FilePath Tgt
 
@@ -21,10 +19,10 @@ documentation = [ "cd:<relpath>:<target> - A target of this form modifies anothe
 instance BuildTarget Cd where
     getTop params (Cd subdir (Tgt s)) = let top = getTop params s in top </> subdir
     cleanTarget params (Cd subdir (Tgt s)) source = cleanTarget params s (source </> subdir)
-    revision params (Cd subdir (Tgt s)) =  Debian.AutoBuilder.BuildTarget.revision params s >>= return . (("cd:" ++ subdir ++ ":") ++)
+    revision params (Cd subdir (Tgt s)) =  Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . (("cd:" ++ subdir ++ ":") ++)
     logText (Cd subdir (Tgt s)) revision = logText s revision ++ " (in subdirectory " ++ subdir ++ ")"
 
-prepareCd :: P.CacheRec -> FilePath -> Tgt -> IO Tgt
-prepareCd _cache subdir target =
+prepare :: P.CacheRec -> FilePath -> Tgt -> AptIOT IO Cd
+prepare _cache subdir target =
     -- FIXME: we should verify that the subdir contains a debian source tree
-    return . Tgt $ Cd subdir target
+    return $ Cd subdir target

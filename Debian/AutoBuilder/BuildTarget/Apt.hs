@@ -3,9 +3,8 @@ module Debian.AutoBuilder.BuildTarget.Apt where
 
 import Control.Monad
 import Control.Monad.Trans
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
 import Debian.Sources
@@ -32,8 +31,8 @@ instance BuildTarget Apt where
     revision _ (Apt _ _ Nothing _) = fail "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
 
-prepareApt :: P.CacheRec -> String -> AptIOT IO Tgt
-prepareApt cache target =
+prepare :: P.CacheRec -> String -> AptIOT IO Apt
+prepare cache target =
     do
       let (dist, package, version) =
               case ms of
@@ -46,7 +45,7 @@ prepareApt cache target =
       when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
       tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version
       let version' = logVersion . entry $ tree
-      return . Tgt $ Apt distro package (Just version') tree
+      return $ Apt distro package (Just version') tree
     where
       ms = match "([^:]+):([^=]*)(=([^ \t\n]+))?" target
       match = matchRegex . mkRegex

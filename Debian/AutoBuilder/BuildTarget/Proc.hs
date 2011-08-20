@@ -3,7 +3,7 @@ module Debian.AutoBuilder.BuildTarget.Proc where
 
 --import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (intercalate)
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
@@ -29,7 +29,7 @@ instance BuildTarget Proc where
     getTop params (Proc (Tgt s)) = getTop params s
     cleanTarget params (Proc (Tgt s)) source = cleanTarget params s source
     revision params (Proc (Tgt s)) =  
-        Debian.AutoBuilder.BuildTarget.revision params s >>= return . ("proc:" ++)
+        Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . ("proc:" ++)
     buildWrapper _params buildOS _buildTree _status _target action = withProc buildOS action
 {-
     buildPkg params buildOS buildTree status _ =
@@ -38,8 +38,8 @@ instance BuildTarget Proc where
 -}
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
-prepareProc :: P.CacheRec -> Tgt -> IO Tgt
-prepareProc _cache base = return . Tgt $ Proc base
+prepare :: P.CacheRec -> Tgt -> AptIOT IO Proc
+prepare _cache base = return $ Proc base
 
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =

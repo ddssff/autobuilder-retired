@@ -4,9 +4,8 @@ module Debian.AutoBuilder.BuildTarget.Darcs where
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as B
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 --import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
 import Network.URI (URI(..), URIAuth(..), parseURI)
@@ -53,14 +52,14 @@ instance BuildTarget Darcs where
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ either show id revision
 
-prepareDarcs :: P.CacheRec -> String -> IO Tgt
-prepareDarcs cache uriAndTag =
+prepare :: P.CacheRec -> String -> IO Darcs
+prepare cache uriAndTag =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       output <- liftIO fixLink
-      return . Tgt $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
+      return $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
       verifySource :: FilePath -> IO SourceTree
       verifySource dir =

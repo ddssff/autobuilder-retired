@@ -19,10 +19,11 @@ import Data.List (intercalate, sortBy)
 import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
-import qualified Debian.AutoBuilder.BuildTarget as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget (BuildTarget(cleanTarget, logText), getTop, md5sum)
+import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(cleanTarget, logText), getTop, md5sum)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.Repo (AptIOT)
 import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
@@ -118,8 +119,8 @@ debug e =
     where s = show e
 -}
 
-prepareQuilt :: P.CacheRec -> Tgt -> Tgt -> IO Tgt
-prepareQuilt cache (Tgt base) (Tgt patch) = 
+prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO Quilt
+prepare cache (Tgt base) (Tgt patch) = liftIO $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =
@@ -129,7 +130,7 @@ prepareQuilt cache (Tgt base) (Tgt patch) =
                 pc = (quiltDir ++ "/.pc")
                 pch = (quiltDir ++ "/.pc.hide")
                 rmrf d = lazyCommandV ("rm -rf '"  ++ d ++ "'") L.empty
-      make :: (SourceTree, FilePath) -> IO Tgt
+      make :: (SourceTree, FilePath) -> IO Quilt
       make (quiltTree, quiltDir) =
           do applied <- lazyCommandE cmd1a L.empty >>= quieter 1 . qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
@@ -160,7 +161,7 @@ prepareQuilt cache (Tgt base) (Tgt patch) =
                                 do result3 <- liftIO (lazyCommandE cmd3 L.empty) >>= quieter 1 . qMessage "Cleaning Quilt target" . collectOutput
                                    case result3 of
                                      (_, _, ExitSuccess) ->
-                                         findSourceTree (topdir quiltTree) >>= return . Tgt . Quilt (Tgt base) (Tgt patch)
+                                         findSourceTree (topdir quiltTree) >>= return . Quilt (Tgt base) (Tgt patch)
                                      _ -> fail $ target ++ " - Failure removing quilt directory: " ++ cmd3
                (_, err, ExitFailure _) -> fail $ target ++ " - Unexpected output from quilt applied: " ++ err
                (_, _, ExitSuccess) -> fail $ target ++ " - Unexpected result code (ExitSuccess) from " ++ show cmd1a

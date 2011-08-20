@@ -6,9 +6,8 @@ import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Maybe
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import System.FilePath (splitFileName)
 import System.IO
@@ -47,13 +46,13 @@ instance BuildTarget Tla where
 
     logText (Tla _ _) revision = "TLA revision: " ++ either show id revision
 
-prepareTla :: P.CacheRec -> String -> IO Tgt
-prepareTla cache version =
+prepare :: P.CacheRec -> String -> AptIOT IO Tla
+prepare cache version = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      return . Tgt $ Tla version tree
+      return $ Tla version tree
     where
       verifySource dir =
           do -- result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))

@@ -16,9 +16,8 @@ import System.FilePath (splitFileName)
 import System.IO
 import System.Process
 import System.Unix.Directory
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import System.Unix.Progress (lazyCommandF, timeTask)
 
 data Hg = Hg String SourceTree
@@ -54,13 +53,13 @@ instance BuildTarget Hg where
 
     logText (Hg _ _) revision = "Hg revision: " ++ either show id revision
 
-prepareHg :: P.CacheRec -> String -> IO Tgt
-prepareHg cache archive =
+prepare :: P.CacheRec -> String -> AptIOT IO Hg
+prepare cache archive = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      return . Tgt $ Hg archive tree
+      return $ Hg archive tree
     where
       verifySource dir =
           -- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q .")))) >>=

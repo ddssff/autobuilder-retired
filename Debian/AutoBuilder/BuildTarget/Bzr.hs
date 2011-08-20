@@ -7,9 +7,8 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
-import Debian.AutoBuilder.BuildTarget (BuildTarget(..), md5sum)
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), md5sum)
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 import Debian.URI
 import System.Exit (ExitCode(..))
@@ -52,12 +51,13 @@ instance BuildTarget Bzr where
 
     logText (Bzr _ _) revision = "Bazaar revision: " ++ either show id revision
 
-prepareBzr :: P.CacheRec -> String -> IO Tgt
-prepareBzr cache version = do
+prepare :: P.CacheRec -> String -> AptIOT IO Bzr
+prepare cache version = liftIO $
+  do
     when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
-    return . Tgt $ Bzr version tree
+    return $ Bzr version tree
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =

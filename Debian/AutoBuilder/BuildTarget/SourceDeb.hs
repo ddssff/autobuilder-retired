@@ -3,16 +3,16 @@
 -- @.tar.gz@ file, and an optional @.diff.gz@ file.
 module Debian.AutoBuilder.BuildTarget.SourceDeb where
 
-import qualified Debian.Control.String as S
---import Debian.Repo.Types
-import qualified Debian.Version as V
-
-import Debian.AutoBuilder.BuildTarget as BuildTarget
-import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
+import Debian.AutoBuilder.BuildTarget.Common as BuildTarget
+import qualified Debian.AutoBuilder.Params as P
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import qualified Debian.Control.String as S
+import qualified Debian.Version as V
+import Debian.Repo (AptIOT)
+--import Debian.Repo.Types
 import System.Directory
 import System.Unix.Process
 
@@ -37,8 +37,8 @@ instance BuildTarget SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepareSourceDeb :: P.CacheRec -> Tgt -> IO Tgt
-prepareSourceDeb cache (Tgt base) =
+prepare :: P.CacheRec -> Tgt -> AptIOT IO SourceDeb
+prepare cache (Tgt base) =
     do let top = getTop (P.params cache) base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")
@@ -56,7 +56,7 @@ prepareSourceDeb cache (Tgt base) =
           case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
                      (S.fieldValue "Version" dscInfo)) of
             (Just package, Just version) ->
-                Tgt $ (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
+                (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
             _ -> error $ "Invalid .dsc file: " ++ dscName
       unpack top dscName = "cd " ++ top ++ " && dpkg-source -x " ++ dscName
       compareVersions (name2, info2) (name1, info1) =

@@ -25,7 +25,7 @@ Library
                   applicative-extras, regex-tdfa, happstack-util, tar
   GHC-Options: -O2 -threaded -Wall -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
-    Debian.AutoBuilder.BuildTarget,
+    Debian.AutoBuilder.BuildTarget.Common,
     Debian.AutoBuilder.BuildTarget.Apt,
     Debian.AutoBuilder.BuildTarget.Bzr,
     Debian.AutoBuilder.BuildTarget.Cd,

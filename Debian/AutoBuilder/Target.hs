@@ -8,15 +8,12 @@ module Debian.AutoBuilder.Target
     , targetName	-- Target -> String
     , changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
     , prepareTarget	-- ReleaseName -> OSImage -> Int -> Int -> Tgt -> IO Target
-    , readSpec		-- Bool -> FilePath -> Bool -> [DistroCache] -> String -> IO Tgt
     , buildTargets
     , showTargets 
-    , targetDocumentation
     , partitionFailing, ffe, eff
     ) where
 
 import Control.Applicative.Error (Failing(..), failing)
-import Control.Arrow(second)
 import Control.Exception(Exception, SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
@@ -27,24 +24,11 @@ import qualified Data.Map as Map
 import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Debian.AutoBuilder.BuildTarget(BuildTarget(..))
-import qualified Debian.AutoBuilder.BuildTarget as BuildTarget
-import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
-import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
-import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
-import qualified Debian.AutoBuilder.BuildTarget.DebDir as DebDir
-import qualified Debian.AutoBuilder.BuildTarget.Debianize as Debianize
-import qualified Debian.AutoBuilder.BuildTarget.Hackage as Hackage
-import qualified Debian.AutoBuilder.BuildTarget.Hg as Hg
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..))
+import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
-import qualified Debian.AutoBuilder.BuildTarget.Quilt as Quilt
-import qualified Debian.AutoBuilder.BuildTarget.SourceDeb as SourceDeb
-import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
-import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
-import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
-import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt), prepareDir)
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
                        ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),
@@ -91,30 +75,6 @@ import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
 --liftTIO = lift
-
-targetDocumentation :: String
-targetDocumentation =
-    "TARGET TYPES\n\nEach argument to --target describes a technique for obtaining\n" ++
-    "the source code used to build a target.  The following target types are available:\n\n" ++
-    concat (intersperse "\n\n" $
-            map (concat . intersperse "\n  ")
-            [ [ "dir:<path> - A target of this form simply uses whatever it finds on"
-              , "the local machine at the given path as the debian source tree."
-              , "Packages built using this targets are not allowed to be uploaded"
-              , "since they include no revision control information." ]
-            , Apt.documentation
-            , Cd.documentation
-            , Darcs.documentation
-            , DebDir.documentation
-            , Debianize.documentation
-            , Hackage.documentation
-            , Hg.documentation
-            , Proc.documentation
-            , Quilt.documentation
-            , SourceDeb.documentation
-            , Svn.documentation
-            , Tla.documentation
-            , Uri.documentation ])
 
 -- | Build target info.
 data Target
@@ -321,44 +281,6 @@ _formatVersions buildDeps =
     where prefix = "\n    "
 
 --  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
-
-readSpec :: P.CacheRec -> String -> AptIOT IO Tgt
-readSpec cache text =
-    qPutStrLn (" " ++ text) >>
-    case text of
-            'a':'p':'t':':' : target -> Apt.prepareApt cache target
-            'd':'a':'r':'c':'s':':' : target -> lift (Darcs.prepareDarcs cache target)
-            'd':'e':'b':'-':'d':'i':'r':':' : target ->
-                parsePair target >>= \ (upstream, debian) -> liftIO (DebDir.prepareDebDir cache upstream debian)
-            'c':'d':':' : dirAndTarget ->
-                do let (subdir, target) = second tail (break (== ':') dirAndTarget)
-                   readSpec cache target >>= liftIO . Cd.prepareCd cache subdir
-            'd':'i':'r':':' : target -> lift $ prepareDir cache target
-            'd':'e':'b':'i':'a':'n':'i':'z':'e':':' : target -> lift $ Debianize.prepare cache target
-            'h':'a':'c':'k':'a':'g':'e':':' : target -> lift $ Hackage.prepare cache target
-            'h':'g':':' : target -> lift $ Hg.prepareHg cache target
-            'q':'u':'i':'l':'t':':' : target ->
-                parsePair target >>= \ (base, patch) -> lift (Quilt.prepareQuilt cache base patch)
-            's':'o':'u':'r':'c':'e':'d':'e':'b':':' : target ->
-                readSpec cache target >>= liftIO . SourceDeb.prepareSourceDeb cache
-            's':'v':'n':':' : target -> lift $ Svn.prepareSvn cache target
-            't':'l':'a':':' : target -> lift $ Tla.prepareTla cache target
-            'b':'z':'r':':' : target -> lift $ Bzr.prepareBzr cache target
-            'u':'r':'i':':' : target -> lift $ Uri.prepareUri cache target
-            'p':'r':'o':'c':':' : target ->
-                readSpec cache target >>= lift . Proc.prepareProc cache
-            _ -> fail ("Error in target specification: " ++ text)
-    where
-      parsePair :: String -> AptIOT IO (Tgt, Tgt)
-      parsePair text =
-          case match "\\(([^)]*)\\):\\(([^)]*)\\)" text of
-            Just [baseName, patchName] ->
-                do a <- readSpec cache baseName
-                   b <- readSpec cache patchName
-                   return (a, b)
-            _ -> error ("Invalid spec name: " ++ text)
-      match = matchRegex . mkRegex
-      -- addTargetName = failing (\ msgs -> Failure (("Target " ++ text ++ "failed") : msgs)) Success
 
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,

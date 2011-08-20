@@ -1,12 +1,9 @@
 {-# LANGUAGE ExistentialQuantification #-}
 module Debian.AutoBuilder.Tgt
     ( Tgt(Tgt)
-    , prepareDir
     ) where
 
-import Debian.Repo
-import Debian.AutoBuilder.BuildTarget (BuildTarget, Dir(Dir))
-import Debian.AutoBuilder.Params (CacheRec)
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget)
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
@@ -17,7 +14,3 @@ instance Show Tgt where
 
 --getSourceTree' :: Tgt -> SourceTree
 --getSourceTree' (Tgt a) = getSourceTree a
-
--- |Prepare a Dir target
-prepareDir :: CacheRec -> FilePath -> IO Tgt
-prepareDir _params path = findSourceTree path >>= return . Tgt . Dir

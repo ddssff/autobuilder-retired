@@ -7,9 +7,8 @@ import Control.Monad
 import Control.Monad.Trans (liftIO)
 import Data.ByteString.Lazy.Char8 (empty)
 import Data.List (isPrefixOf)
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo
 --import Debian.OldShell (runCommand, runCommandTimed)
 import Debian.URI
@@ -46,8 +45,8 @@ instance BuildTarget Uri where
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepareUri :: P.CacheRec -> String -> IO Tgt
-prepareUri cache target =
+prepare :: P.CacheRec -> String -> AptIOT IO Uri
+prepare cache target = liftIO $
     checkTarget uri md5sum >>=
     downloadTarget uri md5sum >>=
     validateTarget md5sum >>=
@@ -109,7 +108,7 @@ prepareUri cache target =
           where
             dest = sumDir ++ "/" ++ name
             sumDir = tmp ++ "/" ++ sum
-      unpackTarget :: URI -> (String, String, String) -> IO Tgt
+      unpackTarget :: URI -> (String, String, String) -> IO Uri
       unpackTarget uri (sum, sumDir, name) =
           mkdir >> untar >>= read >>= search >>= verify
           where
@@ -130,7 +129,7 @@ prepareUri cache target =
                                  else ""
             read (_output, _elapsed) = liftIO (getDir sourceDir)
             search files = checkContents (filter (not . flip elem [".", ".."]) files)
-            verify tree = return . Tgt $ Uri uri (Just sum) tree
+            verify tree = return $ Uri uri (Just sum) tree
             getDir dir = getDirectoryContents dir >>= return . filter (not . flip elem [".", ".."])
             checkContents :: [FilePath] -> IO SourceTree
             checkContents [] = error ("Empty tarball? " ++ show uri)

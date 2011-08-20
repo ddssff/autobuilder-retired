@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Svn 
     ( BuildTarget(..)
-    , prepareSvn
+    , prepare
     , Svn
     , documentation
     ) where
@@ -11,9 +11,8 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
-import Debian.AutoBuilder.BuildTarget
+import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Control.ByteString
 import Debian.Repo
 --import Debian.OldShell (FullTask, runTaskAndTest, processTask, timeTaskAndTest, commandTask, setStart, setError, runTask, processTask)
@@ -100,12 +99,12 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ either show id revision
 
-prepareSvn ::  P.CacheRec -> String -> IO Tgt
-prepareSvn cache target =
+prepare ::  P.CacheRec -> String -> AptIOT IO Svn
+prepare cache target = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
-       return . Tgt $ Svn uri tree
+       return $ Svn uri tree
     where
       verifySource dir =
           svn (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>= \ out ->
