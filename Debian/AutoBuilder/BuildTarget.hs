@@ -98,12 +98,10 @@ class BuildTarget t where
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
     revision :: P.ParamRec -> t -> IO String
-    -- |Default function to build the package for this target.
-    -- Currently this is only overridden by the proc: target which
-    -- mounts /proc, then calls buildDebs, then unmounts /proc.
-    buildPkg :: P.ParamRec -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO NominalDiffTime
-    buildPkg params buildOS buildTree status _target =
-        buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
+    -- | Transform the normal package build in some way - currently the
+    -- only place this is overridden is in the Proc target.
+    buildWrapper :: P.ParamRec -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO NominalDiffTime -> IO NominalDiffTime
+    buildWrapper _ _ _ _ _ build = build
     -- | Text to include in changelog entry.
     logText :: Exception e => t -> Either e String -> String
     -- |Some targets can return a debian version, use this to retrieve it.

@@ -30,9 +30,12 @@ instance BuildTarget Proc where
     cleanTarget params (Proc (Tgt s)) source = cleanTarget params s source
     revision params (Proc (Tgt s)) =  
         Debian.AutoBuilder.BuildTarget.revision params s >>= return . ("proc:" ++)
+    buildWrapper _params buildOS _buildTree _status _target action = withProc buildOS action
+{-
     buildPkg params buildOS buildTree status _ =
         do hPutStrLn stderr "Mounting /proc during target build"
            withProc buildOS $ buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
+-}
     logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
 
 prepareProc :: P.CacheRec -> Tgt -> IO Tgt

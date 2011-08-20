@@ -54,6 +54,7 @@ import qualified Debian.Control.String as S(fieldValue)
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations, Relation(..))
 import Debian.Release (releaseName')
+import Debian.Repo.SourceTree (buildDebs)
 import Debian.Sources (SliceName(..))
 import Debian.Repo (chrootEnv, syncEnv, syncPool, updateEnv)
 import Debian.Repo.Cache (binaryPackages, buildArchOfEnv, sourcePackages, aptSourcePackagesSorted)
@@ -332,7 +333,7 @@ readSpec cache text =
             'c':'d':':' : dirAndTarget ->
                 do let (subdir, target) = second tail (break (== ':') dirAndTarget)
                    readSpec cache target >>= liftIO . Cd.prepareCd cache subdir
-            'd':'i':'r':':' : target -> lift $ prepareDir (P.params cache) target
+            'd':'i':'r':':' : target -> lift $ prepareDir cache target
             'd':'e':'b':'i':'a':'n':'i':'z':'e':':' : target -> lift $ Debianize.prepare cache target
             'h':'a':'c':'k':'a':'g':'e':':' : target -> lift $ Hackage.prepare cache target
             'h':'g':':' : target -> lift $ Hg.prepareHg cache target
@@ -687,7 +688,8 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
       build :: DebianBuildTree -> IO (Failing (DebianBuildTree, NominalDiffTime))
       build buildTree =
           case realSource target of
-            Tgt t -> do result <- try (buildPkg (P.params cache) buildOS buildTree status t)
+            Tgt t -> do result <- try (buildWrapper (P.params cache) buildOS buildTree status t
+                                         (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
                         case result of
                           Left (e :: SomeException) -> return (Failure [show e])
                           Right elapsed -> return (Success (buildTree, elapsed))

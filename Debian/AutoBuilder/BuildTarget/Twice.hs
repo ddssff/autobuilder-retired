@@ -24,8 +24,7 @@ instance BuildTarget Twice where
         Debian.AutoBuilder.BuildTarget.revision params s >>= return . ("twice:" ++)
     -- This is a quick and dirty implementation, if you nest this inside another
     -- target type it will have no effect.
-    buildPkg params buildOS buildTree status _ =
-        buildDebs (P.noClean params) True (P.setEnv params) buildOS buildTree status
+    buildWrapper _ _ _ _ _ action = action >> action
     logText (Twice (Tgt s)) revision = logText s revision ++ " (twice if necessary)"
 
 prepareTwice :: P.CacheRec -> Tgt -> IO (Either String Tgt)

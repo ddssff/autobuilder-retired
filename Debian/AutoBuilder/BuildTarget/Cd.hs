@@ -21,13 +21,7 @@ documentation = [ "cd:<relpath>:<target> - A target of this form modifies anothe
 instance BuildTarget Cd where
     getTop params (Cd subdir (Tgt s)) = let top = getTop params s in top </> subdir
     cleanTarget params (Cd subdir (Tgt s)) source = cleanTarget params s (source </> subdir)
-    revision params (Cd subdir (Tgt s)) =  
-        Debian.AutoBuilder.BuildTarget.revision params s >>= return . (("cd:" ++ subdir ++ ":") ++)
-    buildPkg params buildOS buildTree status _ =
-        do qPutStrLn "chdir during target build"
-           buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
-           -- FIXME: we need to move the resulting deb files out of the subdirectory.
-           -- Or we could only copy the subdirectory into the build environment.
+    revision params (Cd subdir (Tgt s)) =  Debian.AutoBuilder.BuildTarget.revision params s >>= return . (("cd:" ++ subdir ++ ":") ++)
     logText (Cd subdir (Tgt s)) revision = logText s revision ++ " (in subdirectory " ++ subdir ++ ")"
 
 prepareCd :: P.CacheRec -> FilePath -> Tgt -> IO Tgt
