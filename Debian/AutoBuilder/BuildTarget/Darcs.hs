@@ -8,7 +8,7 @@ import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
 import Debian.Repo
 --import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
-import Network.URI (URI(..), URIAuth(..), parseURI)
+import Network.URI (URI(..), URIAuth(..), uriToString)
 import System.Directory
 import System.FilePath
 import System.Unix.Directory
@@ -54,6 +54,16 @@ instance BuildTarget Darcs where
 
 prepare :: P.CacheRec -> String -> IO Darcs
 prepare cache uriAndTag =
+    prepare' cache theUri theTag
+    where
+      (theUri, theTag) =
+          case matchRegex (mkRegex "^(.*)(=([^=]*))?$") uriAndTag of
+            Just [uri, "", _] -> (uri, Nothing)
+            Just [uri, _, tag] -> (uri, Just tag)
+            _ -> error "Internal error 6"	-- That regex should always match
+
+prepare' :: P.CacheRec -> String -> Maybe String -> IO Darcs
+prepare' cache theUri theTag =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
@@ -61,6 +71,9 @@ prepare cache uriAndTag =
       output <- liftIO fixLink
       return $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
+      theUri' = mustParseURI theUri
+      uriAndTag = uriToString id theUri' "" ++ maybe "" (\ tag -> "=" ++ tag) theTag
+
       verifySource :: FilePath -> IO SourceTree
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
@@ -73,7 +86,7 @@ prepare cache uriAndTag =
 
       updateSource :: FilePath -> IO SourceTree
       updateSource dir =
-          lazyCommandF ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri) B.empty >>
+          lazyCommandF ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri') B.empty >>
           -- runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>
           findSourceTree dir
 
@@ -84,7 +97,7 @@ prepare cache uriAndTag =
              output <- lazyCommandF cmd B.empty
              findSourceTree dir
           where
-            cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
+            cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
 {-
           do
             -- Create parent dir and let tla create dir
@@ -101,12 +114,7 @@ prepare cache uriAndTag =
       createStyle = (setStart (Just ("Retrieving Darcs source for " ++  theUri)) . 
                      setError (Just (\ _ -> "darcs get failed in " ++ dir)))
 -}
-      name = snd . splitFileName $ theUri
-      (theUri, theTag) =
-          case matchRegex (mkRegex "^(.*)(=([^=]*))?$") uriAndTag of
-            Just [uri, "", _] -> (uri, Nothing)
-            Just [uri, _, tag] -> (uri, Just tag)
-            _ -> error "Internal error 6"	-- That regex should always match
+      name = snd . splitFileName $ (uriPath theUri')
       -- Maybe we should include the "darcs:" in the string we checksum?
       fixLink = let link = base ++ "/" ++ name
                     cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
@@ -115,11 +123,8 @@ prepare cache uriAndTag =
       sum = md5sum uriAndTag
       base = P.topDir cache ++ "/darcs"
 
-renderForDarcs :: String -> String
-renderForDarcs s =
-    case parseURI s of
-      Nothing -> s
-      Just uri ->
-          case (uriScheme uri, uriAuthority uri) of
-            ("ssh:", Just auth) -> uriUserInfo auth ++ uriRegName auth ++ ":" ++ uriPath uri ++ uriQuery uri ++ uriFragment uri
-            (_, _) -> show uri
+renderForDarcs :: URI -> String
+renderForDarcs uri =
+    case (uriScheme uri, uriAuthority uri) of
+      ("ssh:", Just auth) -> uriUserInfo auth ++ uriRegName auth ++ ":" ++ uriPath uri ++ uriQuery uri ++ uriFragment uri
+      (_, _) -> show uri

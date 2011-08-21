@@ -99,13 +99,14 @@ instance BuildTarget Svn where
 -}
     logText (Svn _ _) revision = "SVN revision: " ++ either show id revision
 
-prepare ::  P.CacheRec -> String -> AptIOT IO Svn
-prepare cache target = liftIO $
+prepare :: P.CacheRec -> String -> AptIOT IO Svn
+prepare cache uri = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
-       return $ Svn uri tree
+       return $ Svn uri' tree
     where
+      uri' = mustParseURI uri
       verifySource dir =
           svn (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>= \ out ->
           case L.append (stdoutOnly out) (stderrOnly out) == L.empty of
@@ -133,7 +134,7 @@ prepare cache target = liftIO $
           where
             args = ([ "co","--no-auth-cache","--non-interactive"] ++ 
                     (username userInfo) ++ (password userInfo) ++ 
-                    [ (uriToString (const "") uri ""), dir ])
+                    [ uri, dir ])
             finish output = case exitCodeOnly output of
                               ExitSuccess -> Right output
                               _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
@@ -145,9 +146,5 @@ prepare cache target = liftIO $
       createStyle = (setStart (Just ("Retrieving SVN source for " ++ uriToString' uri)) .
                      setError (Just (\ _ -> "svn co failed in " ++ dir)))
 -}
-      uri = mustParseURI target
-      userInfo = maybe "" uriUserInfo (uriAuthority uri)
-      dir = P.topDir cache ++ "/svn/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
-
-mustParseURI :: String -> URI
-mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
+      userInfo = maybe "" uriUserInfo (uriAuthority uri')
+      dir = P.topDir cache ++ "/svn/" ++ md5sum (maybe "" uriRegName (uriAuthority uri') ++ (uriPath uri'))

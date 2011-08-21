@@ -46,20 +46,25 @@ instance BuildTarget Uri where
 
 -- |Download the tarball using the URI in the target and unpack it.
 prepare :: P.CacheRec -> String -> AptIOT IO Uri
-prepare cache target = liftIO $
-    checkTarget uri md5sum >>=
-    downloadTarget uri md5sum >>=
-    validateTarget md5sum >>=
-    unpackTarget uri
+prepare cache target =
+    prepare' cache uri md5sum
     where
       (uri, md5sum) = parseTarget target
       parseTarget target =
           case matchRegex (mkRegex uriRE) target of
-            Just [s, md5sum] ->
-                case parseURI s of
-                  Nothing -> error ("Invalid uri: " ++ s)
-                  Just uri -> (uri, md5sum)
+            Just [s, md5sum] -> (s, md5sum)
             _ -> error ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
+      uriRE = "([^:]+:[^:]+):(" ++ md5sumRE ++ ")"
+      md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
+
+prepare' :: P.CacheRec -> String -> String -> AptIOT IO Uri
+prepare' cache uri md5sum = liftIO $
+    checkTarget uri' md5sum >>=
+    downloadTarget uri' md5sum >>=
+    validateTarget md5sum >>=
+    unpackTarget uri'
+    where
+      uri' = mustParseURI uri
       checkTarget uri sum =
           doesFileExist final
           where
@@ -139,8 +144,3 @@ prepare cache target = liftIO $
             sourceDir = sumDir ++ "/unpack"
 
       tmp = P.topDir cache ++ "/tmp"
-      uriRE = "([^:]+:[^:]+):(" ++ md5sumRE ++ ")"
-      md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
-
-mustParseURI :: String -> URI
-mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)

@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |The intent is that this target debianize any cabal target, but currently
 -- it combines debianization with the hackage target.
-module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, documentation) where
+module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, prepare', documentation) where
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
@@ -44,9 +44,18 @@ instance BuildTarget Debianize where
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Debianize _ v _) = v
 
+prepare' :: P.CacheRec -> String -> Maybe String -> AptIOT IO Debianize
+prepare' cache name version = liftIO $
+    do (version' :: DebianVersion) <- maybe (getVersion name) (return . parseDebianVersion) version
+       when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version'])
+       downloadAndDebianize cache name version' >>= findSourceTree >>= return . Debianize name (Just version')
+    where
+      top = P.topDir cache
+    
+
 prepare :: P.CacheRec -> String -> AptIOT IO Debianize
 prepare cache target = liftIO $
-    maybe (getVersion name) return version >>= return . parseDebianVersion >>= \ version' ->
+    maybe (getVersion name) (return . parseDebianVersion) version >>= \ version' ->
     when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
     downloadAndDebianize cache name version' >>=
     findSourceTree >>=
@@ -138,9 +147,9 @@ parseTarget target =
 
 -- |Given a package name, get the newest version in hackage of the hackage package with that name:
 -- > getVersion \"binary\" -> \"0.5.0.2\"
-getVersion :: String -> IO String
+getVersion :: String -> IO DebianVersion
 getVersion name =
-    lazyCommandE cmd B.empty >>= return . findVersion name . parse cmd
+    lazyCommandE cmd B.empty >>= return . parseDebianVersion . findVersion name . parse cmd
     where cmd = curlCmd (packageURL name)
 
 curlCmd url = "curl -s '" ++ url ++ "'"

@@ -119,6 +119,8 @@ debug e =
     where s = show e
 -}
 
+prepare' = undefined
+
 prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO Quilt
 prepare cache (Tgt base) (Tgt patch) = liftIO $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make

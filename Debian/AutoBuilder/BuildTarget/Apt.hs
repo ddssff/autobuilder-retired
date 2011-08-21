@@ -33,22 +33,28 @@ instance BuildTarget Apt where
 
 prepare :: P.CacheRec -> String -> AptIOT IO Apt
 prepare cache target =
-    do
-      let (dist, package, version) =
-              case ms of
-                Just [release,package,_,""] -> (SliceName release, package, Nothing)
-                Just [release,package,_,version] -> (SliceName release, package, (Just $ parseDebianVersion version))
-                _ -> error ("failed parsing apt target: (expected dist:package[:version]): " ++ target)
-      let distro = maybe (error $ "Invalid dist: " ++ sliceName dist) id (findRelease (P.allSources cache) dist)
-      os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
-      --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
-      when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
-      tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version
-      let version' = logVersion . entry $ tree
-      return $ Apt distro package (Just version') tree
+    prepare' cache dist package version
     where
+      (dist, package, version) =
+          case ms of
+            Just [release,package,_,""] -> (release, package, Nothing)
+            Just [release,package,_,version] -> (release, package, (Just version))
+            _ -> error ("failed parsing apt target: (expected dist:package[:version]): " ++ target)
       ms = match "([^:]+):([^=]*)(=([^ \t\n]+))?" target
       match = matchRegex . mkRegex
+
+prepare' :: P.CacheRec -> String -> String -> Maybe String -> AptIOT IO Apt
+prepare' cache dist package version =
+    do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
+       os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
+       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
+       when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
+       tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
+       let version'' = logVersion . entry $ tree
+       return $ Apt distro package (Just version'') tree
+    where
+      dist' = SliceName dist
+      version' = fmap parseDebianVersion version
       findRelease distros dist = 
           case filter ((== dist) . sliceListName) distros of
             [a] -> Just a

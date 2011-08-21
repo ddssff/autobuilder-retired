@@ -1,9 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.DebDir where
 
+import Control.Monad.Trans (lift)
 import Data.ByteString.Lazy.Char8 (empty)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Spec as S
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (logVersion)
 import Debian.Version (version)
@@ -33,9 +35,12 @@ instance BuildTarget DebDir where
         revision params upstream >>= \ rev ->
         revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ either show id revision
+   
+prepare' :: P.CacheRec -> S.Spec -> S.Spec -> AptIOT IO DebDir
+prepare' = undefined
 
-prepare :: P.CacheRec -> Tgt -> Tgt -> IO DebDir
-prepare cache (Tgt upstream) (Tgt debian) = 
+prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO DebDir
+prepare cache (Tgt upstream) (Tgt debian) = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>

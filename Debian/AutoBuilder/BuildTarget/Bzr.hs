@@ -51,6 +51,8 @@ instance BuildTarget Bzr where
 
     logText (Bzr _ _) revision = "Bazaar revision: " ++ either show id revision
 
+prepare' = undefined
+
 prepare :: P.CacheRec -> String -> AptIOT IO Bzr
 prepare cache version = liftIO $
   do

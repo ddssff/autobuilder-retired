@@ -62,22 +62,22 @@
 --                this checksum.  This prevents builds when the remote tarball has changed.
 module Debian.AutoBuilder.BuildTarget.Common
     ( BuildTarget(..)
-    , Dir(Dir)
-    , Build(Build)
     , md5sum
+    , mustParseURI
     ) where
 
 import Control.Exception (Exception)
+import Data.ByteString.Lazy.Char8 (pack, unpack)
+import Data.Char (ord)
 import Data.Time (NominalDiffTime)
 import Debian.Repo
 import qualified Debian.AutoBuilder.Params as P
-import Debian.Version(DebianVersion)
-import System.Unix.Process
-
-import Data.Char (ord)
-import Text.Printf (printf)
+import Debian.Version (DebianVersion)
 import Happstack.Crypto.MD5 (md5)
-import Data.ByteString.Lazy.Char8 (pack, unpack)
+import Network.URI (URI, parseURI)
+import System.Unix.Process
+import Text.Printf (printf)
+
 
 -- | BuildTarget represents the type class of methods for obtaining a
 -- SourceTree: tla, apt, darcs, etc.
@@ -108,34 +108,6 @@ class BuildTarget t where
     mVersion :: t -> Maybe DebianVersion
     mVersion _ = Nothing
 
--- |Dir is a simple instance of BuildTarget representing building the
--- debian source in a local directory.  This type of target is used
--- for testing, and is also returned by the clean method when the
--- source control information has been stripped out of some other type
--- of BuildTarget.
-data Dir = Dir SourceTree
-
-instance Show Dir where
-    show (Dir tree) = "dir:" ++ topdir tree
-
-instance BuildTarget Dir where
-    getTop _ (Dir tree) = topdir tree
-    revision _ (Dir _) = fail "Dir targets do not have revision strings"
-    logText (Dir tree) _ = "Built from local directory " ++ topdir tree
-
--- |Build is similar to Dir, except that it owns the parent directory
--- of the source directory.  This is required for building packages
--- because all of the debs, tarballs etc appear in the parent directory.
-data Build = Build DebianBuildTree
-
-instance Show Build where
-    show (Build tree) = "build:" ++ topdir tree
-
-instance BuildTarget Build where
-    getTop _ (Build tree) = topdir tree
-    revision _ (Build _) = fail "Build targets do not have revision strings"
-    logText (Build tree) _ = "Built from local directory " ++ topdir tree
-
 -- | There are many characters which will confuse make if they appear
 -- in a directory name.  This turns them all into something safer.
 {-
@@ -154,3 +126,6 @@ escapeForMake s =
 -}
 
 md5sum s = concatMap (printf "%02x" . ord) (unpack (md5 (pack s)))
+
+mustParseURI :: String -> URI
+mustParseURI s = maybe (error ("Failed to parse URI: " ++ show s)) id (parseURI s)
