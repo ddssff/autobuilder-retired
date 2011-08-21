@@ -25,13 +25,15 @@ Library
                   applicative-extras, regex-tdfa, happstack-util, tar
   GHC-Options: -O2 -threaded -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
-    Debian.AutoBuilder.BuildTarget.Common,
+    Debian.AutoBuilder.BuildTarget,
     Debian.AutoBuilder.BuildTarget.Apt,
     Debian.AutoBuilder.BuildTarget.Bzr,
     Debian.AutoBuilder.BuildTarget.Cd,
+    Debian.AutoBuilder.BuildTarget.Common,
     Debian.AutoBuilder.BuildTarget.Darcs,
     Debian.AutoBuilder.BuildTarget.DebDir,
     Debian.AutoBuilder.BuildTarget.Debianize,
+    Debian.AutoBuilder.BuildTarget.Dir,
     Debian.AutoBuilder.BuildTarget.Hackage,
     Debian.AutoBuilder.BuildTarget.Hg,
     Debian.AutoBuilder.BuildTarget.Proc,
@@ -43,5 +45,7 @@ Library
     Debian.AutoBuilder.BuildTarget.Uri,
     Debian.AutoBuilder.Main,
     Debian.AutoBuilder.Params,
+    Debian.AutoBuilder.Spec,
     Debian.AutoBuilder.Target,
+    Debian.AutoBuilder.Tgt,
     Debian.AutoBuilder.Version
