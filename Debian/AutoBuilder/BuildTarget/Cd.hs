@@ -26,5 +26,3 @@ prepare :: P.CacheRec -> FilePath -> Tgt -> AptIOT IO Cd
 prepare _cache subdir target =
     -- FIXME: we should verify that the subdir contains a debian source tree
     return $ Cd subdir target
-
-prepare' = undefined

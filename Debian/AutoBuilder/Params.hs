@@ -32,6 +32,7 @@ import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
 import qualified Data.Set as Set
+import Debian.AutoBuilder.Spec (Spec)
 import Debian.Release
     ( Arch,
       ReleaseName(relName),
@@ -81,7 +82,7 @@ data PackageFlag
 data Package
     = Package
       { name :: String
-      , spec :: String
+      , spec :: Spec
       , flags :: [PackageFlag]
       } deriving (Show, Eq, Ord)
 

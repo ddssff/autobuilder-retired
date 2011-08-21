@@ -10,7 +10,6 @@ import Debian.Repo
 import Debian.Sources
 import Debian.Version
 import System.Unix.Directory
-import Text.Regex
 
 -- | A package retrieved via apt-get in the given slice
 data Apt = Apt NamedSliceList String (Maybe DebianVersion) DebianBuildTree
@@ -31,20 +30,8 @@ instance BuildTarget Apt where
     revision _ (Apt _ _ Nothing _) = fail "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> AptIOT IO Apt
-prepare cache target =
-    prepare' cache dist package version
-    where
-      (dist, package, version) =
-          case ms of
-            Just [release,package,_,""] -> (release, package, Nothing)
-            Just [release,package,_,version] -> (release, package, (Just version))
-            _ -> error ("failed parsing apt target: (expected dist:package[:version]): " ++ target)
-      ms = match "([^:]+):([^=]*)(=([^ \t\n]+))?" target
-      match = matchRegex . mkRegex
-
-prepare' :: P.CacheRec -> String -> String -> Maybe String -> AptIOT IO Apt
-prepare' cache dist package version =
+prepare :: P.CacheRec -> String -> String -> Maybe String -> AptIOT IO Apt
+prepare cache dist package version =
     do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
        os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)

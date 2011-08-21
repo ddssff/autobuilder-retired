@@ -18,7 +18,6 @@ import System.FilePath (splitFileName)
 import System.Directory
 import System.Unix.Directory
 import System.Unix.Progress (lazyCommandF, timeTask)
-import Text.Regex
 
 -- | A URI that returns a tarball, with an optional md5sum which must
 -- match if given.  The purpose of the md5sum is to be able to block
@@ -45,20 +44,8 @@ instance BuildTarget Uri where
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepare :: P.CacheRec -> String -> AptIOT IO Uri
-prepare cache target =
-    prepare' cache uri md5sum
-    where
-      (uri, md5sum) = parseTarget target
-      parseTarget target =
-          case matchRegex (mkRegex uriRE) target of
-            Just [s, md5sum] -> (s, md5sum)
-            _ -> error ("Syntax error in URI target, expected uri:<tarballuri>:<md5sum>, found " ++ target)
-      uriRE = "([^:]+:[^:]+):(" ++ md5sumRE ++ ")"
-      md5sumRE = concat $ replicate 32 "[0-9a-fA-F]"
-
-prepare' :: P.CacheRec -> String -> String -> AptIOT IO Uri
-prepare' cache uri md5sum = liftIO $
+prepare :: P.CacheRec -> String -> String -> AptIOT IO Uri
+prepare cache uri md5sum = liftIO $
     checkTarget uri' md5sum >>=
     downloadTarget uri' md5sum >>=
     validateTarget md5sum >>=

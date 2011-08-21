@@ -52,18 +52,8 @@ instance BuildTarget Darcs where
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> IO Darcs
-prepare cache uriAndTag =
-    prepare' cache theUri theTag
-    where
-      (theUri, theTag) =
-          case matchRegex (mkRegex "^(.*)(=([^=]*))?$") uriAndTag of
-            Just [uri, "", _] -> (uri, Nothing)
-            Just [uri, _, tag] -> (uri, Just tag)
-            _ -> error "Internal error 6"	-- That regex should always match
-
-prepare' :: P.CacheRec -> String -> Maybe String -> IO Darcs
-prepare' cache theUri theTag =
+prepare :: P.CacheRec -> String -> Maybe String -> IO Darcs
+prepare cache theUri theTag =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir

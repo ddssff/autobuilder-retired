@@ -478,7 +478,7 @@ showTargets :: [P.Package] -> String
 showTargets targets =
     unlines (heading :
              map (const '-') heading :
-             map concat (columns (map (\ (n, t) -> [printf "%4d. " n, P.name t, " ", P.spec t]) pairs))) ++ "\n"
+             map concat (columns (map (\ (n, t) -> [printf "%4d. " n, P.name t, " ", show (P.spec t)]) pairs))) ++ "\n"
     where
       pairs = zip [1..] targets :: [(Int, P.Package)]
       heading = show (length targets) ++ " Targets:"

@@ -3,7 +3,7 @@
 -- a mapping between (packagname, version) and the corresponding URI.  The
 -- form is either hackage:<name> or hackage:<name>=<version>.
 
-module Debian.AutoBuilder.BuildTarget.Hackage (Hackage(..), prepare, prepare', documentation) where
+module Debian.AutoBuilder.BuildTarget.Hackage (Hackage(..), prepare, documentation) where
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
@@ -25,7 +25,6 @@ import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
-import Text.Regex
 
 data Hackage = Hackage String (Maybe DebianVersion) SourceTree
 
@@ -45,8 +44,8 @@ instance BuildTarget Hackage where
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Hackage _ v _) = v
 
-prepare' :: P.CacheRec -> String -> Maybe String -> AptIOT IO Hackage
-prepare' cache name version = liftIO $
+prepare :: P.CacheRec -> String -> Maybe String -> AptIOT IO Hackage
+prepare cache name version = liftIO $
     maybe (getVersion name) (return . parseDebianVersion) version >>= \ (version' :: DebianVersion) ->
     when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
     download top name version' >>=
@@ -54,17 +53,6 @@ prepare' cache name version = liftIO $
     return . Hackage name (Just version')
     where
       top = P.topDir cache
-
-prepare :: P.CacheRec -> String -> AptIOT IO Hackage
-prepare cache target = liftIO $
-    maybe (getVersion name) (return . parseDebianVersion) version >>= \ version' ->
-    when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
-    download top name version' >>=
-    findSourceTree >>=
-    return . Hackage name (Just version')
-    where
-      top = P.topDir cache
-      (name, version) = parseTarget target
 
 parse cmd output =
     case collectOutputUnpacked output of
@@ -120,12 +108,6 @@ downloadCommand _ name version = "curl -s '" ++ versionURL name version ++ "'" {
 destPath top name version = destDir top name version ++ ".tar.gz"
 destDir top name version = tmpDir top ++ "/" ++ name ++ "-" ++ show version
 tmpDir top = top ++ "/hackage"
-
-parseTarget target =
-    case matchRegex (mkRegex "^([^=]+)(=(.*))?$") target of
-      Just [s, _, ""] -> (s, Nothing)
-      Just [s, _, v] -> (s, Just v)
-      _ -> error $ "Invalid hackage target: " ++ show target
 
 -- |Given a package name, get the newest version in hackage of the hackage package with that name:
 -- > getVersion \"binary\" -> \"0.5.0.2\"

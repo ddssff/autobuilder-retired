@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |The intent is that this target debianize any cabal target, but currently
 -- it combines debianization with the hackage target.
-module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, prepare', documentation) where
+module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, documentation) where
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
@@ -44,25 +44,13 @@ instance BuildTarget Debianize where
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Debianize _ v _) = v
 
-prepare' :: P.CacheRec -> String -> Maybe String -> AptIOT IO Debianize
-prepare' cache name version = liftIO $
+prepare :: P.CacheRec -> String -> Maybe String -> AptIOT IO Debianize
+prepare cache name version = liftIO $
     do (version' :: DebianVersion) <- maybe (getVersion name) (return . parseDebianVersion) version
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version'])
        downloadAndDebianize cache name version' >>= findSourceTree >>= return . Debianize name (Just version')
     where
       top = P.topDir cache
-    
-
-prepare :: P.CacheRec -> String -> AptIOT IO Debianize
-prepare cache target = liftIO $
-    maybe (getVersion name) (return . parseDebianVersion) version >>= \ version' ->
-    when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version']) >>
-    downloadAndDebianize cache name version' >>=
-    findSourceTree >>=
-    return . Debianize name (Just version')
-    where
-      top = P.topDir cache
-      (name, version) = parseTarget target
 
 parse cmd output =
     case collectOutputUnpacked output of
