@@ -27,16 +27,16 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
 
 instance BuildTarget DebDir where
     getTop _ (DebDir _ _ tree) = topdir tree
-    cleanTarget params (DebDir (Tgt upstream) (Tgt debian) _) path =
+    cleanTarget params (DebDir upstream debian _) path =
         cleanTarget params upstream path >>
         cleanTarget params debian (path ++ "/debian")
-    revision params (DebDir (Tgt upstream) (Tgt debian) _) =
+    revision params (DebDir upstream debian _) =
         revision params upstream >>= \ rev ->
         revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ either show id revision
 
 prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO DebDir
-prepare cache (Tgt upstream) (Tgt debian) = lift $
+prepare cache upstream debian = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>

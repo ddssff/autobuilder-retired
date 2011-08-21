@@ -97,7 +97,7 @@ prepare cache version = liftIO $
             -- Create parent dir and let bzr create dir
             let (parent, _) = splitFileName dir
             createDirectoryIfMissing True parent
-            output <- lazyCommandF cmd L.empty
+            _output <- lazyCommandF cmd L.empty
             findSourceTree dir
             where
                 cmd   = "bzr branch " ++ version ++ " " ++ dir

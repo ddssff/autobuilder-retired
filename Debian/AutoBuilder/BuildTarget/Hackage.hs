@@ -71,7 +71,7 @@ download top name version =
          True -> 
              do text <- B.readFile dest
                 let entries = Tar.read (Z.decompress text)
-                case Tar.foldEntries (\ _ (Right n) -> Right (n + 1)) (Right 0) Left entries of
+                case Tar.foldEntries (\ _ -> either error (Right . (+ 1))) (Right 0) Left entries of
                   Left _ -> download' top name version
                   Right _ -> return (destDir top name version)
          False -> download' top name version

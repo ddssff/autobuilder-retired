@@ -4,7 +4,7 @@ module Debian.AutoBuilder.BuildTarget.Twice where
 import Control.Monad.Trans (liftIO)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Repo (AptIOT)
 
 data Twice = Twice Tgt
@@ -18,14 +18,14 @@ documentation = [ "twice:<target> - A target of this form modifies another targe
                 , "to fail the first time to prevent fully automated builds."]
 
 instance BuildTarget Twice where
-    getTop params (Twice (Tgt s)) = getTop params s
-    cleanTarget params (Twice (Tgt s)) source = cleanTarget params s source
-    revision params (Twice (Tgt s)) =  
+    getTop params (Twice s) = getTop params s
+    cleanTarget params (Twice s) source = cleanTarget params s source
+    revision params (Twice s) =  
         Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . ("twice:" ++)
     -- This is a quick and dirty implementation, if you nest this inside another
     -- target type it will have no effect.
     buildWrapper _ _ _ _ _ action = action >> action
-    logText (Twice (Tgt s)) revision = logText s revision ++ " (twice if necessary)"
+    logText (Twice s) revision = logText s revision ++ " (twice if necessary)"
 
 prepare :: P.CacheRec -> Tgt -> AptIOT IO (Either String Twice)
 prepare _cache base = liftIO $ return . Right $ Twice base

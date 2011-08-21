@@ -41,7 +41,7 @@ instance BuildTarget Tla where
            (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            revision <- (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
                        return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           output <- waitForProcess handle
+           _output <- waitForProcess handle
            return $ "tla:" ++ revision
 
     logText (Tla _ _) revision = "TLA revision: " ++ either show id revision
@@ -78,7 +78,7 @@ prepare cache version = liftIO $
             let (parent, _) = splitFileName dir
             liftIO $ createDirectoryIfMissing True parent
             -- runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
-            output <- lazyCommandF ("tla get " ++ version ++ " " ++ dir) L.empty
+            _output <- lazyCommandF ("tla get " ++ version ++ " " ++ dir) L.empty
             findSourceTree dir
 
 {-

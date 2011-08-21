@@ -58,7 +58,7 @@ prepare cache theUri theTag =
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      output <- liftIO fixLink
+      _output <- liftIO fixLink
       return $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
       theUri' = mustParseURI theUri
@@ -84,7 +84,7 @@ prepare cache theUri theTag =
       createSource dir =
           let (parent, _) = splitFileName dir in
           do createDirectoryIfMissing True parent
-             output <- lazyCommandF cmd B.empty
+             _output <- lazyCommandF cmd B.empty
              findSourceTree dir
           where
             cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]

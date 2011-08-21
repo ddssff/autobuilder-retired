@@ -3,7 +3,7 @@ module Debian.AutoBuilder.BuildTarget.Cd where
 
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Repo.Monad (AptIOT)
 import System.FilePath ((</>))
 
@@ -17,10 +17,10 @@ documentation = [ "cd:<relpath>:<target> - A target of this form modifies anothe
                 , "used for repositories where the debian directory is in a subdirectory."]
 
 instance BuildTarget Cd where
-    getTop params (Cd subdir (Tgt s)) = let top = getTop params s in top </> subdir
-    cleanTarget params (Cd subdir (Tgt s)) source = cleanTarget params s (source </> subdir)
-    revision params (Cd subdir (Tgt s)) =  Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . (("cd:" ++ subdir ++ ":") ++)
-    logText (Cd subdir (Tgt s)) revision = logText s revision ++ " (in subdirectory " ++ subdir ++ ")"
+    getTop params (Cd subdir t) = let top = getTop params t in top </> subdir
+    cleanTarget params (Cd subdir t) source = cleanTarget params t (source </> subdir)
+    revision params (Cd subdir t) =  Debian.AutoBuilder.BuildTarget.Common.revision params t >>= return . (("cd:" ++ subdir ++ ":") ++)
+    logText (Cd subdir t) revision = logText t revision ++ " (in subdirectory " ++ subdir ++ ")"
 
 prepare :: P.CacheRec -> FilePath -> Tgt -> AptIOT IO Cd
 prepare _cache subdir target =

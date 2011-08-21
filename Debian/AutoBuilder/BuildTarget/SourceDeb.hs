@@ -30,15 +30,15 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 
 -- |SourceDeb targets inherit the revision string of the target they modify.
 instance BuildTarget SourceDeb where
-    getTop _ (SourceDeb (Tgt _) dir _) = dir
-    revision params (SourceDeb (Tgt t) _ _) =
+    getTop _ (SourceDeb _ dir _) = dir
+    revision params (SourceDeb t _ _) =
         BuildTarget.revision params t >>= return . ("sourcedeb:" ++)
-    logText (SourceDeb (Tgt t) _ _) revision = logText t revision ++ " (source deb)"
+    logText (SourceDeb t _ _) revision = logText t revision ++ " (source deb)"
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
 prepare :: P.CacheRec -> Tgt -> AptIOT IO SourceDeb
-prepare cache (Tgt base) =
+prepare cache base =
     do let top = getTop (P.params cache) base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")

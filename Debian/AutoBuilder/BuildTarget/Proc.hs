@@ -5,7 +5,7 @@ module Debian.AutoBuilder.BuildTarget.Proc where
 import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
 import System.IO (hPutStrLn, stderr)
@@ -26,17 +26,12 @@ documentation = [ "proc:<target> - A target of this form modifies another target
                 , "is ultimately installed." ]
 
 instance BuildTarget Proc where
-    getTop params (Proc (Tgt s)) = getTop params s
-    cleanTarget params (Proc (Tgt s)) source = cleanTarget params s source
-    revision params (Proc (Tgt s)) =  
+    getTop params (Proc s) = getTop params s
+    cleanTarget params (Proc s) source = cleanTarget params s source
+    revision params (Proc s) =  
         Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . ("proc:" ++)
     buildWrapper _params buildOS _buildTree _status _target action = withProc buildOS action
-{-
-    buildPkg params buildOS buildTree status _ =
-        do hPutStrLn stderr "Mounting /proc during target build"
-           withProc buildOS $ buildDebs (P.noClean params) False (P.setEnv params) buildOS buildTree status
--}
-    logText (Proc (Tgt s)) revision = logText s revision ++ " (with /proc mounted)"
+    logText (Proc s) revision = logText s revision ++ " (with /proc mounted)"
 
 prepare :: P.CacheRec -> Tgt -> AptIOT IO Proc
 prepare _cache base = return $ Proc base

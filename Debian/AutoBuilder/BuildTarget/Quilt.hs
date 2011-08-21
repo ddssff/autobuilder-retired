@@ -58,11 +58,11 @@ getEntry (Patch x) = x
 
 instance BuildTarget Quilt where
     getTop _ (Quilt _ _ tree) = topdir tree
-    cleanTarget params (Quilt (Tgt base) _ _) source = cleanTarget params base source
+    cleanTarget params (Quilt base _ _) source = cleanTarget params base source
     -- A quilt revision string is the base target revision string and the
     -- patch target revision string connected with a '+'.  If the base
     -- target has no revision string the patch revision string is used.
-    revision params (Quilt (Tgt base) (Tgt patch) _) =
+    revision params (Quilt base patch _) =
         do baseRev <- try (BuildTarget.revision params base)
            case baseRev of
              Right (rev :: String) ->
@@ -101,7 +101,7 @@ makeQuiltTree cache base patch =
                 let cmd1 = ("set -x && cd '" ++ quiltDir ++ "' && rm -f '" ++ quiltPatchesDir ++
                             "' && ln -s '" ++ patchDir ++ "' '" ++ quiltPatchesDir ++ "'")
                 -- runTaskAndTest (linkStyle (commandTask cmd1))
-                output <- lazyCommandF cmd1 L.empty
+                _output <- lazyCommandF cmd1 L.empty
                 -- Now we need to have created a DebianSourceTree so
                 -- that there is a changelog for us to reconstruct.
                 return (copyTree, quiltDir)
@@ -120,7 +120,7 @@ debug e =
 -}
 
 prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO Quilt
-prepare cache (Tgt base) (Tgt patch) = liftIO $
+prepare cache base patch = liftIO $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =

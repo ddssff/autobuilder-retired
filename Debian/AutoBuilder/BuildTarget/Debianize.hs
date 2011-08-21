@@ -23,7 +23,6 @@ import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
-import Text.Regex
 
 data Debianize = Debianize String (Maybe DebianVersion) SourceTree
 
@@ -44,11 +43,11 @@ instance BuildTarget Debianize where
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Debianize _ v _) = v
 
-prepare :: P.CacheRec -> String -> Maybe String -> AptIOT IO Debianize
-prepare cache name version = liftIO $
+prepare :: P.CacheRec -> [P.PackageFlag] -> String -> Maybe String -> AptIOT IO Debianize
+prepare cache flags name version = liftIO $
     do (version' :: DebianVersion) <- maybe (getVersion name) (return . parseDebianVersion) version
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [destPath top name version', destDir top name version'])
-       downloadAndDebianize cache name version' >>= findSourceTree >>= return . Debianize name (Just version')
+       downloadAndDebianize cache flags name version' >>= findSourceTree >>= return . Debianize name (Just version')
     where
       top = P.topDir cache
 
@@ -61,8 +60,8 @@ parse cmd output =
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-downloadAndDebianize ::  P.CacheRec -> String -> DebianVersion -> IO String
-downloadAndDebianize cache name version =
+downloadAndDebianize ::  P.CacheRec -> [P.PackageFlag] -> String -> DebianVersion -> IO String
+downloadAndDebianize cache flags name version =
     do let dest = destPath top name version
        exists <- doesFileExist dest
        dir <-
@@ -70,11 +69,11 @@ downloadAndDebianize cache name version =
              True -> 
                  do text <- B.readFile dest
                     let entries = Tar.read (Z.decompress text)
-                    case Tar.foldEntries (\ _ (Right n) -> Right (n + 1)) (Right 0) Left entries of
+                    case Tar.foldEntries (\ _ -> either error (Right . (+ 1))) (Right 0) Left entries of
                       Left _ -> download top name version
                       Right _ -> return (destDir top name version)
              False -> download top name version
-       debianize cache dir
+       debianize cache flags dir
        return dir
     where
       top = P.topDir cache
@@ -83,11 +82,14 @@ downloadAndDebianize cache name version =
 -- debianization, then we could debianize cabal packages whatever their origin,
 -- and we wouldn't have to debianize *every* hackage target.  But I'm out of
 -- patience right now...
-debianize :: P.CacheRec -> FilePath -> IO ()
-debianize cache dir =
+debianize :: P.CacheRec -> [P.PackageFlag] -> FilePath -> IO ()
+debianize cache flags dir =
     do (out, err, code) <-
            lazyProcess "cabal-debian" (["--debianize", "--maintainer", "'Unknown Maintainer <unknown@debian.org>'"] ++
-                                       [{- "--root", root -}] ++ maybe [] (\ x -> ["--ghc-version", x]) ver) (Just dir) Nothing B.empty >>=
+                                       foldr (\ flag args -> case flag of (P.ExtraDep s) -> ["--build-dep", s] ++ args; _ -> args) [] flags ++
+                                       [{- "--root", root -}] ++
+                                       -- Used to determine which packages are bundled
+                                       maybe [] (\ x -> ["--ghc-version", x]) ver) (Just dir) Nothing B.empty >>=
            return . collectOutputUnpacked
        case code of
          ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian --debianize --maintainer 'Unknown Maintainer <unknown@debian.org>' --root " ++ show root ++ "\n -> " ++ show n ++ "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
@@ -113,25 +115,10 @@ download top name version =
              B.writeFile dest out
              return (destDir top name version)
 
-unpack _name _version =
-    mkdir >> untar >>= readDir >>= search >>= verify
-    where
-      mkdir = undefined
-      untar = undefined
-      readDir = undefined
-      search = undefined
-      verify = undefined
-
 downloadCommand _top name version = "curl -s '" ++ versionURL name version ++ "'" {- ++ " > '" ++ destPath top name version ++ "'" -}
 destPath top name version = destDir top name version ++ ".tar.gz"
 destDir top name version = tmpDir top ++ "/" ++ name ++ "-" ++ show version
 tmpDir top = top ++ "/hackage"
-
-parseTarget target =
-    case matchRegex (mkRegex "^([^=]+)(=(.*))?$") target of
-      Just [s, _, ""] -> (s, Nothing)
-      Just [s, _, v] -> (s, Just v)
-      _ -> error $ "Invalid hackage target: " ++ show target
 
 -- |Given a package name, get the newest version in hackage of the hackage package with that name:
 -- > getVersion \"binary\" -> \"0.5.0.2\"

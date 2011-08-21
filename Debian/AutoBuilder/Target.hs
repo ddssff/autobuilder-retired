@@ -28,7 +28,7 @@ import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..))
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
                        ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),
@@ -151,13 +151,13 @@ partitionFailing =
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
 prepareTarget :: P.CacheRec -> OSImage -> Tgt -> IO Target
-prepareTarget cache os tgt@(Tgt source) =
+prepareTarget cache os source =
     prepareBuild cache os source >>= target
     where
       target :: DebianBuildTree -> IO Target
       target tree =
           try (BuildTarget.revision (P.params cache) source) >>= \ rev ->
-          return $ Target { realSource = tgt
+          return $ Target { realSource = source
                           , cleanSource = tree
                           , targetEntry = latest
                           , targetControl = ctl
@@ -232,7 +232,7 @@ prepareBuild cache os target =
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
              copy <- copyDebianBuildTree debBuild dest
-             (out, time) <- cleanTarget (P.params cache) target (topdir copy)
+             (_output, _time) <- cleanTarget (P.params cache) target (topdir copy)
              when (newdir /= (subdir debBuild))
                       (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
              findDebianBuildTree dest newdir
@@ -256,7 +256,7 @@ escapeForBuild =
 -- form.  FIXME: this should also include revision control log
 -- entries.
 changelogText :: Exception e => Tgt -> Either e String -> [PkgVersion] -> [PkgVersion] -> String
-changelogText (Tgt spec) revision oldDeps newDeps =
+changelogText spec revision oldDeps newDeps =
     ("  * " ++ logText spec revision ++ "\n" ++ depChanges changedDeps ++ "\n")
     where
       depChanges [] = ""
@@ -510,7 +510,7 @@ buildTarget ::
     AptIOT IO (Failing LocalRepository)	-- The local repository after the upload, or an error message
 buildTarget cache cleanOS globalBuildDeps repo poolOS target =
     do
-      cleanOS' <- lift (syncPool cleanOS)
+      _cleanOS' <- lift (syncPool cleanOS)
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
@@ -542,7 +542,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               sourceRevision <- case realSource target of (Tgt spec) -> lift (try (BuildTarget.revision (P.params cache) spec))
+               sourceRevision <- lift (try (BuildTarget.revision (P.params cache) (realSource target)))
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -609,12 +609,11 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
             True -> return (Success buildTree)
       build :: DebianBuildTree -> IO (Failing (DebianBuildTree, NominalDiffTime))
       build buildTree =
-          case realSource target of
-            Tgt t -> do result <- try (buildWrapper (P.params cache) buildOS buildTree status t
-                                         (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
-                        case result of
-                          Left (e :: SomeException) -> return (Failure [show e])
-                          Right elapsed -> return (Success (buildTree, elapsed))
+          do result <- try (buildWrapper (P.params cache) buildOS buildTree status (realSource target)
+                            (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
+             case result of
+               Left (e :: SomeException) -> return (Failure [show e])
+               Right elapsed -> return (Success (buildTree, elapsed))
       find (buildTree, elapsed) =
           liftIO $ try (findChanges buildTree) >>=
                  return . either (\ (e :: SomeException) -> Failure [show e]) (\ changesFile -> Success (changesFile, elapsed))
@@ -669,7 +668,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
 -- of builds.  For lax: dependencies, then image copy, then source
 -- copy.  For other: image copy, then source copy, then dependencies.
 prepareBuildImage :: P.CacheRec -> OSImage -> [PkgVersion] -> OSImage -> Target -> P.Strictness -> IO (Failing DebianBuildTree)
-prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) P.Lax =
+prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target _ _ _ _ _ _ _ _) P.Lax =
     -- Install dependencies directly into the clean environment
     installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies >>=
     failing (return . Failure) (\ x -> prepareTree noClean x)
@@ -686,7 +685,7 @@ prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target (Tgt _
       noClean = P.noClean (P.params cache)
       newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) oldPath)
       oldPath = topdir . cleanSource $ target
-prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target (Tgt _tgt) _ _ _ _ _ _ _) _ =
+prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target _ _ _ _ _ _ _ _) _ =
     -- Install dependencies directly into the build environment
     findTree noClean >>=
     failing (return . Failure) downloadDeps >>=
@@ -994,14 +993,7 @@ installDependencies os source extra versions =
       path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
 
--- These two belongs in System.Unix.Process
-partitionResult :: [Output] -> ([Output], [ExitCode])
-partitionResult output =
-    foldr f ([], []) output
-    where
-      f (Result r) (out, codes) = (out, (r : codes))
-      f x (out, codes) = (x : out, codes)
-
+-- | Move to System.Unix.Process?
 outputToString [] = ""
 outputToString (Stdout s : out) = B.unpack s ++ outputToString out
 outputToString (Stderr s : out) = B.unpack s ++ outputToString out
@@ -1141,7 +1133,9 @@ buildDecision target vendorTag oldVendorTags forceBuild allowBuildDependencyRegr
             _ ->
                   error ("Unexpected releaseStatus: " ++ show releaseStatus)
       notArchDep control =
-          all (== "all") . map (maybe "all" (\ (Field (_, s)) -> stripWS s)) . map (lookupP "Architecture") . unControl $ control
+          all (== "all") . map (maybe "all" strip) . map (lookupP "Architecture") . unControl $ control
+          where strip (Field (_, s)) = stripWS s
+                strip (Comment _) = ""
       buildDependencyChangeText dependencies =
           "  " ++ intercalate "\n  " lines
           where

@@ -550,8 +550,10 @@ dropOneSuffix suffixes s =
       [s'] -> Just s'
       _ -> Nothing
 
+{-
 dropAllSuffixes :: [String] -> String -> String
 dropAllSuffixes suffixes s = maybe s (dropAllSuffixes suffixes) (dropOneSuffix suffixes s)
+-}
 
 -- | Signifies that the release we are building for is a development
 -- (or unstable) release.  This means we the tag we add doesn't need

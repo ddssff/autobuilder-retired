@@ -120,7 +120,7 @@ prepare cache uri = liftIO $
       updateSource dir =
           do
             -- if the original url contained a specific revision, this will do the wrong thing
-            output <- svn (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
+            _output <- svn (["update","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
             findSourceTree dir
 
       createSource dir =

@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Debian.AutoBuilder.BuildTarget
     ( readSpec
     , targetDocumentation
@@ -6,6 +7,7 @@ module Debian.AutoBuilder.BuildTarget
 import Control.Applicative ((<$>))
 import Control.Monad.Trans (lift)
 import Data.List (intersperse)
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget)
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
 import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
 import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
@@ -23,41 +25,48 @@ import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Spec as S
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt(Tgt, Top))
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.Progress (qPutStrLn)
 
-readSpec :: P.CacheRec -> S.Spec -> AptIOT IO Tgt
-readSpec cache spec =
+readSpec :: P.CacheRec -> [P.PackageFlag] -> S.Spec -> AptIOT IO Tgt
+readSpec cache flags spec =
     qPutStrLn (" " ++ show spec) >>
     case spec of
-      S.Apt dist package version -> Tgt <$> Apt.prepare cache dist package version
-      S.Darcs uri tag -> Tgt <$> lift (Darcs.prepare cache uri tag)
+      S.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
+      S.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)
       S.DebDir upstream debian ->
-          readSpec cache upstream >>= \ upstream' ->
-          readSpec cache debian >>= \ debian' ->
-          Tgt <$> (DebDir.prepare cache upstream' debian')
+          readSpec cache [] upstream >>= \ upstream' ->
+          readSpec cache [] debian >>= \ debian' ->
+          tgt <$> (DebDir.prepare cache upstream' debian')
       S.Cd dir spec' ->
-          readSpec cache spec' >>= \ tgt ->
-          Tgt <$> Cd.prepare cache dir tgt
-      S.Dir path -> Tgt <$> Dir.prepare cache path
-      S.Debianize package version -> Tgt <$> Debianize.prepare cache package version
-      S.Hackage package version -> Tgt <$> Hackage.prepare cache package version
-      S.Hg string -> Tgt <$> Hg.prepare cache string
+          readSpec cache [] spec' >>= \ t ->
+          tgt <$> Cd.prepare cache dir t
+      S.Dir path -> tgt <$> Dir.prepare cache path
+      S.Debianize package version -> tgt <$> Debianize.prepare cache flags package version
+      S.Hackage package version -> tgt <$> Hackage.prepare cache package version
+      S.Hg string -> tgt <$> Hg.prepare cache string
       S.Proc spec' ->
-          readSpec cache spec' >>= \ tgt ->
-          Tgt <$> Proc.prepare cache tgt
+          readSpec cache [] spec' >>= \ t ->
+          tgt <$> Proc.prepare cache t
       S.Quilt base patches ->
-          readSpec cache base >>= \ base' ->
-          readSpec cache patches >>= \ patches' ->
-          Tgt <$> Quilt.prepare cache base' patches'
+          readSpec cache [] base >>= \ base' ->
+          readSpec cache [] patches >>= \ patches' ->
+          tgt <$> Quilt.prepare cache base' patches'
       S.SourceDeb spec' ->
-          readSpec cache spec' >>= \ tgt ->
-          Tgt <$> SourceDeb.prepare cache tgt
-      S.Svn uri -> Tgt <$> Svn.prepare cache uri
-      S.Tla string -> Tgt <$> Tla.prepare cache string
-      S.Bzr string -> Tgt <$> Bzr.prepare cache string
-      S.Uri uri sum -> Tgt <$> Uri.prepare cache uri sum
+          readSpec cache [] spec' >>= \ t ->
+          tgt <$> SourceDeb.prepare cache t
+      S.Svn uri -> tgt <$> Svn.prepare cache uri
+      S.Tla string -> tgt <$> Tla.prepare cache string
+      S.Bzr string -> tgt <$> Bzr.prepare cache string
+      S.Uri uri sum -> tgt <$> Uri.prepare cache uri sum
+      S.Twice {} -> error "Unimplemented: Twice"
+    where
+      -- If any flags were passed in we want to build a Top, otherwise a Tgt
+      tgt :: forall a. (Show a, BuildTarget a) => a -> Tgt
+      tgt x = case flags of
+                [] -> Tgt x
+                _ -> Top flags x
 
 targetDocumentation :: String
 targetDocumentation =
