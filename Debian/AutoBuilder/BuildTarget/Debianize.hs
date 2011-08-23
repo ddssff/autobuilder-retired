@@ -85,7 +85,7 @@ downloadAndDebianize cache flags name version =
 debianize :: P.CacheRec -> [P.PackageFlag] -> FilePath -> IO ()
 debianize cache flags dir =
     do (out, err, code) <-
-           lazyProcess "cabal-debian" (["--debianize", "--maintainer", "'Unknown Maintainer <unknown@debian.org>'"] ++
+           lazyProcess "cabal-debian" (["--debianize", "--maintainer", "Unknown Maintainer <unknown@debian.org>"] ++
                                        foldr (\ flag args -> case flag of (P.ExtraDep s) -> ["--build-dep", s] ++ args; _ -> args) [] flags ++
                                        [{- "--root", root -}] ++
                                        -- Used to determine which packages are bundled
