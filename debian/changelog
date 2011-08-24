@@ -1,3 +1,14 @@
+autobuilder (6.6) unstable; urgency=low
+
+  * Add support for cabal-debian flags --deb-name, --deb-version, --epoch
+  * Make the list of PackageFlag available when building a target.
+  * Use the haskell expression for Target (now Package) instead of the old
+    package spec syntax.
+  * Fail if we don't have the built-in module list for the exact compiler
+    version that is in our build environment.
+
+ -- David Fox <dsf@seereason.com>  Wed, 24 Aug 2011 16:39:35 -0700
+
 autobuilder (6.5) unstable; urgency=low
 
   * Simplify the parameter handling code
