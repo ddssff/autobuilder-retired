@@ -77,6 +77,9 @@ instance Show Strictness where
 data PackageFlag
     = RelaxDep String		-- ^ Build dependencies which be ignored when deciding whether to rebuild
     | ExtraDep String		-- ^ Build dependencies which should be added to the debian/control file
+    | DebName String            -- ^ The name to use for the portion debian package name between "libghc-" and "-dev".
+    | DebVersion String         -- ^ The debian version number to insert into the changelog.
+    | Epoch Int                 -- ^ Set the epoch number in the version number
     deriving (Show, Eq, Ord)
 
 data Package
