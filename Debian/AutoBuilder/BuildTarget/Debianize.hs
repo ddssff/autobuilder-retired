@@ -88,14 +88,13 @@ debianize cache flags dir =
                      foldr (\ flag args ->
                                 case flag of
                                   (P.ExtraDep s) -> ["--build-dep", s] ++ args
-                                  (P.DebName s) -> ["--deb-name", s] ++ args
                                   (P.DebVersion s) -> ["--deb-version", s] ++ args
                                   (P.Epoch n) -> ["--epoch", show n] ++ args
                                   _ -> args) [] flags ++
                                [{- "--root", root -}] ++
                                -- Used to determine which packages are bundled
                                maybe [] (\ x -> ["--ghc-version", x]) ver)
-       hPutStrLn stderr ("cabal-debian " ++ intercalate " " flags')
+       -- hPutStrLn stderr ("cabal-debian " ++ intercalate " " flags')
        (out, err, code) <- lazyProcess "cabal-debian" flags' (Just dir) Nothing B.empty >>= return . collectOutputUnpacked
        case code of
          ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian --debianize --maintainer 'Unknown Maintainer <unknown@debian.org>' --root " ++ show root ++ "\n -> " ++ show n ++ "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
