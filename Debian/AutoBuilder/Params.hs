@@ -217,6 +217,9 @@ data ParamRec =
     -- can lead to attempts to upload packages that are already
     -- present in the repository, or packages that are trumped by
     -- versions already uploaded to the release.
+    , discard :: Set.Set String
+    -- ^ When any of these targets become ready to build, fail them.
+    -- This is to save time on targets we know will fail.
 
     -- THINGS THAT RARELY CHANGE
 
@@ -286,7 +289,6 @@ data ParamRec =
     -- ^ Specifies the version of the library required.  (Obsolete?)
     , debug :: Bool
     -- ^ Unspecified debugging behavior.
-    , omitTargets :: [String]
     , extraReleaseTag :: Maybe Int
     , preferred :: [String]
     -- ^ When selecting build dependencies, prefer this particular
@@ -329,7 +331,7 @@ prettyPrint x =
             , "sources=" ++ take 120 (show (sources x))
             , "targets=" ++ take 120 (show (targets x))
             , "goals=" ++ take 120 (show (goals x))
-            , "omitTargets=" ++ take 120 (show (omitTargets x))
+            , "discard=" ++ take 120 (show (discard x))
             , "vendorTag=" ++ take 120 (show (vendorTag x))
             , "oldVendorTags=" ++ take 120 (show (oldVendorTags x))
             , "extraReleaseTag=" ++ take 120 (show (extraReleaseTag x))
@@ -367,30 +369,6 @@ prettyPrint x =
             --, "baseRelease sources=\n" ++ show (lookup (sliceName (baseRelease x)) (sources x))
             ]
 
-{-
--- |Along with an instance of 'ParamClass' we need an instance of
--- 'CacheClass', which contains the result examining the local and
--- remote environment to determine the home directory and the status
--- of all the remote repositories we want to use.
-data Cache
-    = Cache { topDir' :: FilePath
-            , allSources' :: [NamedSliceList]
-            , buildRepoSources' :: SliceList
-            } deriving Show
-
--- |Create a type class for Cache objects so we can make a
--- (ParamClass, Cache) pair an instance of it.
-class CacheClass a where
-    topDir :: a -> FilePath
-    allSources :: a -> [NamedSliceList]
-    buildRepoSources :: a -> SliceList
-
-instance CacheClass Cache where
-    topDir = topDir'
-    allSources = allSources'
-    buildRepoSources = buildRepoSources'
--}
-
 -- |Create a Cache object from a parameter set.
 buildCache :: ParamRec -> AptIOT IO CacheRec
 buildCache params =
@@ -421,64 +399,6 @@ data CacheRec
 -- |Make a ('ParamClass', 'CacheClass') pair an instance ParamClass,
 -- CacheClass, and RunClass.
 -- instance (ParamClass p) => RunClass (p, Cache)
-
-{-
-instance CacheClass c => CacheClass (a, c) where
-    topDir = topDir . snd
-    allSources = allSources . snd
-    buildRepoSources = buildRepoSources . snd
-
-instance (Show p, Show a, ParamClass p) => ParamClass (p, a) where
-    verbosity = verbosity . fst
-    topDirParam = topDirParam . fst
-    debug = debug . fst
-    dryRun = dryRun . fst
-    requiredVersion = requiredVersion . fst
-    showSources = showSources . fst
-    showParams = showParams . fst
-    flushAll = flushAll . fst
-    useRepoCache = useRepoCache . fst
-    sources = sources . fst
-    targets = targets . fst
-    goals = goals . fst
-    omitTargets = omitTargets . fst
-    vendorTag = vendorTag . fst
-    oldVendorTags = oldVendorTags . fst
-    extraReleaseTag = extraReleaseTag . fst
-    flushSource = flushSource . fst
-    forceBuild = forceBuild . fst
-    buildTrumped = buildTrumped . fst
-    allowBuildDependencyRegressions = allowBuildDependencyRegressions . fst
-    preferred = preferred . fst
-    strictness = strictness . fst
-    setEnv = setEnv . fst
-    buildDepends = buildDepends . fst
-    globalRelaxInfo = globalRelaxInfo . fst
-    noClean = noClean . fst
-    includePackages = includePackages . fst
-    excludePackages = excludePackages . fst
-    components = components . fst
-    ghcVersion = ghcVersion . fst
-    buildRelease = buildRelease . fst
-    releaseSuffixes = releaseSuffixes . fst
-    developmentReleaseNames = developmentReleaseNames . fst
-    doNotChangeVersion = doNotChangeVersion . fst
-    releaseAliases = releaseAliases . fst
-    flushRoot = flushRoot . fst
-    cleanUp = cleanUp . fst
-    archList = archList . fst
-    flushPool = flushPool . fst
-    doUpload = doUpload . fst
-    doNewDist = doNewDist . fst
-    newDistProgram = newDistProgram . fst
-    uploadURI = uploadURI . fst
-    buildURI = buildURI . fst
-    createRelease = createRelease . fst
-    ifSourcesChanged = ifSourcesChanged . fst
-    doSSHExport = doSSHExport . fst
-    doHelp = doHelp . fst
-    autobuilderEmail = autobuilderEmail . fst
--}
 
 loadRepoCache :: FilePath -> AptIOT IO ()
 loadRepoCache top =
@@ -581,61 +501,6 @@ relaxDepends params@(ParamRec {targets = TargetSet s}) =
                              (relaxInfo target)) (Set.toList s)
 relaxDepends _params = error "relaxDepends: invalid target set"
 
-{-
-data ParamRec =
-    ParamRec
-    { verbosity :: Int
-    , topDirParam :: Maybe FilePath
-    , debug :: Bool
-    , dryRun :: Bool
-    , requiredVersion :: [(DebianVersion, Maybe String)]
-    , showSources :: Bool
-    , showParams :: Bool
-    , flushAll :: Bool
-    , useRepoCache :: Bool
-    , sources :: [(String, String)]
-    , targets :: TargetSpec
-    , goals :: [String]
-    , omitTargets :: [String]
-    , vendorTag :: String
-    , oldVendorTags :: [String]
-    , extraReleaseTag :: Maybe Int
-    , flushSource :: Bool
-    , forceBuild :: [String]
-    , buildTrumped :: [String]
-    , allowBuildDependencyRegressions :: Bool
-    , preferred :: [String]
-    , strictness :: Strictness
-    , setEnv :: [String]
-    , buildDepends :: [String]
-    , globalRelaxInfo :: [String]
-    , noClean :: Bool
-    , includePackages :: [String]
-    , excludePackages :: [String]
-    , components :: [String]
-    , ghcVersion :: Maybe String
-    , buildRelease :: ReleaseName
-    , releaseSuffixes :: [String]
-    , developmentReleaseNames :: [String]
-    , doNotChangeVersion :: Bool
-    , releaseAliases :: [(String, String)]
-    , flushRoot :: Bool
-    , cleanUp :: Bool
-    , archList :: [Arch]
-    , flushPool :: Bool
-    , doUpload :: Bool
-    , doNewDist :: Bool
-    , newDistProgram :: String
-    , uploadURI :: Maybe URI
-    , buildURI :: Maybe URI
-    , createRelease :: [String]
-    , ifSourcesChanged :: SourcesChangedAction
-    , doSSHExport :: Bool
-    , doHelp :: Bool
-    , autobuilderEmail :: String
-    } deriving Show 
--}
-
 -- |Information about what targets to build are temporarily held in a
 -- value of this type.  Once all the command line arguments have been
 -- analyzed, this is transformed into a set of targets, which can be
@@ -645,61 +510,6 @@ data TargetSpec
     | TargetNames (Set.Set String)
     | TargetSet (Set.Set Package)
     deriving Show
-
-{-
-instance ParamClass ParamRec where
-    verbosity = Debian.AutoBuilder.ParamRec.verbosity
-    topDirParam = Debian.AutoBuilder.ParamRec.topDirParam
-    debug = Debian.AutoBuilder.ParamRec.debug
-    dryRun = Debian.AutoBuilder.ParamRec.dryRun
-    requiredVersion = Debian.AutoBuilder.ParamRec.requiredVersion
-    showSources = Debian.AutoBuilder.ParamRec.showSources
-    showParams = Debian.AutoBuilder.ParamRec.showParams
-    flushAll = Debian.AutoBuilder.ParamRec.flushAll
-    useRepoCache = Debian.AutoBuilder.ParamRec.useRepoCache
-    sources = Debian.AutoBuilder.ParamRec.sources
-    targets p = case Debian.AutoBuilder.ParamRec.targets p of
-                  TargetSet xs -> xs
-                  x -> error $ "Expected TargetSet, found " ++ show x
-    goals = Debian.AutoBuilder.ParamRec.goals
-    omitTargets = Debian.AutoBuilder.ParamRec.omitTargets
-    vendorTag = adjustVendorTag . Debian.AutoBuilder.ParamRec.vendorTag
-    oldVendorTags = Debian.AutoBuilder.ParamRec.oldVendorTags
-    extraReleaseTag = Debian.AutoBuilder.ParamRec.extraReleaseTag
-    flushSource = Debian.AutoBuilder.ParamRec.flushSource
-    forceBuild = Debian.AutoBuilder.ParamRec.forceBuild
-    buildTrumped = Debian.AutoBuilder.ParamRec.buildTrumped
-    allowBuildDependencyRegressions = Debian.AutoBuilder.ParamRec.allowBuildDependencyRegressions
-    preferred = Debian.AutoBuilder.ParamRec.preferred
-    strictness = Debian.AutoBuilder.ParamRec.strictness
-    setEnv = Debian.AutoBuilder.ParamRec.setEnv
-    buildDepends = Debian.AutoBuilder.ParamRec.buildDepends
-    globalRelaxInfo = Debian.AutoBuilder.ParamRec.globalRelaxInfo
-    noClean = Debian.AutoBuilder.ParamRec.noClean
-    includePackages = Debian.AutoBuilder.ParamRec.includePackages
-    excludePackages = Debian.AutoBuilder.ParamRec.excludePackages
-    components = Debian.AutoBuilder.ParamRec.components
-    ghcVersion = Debian.AutoBuilder.ParamRec.ghcVersion
-    buildRelease = Debian.AutoBuilder.ParamRec.buildRelease
-    releaseSuffixes = Debian.AutoBuilder.ParamRec.releaseSuffixes
-    developmentReleaseNames = Debian.AutoBuilder.ParamRec.developmentReleaseNames
-    doNotChangeVersion = Debian.AutoBuilder.ParamRec.doNotChangeVersion
-    releaseAliases = Debian.AutoBuilder.ParamRec.releaseAliases
-    flushRoot = Debian.AutoBuilder.ParamRec.flushRoot
-    cleanUp = Debian.AutoBuilder.ParamRec.cleanUp
-    archList = Debian.AutoBuilder.ParamRec.archList
-    flushPool = Debian.AutoBuilder.ParamRec.flushPool
-    doUpload = Debian.AutoBuilder.ParamRec.doUpload
-    doNewDist = Debian.AutoBuilder.ParamRec.doNewDist
-    newDistProgram = Debian.AutoBuilder.ParamRec.newDistProgram
-    uploadURI = Debian.AutoBuilder.ParamRec.uploadURI
-    buildURI = Debian.AutoBuilder.ParamRec.buildURI
-    createRelease = Debian.AutoBuilder.ParamRec.createRelease
-    ifSourcesChanged = Debian.AutoBuilder.ParamRec.ifSourcesChanged
-    doSSHExport = Debian.AutoBuilder.ParamRec.doSSHExport
-    doHelp = Debian.AutoBuilder.ParamRec.doHelp
-    autobuilderEmail = Debian.AutoBuilder.ParamRec.autobuilderEmail
--}
 
 -- |Adjust the vendor tag so we don't get trumped by Debian's new +b
 -- notion for binary uploads.  The version number of the uploaded
@@ -712,59 +522,3 @@ adjustVendorTag s =
     newprefix ++ suffix
     where (_oldprefix, suffix) = span (== '+') s
           newprefix = if suffix < "b" then "++" else "+" 
-
-{-
-makeParamRec :: P.ParamClass p => p -> R.ParamRec
-makeParamRec params =
-    R.ParamRec
-    { R.verbosity = P.verbosity params
-    , R.topDirParam = P.topDirParam params
-    , R.debug = P.debug params
-    , R.dryRun = P.dryRun params
-    , R.requiredVersion = P.requiredVersion params
-    , R.showSources = P.showSources params
-    , R.showParams = P.showParams params
-    , R.flushAll = P.flushAll params
-    , R.useRepoCache = P.useRepoCache params
-    , R.sources = P.sources params
-    , R.targets = R.TargetSet . P.targets $ params
-    , R.goals = P.goals params
-    , R.omitTargets = P.omitTargets params
-    , R.vendorTag = P.vendorTag params
-    , R.oldVendorTags = P.oldVendorTags params
-    , R.extraReleaseTag = P.extraReleaseTag params
-    , R.flushSource = P.flushSource params
-    , R.forceBuild = P.forceBuild params
-    , R.buildTrumped = P.buildTrumped params
-    , R.allowBuildDependencyRegressions = P.allowBuildDependencyRegressions params
-    , R.preferred = P.preferred params
-    , R.strictness = P.strictness params
-    , R.setEnv = P.setEnv params
-    , R.buildDepends = P.buildDepends params
-    , R.globalRelaxInfo = P.globalRelaxInfo params
-    , R.noClean = P.noClean params
-    , R.includePackages = P.includePackages params
-    , R.excludePackages = P.excludePackages params
-    , R.components = P.components params
-    , R.ghcVersion = P.ghcVersion params
-    , R.buildRelease = P.buildRelease params
-    , R.releaseSuffixes = P.releaseSuffixes params
-    , R.doNotChangeVersion = P.doNotChangeVersion params
-    , R.developmentReleaseNames = P.developmentReleaseNames params
-    , R.releaseAliases = P.releaseAliases params
-    , R.flushRoot = P.flushRoot params
-    , R.cleanUp = P.cleanUp params
-    , R.archList = P.archList params
-    , R.flushPool = P.flushPool params
-    , R.doUpload = P.doUpload params
-    , R.doNewDist = P.doNewDist params
-    , R.newDistProgram = P.newDistProgram params
-    , R.uploadURI = P.uploadURI params
-    , R.buildURI = P.buildURI params
-    , R.createRelease = P.createRelease params
-    , R.ifSourcesChanged = P.ifSourcesChanged params
-    , R.doSSHExport = P.doSSHExport params
-    , R.doHelp = P.doHelp params
-    , R.autobuilderEmail = P.autobuilderEmail params
-    }
--}

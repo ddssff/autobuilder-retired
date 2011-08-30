@@ -311,24 +311,19 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             case next of
               Nothing -> return failed
               Just (target, blocked, other) ->
-                  do
-                    --tio (vEPutStrBl 0 ("\n\n" ++ makeTable targetGroups ++ "\n"))
-                    ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s\n"
+                  do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s\n"
                                         (count - length relaxed + 1) count (targetName target) (show (realSource target)))
-                    -- mapRWST (local (appPrefix " ")) (buildTarget' target) >>=
-                    result <- buildTarget' target
-                    failing (\ errs ->
-                                 do ePutStrLn ("Package build failed:\n " ++ intercalate "\n " errs)
-                                    ePutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
-                                               concat (intersperse "\n  " (map targetName blocked)))
-                                    buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
-                            (\ _ ->
-                                 do cleanOS' <- updateEnv cleanOS
-                                    case cleanOS' of
-                                      Left e -> error ("Failed to update clean OS:\n " ++ show e)
-                                      Right cleanOS'' ->
-                                          buildLoop cleanOS'' globalBuildDeps count (blocked ++ other, failed))
-                            result
+                     result <- if Set.member (targetName target) (P.discard (P.params cache))
+                               then return (Failure ["--discard option set"])
+                               else buildTarget' target
+                     failing (\ errs ->
+                                  do ePutStrLn ("Package build failed:\n " ++ intercalate "\n " errs)
+                                     ePutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
+                                                concat (intersperse "\n  " (map targetName blocked)))
+                                     buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
+                             (\ _ ->
+                                  do buildLoop cleanOS globalBuildDeps count (blocked ++ other, failed))
+                             result
           where
             buildTarget' target =
                 do {- showElapsed "Total elapsed for target: " $ -} 
@@ -553,8 +548,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                    buildTrumped = elem packageName (P.buildTrumped (P.params cache))
                let newVersion = computeNewVersion cache sourcePackages (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                let decision =
-                       buildDecision target (P.vendorTag (P.params cache)) (P.oldVendorTags (P.params cache)) (elem packageName (P.forceBuild (P.params cache)))
-                                         (P.allowBuildDependencyRegressions (P.params cache))
+                       buildDecision cache target
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
                ePutStrLn ("Build decision: " ++ show decision)
@@ -658,6 +652,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
             -- didn't exit when the first buildworthy target is found.
             (_, errors) <- scanIncoming True Nothing repo
             case errors of
+              -- Update lists to reflect the availability of the package we just built
               [] -> liftIO (updateLists cleanOS) >> return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
       buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot cache)
@@ -1058,11 +1053,8 @@ doError cmd (_, _, ExitFailure n) = Failure ["Error " ++ show n ++ " running '" 
 -- is different from the revision of the uploaded source, or if any of
 -- the build dependencies are newer than the versions which were
 -- encoded into the uploaded version's control file.
-buildDecision :: Target
-              -> String
-              -> [String]
-              -> Bool
-              -> Bool
+buildDecision :: P.CacheRec
+              -> Target
               -> Maybe DebianVersion	-- builtVersion: the version already present in the repository
               -> Maybe DebianVersion	-- builtSrcVersion: the version of the source code that builtVersion was built from
               -> Maybe String		-- builtRevision: that version's revision string
@@ -1071,13 +1063,13 @@ buildDecision :: Target
               -> DebianVersion		-- sourceVersion: the version number in the newest changelog entry of the source code
               -> [PkgVersion]		-- sourceDependencies: the list of build dependency versions computed from the build environment
               -> BuildDecision
-buildDecision target vendorTag oldVendorTags forceBuild allowBuildDependencyRegressions
+buildDecision cache target 
                   oldVersion oldSrcVersion _oldRevision builtDependencies releaseStatus
                   sourceVersion sourceDependencies =
-    case (forceBuild, oldVersion == Nothing) of
-      (True, _) -> Yes "--force-build option is set"
-      (False, True) -> Yes ("Initial build of version " ++ show sourceVersion)
-      (False, False) ->
+    case oldVersion == Nothing of
+      _ | forceBuild -> Yes "--force-build option is set"
+        | isNothing oldVersion -> Yes ("Initial build of version " ++ show sourceVersion)
+      _ ->
           case isJust oldSrcVersion of
             True ->
                 case compare sourceVersion (fromJust oldSrcVersion) of
@@ -1093,6 +1085,11 @@ buildDecision target vendorTag oldVendorTags forceBuild allowBuildDependencyRegr
                         False -> Yes ("Source version (" ++ show sourceVersion ++ ") is tagged, and old source version was not recorded")
                         True -> sameSourceTests
     where
+      vendorTag = P.vendorTag (P.params cache)
+      oldVendorTags = P.oldVendorTags (P.params cache)
+      forceBuild = elem (targetName target) (P.forceBuild (P.params cache))
+      discardTarget = Set.member (targetName target) (P.discard (P.params cache))
+      allowBuildDependencyRegressions = P.allowBuildDependencyRegressions (P.params cache)
       -- Build decision tests for when the version number of the
       -- source hasn't changed.  Note that the source itself may have
       -- changed, but we don't ask the SCCS whether that has happened.
