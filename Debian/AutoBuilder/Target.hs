@@ -321,7 +321,11 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                                      ePutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                                 concat (intersperse "\n  " (map targetName blocked)))
                                      buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
-                             (\ _ -> buildLoop cleanOS globalBuildDeps count (blocked ++ other, failed))
+                             (\ mRepo ->
+                                  do cleanOS' <- maybe (return cleanOS)
+                                                       (\ _ -> updateEnv cleanOS >>= either (\ e -> error ("Failed to update clean OS:\n " ++ show e)) return)
+                                                       mRepo
+                                     buildLoop cleanOS' globalBuildDeps count (blocked ++ other, failed))
                              result
           where
             buildTarget' target =
@@ -381,7 +385,7 @@ chooseNextTarget goals targets =
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
       info ->
-          do quieter 1 $ qPutStrLn (makeTable info)
+          do ePutStrLn (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
       makeTable (G.BuildableInfo ready _other) =
@@ -501,7 +505,7 @@ buildTarget ::
     LocalRepository ->			-- The local repository the packages will be uploaded to
     t ->
     Target ->
-    AptIOT IO (Failing LocalRepository)	-- The local repository after the upload, or an error message
+    AptIOT IO (Failing (Maybe LocalRepository))	-- The local repository after the upload (if it changed), or an error message
 buildTarget cache cleanOS globalBuildDeps repo poolOS target =
     do
       _cleanOS' <- lift (syncPool cleanOS)
@@ -558,11 +562,14 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                  Success version ->
                     case decision of
                       Error message -> return (Failure [message])
-                      No _ -> return (Success repo)
-                      Yes _ ->  buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
-                      Arch _ -> buildPackage cache cleanOS oldVersion oldDependencies sourceRevision sourceDependencies' target releaseStatus repo sourceLog
-                      Auto _ -> buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog
+                      No _ -> return (Success Nothing)
+                      Yes _ ->  buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog >>= fm
+                      Arch _ -> buildPackage cache cleanOS oldVersion oldDependencies sourceRevision sourceDependencies' target releaseStatus repo sourceLog >>= fm
+                      Auto _ -> buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog >>= fm
     where
+      fm :: Monad m => Failing x -> m (Failing (Maybe x))
+      fm (Failure msgs) = return (Failure msgs)
+      fm (Success x) = return (Success (Just x))
       --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
       packageName = targetName target
       -- Find or create an apt-get environment that will see all the packages
@@ -652,7 +659,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
             (_, errors) <- scanIncoming True Nothing repo
             case errors of
               -- Update lists to reflect the availability of the package we just built
-              [] -> liftIO (syncPool cleanOS >>= updateLists) >> return (Success repo)
+              [] -> liftIO (updateLists cleanOS) >> return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
       buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot cache)
 
