@@ -652,7 +652,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
             (_, errors) <- scanIncoming True Nothing repo
             case errors of
               -- Update lists to reflect the availability of the package we just built
-              [] -> liftIO (syncPool cleanOS >>= updateLists) >>= return (Success repo)
+              [] -> liftIO (syncPool cleanOS >>= updateLists) >> return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
       buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot cache)
 
