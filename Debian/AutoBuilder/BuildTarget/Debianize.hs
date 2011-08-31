@@ -8,7 +8,7 @@ import qualified Codec.Compression.GZip as Z
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy as B
-import Data.List (isPrefixOf, isSuffixOf, intercalate)
+import Data.List (isPrefixOf, isSuffixOf)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
 import Debian.Version (DebianVersion, parseDebianVersion)

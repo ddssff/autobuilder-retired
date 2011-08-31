@@ -1094,7 +1094,7 @@ buildDecision cache target
       vendorTag = P.vendorTag (P.params cache)
       oldVendorTags = P.oldVendorTags (P.params cache)
       forceBuild = elem (targetName target) (P.forceBuild (P.params cache))
-      discardTarget = Set.member (targetName target) (P.discard (P.params cache))
+      -- discardTarget = Set.member (targetName target) (P.discard (P.params cache))
       allowBuildDependencyRegressions = P.allowBuildDependencyRegressions (P.params cache)
       -- Build decision tests for when the version number of the
       -- source hasn't changed.  Note that the source itself may have
