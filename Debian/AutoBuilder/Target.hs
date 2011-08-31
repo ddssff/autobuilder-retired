@@ -321,8 +321,7 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                                      ePutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                                 concat (intersperse "\n  " (map targetName blocked)))
                                      buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
-                             (\ _ ->
-                                  do buildLoop cleanOS globalBuildDeps count (blocked ++ other, failed))
+                             (\ _ -> buildLoop cleanOS globalBuildDeps count (blocked ++ other, failed))
                              result
           where
             buildTarget' target =
@@ -653,7 +652,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
             (_, errors) <- scanIncoming True Nothing repo
             case errors of
               -- Update lists to reflect the availability of the package we just built
-              [] -> liftIO (updateLists cleanOS) >> return (Success repo)
+              [] -> liftIO (syncPool cleanOS >>= updateLists) >>= return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
       buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot cache)
 
