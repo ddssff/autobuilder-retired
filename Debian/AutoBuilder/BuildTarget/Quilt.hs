@@ -29,7 +29,8 @@ import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Unix.Process (collectOutputUnpacked, collectOutput, mergeToStderr)
-import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, quieter, qPutStrLn, qMessage)
+import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
+import System.Unix.QIO (quieter, qPutStrLn, qMessage)
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 

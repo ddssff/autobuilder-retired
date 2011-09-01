@@ -13,7 +13,8 @@ import System.FilePath (splitFileName)
 import System.IO
 import System.Process
 import System.Unix.Directory
-import System.Unix.Progress (timeTask, lazyCommandF, qPutStrLn)
+import System.Unix.Progress (timeTask, lazyCommandF)
+import System.Unix.QIO (qPutStrLn)
 import System.Directory
 
 -- | A TLA archive

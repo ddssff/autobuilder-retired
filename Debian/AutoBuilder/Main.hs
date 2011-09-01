@@ -50,7 +50,8 @@ import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
-import System.Unix.Progress (modQuietness, ePutStr, ePutStrLn, timeTask, lazyCommandF, quieter, qPutStrLn, qPutStr)
+import System.Unix.Progress (timeTask, lazyCommandF)
+import System.Unix.QIO (modQuietness, quieter, qPutStrLn, qPutStr)
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
@@ -185,7 +186,7 @@ runParameterSet cache =
           do let path = EnvPath (EnvRoot "") (P.localPoolDir cache)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if P.flushPool (P.params cache) then flushLocalRepository else return)
-             ePutStrLn $ "Preparing release main in local repository at " ++ outsidePath path
+             qPutStrLn $ "Preparing release main in local repository at " ++ outsidePath path
              release <- prepareRelease repo (P.buildRelease (P.params cache)) [] [parseSection' "main"] (P.archList (P.params cache))
              case releaseRepo release of
                LocalRepo repo' ->
@@ -194,8 +195,8 @@ runParameterSet cache =
                      False -> return repo'
                _ -> error "Expected local repo"
       prepareTargetList =
-          do ePutStr (showTargets allTargets)
-             ePutStrLn "Retrieving all source code:\n"
+          do qPutStr (showTargets allTargets)
+             qPutStrLn "Retrieving all source code:\n"
              countTasks (map (\ target -> (P.name target, tryAB (quieter 3 (readSpec cache (P.flags target) (P.spec target))))) allTargets)
           where
             allTargets = {- filter (\ x -> not (elem (P.name x) (P.omitTargets (P.params cache)))) -} (Set.toList targetSet)
@@ -209,13 +210,13 @@ runParameterSet cache =
           | P.doUpload (P.params cache) =
               case P.uploadURI (P.params cache) of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> ePutStr "Uploading from local repository" >> uploadRemote repo uri
+                Just uri -> qPutStr "Uploading from local repository" >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            ePutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n")
+            qPutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n")
             case P.doUpload (P.params cache) of
-              True -> ePutStr "Skipping upload."
+              True -> qPutStr "Skipping upload."
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
@@ -223,17 +224,17 @@ runParameterSet cache =
           | P.doNewDist (P.params cache) =
               case P.uploadURI (P.params cache) of
                 Just uri ->
-                    do ePutStrLn ("Upload results:\n  " ++ intercalate "\n  " (map show results))
+                    do qPutStrLn ("Upload results:\n  " ++ intercalate "\n  " (map show results))
                        case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ P.newDistProgram (P.params cache) ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . P.createRelease $ (P.params cache))) in
-                             ePutStr "Running newdist on remote repository" >>
+                             qPutStr "Running newdist on remote repository" >>
                              try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
-                             ePutStr "Running newdist on a local repository" >>
+                             qPutStr "Running newdist on a local repository" >>
                              try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Success ([], (fromInteger 0)))
@@ -254,7 +255,7 @@ runParameterSet cache =
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
             loadCache path =
                 do pairs <- try (readFile path >>= return . read) >>=
-                            either (\ (e :: SomeException) -> ePutStrLn ("Couldn't load cache: " ++ show e) >> return []) return
+                            either (\ (e :: SomeException) -> qPutStrLn ("Couldn't load cache: " ++ show e) >> return []) return
                    let (pairs' :: [(URI, Maybe Repository)]) =
                            catMaybes (map (\ (s, x) -> case parseURI s of
                                                          Nothing -> Nothing
@@ -266,17 +267,14 @@ runParameterSet cache =
 -- nothing.  For a single result we can print a simple message,
 -- for multiple paramter sets we need to print a summary.
 checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
-checkResults [Right (Left e)] = (ePutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
+checkResults [Right (Left e)] = (qPutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
 checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
-checkResults [Left e] = ePutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
+checkResults [Left e] = qPutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
 checkResults list =
-    do mapM_ (\ (num, result) -> ePutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
-       case filter isLeft list of
-         [] -> liftIO (exitWith ExitSuccess)
-         _ -> liftIO (exitWith (ExitFailure 1))
+    do mapM_ (\ (num, result) -> qPutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
+       case partitionEithers list of
+         ([], _) -> liftIO (exitWith ExitSuccess)
+         (_, _) -> liftIO (exitWith (ExitFailure 1))
     where showResult (Right (Left e)) = show e
           showResult (Right (Right _)) = "Ok"
           showResult (Left e) = "Ok (" ++ show e ++ ")"
-          isLeft (Right (Left _)) = True
-          isLeft (Left _) = True
-          isLeft (Right (Right _)) = False    

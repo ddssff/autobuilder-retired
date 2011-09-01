@@ -17,7 +17,8 @@ import System.IO
 import System.Process
 import System.Unix.Directory
 import qualified System.Unix.Process as P
-import System.Unix.Progress (timeTask, lazyCommandF, ePutStrLn, qPutStrLn)
+import System.Unix.Progress (timeTask, lazyCommandF)
+import System.Unix.QIO (qPutStrLn)
 import System.Directory
 
 -- | A Bazaar archive
@@ -32,7 +33,7 @@ documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar
 instance BuildTarget Bzr where
     getTop _ (Bzr _ tree) = topdir tree
     cleanTarget _ (Bzr _ _) path =
-        ePutStrLn ("Clean Bazzar target in " ++ path) >> 
+        qPutStrLn ("Clean Bazzar target in " ++ path) >> 
         timeTask (lazyCommandF cmd L.empty)
         where
           cmd = "find '" ++ path ++ "' -name '.bzr' -prune | xargs rm -rf"
@@ -61,7 +62,7 @@ prepare cache version = liftIO $
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =
-            ePutStrLn ("Verifying Bazaar source archive '" ++ dir ++ "'") >>
+            qPutStrLn ("Verifying Bazaar source archive '" ++ dir ++ "'") >>
             try (lazyCommandF cmd L.empty) >>= \ result ->
             case result of
               -- if we fail then the source tree is corrupted, so get a new one

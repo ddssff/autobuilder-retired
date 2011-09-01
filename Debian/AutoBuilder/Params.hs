@@ -55,7 +55,7 @@ import qualified Debian.GenBuildDeps as G
 import System.Directory
     ( createDirectoryIfMissing, getPermissions, writable )
 import System.Environment ( getEnv )
-import System.Unix.Progress (ePutStrLn)
+import System.Unix.QIO (qPutStrLn)
 
 -- import Debian.AutoBuilder.ParamClass as P ( ParamClass(..), Target, Strictness )
 
@@ -402,7 +402,7 @@ data CacheRec
 
 loadRepoCache :: FilePath -> AptIOT IO ()
 loadRepoCache top =
-    do ePutStrLn "Loading repo cache..."
+    do qPutStrLn "Loading repo cache..."
        state <- get
        uris <- liftIO $ try (readFile (top ++ "/repoCache")) >>=
                try . evaluate . either (\ (_ :: SomeException) -> []) read >>=

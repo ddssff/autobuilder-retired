@@ -70,7 +70,8 @@ import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Process (collectResult)
-import System.Unix.Progress (lazyCommandF, lazyCommandV, ePutStrLn, quieter, qPutStrLn, qPutStr, qMessage)
+import System.Unix.Progress (lazyCommandF, lazyCommandV)
+import System.Unix.QIO (quieter, qPutStrLn, qPutStr, qMessage)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
@@ -137,7 +138,7 @@ countTasks' tasks =
     where
       countTask :: Int -> (Int, (String, IO a)) -> IO (Failing a)
       countTask count (index, (message, task)) =
-          (ePutStrLn (printf "[%2d of %2d] %s:" index count message)) >>
+          (qPutStrLn (printf "[%2d of %2d] %s:" index count message)) >>
           try task >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
 
 -- |Move to Control.Applicative.Error.
@@ -291,7 +292,7 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
       targetList <- lift $ prepareAllTargetSource cleanOS
-      ePutStrLn "\nBuilding all targets:\n"
+      qPutStrLn "\nBuilding all targets:\n"
       failed <- {- setStyle (addPrefix " ") $ -} buildLoop cleanOS globalBuildDeps (length targetList) (targetList, [])
       return (localRepo, failed)
       --buildAll cleanOS targetList globalBuildDeps
@@ -299,7 +300,7 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       -- Retrieve and/or update the source code of all the targets before building.
       prepareAllTargetSource cleanOS =
           do
-            ePutStrLn "\nAssembling clean source tree for each target:\n"
+            qPutStrLn "\nAssembling clean source tree for each target:\n"
             quieter 3 (countAndPrepareTargets cache cleanOS targetSpecs)
       -- Execute the target build loop until all the goals (or everything) is built
       buildLoop :: OSImage -> Relations -> Int -> ([Target], [Target]) -> AptIOT IO [Target]
@@ -311,14 +312,14 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
             case next of
               Nothing -> return failed
               Just (target, blocked, other) ->
-                  do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s\n"
+                  do qPutStrLn (printf "[%2d of %2d] TARGET: %s - %s\n"
                                         (count - length relaxed + 1) count (targetName target) (show (realSource target)))
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
                                then return (Failure ["--discard option set"])
                                else buildTarget' target
                      failing (\ errs ->
-                                  do ePutStrLn ("Package build failed:\n " ++ intercalate "\n " errs)
-                                     ePutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
+                                  do qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs)
+                                     qPutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                                 concat (intersperse "\n  " (map targetName blocked)))
                                      buildLoop cleanOS globalBuildDeps count (other, (target : blocked) ++ failed))
                              (\ mRepo ->
@@ -385,7 +386,7 @@ chooseNextTarget goals targets =
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
       info ->
-          do ePutStrLn (makeTable info)
+          do qPutStrLn (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
       makeTable (G.BuildableInfo ready _other) =
@@ -436,7 +437,7 @@ getDependencyInfo globalBuildDeps targets =
       finish ([], ok) = return (map (\ (target, deps) -> target {targetDepends = deps}) ok)
       finish (bad, ok) =
           do -- FIXME: Any errors here should be fatal
-             ePutStrLn ("Unable to retrieve build dependency info for some targets:\n  " ++
+             qPutStrLn ("Unable to retrieve build dependency info for some targets:\n  " ++
                            concat (intersperse "\n  " (map (\ (target, message) -> targetName target ++ ": " ++ message) bad)))
              return (map (\ (target, deps) -> target {targetDepends = deps}) ok)
 
@@ -516,7 +517,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
       solutions <- lift (buildDepSolutions' (P.preferred (P.params cache)) cleanOS globalBuildDeps debianControl)
       case solutions of
         Failure excuses -> do let excuses' = ("Couldn't satisfy build dependencies" : excuses)
-                              ePutStrLn (intercalate "\n " excuses')
+                              qPutStrLn (intercalate "\n " excuses')
                               return $ Failure excuses
         Success [] -> error "Internal error 4"
         Success ((count, sourceDependencies) : _) ->
@@ -554,7 +555,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                        buildDecision cache target
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
-               ePutStrLn ("Build decision: " ++ show decision)
+               qPutStrLn ("Build decision: " ++ show decision)
                -- FIXME: incorporate the release status into the build decision
                case newVersion of
                  Failure messages ->
@@ -859,7 +860,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
                -- Do not stare directly into the solutions!  Your head will
                -- explode (because there may be a lot of them.)
                case Debian.Repo.Dependencies.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
-                 Left error -> ePutStrLn (message relations' relations'') >> return (Failure [error])
+                 Left error -> qPutStrLn (message relations' relations'') >> return (Failure [error])
                  Right solutions -> qPutStrLn (message relations' relations'') >> return (Success solutions)
     where
       alwaysSatisfied xs = any isNothing xs && all isNothing xs
@@ -956,7 +957,7 @@ downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
        quieter 1 $ qPutStrLn . ("versions: " ++) . show $! vers
-       ePutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
+       qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
        (out, _, code) <- useEnv (rootPath root) forceList (lazyCommandV command L.empty) >>=
                          return . collectOutputUnpacked . mergeToStdout
        case code of
@@ -978,12 +979,12 @@ pathBelow root path =
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
 installDependencies os source extra versions =
-    do ePutStrLn ("Installing build dependencies into " ++ rootPath (rootDir os))
+    do qPutStrLn ("Installing build dependencies into " ++ rootPath (rootDir os))
        (code, out) <- liftIO (useEnv (rootPath root) forceList $ quieter 1 $ Proc.withProc os $ lazyCommandV command L.empty) >>=
                       return . collectResult
        case code of
          ExitSuccess -> return (Success out)
-         code -> ePutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
+         code -> qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
                  return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
