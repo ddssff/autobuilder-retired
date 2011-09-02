@@ -133,7 +133,7 @@ prepare cache base patch = liftIO $
                 rmrf d = lazyCommandV ("rm -rf '"  ++ d ++ "'") L.empty
       make :: (SourceTree, FilePath) -> IO Quilt
       make (quiltTree, quiltDir) =
-          do applied <- lazyCommandE cmd1a L.empty >>= quieter (1 - 1) . qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
+          do applied <- quieter 2 $ lazyCommandE cmd1a L.empty >>= qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
                (_, err, ExitFailure 1)
                    | err == "No patches applied\n" ->
