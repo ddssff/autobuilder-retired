@@ -12,7 +12,7 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (rawSystem)
 import System.Unix.Directory (unmountRecursiveSafely)
 import System.Unix.QIO (qPutStrLn)
-import System.Unix.Progress (lazyProcessF)
+import System.Unix.Progress (lazyProcessEF)
 --import System.Unix.Progress (qPutStrLn)
 
 data Proc = Proc Tgt
