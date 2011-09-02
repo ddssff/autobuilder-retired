@@ -1,7 +1,7 @@
 -- |Modify a target so that \/proc is mounted while it builds.
 module Debian.AutoBuilder.BuildTarget.Proc where
 
---import qualified Data.ByteString.Lazy.Char8 as L
+import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
@@ -11,7 +11,8 @@ import System.Directory (createDirectoryIfMissing)
 import System.IO (hPutStrLn, stderr)
 import System.Process (rawSystem)
 import System.Unix.Directory (unmountRecursiveSafely)
-import System.Unix.Process
+import System.Unix.QIO (qPutStrLn)
+import System.Unix.Progress (lazyProcessF)
 --import System.Unix.Progress (qPutStrLn)
 
 data Proc = Proc Tgt
@@ -38,20 +39,10 @@ prepare _cache base = return $ Proc base
 
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =
-    do hPutStrLn stderr "Mounting /proc during target build"
-       createDirectoryIfMissing True dir
-       code <- rawSystem cmd args
-       case code of
-         ExitSuccess ->
-             do hPutStrLn stderr "Mounted /proc"
-                result <- task
-                hPutStrLn stderr "Unmounting /proc..."
-                unmountRecursiveSafely dir
-                hPutStrLn stderr "Unmounted /proc."
-                return result
-         _ -> do hPutStrLn stderr "Mount of /proc failed!"
-                 fail (intercalate " " (cmd : args) ++ " -> " ++ show code)
+    do createDirectoryIfMissing True dir
+       lazyProcessEF "mount" ["--bind", "/proc", dir] Nothing Nothing L.empty
+       result <- task
+       lazyProcessEF "umount" [dir] Nothing Nothing L.empty
+       return result
     where
-      cmd = "mount"
-      args = ["--bind", "/proc", dir]
       dir = rootPath (rootDir buildOS) ++ "/proc"

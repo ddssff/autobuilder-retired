@@ -27,12 +27,13 @@ import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Spec as S
 import Debian.AutoBuilder.Tgt (Tgt(Tgt, Top))
 import Debian.Repo.Monad (AptIOT)
-import System.Unix.QIO (qPutStrLn)
+import System.Unix.QIO (quieter, qPutStrLn)
 
 readSpec :: P.CacheRec -> [P.PackageFlag] -> S.Spec -> AptIOT IO Tgt
 readSpec cache flags spec =
     qPutStrLn (" " ++ show spec) >>
-    case spec of
+    quieter 1
+     (case spec of
       S.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
       S.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)
       S.DebDir upstream debian ->
@@ -60,7 +61,7 @@ readSpec cache flags spec =
       S.Tla string -> tgt <$> Tla.prepare cache string
       S.Bzr string -> tgt <$> Bzr.prepare cache string
       S.Uri uri sum -> tgt <$> Uri.prepare cache uri sum
-      S.Twice {} -> error "Unimplemented: Twice"
+      S.Twice {} -> error "Unimplemented: Twice")
     where
       -- If any flags were passed in we want to build a Top, otherwise a Tgt
       tgt :: forall a. (Show a, BuildTarget a) => a -> Tgt

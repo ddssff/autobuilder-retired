@@ -20,6 +20,7 @@ import System.Console.GetOpt
 import System.Environment (getArgs)
 import System.Exit
 import System.IO (hPutStr, hPutStrLn, hFlush, stderr)
+import System.Unix.QIO (ePutStr, ePutStrLn)
 
 import Targets
 import Usage
@@ -362,12 +363,12 @@ main =
     do args <- getArgs
        case getOpt' Permute optSpecs args of
          (fns, dists, [], []) ->
-             do hPutStrLn stderr "Autobuilder starting..."
+             do ePutStrLn "Autobuilder starting..."
                 -- hPutStrLn stderr ("args=" ++ show args ++ ", dists=" ++ show dists)
                 -- Apply the command line arguments to each paramter set
                 maybeDoHelp (map (\ p -> foldr ($) p fns) . map params $ dists) >>= M.main
          (_, _, badopts, errs) ->
-             hPutStr stderr (usage ("Bad options: " ++ show badopts ++ ", errors: " ++ show errs) optSpecs)
+             ePutStr (usage ("Bad options: " ++ show badopts ++ ", errors: " ++ show errs) optSpecs)
 
 maybeDoHelp xs@(x : _)
     | doHelp x = hPutStr stderr (usage "Usage: " optSpecs) >> exitWith ExitSuccess >> return xs

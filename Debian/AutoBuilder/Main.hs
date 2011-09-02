@@ -41,7 +41,6 @@ import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
 import System.Unix.Process(Output)
-import Extra.List(consperse)
 import Extra.Lock(withLock)
 import Extra.Misc(checkSuperUser)
 import System.Directory(createDirectoryIfMissing)
@@ -73,7 +72,7 @@ doParameterSet params =
 runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet cache =
     do
-      qPutStrLn $ "topDir=" ++ show (P.topDir cache)
+      -- qPutStrLn $ "topDir=" ++ show (P.topDir cache)
       -- liftIO $ writeParams cache
       lift doRequiredVersion
       lift doShowParams
@@ -113,9 +112,10 @@ runParameterSet cache =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      quieter 1 (qPutStrLn ("poolSources:\n" ++ show (sliceList poolSources)))
+      quieter 2 (qPutStrLn ("poolSources:\n" ++ show (sliceList poolSources)))
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      poolOS <- iStyle $ prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) poolSources
+      qPutStrLn $ "Preparing apt-get environment for " ++ show (sliceName (sliceListName buildRelease))
+      poolOS <- quieter 1 $ prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], targets') ->
@@ -150,8 +150,10 @@ runParameterSet cache =
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       doRequiredVersion :: IO ()
       doRequiredVersion =
-          case filter (\ (v, _) -> v > parseDebianVersion V.autoBuilderVersion) (P.requiredVersion (P.params cache)) of
-            [] -> return ()
+          let abv = parseDebianVersion V.autoBuilderVersion
+              rqvs = P.requiredVersion (P.params cache) in
+          case filter (\ (v, _) -> v > abv) rqvs of
+            [] -> quieter 1 $ qPutStrLn $ "Installed autobuilder version " ++ show abv ++ " newer than required: " ++ show rqvs
             reasons ->
                 do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
@@ -197,7 +199,7 @@ runParameterSet cache =
       prepareTargetList =
           do qPutStr (showTargets allTargets)
              qPutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.name target, tryAB (quieter 3 (readSpec cache (P.flags target) (P.spec target))))) allTargets)
+             countTasks (map (\ target -> (P.name target, tryAB (quieter 1 $ readSpec cache (P.flags target) (P.spec target)))) allTargets)
           where
             allTargets = {- filter (\ x -> not (elem (P.name x) (P.omitTargets (P.params cache)))) -} (Set.toList targetSet)
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
@@ -210,27 +212,26 @@ runParameterSet cache =
           | P.doUpload (P.params cache) =
               case P.uploadURI (P.params cache) of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
-                Just uri -> qPutStr "Uploading from local repository" >> uploadRemote repo uri
+                Just uri -> qPutStrLn "Uploading from local repository to remote" >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
-            qPutStr ("Some targets failed to build:\n  " ++ consperse "\n  " (map targetName failed) ++ "\n")
+            qPutStrLn ("Some targets failed to build:\n  " ++ intercalate "\n  " (map targetName failed))
             case P.doUpload (P.params cache) of
-              True -> qPutStr "Skipping upload."
+              True -> qPutStrLn "Skipping upload."
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
-      newDist results
+      newDist _results
           | P.doNewDist (P.params cache) =
               case P.uploadURI (P.params cache) of
                 Just uri ->
-                    do qPutStrLn ("Upload results:\n  " ++ intercalate "\n  " (map show results))
-                       case uriAuthority uri of
+                    case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
                                         " " ++ P.newDistProgram (P.params cache) ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . P.createRelease $ (P.params cache))) in
-                             qPutStr "Running newdist on remote repository" >>
+                             qPutStrLn "Running newdist on remote repository" >>
                              try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
@@ -238,10 +239,6 @@ runParameterSet cache =
                              try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Success ([], (fromInteger 0)))
-      iStyle = id {- setStyle (addPrefixes " " " ") -}
-      --top = P.topDir cache
-      --dryRun = P.dryRun cache
-      -- flush = P.flushSource cache
       updateRepoCache :: AptIOT IO ()
       updateRepoCache =
           do let path = P.topDir cache  ++ "/repoCache"

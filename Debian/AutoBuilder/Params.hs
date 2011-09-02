@@ -282,11 +282,11 @@ data ParamRec =
     -- ^ Use given executable as the newdist program, the program that
     -- runs on the upload host to install packages in the incoming
     -- directory to the repository.
+    , requiredVersion :: [(DebianVersion, Maybe String)]
+    -- ^ Specifies the version of the library required.
 
     -- THINGS THAT ARE PROBABLY OBSOLETE
 
-    , requiredVersion :: [(DebianVersion, Maybe String)]
-    -- ^ Specifies the version of the library required.  (Obsolete?)
     , debug :: Bool
     -- ^ Unspecified debugging behavior.
     , extraReleaseTag :: Maybe Int
