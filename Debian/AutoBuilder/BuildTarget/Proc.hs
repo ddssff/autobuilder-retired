@@ -2,16 +2,11 @@
 module Debian.AutoBuilder.BuildTarget.Proc where
 
 import qualified Data.ByteString.Lazy.Char8 as L
-import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
-import System.IO (hPutStrLn, stderr)
-import System.Process (rawSystem)
-import System.Unix.Directory (unmountRecursiveSafely)
-import System.Unix.QIO (qPutStrLn)
 import System.Unix.Progress (lazyProcessEF)
 --import System.Unix.Progress (qPutStrLn)
 
