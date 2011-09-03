@@ -35,9 +35,9 @@ prepare _cache base = return $ Proc base
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =
     do createDirectoryIfMissing True dir
-       lazyProcessEF "mount" ["--bind", "/proc", dir] Nothing Nothing L.empty
+       _ <- lazyProcessEF "mount" ["--bind", "/proc", dir] Nothing Nothing L.empty
        result <- task
-       lazyProcessEF "umount" [dir] Nothing Nothing L.empty
+       _ <- lazyProcessEF "umount" [dir] Nothing Nothing L.empty
        return result
     where
       dir = rootPath (rootDir buildOS) ++ "/proc"
