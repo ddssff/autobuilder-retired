@@ -383,7 +383,6 @@ buildCache params =
           do sources <- (verifySourcesList Nothing . parseSourcesList) text
              return $ NamedSliceList { sliceListName = SliceName name, sliceList = sources }
 
-
 data CacheRec
     = CacheRec
     { params :: ParamRec

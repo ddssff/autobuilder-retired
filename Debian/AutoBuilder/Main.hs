@@ -50,7 +50,7 @@ import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
 import System.Unix.Progress (timeTask, lazyCommandF)
-import System.Unix.QIO (modQuietness, quieter, qPutStrLn, qPutStr)
+import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr)
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
@@ -65,8 +65,8 @@ main paramSets =
 -- can be several which are run sequentially.
 doParameterSet :: P.ParamRec -> AptIOT IO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
 doParameterSet params =
-    modQuietness (const (- (P.verbosity params))) $
-    P.buildCache params >>= \ cache ->
+    quieter (const (- (P.verbosity params))) $
+    quieter (+ 1) (P.buildCache params) >>= \ cache ->
     withLock (P.topDir cache ++ "/lockfile") (tryAB . runParameterSet $ cache)
 
 runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
@@ -77,12 +77,14 @@ runParameterSet cache =
       lift doRequiredVersion
       lift doShowParams
       doShowSources
-      doFlush
-      checkPermissions
+      quieter' (+ 1) doFlush
+      quieter' (+ 1) checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ (P.params cache))) (P.uploadURI (P.params cache))
-      localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
+      qPutStrLn "Preparing local repository"
+      localRepo <- quieter (+ 1) prepareLocalRepo			-- Prepare the local repository for initial uploads
       qPutStrLn "Preparing clean build environment"
-      cleanOS <- (prepareEnv
+      cleanOS <-
+          quieter' (+ 1) (prepareEnv
                          (P.topDir cache)
                          (P.cleanRoot cache)
                          buildRelease
@@ -101,7 +103,7 @@ runParameterSet cache =
       globalBuildDeps <- liftIO $ buildEssential cleanOS
       -- Get a list of all sources for the local repository.
       qPutStrLn "Getting local sources"
-      localSources <-
+      localSources <- quieter (+ 1) $
           case localRepo of
             LocalRepository path _ _ ->
                 case parseURI ("file://" ++ envPath path) of
@@ -112,10 +114,10 @@ runParameterSet cache =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      quieter 2 (qPutStrLn ("poolSources:\n" ++ show (sliceList poolSources)))
+      quieter (+ 2) (qPutStrLn ("poolSources:\n" ++ show (sliceList poolSources)))
       -- Build an apt-get environment which we can use to retrieve all the package lists
       qPutStrLn $ "Preparing apt-get environment for " ++ show (sliceName (sliceListName buildRelease))
-      poolOS <- quieter 1 $ prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) poolSources
+      poolOS <- quieter' (+ 1) $ prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], targets') ->
@@ -153,7 +155,7 @@ runParameterSet cache =
           let abv = parseDebianVersion V.autoBuilderVersion
               rqvs = P.requiredVersion (P.params cache) in
           case filter (\ (v, _) -> v > abv) rqvs of
-            [] -> quieter 1 $ qPutStrLn $ "Installed autobuilder version " ++ show abv ++ " newer than required: " ++ show rqvs
+            [] -> quieter' (+ 1) $ qPutStrLn $ "Installed autobuilder version " ++ show abv ++ " newer than required: " ++ show rqvs
             reasons ->
                 do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
@@ -199,7 +201,7 @@ runParameterSet cache =
       prepareTargetList =
           do qPutStr (showTargets allTargets)
              qPutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.name target, tryAB (quieter 1 $ readSpec cache (P.flags target) (P.spec target)))) allTargets)
+             countTasks (map (\ target -> (P.name target, tryAB (quieter' (+ 1) $ readSpec cache (P.flags target) (P.spec target)))) allTargets)
           where
             allTargets = {- filter (\ x -> not (elem (P.name x) (P.omitTargets (P.params cache)))) -} (Set.toList targetSet)
             --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))

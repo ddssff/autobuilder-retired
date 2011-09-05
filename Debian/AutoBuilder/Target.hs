@@ -70,8 +70,8 @@ import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Process (collectResult)
-import System.Unix.Progress (lazyCommandF, lazyCommandV)
-import System.Unix.QIO (quieter, qZero, qPutStrLn, qPutStr, qMessage)
+import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
+import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, qMessage)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
@@ -125,7 +125,7 @@ removeCommentParagraphs (Control paragraphs) =
 
 countAndPrepareTargets :: P.CacheRec -> OSImage -> [Tgt] -> IO [Target]
 countAndPrepareTargets cache os tgts =
-    let tasks = map (quieter 1 . prepareTarget cache os) tgts in
+    let tasks = map (quieter' (+ 1) . prepareTarget cache os) tgts in
     qPutStrLn "\nAssembling clean source tree for each target:\n" >>
     countTasks' (zip (map show tgts) tasks) >>= \ targets ->
     case partitionFailing targets of
@@ -140,7 +140,7 @@ countTasks' tasks =
       countTask :: Int -> (Int, (String, IO a)) -> IO (Failing a)
       countTask count (index, (message, task)) =
           qPutStrLn (printf "[%2d of %2d] %s:" index count message) >>
-          quieter 2 (try task >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success)
+          quieter' (+ 2) (try task >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success)
 
 -- |Move to Control.Applicative.Error.
 partitionFailing :: [Failing a] -> ([[String]], [a])
@@ -309,11 +309,11 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
               Nothing -> return failed
               Just (target, blocked, other) ->
                   do qPutStr "\n"
-                     quieter (- 1) (qPutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
+                     quieter' (\x->x-1) (qPutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
                                                (count - length relaxed + 1) count (targetName target) (show (realSource target))))
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
                                then return (Failure ["--discard option set"])
-                               else quieter 2 $ buildTarget cache cleanOS globalBuildDeps localRepo poolOS target
+                               else quieter' (+ 2) $ buildTarget cache cleanOS globalBuildDeps localRepo poolOS target
                      failing (\ errs ->
                                   do qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs)
                                      qPutStrLn ("Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
@@ -380,7 +380,7 @@ chooseNextTarget goals targets =
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
       info ->
-          do quieter 1 $ qPutStrLn (makeTable info)
+          do quieter' (+ 1) $ qPutStrLn (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
       makeTable (G.BuildableInfo ready _other) =
@@ -417,11 +417,10 @@ chooseNextTarget goals targets =
               
 updateDependencyInfo :: Relations -> G.RelaxInfo -> [Target] -> IO [Target]
 updateDependencyInfo globalBuildDeps relaxInfo targets =
-    quieter 2 $
     getDependencyInfo globalBuildDeps targets >>=
-    (\ targets -> qPutStrLn ("Original dependencies: " ++ show (map targetDepends targets)) >> return targets) >>=
+    quieter (+ 1) . (\ targets -> qPutStrLn ("Original dependencies: " ++ show (map targetDepends targets)) >> return targets) >>=
     return . relax relaxInfo >>=
-    (\ targets -> qPutStrLn ("Relaxed dependencies:  " ++ show (map targetRelaxed targets)) >> return targets)
+    quieter (+ 1) . (\ targets -> qPutStrLn ("Relaxed dependencies:  " ++ show (map targetRelaxed targets)) >> return targets)
 
 -- |Retrieve the dependency information for a list of targets
 getDependencyInfo :: Relations -> [Target] -> IO [Target]
@@ -516,12 +515,11 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
         Success [] -> error "Internal error 4"
         Success ((count, sourceDependencies) : _) ->
             do let sourceDependencies' = map makeVersion sourceDependencies
-               qPutStrLn ("Using build dependency solution #" ++ show count)
-               quieter 1 (qPutStr (concat (map (("\n  " ++) . show) sourceDependencies')))
+               qPutStrLn (intercalate "\n  " (("Using build dependency solution #" ++ show count) : map show sourceDependencies'))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
                let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
-               qPutStrLn message
+               quieter (+ 1) (qPutStrLn message)
                qPutStrLn ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++
                                      ": " ++ explainSourcePackageStatus releaseStatus)
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
@@ -549,7 +547,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                        buildDecision cache target
                                          oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
                                          sourceVersion sourceDependencies'
-               quieter (- 2) $ qPutStrLn ("Build decision: " ++ show decision)
+               quieter' (\x->x-2) $ qPutStrLn ("Build decision: " ++ show decision)
                -- FIXME: incorporate the release status into the build decision
                case newVersion of
                  Failure messages ->
@@ -586,7 +584,7 @@ makeVersion package =
 -- | Build a package and upload it to the local repository.
 buildPackage :: P.CacheRec -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Either SomeException String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
 buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
-    quieter (- 1) $ checkDryRun >>
+    quieter' (\x->x-1) $ checkDryRun >>
                     (lift prepareImage) >>=
                     failing (return . Failure) (lift . logEntry) >>=
                     failing (return . Failure) (lift . build) >>=
@@ -716,9 +714,8 @@ getReleaseControlInfo cleanOS packageName =
       _ -> (Nothing, None, message Complete)
     where
       message status =
-          concat
-          . intersperse "\n"
-                $ (["  Source Package Versions: " ++ show (map sourcePackageVersion sourcePackages),
+          intercalate "\n"
+                  (["  Source Package Versions: " ++ show (map sourcePackageVersion sourcePackages),
                     "  Required Binary Package Names:"] ++
                    map (("   " ++) . show) (zip (map sourcePackageVersion sourcePackages) (map sourcePackageBinaryNames sourcePackages)) ++
                    missingMessage status ++
@@ -856,7 +853,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
                -- will be slow if solutions is not compiled.
                case Debian.Repo.Dependencies.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
                  Left error -> return (Failure [error, message relations' relations''])
-                 Right solutions -> qPutStrLn (message relations' relations'') >> return (Success solutions)
+                 Right solutions -> quieter (+ 1) $ qPutStrLn (message relations' relations'') >> return (Success solutions)
     where
       alwaysSatisfied xs = any isNothing xs && all isNothing xs
       packages = aptBinaryPackages os
@@ -951,9 +948,9 @@ sinkFields f (Paragraph fields) =
 downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing String)
 downloadDependencies os source extra versions =
     do vers <- liftIO (evaluate versions)
-       quieter (1 - 1) $ qPutStrLn . ("versions: " ++) . show $! vers
+       qPutStrLn . ("versions: " ++) . show $! vers
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
-       (out, _, code) <- useEnv (rootPath root) forceList (lazyCommandV command L.empty) >>=
+       (out, _, code) <- useEnv (rootPath root) forceList (lazyCommandE command L.empty) >>=
                          return . collectOutputUnpacked . mergeToStdout
        case code of
          ExitSuccess -> return (Success out)
@@ -975,10 +972,10 @@ pathBelow root path =
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
 installDependencies os source extra versions =
     do qPutStrLn ("Installing build dependencies into " ++ rootPath (rootDir os))
-       (code, out) <- Proc.withProc os (useEnv (rootPath root) forceList $ quieter 1 $ lazyCommandV command L.empty) >>= return . collectResult
+       (code, out) <- Proc.withProc os (useEnv (rootPath root) forceList $ quieter' (+ 1) $ lazyCommandV command L.empty) >>= return . collectResult
        case code of
          ExitSuccess -> return (Success out)
-         code -> qZero $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
+         code -> quieter' (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
                  return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++

@@ -32,7 +32,7 @@ import System.Unix.QIO (quieter, qPutStrLn)
 readSpec :: P.CacheRec -> [P.PackageFlag] -> S.Spec -> AptIOT IO Tgt
 readSpec cache flags spec =
     qPutStrLn (" " ++ show spec) >>
-    quieter 1
+    -- quieter (+ 1)
      (case spec of
       S.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
       S.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)
