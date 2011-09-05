@@ -27,7 +27,7 @@ module Debian.AutoBuilder.Params
 
 import Control.Exception ( SomeException, try, evaluate )
 import Control.Monad.State ( get, put )
-import "mtl" Control.Monad.Trans ( lift, liftIO )
+import "mtl" Control.Monad.Trans ( liftIO )
 import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
