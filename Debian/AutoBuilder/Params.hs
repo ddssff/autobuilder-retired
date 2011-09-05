@@ -372,7 +372,10 @@ prettyPrint x =
 -- |Create a Cache object from a parameter set.
 buildCache :: ParamRec -> AptIOT IO CacheRec
 buildCache params =
-    do top <- lift $ computeTopDir params
+    do qPutStrLn "Building apt cache..."
+       top <- liftIO $ computeTopDir params
+       liftIO $ mapM_ (createDirectoryIfMissing True . ((top ++ "/") ++))
+                  [".", "darcs", "deb-dir", "dists", "hackage", "localpools", "quilt", "tmp"]
        loadRepoCache top
        all <- mapM parseNamedSliceList (sources params)
        let uri = maybe (uploadURI params) Just (buildURI params)
