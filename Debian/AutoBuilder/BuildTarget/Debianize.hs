@@ -140,12 +140,12 @@ findVersion package (Document _ _ (Elem _name _attrs content) _) =
       [s] -> s
       _ss -> error ("Could not find version number of " ++ package ++ " in " ++ show (map (htmlprint . (: [])) content))
     where
-      doContentList [CElem (Elem "head" _ _) _, CElem (Elem "body" _ content) _] = doContentList content
-      doContentList [CElem (Elem "div" _ _) _, CElem (Elem "div" _ content) _, CElem (Elem "div" _ _) _] = doContentList content
-      doContentList (CElem (Elem "h1" _ _) _ : etc) = doContentList (drop (length etc - 2) etc)
-      doContentList [CElem (Elem "h2" _ _) _, CElem (Elem "ul" _ content) _] = doContentList content
-      doContentList [CElem (Elem "li" _ content) _, _] = doContentList content
-      doContentList [CElem (Elem "a" _ content) _, _] = doContentList content
+      doContentList [CElem (Elem (N "head") _ _) _, CElem (Elem (N "body") _ content) _] = doContentList content
+      doContentList [CElem (Elem (N "div") _ _) _, CElem (Elem (N "div") _ content) _, CElem (Elem (N "div") _ _) _] = doContentList content
+      doContentList (CElem (Elem (N "h1") _ _) _ : etc) = doContentList (drop (length etc - 2) etc)
+      doContentList [CElem (Elem (N "h2") _ _) _, CElem (Elem (N "ul") _ content) _] = doContentList content
+      doContentList [CElem (Elem (N "li") _ content) _, _] = doContentList content
+      doContentList [CElem (Elem (N "a") _ content) _, _] = doContentList content
       doContentList [CString _ c _] = [parseTarballName c]
       doContentList xs = error (show (map ((: []) . htmlprint . (: [])) xs))
       parseTarballName s =

@@ -34,10 +34,10 @@ Build-Depends: debhelper (>= 5.0),
                libghc-tar-doc,
                libghc-cgi-prof,
                libghc-cgi-doc,
-               libghc-haxml-dev,
+               libghc-haxml-dev (>= 1:1.22.5),
                libghc-happstack-util-prof,
                libghc-happstack-util-doc,
-               haxml-doc,
+               haxml-doc (>= 1:1.22.5),
                libghc-mime-prof (>= 1.2),
                libghc-mime-doc (>= 1.1),
                libghc-extra-prof (>= 1.26),
@@ -49,8 +49,8 @@ Build-Depends: debhelper (>= 5.0),
                libghc-mime-doc,
                libgmp3c2,
                libghc-mime-prof (>= 1.2),
-               libghc-applicative-extras-prof,
-               libghc-applicative-extras-doc
+               libghc-applicative-extras-prof (>= 0.1.8),
+               libghc-applicative-extras-doc (>= 0.1.8)
 Standards-Version: 3.7.2.2
 Section: devel
 

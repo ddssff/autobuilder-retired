@@ -9,7 +9,7 @@ import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), Sourc
 --import Debian.OldShell (setStart, commandTask, runTaskAndTest)
 import Debian.Version
 
-import Control.Applicative.Error (Failing(..), failing)
+import Control.Applicative.Error (Failing(..))
 import Control.Exception (SomeException, try, throw)
 import Control.Monad (when)
 import Control.Monad.Trans
@@ -119,6 +119,9 @@ debug e =
        return (Left s)
     where s = show e
 -}
+
+failing f _ (Failure x) = f x
+failing _ s (Success x) = s x
 
 prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO Quilt
 prepare cache base patch = liftIO $

@@ -13,7 +13,7 @@ module Debian.AutoBuilder.Target
     , partitionFailing, ffe, eff
     ) where
 
-import Control.Applicative.Error (Failing(..), failing)
+import Control.Applicative.Error (Failing(..))
 import Control.Exception(Exception, SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
@@ -74,6 +74,9 @@ import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, qMessage)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
+
+failing f _ (Failure x) = f x
+failing _ s (Success x) = s x
 
 --liftTIO = lift
 
