@@ -360,7 +360,7 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 chooseNextTarget :: [Target] -> [Target] -> IO (Maybe (Target, [Target], [Target]))
 chooseNextTarget [] _ = return Nothing
 chooseNextTarget goals targets =
-    (\ x -> qPutStrLn "Choosing next target" >> quieter (+ 3) x) $
+    q12 "Choosing next target" $
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
     -- targets which are blocked by the first target.
@@ -420,7 +420,7 @@ chooseNextTarget goals targets =
               
 updateDependencyInfo :: Relations -> G.RelaxInfo -> [Target] -> IO [Target]
 updateDependencyInfo globalBuildDeps relaxInfo targets =
-    (\ x -> qPutStrLn "Updating dependency info" >> quieter (+ 3) x) $
+    q12 "Updating dependency info" $
     getDependencyInfo globalBuildDeps targets >>=
     (\ targets -> qPutStrLn ("Original dependencies: " ++ show (map targetDepends targets)) >> return targets) >>=
     return . relax relaxInfo >>=
@@ -847,7 +847,7 @@ computeNewVersion cache
 buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> IO (Failing [(Int, [BinaryPackage])])
 buildDepSolutions' preferred os globalBuildDeps debianControl =
     do
-      qPutStrLn "Searching for build dependency solution..."
+      qPutStrLn "Searching for build dependency solution"
       arch <- buildArchOfEnv (rootDir os)
       -- We don't discard any dependencies here even if they are
       -- mentioned in Relax-Depends, that only applies to deciding
