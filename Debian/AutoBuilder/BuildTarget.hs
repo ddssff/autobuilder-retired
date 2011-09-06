@@ -27,12 +27,12 @@ import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Spec as S
 import Debian.AutoBuilder.Tgt (Tgt(Tgt, Top))
 import Debian.Repo.Monad (AptIOT)
-import System.Unix.QIO (qPutStrLn)
+import Debian.Repo.Types (q12)
+import System.Unix.QIO (quieter, qPutStrLn)
 
 readSpec :: P.CacheRec -> [P.PackageFlag] -> S.Spec -> AptIOT IO Tgt
 readSpec cache flags spec =
-    qPutStrLn (" " ++ show spec) >>
-    -- quieter (+ 1)
+    q12 (" " ++ show spec) $     
      (case spec of
       S.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
       S.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)

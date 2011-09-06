@@ -55,7 +55,7 @@ import qualified Debian.GenBuildDeps as G
 import System.Directory
     ( createDirectoryIfMissing, getPermissions, writable )
 import System.Environment ( getEnv )
-import System.Unix.QIO (qPutStrLn)
+import System.Unix.QIO (quieter, qPutStrLn)
 
 -- import Debian.AutoBuilder.ParamClass as P ( ParamClass(..), Target, Strictness )
 
@@ -77,7 +77,7 @@ instance Show Strictness where
 data PackageFlag
     = RelaxDep String		-- ^ Build dependencies which be ignored when deciding whether to rebuild
     | ExtraDep String		-- ^ Build dependencies which should be added to the debian/control file
-    | DebVersion String         -- ^ The debian version number to insert into the changelog.
+    | DebVersion String         -- ^ The exact debian version number to insert into the changelog.
     | Epoch Int                 -- ^ Set the epoch number in the version number
     deriving (Show, Eq, Ord)
 
@@ -220,6 +220,7 @@ data ParamRec =
     , discard :: Set.Set String
     -- ^ When any of these targets become ready to build, fail them.
     -- This is to save time on targets we know will fail.
+    , testWithPrivate :: Bool
 
     -- THINGS THAT RARELY CHANGE
 
@@ -372,8 +373,8 @@ prettyPrint x =
 -- |Create a Cache object from a parameter set.
 buildCache :: ParamRec -> AptIOT IO CacheRec
 buildCache params =
-    do qPutStrLn "Building apt cache..."
-       top <- liftIO $ computeTopDir params
+    do top <- liftIO $ computeTopDir params
+       qPutStrLn ("Preparing autobuilder cache in " ++ top ++ "...")
        liftIO $ mapM_ (createDirectoryIfMissing True . ((top ++ "/") ++))
                   [".", "darcs", "deb-dir", "dists", "hackage", "localpools", "quilt", "tmp"]
        loadRepoCache top

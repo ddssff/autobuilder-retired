@@ -37,7 +37,7 @@ import Debian.Repo.Slice(appendSliceLists, inexactPathSlices, releaseSlices, rep
 import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
                          Layout(Flat), Release(releaseRepo),
                          NamedSliceList(..), Repository(LocalRepo),
-                         LocalRepository(LocalRepository), outsidePath,)
+                         LocalRepository(LocalRepository), outsidePath, q12)
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
 import System.Unix.Process(Output)
@@ -66,7 +66,7 @@ main paramSets =
 doParameterSet :: P.ParamRec -> AptIOT IO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
 doParameterSet params =
     quieter (const (- (P.verbosity params))) $
-    quieter (+ 1) (P.buildCache params) >>= \ cache ->
+    quieter (+ 2) (P.buildCache params) >>= \ cache ->
     withLock (P.topDir cache ++ "/lockfile") (tryAB . runParameterSet $ cache)
 
 runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
@@ -77,15 +77,12 @@ runParameterSet cache =
       lift doRequiredVersion
       lift doShowParams
       doShowSources
-      quieter' (+ 1) doFlush
-      quieter' (+ 1) checkPermissions
+      doFlush
+      checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ (P.params cache))) (P.uploadURI (P.params cache))
-      qPutStrLn "Preparing local repository"
-      localRepo <- quieter (+ 1) prepareLocalRepo			-- Prepare the local repository for initial uploads
-      qPutStrLn "Preparing clean build environment"
+      localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
       cleanOS <-
-          quieter' (+ 1) (prepareEnv
-                         (P.topDir cache)
+              prepareEnv (P.topDir cache)
                          (P.cleanRoot cache)
                          buildRelease
                          (Just localRepo)
@@ -93,17 +90,13 @@ runParameterSet cache =
                          (P.ifSourcesChanged (P.params cache))
                          (P.includePackages (P.params cache) ++ ["haskell-debian-utils"])
                          (P.excludePackages (P.params cache))
-                         (P.components (P.params cache)))
-      qPutStrLn "Updating cache sources"
+                         (P.components (P.params cache))
       _ <- updateCacheSources (P.ifSourcesChanged (P.params cache)) cleanOS
-
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
-      qPutStrLn "Computing build essentials"
       globalBuildDeps <- liftIO $ buildEssential cleanOS
       -- Get a list of all sources for the local repository.
-      qPutStrLn "Getting local sources"
-      localSources <- quieter (+ 1) $
+      localSources <- q12 "Getting local sources" $
           case localRepo of
             LocalRepository path _ _ ->
                 case parseURI ("file://" ++ envPath path) of
@@ -114,10 +107,8 @@ runParameterSet cache =
       -- for the local repository to avoid collisions there as well.
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
-      quieter (+ 2) (qPutStrLn ("poolSources:\n" ++ show (sliceList poolSources)))
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      qPutStrLn $ "Preparing apt-get environment for " ++ show (sliceName (sliceListName buildRelease))
-      poolOS <- quieter' (+ 1) $ prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) poolSources
+      poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], targets') ->
@@ -156,7 +147,7 @@ runParameterSet cache =
               rqvs = P.requiredVersion (P.params cache) in
           case filter (\ (v, _) -> v > abv) rqvs of
             [] -> quieter' (+ 1) $ qPutStrLn $ "Installed autobuilder version " ++ show abv ++ " newer than required: " ++ show rqvs
-            reasons ->
+            reasons -> quieter (const 0) $
                 do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)                    
@@ -164,20 +155,22 @@ runParameterSet cache =
             printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
                 qPutStr (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
-      doShowParams = when (P.showParams (P.params cache)) (qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint (P.params cache))
+      doShowParams = when (P.showParams (P.params cache)) $
+                       quieter (const 0) (qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint (P.params cache))
       doShowSources =
           if (P.showSources (P.params cache)) then
               either (error . show) doShow (P.findSlice cache (SliceName (releaseName' (P.buildRelease (P.params cache))))) else
               return ()
           where
-            doShow sources =
-                do liftIO . IO.putStrLn $ (sliceName . sliceListName $ sources) ++ ":"
-                   liftIO . IO.putStrLn . show . sliceList $ sources
+            doShow sources = quieter (const 0) $
+                do qPutStrLn $ (sliceName . sliceListName $ sources) ++ ":"
+                   qPutStrLn . show . sliceList $ sources
                    liftIO $ exitWith ExitSuccess
       -- FIXME: This may be too late
       doFlush
-          | P.flushAll (P.params cache) = 
-              do liftIO $ removeRecursiveSafely (P.topDir cache)
+          | P.flushAll (P.params cache) =
+              do qPutStrLn "Flushing cache"
+                 liftIO $ removeRecursiveSafely (P.topDir cache)
                  liftIO $ createDirectoryIfMissing True (P.topDir cache)
           | True = return ()
       checkPermissions =
@@ -186,7 +179,7 @@ runParameterSet cache =
                True -> return ()
                False -> do qPutStr "You must be superuser to run the autobuilder (to use chroot environments.)"
                            liftIO $ exitWith (ExitFailure 1)
-      prepareLocalRepo =
+      prepareLocalRepo = q12 ("Preparing local repository " ++ P.localPoolDir cache) $
           do let path = EnvPath (EnvRoot "") (P.localPoolDir cache)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if P.flushPool (P.params cache) then flushLocalRepository else return)
@@ -201,10 +194,9 @@ runParameterSet cache =
       prepareTargetList =
           do qPutStr (showTargets allTargets)
              qPutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.name target, tryAB (quieter' (+ 1) $ readSpec cache (P.flags target) (P.spec target)))) allTargets)
+             countTasks (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)))) allTargets)
           where
-            allTargets = {- filter (\ x -> not (elem (P.name x) (P.omitTargets (P.params cache)))) -} (Set.toList targetSet)
-            --listDiff a b = Set.toList (Set.difference (Set.fromList a) (Set.fromList b))
+            allTargets = Set.toList targetSet
             targetSet = case P.targets (P.params cache) of
                           P.TargetSet s -> s
                           _ -> error "prepareTargetList: invalid target set"

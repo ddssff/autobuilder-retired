@@ -8,6 +8,7 @@ import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
 import System.Unix.Progress (lazyProcessEF)
+import System.Unix.QIO (quieter)
 --import System.Unix.Progress (qPutStrLn)
 
 data Proc = Proc Tgt
@@ -35,9 +36,9 @@ prepare _cache base = return $ Proc base
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =
     do createDirectoryIfMissing True dir
-       _ <- lazyProcessEF "mount" ["--bind", "/proc", dir] Nothing Nothing L.empty
+       _ <- quieter (+ 1) $ lazyProcessEF "mount" ["--bind", "/proc", dir] Nothing Nothing L.empty
        result <- task
-       _ <- lazyProcessEF "umount" [dir] Nothing Nothing L.empty
+       _ <- quieter (+ 1) $ lazyProcessEF "umount" [dir] Nothing Nothing L.empty
        return result
     where
       dir = rootPath (rootDir buildOS) ++ "/proc"

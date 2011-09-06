@@ -24,6 +24,7 @@ import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(cleanTarget, logText),
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo (AptIOT)
+import Debian.Repo.Types (q12)
 import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
@@ -125,6 +126,7 @@ failing _ s (Success x) = s x
 
 prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO Quilt
 prepare cache base patch = liftIO $
+    q12 "Preparing quilt target" $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =
@@ -136,7 +138,7 @@ prepare cache base patch = liftIO $
                 rmrf d = lazyCommandV ("rm -rf '"  ++ d ++ "'") L.empty
       make :: (SourceTree, FilePath) -> IO Quilt
       make (quiltTree, quiltDir) =
-          do applied <- quieter' (+ 1) (lazyCommandE cmd1a L.empty) >>= qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
+          do applied <- lazyCommandE cmd1a L.empty >>= qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
                (_, err, ExitFailure 1)
                    | err == "No patches applied\n" ->
