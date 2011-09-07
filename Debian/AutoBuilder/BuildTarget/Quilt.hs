@@ -31,7 +31,7 @@ import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryE
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Unix.Process (collectOutputUnpacked, collectOutput, mergeToStderr)
 import System.Unix.Progress (lazyCommandF, lazyCommandV)
-import System.Unix.QIO (quieter', qPutStrLn, qMessage)
+import System.Unix.QIO (qPutStrLn, qMessage)
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 

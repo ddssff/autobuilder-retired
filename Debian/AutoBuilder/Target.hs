@@ -983,9 +983,8 @@ pathBelow root path =
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
 installDependencies os source extra versions =
-    
-    do qPutStrLn ("Installing build dependencies into " ++ rootPath (rootDir os))
-       (code, out) <- Proc.withProc os (useEnv (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectResult
+    q12 ("Installing build dependencies into " ++ rootPath (rootDir os)) $
+    do (code, out) <- Proc.withProc os (useEnv (rootPath root) forceList $ quieter (\x->x-2) $ lazyCommandV command L.empty) >>= return . collectResult
        case code of
          ExitSuccess -> return (Success out)
          code -> quieter' (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
