@@ -50,7 +50,7 @@ import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames
 import Debian.Repo.Repository (readPkgVersion, showPkgVersion)
 import Debian.Repo.SourceTree (findDebianSourceTree, SourceTreeC(..), DebianSourceTreeC(..), DebianSourceTree,
                                DebianBuildTree, DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
-                               copyDebianSourceTree, explainSourcePackageStatus, findChanges,
+                               copyDebianSourceTree, {-explainSourcePackageStatus,-} findChanges,
                                findDebianBuildTree, findOneDebianBuildTree, SourcePackageStatus(..))
 import Debian.Repo.Monad (AptIOT)
 import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
@@ -71,7 +71,7 @@ import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Process (collectResult)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
-import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, qMessage)
+import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
@@ -517,12 +517,12 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                               qPutStrLn (intercalate "\n " excuses')
                               return $ Failure excuses'
         Success [] -> error "Internal error 4"
-        Success ((count, sourceDependencies) : _) ->
+        Success ((_count, sourceDependencies) : _) ->
             do let sourceDependencies' = map makeVersion sourceDependencies
                -- qPutStrLn (intercalate "\n  " (("Using build dependency solution #" ++ show count) : map show sourceDependencies'))
                -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
-               let (releaseControlInfo, releaseStatus, message) = getReleaseControlInfo cleanOS packageName
+               let (releaseControlInfo, releaseStatus, _message) = getReleaseControlInfo cleanOS packageName
                -- quieter (+ 1) (qPutStrLn message)
                -- qPutStrLn ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++ ": " ++ explainSourcePackageStatus releaseStatus)
                --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)

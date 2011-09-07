@@ -8,7 +8,7 @@ module Debian.AutoBuilder.Main
     ) where
 
 import Control.Applicative.Error (Failing(..))
-import Control.Exception(SomeException, IOException, try)
+import Control.Exception(SomeException, IOException, try, catch)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get))
 import Control.Monad(when, unless)
 import qualified Data.ByteString.Lazy as L
@@ -40,15 +40,16 @@ import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
                          LocalRepository(LocalRepository), outsidePath, q12)
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
-import System.Unix.Process(Output)
 import Extra.Lock(withLock)
 import Extra.Misc(checkSuperUser)
+import Prelude hiding (catch)
 import System.Directory(createDirectoryIfMissing)
 import System.Posix.Files(removeLink)
 import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
+import System.Unix.Process(Output)
 import System.Unix.Progress (timeTask, lazyCommandF)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr)
 
@@ -239,7 +240,7 @@ runParameterSet cache =
              live <- get >>= return . getRepoMap
              repoCache <- liftIO $ loadCache path
              let merged = show . map (\ (uri, x) -> (show uri, x)) . Map.toList $ Map.union live repoCache
-             liftIO (removeLink path `Prelude.catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> liftIO (writeFile path merged)
+             liftIO (removeLink path `catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> liftIO (writeFile path merged)
              return ()
           where
             isRemote (uri, _) = uriScheme uri /= "file:"
