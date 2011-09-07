@@ -55,7 +55,7 @@ import qualified Debian.GenBuildDeps as G
 import System.Directory
     ( createDirectoryIfMissing, getPermissions, writable )
 import System.Environment ( getEnv )
-import System.Unix.QIO (quieter, qPutStrLn)
+import System.Unix.QIO (qPutStrLn)
 
 -- import Debian.AutoBuilder.ParamClass as P ( ParamClass(..), Target, Strictness )
 
