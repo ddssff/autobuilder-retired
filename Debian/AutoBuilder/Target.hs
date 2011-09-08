@@ -57,7 +57,7 @@ import Debian.Repo.Monad (AptIOT)
 import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
                           PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
-                          BinaryPackage(packageInfo, packageID), q12, q02)
+                          BinaryPackage(packageInfo, packageID))
 import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, version)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
@@ -72,7 +72,7 @@ import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Chroot (useEnv, forceList)
 import System.Unix.Process (collectResult)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
-import System.Unix.QIO (quietness, ePutStrLn, quieter, quieter', qPutStrLn, qMessage)
+import System.Unix.QIO (quietness, ePutStrLn, quieter, quieter', qPutStrLn, qMessage, q12, q02)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 

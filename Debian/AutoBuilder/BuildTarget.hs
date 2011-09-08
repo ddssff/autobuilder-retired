@@ -27,7 +27,7 @@ import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Spec as S
 import Debian.AutoBuilder.Tgt (Tgt(Tgt, Top))
 import Debian.Repo.Monad (AptIOT)
-import Debian.Repo.Types (q12)
+import System.Unix.QIO (q12)
 
 readSpec :: P.CacheRec -> [P.PackageFlag] -> S.Spec -> AptIOT IO Tgt
 readSpec cache flags spec =

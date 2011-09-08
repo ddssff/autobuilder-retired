@@ -37,7 +37,7 @@ import Debian.Repo.Slice(appendSliceLists, inexactPathSlices, releaseSlices, rep
 import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
                          Layout(Flat), Release(releaseRepo),
                          NamedSliceList(..), Repository(LocalRepo),
-                         LocalRepository(LocalRepository), outsidePath, q12)
+                         LocalRepository(LocalRepository), outsidePath)
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
 import Debian.Version(DebianVersion, parseDebianVersion)
 import Extra.Lock(withLock)
@@ -51,7 +51,7 @@ import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
 import System.Unix.Process(Output)
 import System.Unix.Progress (timeTask, lazyCommandF)
-import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr)
+import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, q12)
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
