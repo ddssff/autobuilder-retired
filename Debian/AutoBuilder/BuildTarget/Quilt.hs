@@ -24,14 +24,13 @@ import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(cleanTarget, logText),
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo (AptIOT)
-import Debian.Repo.Types (q12)
 import Extra.Files (replaceFile)
 import Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Unix.Process (collectOutputUnpacked, collectOutput, mergeToStderr)
 import System.Unix.Progress (lazyCommandF, lazyCommandV)
-import System.Unix.QIO (qPutStrLn, qMessage)
+import System.Unix.QIO (qPutStrLn, qMessage, q12)
 --import Debian.Time(parseTimeRFC822)
 import Text.Regex
 
