@@ -193,7 +193,7 @@ runParameterSet cache =
                      False -> return repo'
                _ -> error "Expected local repo"
       prepareTargetList =
-          do qPutStr (showTargets allTargets)
+          do qPutStr ("\n" ++ showTargets allTargets)
              qPutStrLn "Retrieving all source code:\n"
              countTasks (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)))) allTargets)
           where
