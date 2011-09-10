@@ -16,11 +16,9 @@ import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Exit
 import System.FilePath ((</>))
-import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Process (collectOutput, collectOutputUnpacked, lazyProcess)
+import System.Unix.Process (collectOutput, collectOutputUnpacked)
 import System.Unix.Progress (lazyCommandE, lazyProcessE)
-import System.Unix.QIO (quieter)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
