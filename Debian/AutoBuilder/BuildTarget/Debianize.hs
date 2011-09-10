@@ -49,8 +49,6 @@ prepare :: P.CacheRec -> [P.PackageFlag] -> String -> Maybe String -> AptIOT IO 
 prepare cache flags name version = liftIO $
     do (version' :: DebianVersion) <- maybe (getVersion name) (return . parseDebianVersion) version
        downloadAndDebianize cache flags name version' >>= findSourceTree >>= return . Debianize name (Just version')
-    where
-      top = P.topDir cache
 
 parse cmd output =
     case collectOutputUnpacked output of
@@ -85,7 +83,7 @@ downloadAndDebianize cache flags name version =
       unpack out = Tar.unpack tmp (Tar.read (Z.decompress out))
       patch :: P.PackageFlag -> IO ()
       patch (P.Patch text) =
-          lazyProcessE "/usr/bin/patch" ["-p1"] (Just unpacked) Nothing text >>= return . collectOutputUnpacked >>= \ (out, err, res) ->
+          lazyProcessE "/usr/bin/patch" ["-p1"] (Just unpacked) Nothing text >>= return . collectOutputUnpacked >>= \ (_out, err, res) ->
           case res of
             ExitFailure n -> error ("patch -> " ++ show n ++ "\noutput: " ++ err ++ "\npatch:" ++ show text)
             ExitSuccess -> return ()
@@ -120,7 +118,7 @@ debianize cache flags dir =
                                  "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
          ExitSuccess -> return dir
     where
-      root = rootPath (P.cleanRootOfRelease cache (P.buildRelease (P.params cache)))
+      -- root = rootPath (P.cleanRootOfRelease cache (P.buildRelease (P.params cache)))
       ver = P.ghcVersion (P.params cache)
       isMaintainerFlag (P.Maintainer _) = True
       isMaintainerFlag _ = False
