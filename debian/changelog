@@ -1,3 +1,12 @@
+autobuilder (6.7) unstable; urgency=low
+
+  * Add a constructor Patch B.ByteString to the PackageFlags type so we
+    can specify the text of a patch directly in the autobuilder config
+    and it will be applied to the source code of a debianize target.
+  * Add a flag to PackageFlags to set the maintainer for cabal-debian.
+
+ -- David Fox <dsf@seereason.com>  Sat, 10 Sep 2011 09:43:06 -0700
+
 autobuilder (6.6) unstable; urgency=low
 
   * Add support for cabal-debian flags --deb-name, --deb-version, --epoch

@@ -28,6 +28,7 @@ module Debian.AutoBuilder.Params
 import Control.Exception ( SomeException, try, evaluate )
 import Control.Monad.State ( get, put )
 import "mtl" Control.Monad.Trans ( liftIO )
+import qualified Data.ByteString.Lazy as B
 import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
@@ -79,6 +80,8 @@ data PackageFlag
     | ExtraDep String		-- ^ Build dependencies which should be added to the debian/control file
     | DebVersion String         -- ^ The exact debian version number to insert into the changelog.
     | Epoch Int                 -- ^ Set the epoch number in the version number
+    | Patch B.ByteString        -- ^ Apply the patch
+    | Maintainer String         -- ^ Use the given string as maintainer name and email
     deriving (Show, Eq, Ord)
 
 data Package
