@@ -88,5 +88,6 @@ Depends: ${shlibs:Depends},
          apt,
          build-essential,
          quilt,
-         curl
+         curl,
+         cabal-debian
 Description: Build and upload debian packages in clean enviroments
