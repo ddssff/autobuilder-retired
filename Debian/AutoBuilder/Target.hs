@@ -72,7 +72,7 @@ import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Chroot (useEnv, forceList)
 import System.Unix.Process (collectResult)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
-import System.Unix.QIO (quietness, ePutStrLn, quieter, quieter', qPutStrLn, qMessage, q12, q02)
+import System.Unix.QIO (quietness, ePutStrLn, quieter, quieter', qPutStrLn, qMessage, q12 {-, q02-})
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
@@ -384,7 +384,7 @@ chooseNextTarget goals targets =
             binaryNamesOfRelations (_, rels, _) =
                 concat (map (map (\ (Rel name _ _) -> name)) rels)
       info ->
-          do quieter (\x->x-3) $ qPutStrLn (makeTable info)
+          do quieter (+ (-3)) $ qPutStrLn (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
       makeTable (G.BuildableInfo ready _other) =
@@ -591,7 +591,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
     checkDryRun >>
     lift prepareImage >>=
     failing (return . Failure) logEntry >>=
-    failing (return . Failure) (quieter (\x->x-1) . build) >>=
+    failing (return . Failure) (quieter (+ (-1)) . build) >>=
     failing (return . Failure) find >>=
     failing (return . Failure) upload
     where
@@ -959,9 +959,10 @@ sinkFields f (Paragraph fields) =
 -- |Download the package's build dependencies into /var/cache
 downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing String)
 downloadDependencies os source extra versions =
-    q12 "Downloading build dependencies" $
-    do vers <- liftIO (evaluate versions)
-       qPutStrLn . ("versions: " ++) . show $! vers
+    
+    do -- qPutStrLn "Downloading build dependencies"
+       vers <- liftIO (evaluate versions)
+       quieter (+ 1) $ qPutStrLn . intercalate "\n  " $ "Dependency package versions: " : map show vers
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
        (out, _, code) <- useEnv (rootPath root) forceList (lazyCommandE command L.empty) >>=
                          return . collectOutputUnpacked . mergeToStdout
@@ -984,8 +985,8 @@ pathBelow root path =
 -- |Install the package's build dependencies.
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
 installDependencies os source extra versions =
-    q02 ("Installing build dependencies into " ++ rootPath (rootDir os)) $
-    do (code, out) <- Proc.withProc os (useEnv (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectResult
+    do qPutStrLn $ "Installing build dependencies into " ++ rootPath (rootDir os)
+       (code, out) <- Proc.withProc os (useEnv (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectResult
        case code of
          ExitSuccess -> return (Success out)
          code -> quieter (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
