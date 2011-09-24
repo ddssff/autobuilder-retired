@@ -89,7 +89,7 @@ runParameterSet cache =
                          (Just localRepo)
                          (P.flushRoot (P.params cache))
                          (P.ifSourcesChanged (P.params cache))
-                         (P.includePackages (P.params cache) ++ ["haskell-debian-utils"])
+                         (P.includePackages (P.params cache) {- ++ ["haskell-debian-utils"] -})
                          (P.excludePackages (P.params cache))
                          (P.components (P.params cache))
       _ <- updateCacheSources (P.ifSourcesChanged (P.params cache)) cleanOS
