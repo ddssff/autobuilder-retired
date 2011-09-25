@@ -6,10 +6,10 @@ import System.Cmd
 import System.Exit
 
 main = defaultMainWithHooks simpleUserHooks {
-         postBuild = runTestScript
-       , runTests = runTestScript
+         postBuild = \ _ _ _ _ -> runTestScript
+       , runTests = \ _ _ _ _ -> runTestScript
        }
 
-runTestScript _args _flag _pd _lbi =
-    system "runhaskell -isrc Test/Test.hs" >>=
-    \ code -> if code == ExitSuccess then return () else error "Test Failure"
+runTestScript =
+    system "runhaskell -isrc Test/Test.hs" >>= \ code ->
+    if code == ExitSuccess then return () else error "Test Failure"
