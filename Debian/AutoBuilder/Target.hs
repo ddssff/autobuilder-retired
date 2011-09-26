@@ -1,5 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing #-}
+{-# LANGUAGE ScopedTypeVariables, StandaloneDeriving #-}
+{-# OPTIONS -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-orphans #-}
 -- |A Target represents a particular set of source code and the
 -- methods to retrieve and update it.
 --
@@ -37,6 +37,7 @@ import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, cha
 import Debian.Control
 import qualified Debian.Control.String as S(fieldValue)
 import qualified Debian.GenBuildDeps as G
+import Debian.Relation (VersionReq(..), ArchitectureReq(..))
 import Debian.Relation.ByteString(Relations, Relation(..))
 import Debian.Release (releaseName')
 import Debian.Repo.SourceTree (buildDebs)
@@ -75,6 +76,10 @@ import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
 import System.Unix.QIO (quietness, ePutStrLn, quieter, quieter', qPutStrLn, qMessage, q12 {-, q02-})
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
+
+deriving instance Show VersionReq
+deriving instance Show ArchitectureReq
+deriving instance Show Relation
 
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
