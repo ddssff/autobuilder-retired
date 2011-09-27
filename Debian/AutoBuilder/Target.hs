@@ -37,7 +37,7 @@ import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, cha
 import Debian.Control
 import qualified Debian.Control.String as S(fieldValue)
 import qualified Debian.GenBuildDeps as G
-import Debian.Relation (VersionReq(..), ArchitectureReq(..))
+import Debian.Relation (prettyRelation)
 import Debian.Relation.ByteString(Relations, Relation(..))
 import Debian.Release (releaseName')
 import Debian.Repo.SourceTree (buildDebs)
@@ -74,13 +74,14 @@ import System.Unix.Chroot (useEnv, forceList)
 import System.Unix.Process (collectResult)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
 import System.Unix.QIO (quietness, ePutStrLn, quieter, quieter', qPutStrLn, qMessage, q12 {-, q02-})
+import Text.PrettyPrint (Doc, text, cat)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
-
+{-
 deriving instance Show VersionReq
 deriving instance Show ArchitectureReq
 deriving instance Show Relation
-
+-}
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
@@ -102,6 +103,24 @@ data Target
 
 instance Eq Target where
     a == b = targetName a == targetName b
+
+prettyTarget :: (G.SrcPkgName, Relations, [G.BinPkgName]) -> Doc
+prettyTarget (src, relss, _bins) = cat (intersperse (text ", ")  (map (prettyRels src) relss))
+
+prettyRels :: G.SrcPkgName -> [Relation] -> Doc
+prettyRels src rels =             cat (intersperse (text " | ") (map (\ rel -> cat [prettySrcPkgName src, prettyRelation rel]) rels))
+
+prettySimpleRelation :: Maybe PkgVersion -> Doc
+prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v ++ "="), prettyVersion (getVersion v)]) rel
+
+prettySrcPkgName :: G.SrcPkgName -> Doc
+prettySrcPkgName (G.SrcPkgName pkgname) = text pkgname
+
+prettyPkgVersion :: PkgVersion -> Doc
+prettyPkgVersion v = cat [text (getName v ++ "-"), prettyVersion (getVersion v)]
+
+prettyVersion :: DebianVersion -> Doc
+prettyVersion = text . show
 
 {-
 instance Show Target where
@@ -428,9 +447,9 @@ updateDependencyInfo :: Relations -> G.RelaxInfo -> [Target] -> IO [Target]
 updateDependencyInfo globalBuildDeps relaxInfo targets =
     q12 "Updating dependency info" $
     getDependencyInfo globalBuildDeps targets >>=
-    (\ ts -> qPutStrLn ("Original dependencies: " ++ show (map targetDepends ts)) >> return ts) >>=
+    (\ ts -> qPutStrLn ("Original dependencies: " ++ show (map (prettyTarget . targetRelaxed) ts)) >> return ts) >>=
     return . relax relaxInfo >>=
-    (\ ts -> qPutStrLn ("Relaxed dependencies:  " ++ show (map targetRelaxed ts)) >> return ts)
+    (\ ts -> qPutStrLn ("Relaxed dependencies:  " ++ show (map (prettyTarget . targetRelaxed) ts)) >> return ts)
 
 -- |Retrieve the dependency information for a list of targets
 getDependencyInfo :: Relations -> [Target] -> IO [Target]
@@ -875,7 +894,7 @@ buildDepSolutions' preferred os globalBuildDeps debianControl =
       packages = aptBinaryPackages os
       message relations' relations'' =
           "Build dependency relations:\n " ++
-          concat (intersperse "\n " (map (\ (a, b) -> show a ++ " -> " ++ show b)
+          concat (intersperse "\n " (map (\ (a, b) -> show (map prettyRelation a) ++ " -> " ++ show (map prettySimpleRelation b))
                                               (zip relations' relations'')))
       -- Group and merge the relations by package.  This can only be done
       -- to AND relations that include a single OR element, but these are
