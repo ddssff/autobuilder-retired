@@ -116,8 +116,10 @@ prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v +
 prettySrcPkgName :: G.SrcPkgName -> Doc
 prettySrcPkgName (G.SrcPkgName pkgname) = text pkgname
 
+{-
 prettyPkgVersion :: PkgVersion -> Doc
 prettyPkgVersion v = cat [text (getName v ++ "-"), prettyVersion (getVersion v)]
+-}
 
 prettyVersion :: DebianVersion -> Doc
 prettyVersion = text . show

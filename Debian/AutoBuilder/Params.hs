@@ -82,6 +82,7 @@ data PackageFlag
     | Epoch Int                 -- ^ Set the epoch number in the version number
     | Patch B.ByteString        -- ^ Apply the patch
     | Maintainer String         -- ^ Use the given string as maintainer name and email
+    | OmitLTDeps                -- ^ Don't add the << part when converting cabal wildcard dependencies
     deriving (Show, Eq, Ord)
 
 data Package
