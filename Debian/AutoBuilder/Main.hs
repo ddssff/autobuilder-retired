@@ -21,7 +21,8 @@ import Data.Maybe(catMaybes)
 --import qualified Debian.AutoBuilder.OldParams as O
 import Debian.AutoBuilder.BuildTarget (readSpec)
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Target(Target, targetName, buildTargets, showTargets)
+import Debian.AutoBuilder.Target(buildTargets, showTargets)
+import Debian.AutoBuilder.TargetType (Target, targetName)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Release (parseSection', releaseName')
 import Debian.Sources (SliceName(..))
@@ -67,8 +68,9 @@ main paramSets =
 doParameterSet :: P.ParamRec -> AptIOT IO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
 doParameterSet params =
     quieter (const (- (P.verbosity params))) $
-    quieter (+ 2) (P.buildCache params) >>= \ cache ->
-    withLock (P.topDir cache ++ "/lockfile") (tryAB . runParameterSet $ cache)
+    do top <- liftIO (P.computeTopDir params)
+       cache <- quieter (+ 2) (P.buildCache params top)
+       withLock (top ++ "/lockfile") (tryAB $ runParameterSet cache)
 
 runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet cache =
@@ -80,19 +82,19 @@ runParameterSet cache =
       doShowSources
       doFlush
       checkPermissions
-      maybe (return ()) (verifyUploadURI (P.doSSHExport $ (P.params cache))) (P.uploadURI (P.params cache))
+      maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
       cleanOS <-
-              prepareEnv (P.topDir cache)
+              prepareEnv top
                          (P.cleanRoot cache)
                          buildRelease
                          (Just localRepo)
-                         (P.flushRoot (P.params cache))
-                         (P.ifSourcesChanged (P.params cache))
-                         (P.includePackages (P.params cache) {- ++ ["haskell-debian-utils"] -})
-                         (P.excludePackages (P.params cache))
-                         (P.components (P.params cache))
-      _ <- updateCacheSources (P.ifSourcesChanged (P.params cache)) cleanOS
+                         (P.flushRoot params)
+                         (P.ifSourcesChanged params)
+                         (P.includePackages params {- ++ ["haskell-debian-utils"] -})
+                         (P.excludePackages params)
+                         (P.components params)
+      _ <- updateCacheSources (P.ifSourcesChanged params) cleanOS
       -- Compute the essential and build essential packages, they will all
       -- be implicit build dependencies.
       globalBuildDeps <- liftIO $ buildEssential cleanOS
@@ -109,7 +111,7 @@ runParameterSet cache =
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) poolSources
+      poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged params) poolSources
       targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], targets') ->
@@ -137,15 +139,17 @@ runParameterSet cache =
                return (Failure ("Could not prepare source code of some targets:" : map (intercalate "\n  ") bad))
 -}
     where
-      baseRelease =  either (error . show) id (P.findSlice cache (P.baseRelease (P.params cache)))
+      top = P.topDir cache
+      params = P.params cache
+      baseRelease =  either (error . show) id (P.findSlice cache (P.baseRelease params))
       buildRepoSources = P.buildRepoSources cache
-      buildReleaseSources = releaseSlices (P.buildRelease (P.params cache)) (inexactPathSlices buildRepoSources)
-      buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (P.buildRelease (P.params cache)))
+      buildReleaseSources = releaseSlices (P.buildRelease params) (inexactPathSlices buildRepoSources)
+      buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (P.buildRelease params))
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
       doRequiredVersion :: IO ()
       doRequiredVersion =
           let abv = parseDebianVersion V.autoBuilderVersion
-              rqvs = P.requiredVersion (P.params cache) in
+              rqvs = P.requiredVersion params in
           case filter (\ (v, _) -> v > abv) rqvs of
             [] -> quieter' (+ 1) $ qPutStrLn $ "Installed autobuilder version " ++ show abv ++ " newer than required: " ++ show rqvs
             reasons -> quieter (const 0) $
@@ -156,11 +160,11 @@ runParameterSet cache =
             printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
                 qPutStr (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
-      doShowParams = when (P.showParams (P.params cache)) $
-                       quieter (const 0) (qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint (P.params cache))
+      doShowParams = when (P.showParams params) $
+                       quieter (const 0) (qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint params)
       doShowSources =
-          if (P.showSources (P.params cache)) then
-              either (error . show) doShow (P.findSlice cache (SliceName (releaseName' (P.buildRelease (P.params cache))))) else
+          if (P.showSources params) then
+              either (error . show) doShow (P.findSlice cache (SliceName (releaseName' (P.buildRelease params)))) else
               return ()
           where
             doShow sources = quieter (const 0) $
@@ -169,7 +173,7 @@ runParameterSet cache =
                    liftIO $ exitWith ExitSuccess
       -- FIXME: This may be too late
       doFlush
-          | P.flushAll (P.params cache) =
+          | P.flushAll params =
               do qPutStrLn "Flushing cache"
                  liftIO $ removeRecursiveSafely (P.topDir cache)
                  liftIO $ createDirectoryIfMissing True (P.topDir cache)
@@ -183,12 +187,12 @@ runParameterSet cache =
       prepareLocalRepo = q12 ("Preparing local repository " ++ P.localPoolDir cache) $
           do let path = EnvPath (EnvRoot "") (P.localPoolDir cache)
              repo <- prepareLocalRepository path (Just Flat) >>=
-                     (if P.flushPool (P.params cache) then flushLocalRepository else return)
+                     (if P.flushPool params then flushLocalRepository else return)
              qPutStrLn $ "Preparing release main in local repository at " ++ outsidePath path
-             release <- prepareRelease repo (P.buildRelease (P.params cache)) [] [parseSection' "main"] (P.archList (P.params cache))
+             release <- prepareRelease repo (P.buildRelease params) [] [parseSection' "main"] (P.archList params)
              case releaseRepo release of
                LocalRepo repo' ->
-                   case P.cleanUp (P.params cache) of
+                   case P.cleanUp params of
                      True -> deleteGarbage repo'
                      False -> return repo'
                _ -> error "Expected local repo"
@@ -198,34 +202,34 @@ runParameterSet cache =
              countTasks (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)))) allTargets)
           where
             allTargets = Set.toList targetSet
-            targetSet = case P.targets (P.params cache) of
+            targetSet = case P.targets params of
                           P.TargetSet s -> s
                           _ -> error "prepareTargetList: invalid target set"
 
       upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output], NominalDiffTime)]
       upload (repo, [])
-          | P.doUpload (P.params cache) =
-              case P.uploadURI (P.params cache) of
+          | P.doUpload params =
+              case P.uploadURI params of
                 Nothing -> error "Cannot upload, no 'Upload-URI' parameter given"
                 Just uri -> qPutStrLn "Uploading from local repository to remote" >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
           do
             qPutStrLn ("Some targets failed to build:\n  " ++ intercalate "\n  " (map targetName failed))
-            case P.doUpload (P.params cache) of
+            case P.doUpload params of
               True -> qPutStrLn "Skipping upload."
               False -> return ()
             liftIO $ exitWith (ExitFailure 1)
       newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
       newDist _results
-          | P.doNewDist (P.params cache) =
-              case P.uploadURI (P.params cache) of
+          | P.doNewDist params =
+              case P.uploadURI params of
                 Just uri ->
                     case uriAuthority uri of
                          Just auth ->
                              let cmd = ("ssh " ++ uriUserInfo auth ++ uriRegName auth ++
-                                        " " ++ P.newDistProgram (P.params cache) ++ " --root " ++ uriPath uri ++
-                                        (concat . map (" --create " ++) . P.createRelease $ (P.params cache))) in
+                                        " " ++ P.newDistProgram params ++ " --root " ++ uriPath uri ++
+                                        (concat . map (" --create " ++) . P.createRelease $ params)) in
                              qPutStrLn "Running newdist on remote repository" >>
                              try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                          Nothing ->

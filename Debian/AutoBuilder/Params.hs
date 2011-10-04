@@ -6,7 +6,7 @@ module Debian.AutoBuilder.Params
     , Package(..)
     , PackageFlag(..)
     , TargetSpec(..)
-
+    , computeTopDir
     , buildCache
     , prettyPrint
     , findSlice
@@ -375,10 +375,9 @@ prettyPrint x =
             ]
 
 -- |Create a Cache object from a parameter set.
-buildCache :: ParamRec -> AptIOT IO CacheRec
-buildCache params =
-    do top <- liftIO $ computeTopDir params
-       qPutStrLn ("Preparing autobuilder cache in " ++ top ++ "...")
+buildCache :: ParamRec -> FilePath -> AptIOT IO CacheRec
+buildCache params top =
+    do qPutStrLn ("Preparing autobuilder cache in " ++ top ++ "...")
        liftIO $ mapM_ (createDirectoryIfMissing True . ((top ++ "/") ++))
                   [".", "darcs", "deb-dir", "dists", "hackage", "localpools", "quilt", "tmp"]
        loadRepoCache top

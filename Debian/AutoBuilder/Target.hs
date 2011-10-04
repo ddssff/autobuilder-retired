@@ -1,20 +1,17 @@
-{-# LANGUAGE ScopedTypeVariables, StandaloneDeriving #-}
-{-# OPTIONS -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-orphans #-}
 -- |A Target represents a particular set of source code and the
 -- methods to retrieve and update it.
---
+-- 
 -- Author: David Fox <ddssff@gmail.com>
+{-# LANGUAGE ScopedTypeVariables, StandaloneDeriving #-}
+{-# OPTIONS -Wall -Werror -fwarn-unused-imports -fno-warn-name-shadowing -fno-warn-orphans #-}
 module Debian.AutoBuilder.Target
-    ( Target(..)
-    , targetName	-- Target -> String
-    , changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
-    , prepareTarget	-- ReleaseName -> OSImage -> Int -> Int -> Tgt -> IO Target
+    ( changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
     , buildTargets
     , showTargets 
-    , partitionFailing, ffe, eff
+    , partitionFailing
     ) where
 
-import Control.Applicative.Error (Failing(..))
+import Control.Applicative.Error (Failing(..), failing)
 import Control.Exception(Exception, SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
@@ -25,15 +22,16 @@ import qualified Data.Map as Map
 import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget, logText, buildWrapper))
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(logText, buildWrapper))
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
+import Debian.AutoBuilder.TargetType (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl)
 import Debian.AutoBuilder.Tgt (Tgt)
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
                        ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),
-                       ChangeLogEntry(logWho, logVersion, logPackage, logDists, logDate, logComments))
+                       ChangeLogEntry(logWho, logVersion, logDists, logDate, logComments))
 import Debian.Control
 import qualified Debian.Control.String as S(fieldValue)
 import qualified Debian.GenBuildDeps as G
@@ -50,30 +48,27 @@ import Debian.Repo.Insert (scanIncoming, showErrors)
 import Debian.Repo.OSImage (OSImage, updateLists)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
 import Debian.Repo.Repository (readPkgVersion, showPkgVersion)
-import Debian.Repo.SourceTree (findDebianSourceTree, SourceTreeC(..), DebianSourceTreeC(..), DebianSourceTree,
-                               DebianBuildTree, DebianBuildTreeC(..), addLogEntry, copyDebianBuildTree,
-                               copyDebianSourceTree, {-explainSourcePackageStatus,-} findChanges,
-                               findDebianBuildTree, findOneDebianBuildTree, SourcePackageStatus(..))
+import Debian.Repo.SourceTree (SourceTreeC(..), DebianSourceTreeC(..),
+                               DebianBuildTree, addLogEntry, copyDebianBuildTree,
+                               findChanges, findOneDebianBuildTree, SourcePackageStatus(..))
 import Debian.Repo.Monad (AptIOT)
 import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
                           PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
                           BinaryPackage(packageInfo, packageID))
 import Debian.Time(getCurrentLocalRFC822Time)
-import Debian.Version(DebianVersion, parseDebianVersion, version)
+import Debian.Version(DebianVersion, parseDebianVersion)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
 import System.Unix.Process(Output(..), collectOutputUnpacked, mergeToStdout, lazyProcess, stdoutOnly)
-import Extra.Either(partitionEithers)
 import Extra.Files(replaceFile)
 import Extra.List(dropPrefix)
 import Extra.Misc(columns)
-import System.Directory(renameDirectory)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Chroot (useEnv, forceList)
 import System.Unix.Process (collectResult)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV)
-import System.Unix.QIO (quietness, ePutStrLn, quieter, quieter', qPutStrLn, qMessage, q12 {-, q02-})
+import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, q12 {-, q02-})
 import Text.PrettyPrint (Doc, text, cat)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
@@ -82,61 +77,16 @@ deriving instance Show VersionReq
 deriving instance Show ArchitectureReq
 deriving instance Show Relation
 -}
-failing f _ (Failure x) = f x
-failing _ s (Success x) = s x
 
 --liftTIO = lift
 
--- | Build target info.
-data Target
-    = Target { realSource :: Tgt		-- ^ The source code obtained from the SCCS
-             , cleanSource :: DebianBuildTree	-- ^ The source code stripped of SCCS info
-             , targetEntry :: ChangeLogEntry	-- ^ The contents of the most recent changelog entry
-             , targetControl :: Control		-- ^ The contents of debian/control
-             , targetVersion :: DebianVersion	-- ^ The version number in debian/changelog
-             , targetRevision :: Maybe String	-- ^ The value computed by 'BuildTarget.revision'
-             , targetDepends :: G.DepInfo	-- ^ The dependency info parsed from the control file
-             , targetRelaxed :: G.DepInfo	-- ^ The dependency info with some dependencies relaxed.
-						--   Note that the entire list of targets is required to
-						--   compute this so we can look at the dependency graph.
-             }
-
-instance Eq Target where
-    a == b = targetName a == targetName b
-
-prettyTarget :: (G.SrcPkgName, Relations, [G.BinPkgName]) -> Doc
-prettyTarget (src, relss, _bins) = cat (intersperse (text ", ")  (map (prettyRels src) relss))
-
-prettyRels :: G.SrcPkgName -> [Relation] -> Doc
-prettyRels src rels =             cat (intersperse (text " | ") (map (\ rel -> cat [prettySrcPkgName src, prettyRelation rel]) rels))
-
 prettySimpleRelation :: Maybe PkgVersion -> Doc
 prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v ++ "="), prettyVersion (getVersion v)]) rel
-
-prettySrcPkgName :: G.SrcPkgName -> Doc
-prettySrcPkgName (G.SrcPkgName pkgname) = text pkgname
-
-{-
-prettyPkgVersion :: PkgVersion -> Doc
-prettyPkgVersion v = cat [text (getName v ++ "-"), prettyVersion (getVersion v)]
--}
 
 prettyVersion :: DebianVersion -> Doc
 prettyVersion = text . show
 
 {-
-instance Show Target where
-    show target = show . realSource $ target
--}
-
--- | The /Source:/ attribute of debian\/control.
-targetName :: Target -> String
-targetName target =
-    case removeCommentParagraphs (targetControl target) of
-      (Control (paragraph : _)) ->
-          maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
-      _ -> error "Target control information missing"
-
 _findSourceParagraph (Control paragraphs) = 
     case dropWhile isCommentParagraph paragraphs of
       (paragraph : _) -> Just paragraph
@@ -145,18 +95,12 @@ _findSourceParagraph (Control paragraphs) =
       isCommentParagraph (Paragraph fields) = all isCommentField fields
       isCommentField (Comment _) = True
       isCommentField _ = False
+-}
 
-removeCommentParagraphs (Control paragraphs) =
-    Control (filter (not . isCommentParagraph) paragraphs)
-    where
-      isCommentParagraph (Paragraph fields) = all isCommentField fields
-      isCommentField (Comment _) = True
-      isCommentField _ = False
-
-countAndPrepareTargets :: P.CacheRec -> OSImage -> [Tgt] -> IO [Target]
-countAndPrepareTargets cache os tgts =
+countAndPrepareTargets :: P.CacheRec -> Relations -> OSImage -> [Tgt] -> IO [Target]
+countAndPrepareTargets cache globalBuildDeps os tgts =
     qPutStrLn "\nAssembling source trees:\n" >>
-    countTasks' (zip (map show tgts) (map (prepareTarget cache os) tgts)) >>= \ targets ->
+    countTasks' (zip (map show tgts) (map (prepareTarget cache globalBuildDeps os) tgts)) >>= \ targets ->
     case partitionFailing targets of
       ([], targets') -> return targets'
       (failures, _) -> error ("Could not prepare some targets:\n  " ++ intercalate "\n  " (map (intercalate ", ") failures))
@@ -178,108 +122,6 @@ partitionFailing =
     where f (Success x) (fs, ss) = (fs, x : ss)
           f (Failure x) (fs, ss) = (x : fs, ss)
 
--- |Prepare a target for building in the given environment.  At this
--- point, the target needs to be a DebianSourceTree or a
--- DebianBuildTree. 
-prepareTarget :: P.CacheRec -> OSImage -> Tgt -> IO Target
-prepareTarget cache os source =
-    quieter (+ 2) $ prepareBuild cache os source >>= target
-    where
-      target :: DebianBuildTree -> IO Target
-      target tree =
-          try (BuildTarget.revision (P.params cache) source) >>= \ rev ->
-          return $ Target { realSource = source
-                          , cleanSource = tree
-                          , targetEntry = latest
-                          , targetControl = ctl
-                          , targetVersion = ver
-                          , targetRevision = either (\ (_ :: SomeException) -> Nothing) Just rev
-                          , targetDepends = undefined
-                          , targetRelaxed = undefined
-                          }
-          where
-            ctl = control tree
-            latest = entry tree
-            ver = logVersion latest
-
-{-          
-    do tree <- prepareBuild params os source
-               -- return . failing (\ msgs -> Failure ("Could not find Debian build tree for " ++ show source : msgs)) id
-       let ctl = control tree
-           latest = entry tree
-           ver = logVersion latest
-       rev <- try (BuildTarget.revision params source)
-       return $ Target { realSource = tgt
-                       , cleanSource = tree
-                       , targetEntry = latest
-                       , targetControl = ctl
-                       , targetVersion = ver
-                       -- Why would rev fail?
-                       , targetRevision = either (\ (_ :: SomeException) -> Nothing) Just rev
-                       , targetDepends = undefined
-                       , targetRelaxed = undefined
-                       }
--}
-
--- Failing From Either - use during conversion
-ffe :: IO a -> IO (Failing a)
-ffe a = try a >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
-
-eff (Failure ss) = Left (intercalate "\n" ss)
-eff (Success x) = Right x
-
--- |'prepareBuild' returns a Debian build tree for a target with all
--- the revision control files associated with the old target removed.
--- This ensures that the tarball and\/or the .diff.gz file in the deb
--- don't contain extra junk.  It also makes sure that debian\/rules is
--- executable.
-prepareBuild :: BuildTarget t => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
-prepareBuild cache os target =
-    do debBuild <- findOneDebianBuildTree top
-       case debBuild of
-         Success tree -> copyBuild tree
-         Failure msgs ->
-             qPutStrLn ("Build tree not found in " ++ top ++ ", creating new one\n  " ++ intercalate "\n  " msgs) >>
-             findDebianSourceTree top >>=
-             copySource
-    where
-      top = getTop (P.params cache) target
-      copySource :: DebianSourceTree -> IO DebianBuildTree
-      copySource debSource =
-          do let name = logPackage . entry $ debSource
-                 dest = rootPath (rootDir os) ++ "/work/build/" ++ name
-                 ver = Debian.Version.version . logVersion . entry $ debSource
-                 newdir = escapeForBuild $ name ++ "-" ++ ver
-             --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
-             copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
-             -- Clean the revision control files for this target out of the copy of the source tree
-             (_out, _time) <- cleanTarget (P.params cache) target (topdir copy)
-             findDebianBuildTree dest newdir
-      copyBuild :: DebianBuildTree -> IO DebianBuildTree
-      copyBuild debBuild =
-          do let name = logPackage . entry $ debBuild
-                 dest = rootPath (rootDir os) ++ "/work/build/" ++ name
-                 ver = Debian.Version.version . logVersion . entry $ debBuild
-                 newdir = escapeForBuild $ name ++ "-" ++ ver
-             --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
-             copy <- copyDebianBuildTree debBuild dest
-             (_output, _time) <- cleanTarget (P.params cache) target (topdir copy)
-             when (newdir /= (subdir debBuild))
-                      (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
-             findDebianBuildTree dest newdir
-
--- |Make a path "safe" for building.  This shouldn't be necessary,
--- but various packages make various assumptions about the type
--- of characters that appear in the name of the working directory
--- that the build is performed in.  For example, kdenetwork objects
--- to the colon, kdebase objects to the plus sign, and so on.
-escapeForBuild :: FilePath -> FilePath
-escapeForBuild =
-    map escape
-    where
-      escape ':' = '_'
-      escape '+' = '_'
-      escape c = c
 
 -- |Generate the details section of the package's new changelog entry
 -- based on the target type and version info.  This includes the
@@ -321,7 +163,7 @@ buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       -- showTargets targetSpecs
-      targetList <- lift $ countAndPrepareTargets cache cleanOS targetSpecs
+      targetList <- lift $ countAndPrepareTargets cache globalBuildDeps cleanOS targetSpecs
       qPutStrLn "\nBuilding all targets:"
       failed <- buildLoop cleanOS (length targetList) (targetList, [])
       return (localRepo, failed)
@@ -332,13 +174,13 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       buildLoop _ _ ([], failed) = return failed
       buildLoop cleanOS' count (unbuilt, failed) =
           do
-            relaxed <- lift $ updateDependencyInfo globalBuildDeps (P.relaxDepends (P.params cache)) unbuilt
-            next <- lift $ chooseNextTarget (goals relaxed) relaxed
+            -- relaxed <- lift $ updateDependencyInfo (P.relaxDepends (P.params cache)) globalBuildDeps unbuilt
+            next <- lift $ chooseNextTarget cache (goals unbuilt) unbuilt
             case next of
               Nothing -> return failed
               Just (target, blocked, other) ->
                   do quieter' (const 0) (qPutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                                               (count - length relaxed + 1) count (targetName target) (show (realSource target))))
+                                               (count - length unbuilt + 1) count (targetName target) (show (tgt target))))
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
                                then return (Failure ["--discard option set"])
                                else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
@@ -384,31 +226,15 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: [Target] -> [Target] -> IO (Maybe (Target, [Target], [Target]))
-chooseNextTarget [] _ = return Nothing
-chooseNextTarget goals targets =
+chooseNextTarget :: P.CacheRec -> [Target] -> [Target] -> IO (Maybe (Target, [Target], [Target]))
+chooseNextTarget _ [] _ = return Nothing
+chooseNextTarget cache goals targets =
     q12 "Choosing next target" $
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
     -- targets which are blocked by the first target.
     case G.buildable depends targets of
-      (G.CycleInfo arcs) ->
-          error ("Dependency cycles formed by these edges need to be broken:\n  " ++
-                 unlines (map (intercalate " ")
-                          (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
-                                    (map (\ (pkg, dep) -> [(show (intersect (binaryNames dep)
-                                                                  (binaryNamesOfRelations (targetRelaxed pkg)))),
-                                                           targetName dep, " -> ", targetName pkg]) arcs)))) ++
-                 "\nAdd one or more of these lines (but as few as possible) to your configuration file:\n  " ++
-                 intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs)))) ++ "\n")
-          where
-            relaxLine (bin, src) = "Relax-Depends: " ++ bin ++ " " ++ src
-            pairs (pkg, dep) =
-                 map (\ bin -> (bin, targetName pkg)) binaryDependencies
-                 where
-                   binaryDependencies = intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed pkg))
-            binaryNamesOfRelations (_, rels, _) =
-                concat (map (map (\ (Rel name _ _) -> name)) rels)
+      (G.CycleInfo arcs) -> error (cycleMessage cache arcs)
       info ->
           do quieter (+ (-3)) $ qPutStrLn (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
@@ -421,13 +247,10 @@ chooseNextTarget goals targets =
             readyLine (ready', blocked, _other) = 
                 [" Ready:", targetName ready', "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       makeTable (G.CycleInfo pairs) =
-          error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (realSource a, realSource b)) pairs)
+          error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (tgt a, tgt b)) pairs)
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
-      depends target1 target2 = G.compareSource (targetRelaxed target1) (targetRelaxed target2)
-      binaryNames dep =
-          map (\ (G.BinPkgName name) -> name) xs
-          where (_, _, xs) = (targetRelaxed dep)
+      depends target1 target2 = G.compareSource (targetRelaxed (P.relaxDepends (P.params cache)) target1) (targetRelaxed (P.relaxDepends (P.params cache)) target2)
       -- Choose the next target to build.  Look for targets which are
       -- in the goal list, or which block packages in the goal list.
       -- Among those, prefer the target which blocks the most
@@ -444,59 +267,28 @@ chooseNextTarget goals targets =
           where 
             aGoals = intersect goals' (aReady : aBlocked)
             bGoals = intersect goals' (bReady : bBlocked)
-              
-updateDependencyInfo :: Relations -> G.RelaxInfo -> [Target] -> IO [Target]
-updateDependencyInfo globalBuildDeps relaxInfo targets =
-    q12 "Updating dependency info" $
-    getDependencyInfo globalBuildDeps targets >>=
-    (\ ts -> qPutStrLn ("Original dependencies: " ++ show (map (prettyTarget . targetRelaxed) ts)) >> return ts) >>=
-    return . relax relaxInfo >>=
-    (\ ts -> qPutStrLn ("Relaxed dependencies:  " ++ show (map (prettyTarget . targetRelaxed) ts)) >> return ts)
 
--- |Retrieve the dependency information for a list of targets
-getDependencyInfo :: Relations -> [Target] -> IO [Target]
-getDependencyInfo globalBuildDeps targets =
-    mapM (getTargetDependencyInfo globalBuildDeps) targets >>=
-    finish . partitionEithers . zipEithers targets . map eff
+cycleMessage :: P.CacheRec -> [(Target, Target)] -> String
+cycleMessage cache arcs =
+    "Dependency cycles formed by these edges need to be broken:\n  " ++
+    unlines (map (intercalate " ")
+             (columns (["these binary packages", "from this source package", "", "force a rebuild of"] :
+                       (map arcTuple arcs)))) ++
+    "\nAdd one or more of these lines (but as few as possible) to your configuration file:\n  " ++
+    intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs))))
     where
-      finish ([], ok) = return (map (\ (target, deps) -> target {targetDepends = deps}) ok)
-      finish (bad, ok) =
-          do -- FIXME: Any errors here should be fatal
-             qPutStrLn ("Unable to retrieve build dependency info for some targets:\n  " ++
-                           concat (intersperse "\n  " (map (\ (target, message) -> targetName target ++ ": " ++ message) bad)))
-             return (map (\ (target, deps) -> target {targetDepends = deps}) ok)
-
-zipEithers :: [a] -> [Either b c] -> [Either (a, b) (a, c)]
-zipEithers xs ys = 
-    map zipEither (zip xs ys)
-    where
-      zipEither :: (a, Either b c) -> Either (a, b) (a, c)
-      zipEither (x, (Left y)) = Left (x, y)
-      zipEither (x, (Right y)) = Right (x, y)
-
--- |Retrieve the dependency information for a single target
-getTargetDependencyInfo :: Relations -> Target -> IO (Failing G.DepInfo)
-getTargetDependencyInfo globalBuildDeps target =
-    do let buildTree = cleanSource target
-       --let sourceTree = debTree buildTree
-       let controlPath = debdir buildTree ++ "/debian/control"
-       info <- liftIO $ parseControlFromFile controlPath >>= return . either (Left . show) (G.buildDependencies . removeCommentParagraphs)
-       -- vEPutStrBl 0 ("getDepInfo " ++ targetName target ++ ": " ++ show info)
-       return $ either (Failure . (: [])) (\ deps -> Success (addRelations globalBuildDeps deps)) info
-    where
-      addRelations :: Relations -> G.DepInfo -> G.DepInfo
-      addRelations moreRels (name, relations, bins) = (name, relations ++ moreRels, bins)
-
--- |Remove the relaxed dependencies from a list of targets.  We need
--- to do the entire list because G.relaxDeps needs all the DepInfo
--- objects to map source package names to binary package names and
--- vice versa.
-relax :: G.RelaxInfo -> [Target] -> [Target]
-relax relaxInfo targets =
-    map (\ (target, d, r) -> target {targetDepends = d, targetRelaxed = r}) (zip3 targets deps deps')
-    where
-      deps' = G.relaxDeps relaxInfo deps
-      deps = map targetDepends targets
+      arcTuple (pkg, dep) = 
+          let rels = targetRelaxed (P.relaxDepends (P.params cache)) pkg in
+          [(show (intersect (binaryNames dep) (binaryNamesOfRelations rels))), targetName dep, " -> ", targetName pkg]
+      binaryNames dep =
+          map (\ (G.BinPkgName name) -> name) xs
+          where (_, _, xs) = (targetRelaxed (P.relaxDepends (P.params cache)) dep)
+      relaxLine (bin, src) = "Relax-Depends: " ++ bin ++ " " ++ src
+      pairs (pkg, dep) =
+          map (\ bin -> (bin, targetName pkg)) binaryDependencies
+              where binaryDependencies = intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed (P.relaxDepends (P.params cache)) pkg))
+      binaryNamesOfRelations (_, rels, _) =
+          concat (map (map (\ (Rel name _ _) -> name)) rels)
 
 showTargets :: [P.Package] -> String
 showTargets targets =
@@ -563,7 +355,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               sourceRevision <- lift (try (BuildTarget.revision (P.params cache) (realSource target)))
+               sourceRevision <- lift (try (BuildTarget.revision (P.params cache) (tgt target)))
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -631,7 +423,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
             True -> return (Success buildTree)
       build :: DebianBuildTree -> AptIOT IO (Failing (DebianBuildTree, NominalDiffTime))
       build buildTree =
-          do result <- liftIO $ try (buildWrapper (P.params cache) buildOS buildTree status (realSource target)
+          do result <- liftIO $ try (buildWrapper (P.params cache) buildOS buildTree status (tgt target)
                                      (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
              case result of
                Left (e :: SomeException) -> return (Failure [show e])
@@ -653,7 +445,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
                                 logWho=P.autobuilderEmail (P.params cache),
                                 logDate=date,
                                 logComments=
-                                    init (logComments sourceLog) ++ changelogText (realSource target) sourceRevision oldDependencies sourceDependencies}
+                                    init (logComments sourceLog) ++ changelogText (tgt target) sourceRevision oldDependencies sourceDependencies}
       setDistribution name changes =
           let (Paragraph fields) = changeInfo changes in
           let info' = map (setDist name) fields in
@@ -691,7 +483,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
 -- of builds.  For lax: dependencies, then image copy, then source
 -- copy.  For other: image copy, then source copy, then dependencies.
 prepareBuildImage :: P.CacheRec -> OSImage -> [PkgVersion] -> OSImage -> Target -> P.Strictness -> IO (Failing DebianBuildTree)
-prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target _ _ _ _ _ _ _ _) P.Lax =
+prepareBuildImage cache cleanOS sourceDependencies buildOS target P.Lax =
     -- Install dependencies directly into the clean environment
     installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies >>=
     failing (return . Failure) (prepareTree noClean)
@@ -709,7 +501,7 @@ prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target _ _ _ 
       noClean = P.noClean (P.params cache)
       newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) oldPath)
       oldPath = topdir . cleanSource $ target
-prepareBuildImage cache cleanOS sourceDependencies buildOS target@(Target _ _ _ _ _ _ _ _) _ =
+prepareBuildImage cache cleanOS sourceDependencies buildOS target _ =
     -- Install dependencies directly into the build environment
     findTree noClean >>=
     failing (return . Failure) downloadDeps >>=
@@ -1004,6 +796,7 @@ downloadDependencies os source extra versions =
       path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
 
+pathBelow :: FilePath -> FilePath -> FilePath
 pathBelow root path =
     maybe (error message) id (dropPrefix root path)
     where message = "Expected a path below " ++ root ++ ", saw " ++ path
@@ -1031,6 +824,7 @@ useEnv' :: FilePath -> (a -> IO a) -> IO a -> IO a
 useEnv' rootPath force action = quieter (+ 1) $ useEnv rootPath force $ quieter (+ (-1)) action
 
 -- | Move to System.Unix.Process?
+outputToString :: [Output] -> String
 outputToString [] = ""
 outputToString (Stdout s : out) = B.unpack s ++ outputToString out
 outputToString (Stderr s : out) = B.unpack s ++ outputToString out
@@ -1082,13 +876,18 @@ doChecksum cmd f path =
     return . either (doError (cmd' ++ " " ++ path)) (Success . f) . toEither . collectOutputUnpacked
     where cmd' = "/usr/bin/" ++ cmd
 
+md5sum :: FilePath -> IO (Failing String)
 md5sum = doChecksum "md5sum" (take 32)
+sha1sum :: FilePath -> IO (Failing String)
 sha1sum = doChecksum "sha1sum" (take 40)
+sha256sum :: FilePath -> IO (Failing String)
 sha256sum = doChecksum "sha256sum" (take 64)
 
+toEither :: (a, String, ExitCode) -> Either (a, String, ExitCode) a
 toEither (text, "", ExitSuccess) = Right text
 toEither x = Left x
 
+doError :: Show a => String -> (t, a, ExitCode) -> Failing a
 doError cmd (_, s, ExitSuccess) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]
 doError cmd (_, _, ExitFailure n) = Failure ["Error " ++ show n ++ " running '" ++ cmd ++ "'"]
 
@@ -1211,32 +1010,7 @@ buildDecision cache target
       builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
       -- Remove any package not mentioned in the relaxed dependency list
       -- from the list of build dependencies which can trigger a rebuild.
-      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed target))) sourceDependencies
+      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed (P.relaxDepends (P.params cache)) target))) sourceDependencies
       -- All the package names mentioned in a dependency list
       packageNames :: G.DepInfo -> [String]
       packageNames (_, deps, _) = nub (map (\ (Rel name _ _) -> name) (concat deps))
-
------------------------ COPIED FROM GenBuildDeps --------------------
-{-
-
--- Return a list of binary packages which should be ignored for this
--- source package.
-ignoredForSourcePackage :: String -> G.RelaxInfo -> [String]
-ignoredForSourcePackage source (G.RelaxInfo pairs) =
-    catMaybes . map snd . filter (\ (_, x) -> maybe True (== source) x) $ pairs
-
--- Discard any dependencies not on the filtered package name list.  If
--- this results in an empty list in an or-dep the entire dependency can
--- be discarded.
-ignoreDependencies :: [String] -> Relations -> Relations
-ignoreDependencies ignore deps =
-    filter (/= []) (map (filter keepDep) deps)
-    where
-      keepDep (Rel name _ _) = not (elem name ignore)
-
-assoc :: String -> Paragraph -> Maybe String
-assoc name fields = maybe Nothing (\ (Field (_, v)) -> Just (stripWS v)) (lookupP name fields)
-
--}
-
-_tmp s = quietness >>= \ n -> ePutStrLn (s ++ " quietness=" ++ show n)
