@@ -14,7 +14,6 @@ import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
 import qualified Debian.AutoBuilder.BuildTarget.DebDir as DebDir
 import qualified Debian.AutoBuilder.BuildTarget.Debianize as Debianize
 import qualified Debian.AutoBuilder.BuildTarget.Dir as Dir
-import qualified Debian.AutoBuilder.BuildTarget.Hackage as Hackage
 import qualified Debian.AutoBuilder.BuildTarget.Hg as Hg
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.BuildTarget.Quilt as Quilt
@@ -44,7 +43,7 @@ readSpec cache flags spec =
           tgt <$> Cd.prepare cache dir t
       S.Dir path -> tgt <$> Dir.prepare cache path
       S.Debianize package version -> tgt <$> Debianize.prepare cache flags package version
-      S.Hackage package version -> tgt <$> Hackage.prepare cache package version
+      S.Hackage package version -> tgt <$> Debianize.prepareHackage cache package version
       S.Hg string -> tgt <$> Hg.prepare cache string
       S.Proc spec' ->
           readSpec cache [] spec' >>= \ t ->
@@ -83,7 +82,7 @@ targetDocumentation =
             , Darcs.documentation
             , DebDir.documentation
             , Debianize.documentation
-            , Hackage.documentation
+            , Debianize.documentationHackage
             , Hg.documentation
             , Proc.documentation
             , Quilt.documentation
