@@ -990,7 +990,7 @@ downloadDependencies os source extra versions =
        vers <- liftIO (evaluate versions)
        quieter (+ 1) $ qPutStrLn . intercalate "\n  " $ "Dependency package versions: " : map show vers
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
-       (out, _, code) <- useEnv (rootPath root) forceList (lazyCommandE command L.empty) >>=
+       (out, _, code) <- useEnv' (rootPath root) forceList (lazyCommandE command L.empty) >>=
                          return . collectOutputUnpacked . mergeToStdout
        case code of
          ExitSuccess -> return (Success out)
@@ -1012,7 +1012,7 @@ pathBelow root path =
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
 installDependencies os source extra versions =
     do qPutStrLn $ "Installing build dependencies into " ++ rootPath (rootDir os)
-       (code, out) <- Proc.withProc os (useEnv (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectResult
+       (code, out) <- Proc.withProc os (useEnv' (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectResult
        case code of
          ExitSuccess -> return (Success out)
          code -> quieter (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
@@ -1025,6 +1025,10 @@ installDependencies os source extra versions =
       --aptGetCommand = "apt-get --yes build-dep -o APT::Install-Recommends=False " ++ sourcpackagename
       path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
+
+-- | This should probably be what the real useEnv does.
+useEnv' :: FilePath -> (a -> IO a) -> IO a -> IO a
+useEnv' rootPath force action = quieter (+ 1) $ useEnv rootPath force $ quieter (+ (-1)) action
 
 -- | Move to System.Unix.Process?
 outputToString [] = ""
