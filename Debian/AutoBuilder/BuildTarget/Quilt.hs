@@ -71,7 +71,7 @@ instance BuildTarget Quilt where
              Left (_ :: SomeException) ->
                  do tree <- findDebianSourceTree (getTop params base)
                     let rev = logVersion . entry $ tree
-                    BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ show rev ++ "):(" ++ patchRev ++ ")")
+                    BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ show (prettyDebianVersion rev) ++ "):(" ++ patchRev ++ ")")
 
     logText (Quilt _ _ _) rev = "Quilt revision " ++ either show id rev
 
@@ -260,8 +260,8 @@ mergeChangelogs baseText patchText =
           where newEntry = entry {logVersion = buildQuiltVersion (logVersion entry) patchVersion}
       buildQuiltVersion baseVersion patchVersion =
           case Debian.Version.revision baseVersion of
-            Just _ -> parseDebianVersion (show baseVersion ++ "++" ++ show patchVersion)
-            Nothing -> parseDebianVersion (show baseVersion ++ "-" ++ show patchVersion)
+            Just _ -> parseDebianVersion (show (prettyDebianVersion baseVersion) ++ "++" ++ show (prettyDebianVersion patchVersion))
+            Nothing -> parseDebianVersion (show (prettyDebianVersion baseVersion) ++ "-" ++ show (prettyDebianVersion patchVersion))
 
 partitionChangelog :: UTCTime -> String -> ([ChangeLogEntry], String)
 partitionChangelog date text =

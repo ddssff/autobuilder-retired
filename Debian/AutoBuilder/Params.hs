@@ -25,6 +25,7 @@ module Debian.AutoBuilder.Params
     , adjustVendorTag -- Export for testing
     ) where
 
+import Control.Arrow (first)
 import Control.Exception ( SomeException, try, evaluate )
 import Control.Monad.State ( get, put )
 import "mtl" Control.Monad.Trans ( liftIO )
@@ -49,7 +50,7 @@ import Debian.Repo
       repoSources )
 import Debian.Repo.Monad ( AptIOT, setRepoMap )
 import Debian.Repo.Types ( SliceList(..) )
-import Debian.Version ( DebianVersion )
+import Debian.Version ( DebianVersion, prettyDebianVersion )
 import Debian.URI ( URI, parseURI )
 import qualified Debian.GenBuildDeps as G
     ( RelaxInfo(..), SrcPkgName(..), BinPkgName(..) )
@@ -319,7 +320,7 @@ data ParamRec =
     --  * 'SourcesChangedUpdate' - rewrite sources.list and update the environment, [_$_]
     --
     --  * 'SourcesChangedRemove' - discard and rebuild the environment
-  } deriving Show
+  }
 
 -- |Output a (somewhat) readable representation of the parameter set.
 prettyPrint :: ParamRec -> String
@@ -328,7 +329,7 @@ prettyPrint x =
             , "topDirParam=" ++ take 120 (show (topDirParam x))
             , "debug=" ++ take 120 (show (debug x))
             , "dryRun=" ++ take 120 (show (dryRun x))
-            , "requiredVersion=" ++ take 120 (show (requiredVersion x))
+            , "requiredVersion=" ++ take 120 (show (map (first prettyDebianVersion) (requiredVersion x)))
             , "showSources=" ++ take 120 (show (showSources x))
             , "showParams=" ++ take 120 (show (showParams x))
             , "flushAll=" ++ take 120 (show (flushAll x))

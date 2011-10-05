@@ -15,7 +15,7 @@ import System.Unix.Directory
 data Apt = Apt NamedSliceList String (Maybe DebianVersion) DebianBuildTree
 
 instance Show Apt where
-    show (Apt d n v _) = "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ n ++ maybe "" (("=" ++) . show) v
+    show (Apt d n v _) = "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ n ++ maybe "" (("=" ++) . show . prettyDebianVersion) v
 
 documentation = [ "apt:<distribution>:<packagename> - a target of this form looks up"
                 , "the sources.list named <distribution> and retrieves the package with"
@@ -26,7 +26,7 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
 -- of a package if it is already in the apt repository.
 instance BuildTarget Apt where
     getTop _ (Apt _ _ _ t) = topdir t
-    revision _ (Apt d p (Just v) _) = return $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show v
+    revision _ (Apt d p (Just v) _) = return $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show (prettyDebianVersion v)
     revision _ (Apt _ _ Nothing _) = fail "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
 

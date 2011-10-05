@@ -3,16 +3,17 @@
 -- md5sum if we want to ensure against the tarball changing unexpectedly.
 module Debian.AutoBuilder.BuildTarget.Uri where
 
+import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans (liftIO)
-import Data.ByteString.Lazy.Char8 (empty)
+import qualified Data.ByteString.Lazy.Char8 as B (empty, readFile)
+import Data.Digest.Pure.MD5 (md5)
 import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
 import Debian.Repo
 --import Debian.OldShell (runCommand, runCommandTimed)
 import Debian.URI
-import Extra.Misc as Extra
 import Magic
 import System.FilePath (splitFileName)
 import System.Directory
@@ -71,7 +72,7 @@ prepare cache uri md5sum = liftIO $
                True -> return name
                False -> 
                    -- runCommand 1 ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") >>
-                   lazyCommandF ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") empty >>
+                   lazyCommandF ("curl -s '" ++ uriToString' uri ++ "' > '" ++ dest ++ "'") B.empty >>
                    return name
           where
             dest = sumDir ++ "/" ++ name
@@ -80,12 +81,12 @@ prepare cache uri md5sum = liftIO $
       -- Make sure what we just downloaded has the correct checksum
       validateTarget :: String -> String -> IO (String, String, String)
       validateTarget sum name =
-          liftIO (Extra.md5sum dest) >>= \ realSum ->
+          liftIO (try (B.readFile dest >>= return . show . md5)) >>= \ (realSum :: Either SomeException String) ->
           case realSum of
             Right realSum' | sum == realSum' -> return (realSum', sumDir, name)
             Right realSum' -> error ("Checksum mismatch for " ++ dest ++
                                      ": expected " ++ sum ++ ", saw " ++ realSum' ++ ".")
-            Left msg -> error ("Checksum failure for " ++ dest ++ ": " ++ msg)
+            Left msg -> error ("Checksum failure for " ++ dest ++ ": " ++ show msg)
 {-
           do realSum <- liftIO $ Extra.md5sum dest
              -- We have checksummed the file and it either matches
@@ -108,7 +109,7 @@ prepare cache uri md5sum = liftIO $
             mkdir = liftIO (createDirectoryIfMissing True sourceDir)
             untar =
                 do c <- liftIO (unpackChar tarball)
-                   timeTask (lazyCommandF ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir) empty)
+                   timeTask (lazyCommandF ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir) B.empty)
                    -- runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball ++ " -C " ++ sourceDir)
             unpackChar tarball =
                 do magic <- magicOpen []

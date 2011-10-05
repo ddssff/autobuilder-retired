@@ -11,6 +11,7 @@ module Debian.AutoBuilder.Target
     , partitionFailing
     ) where
 
+import Control.Arrow (second)
 import Control.Applicative.Error (Failing(..), failing)
 import Control.Exception(Exception, SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
@@ -55,9 +56,9 @@ import Debian.Repo.Monad (AptIOT)
 import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
                           PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
-                          BinaryPackage(packageInfo, packageID))
+                          BinaryPackage(packageInfo, packageID), prettyPkgVersion)
 import Debian.Time(getCurrentLocalRFC822Time)
-import Debian.Version(DebianVersion, parseDebianVersion)
+import Debian.Version(DebianVersion, parseDebianVersion, prettyDebianVersion)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
 import System.Unix.Process(Output(..), collectOutputUnpacked, mergeToStdout, lazyProcess, stdoutOnly)
 import Extra.Files(replaceFile)
@@ -83,10 +84,7 @@ deriving instance Show Relation
 --liftTIO = lift
 
 prettySimpleRelation :: Maybe PkgVersion -> Doc
-prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v ++ "="), prettyVersion (getVersion v)]) rel
-
-prettyVersion :: DebianVersion -> Doc
-prettyVersion = text . show
+prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v ++ "="), prettyDebianVersion (getVersion v)]) rel
 
 {-
 _findSourceParagraph (Control paragraphs) = 
@@ -140,8 +138,8 @@ changelogText spec revision oldDeps newDeps =
       changedDeps = Set.toList (Set.difference (Set.fromList newDeps) (Set.fromList oldDeps))
       showDepChange newDep =
           case filter (hasName (getName newDep)) oldDeps of
-            [] -> [" " ++ getName newDep ++ ": ", "(none)", " -> ", show (getVersion newDep)]
-            (oldDep : _) -> [" " ++ getName newDep ++ ": ", show (getVersion oldDep), " -> ", show (getVersion newDep)]
+            [] -> [" " ++ getName newDep ++ ": ", "(none)", " -> ", show (prettyDebianVersion (getVersion newDep))]
+            (oldDep : _) -> [" " ++ getName newDep ++ ": ", show (prettyDebianVersion (getVersion oldDep)), " -> ", show (prettyDebianVersion (getVersion newDep))]
       hasName name deps = ((== name) . getName) deps
       prefix = "\n    "
 
@@ -151,7 +149,7 @@ _formatVersions :: [PkgVersion] -> String
 _formatVersions buildDeps =
     -- "\n  * Build dependency versions:" ++
     prefix ++
-    intercalate prefix (map show buildDeps) ++
+    intercalate prefix (map (show . prettyPkgVersion) buildDeps) ++
     "\n"
     where prefix = "\n    "
 
@@ -565,13 +563,13 @@ getReleaseControlInfo cleanOS packageName =
     where
       message status =
           intercalate "\n"
-                  (["  Source Package Versions: " ++ show (map sourcePackageVersion sourcePackages),
+                  (["  Source Package Versions: " ++ show (map (second prettyDebianVersion . sourcePackageVersion) sourcePackages),
                     "  Required Binary Package Names:"] ++
-                   map (("   " ++) . show) (zip (map sourcePackageVersion sourcePackages) (map sourcePackageBinaryNames sourcePackages)) ++
+                   map (("   " ++) . show) (zip (map (second prettyDebianVersion . sourcePackageVersion) sourcePackages) (map sourcePackageBinaryNames sourcePackages)) ++
                    missingMessage status ++
-                   ["  Binary Package Versions: " ++ show (map binaryPackageVersion binaryPackages),
+                   ["  Binary Package Versions: " ++ show (map (second prettyDebianVersion . binaryPackageVersion) binaryPackages),
                     "  Available Binary Packages of Source Package:"] ++
-                   map (("   " ++) . show) (zip (map sourcePackageVersion sourcePackages) (map (availableDebNames binaryPackages) sourcePackages)))
+                   map (("   " ++) . show) (zip (map (second prettyDebianVersion . sourcePackageVersion) sourcePackages) (map (availableDebNames binaryPackages) sourcePackages)))
       missingMessage Complete = []
       missingMessage (Missing missing) = ["  Missing Binary Package Names: "] ++ map ("   " ++) missing
       sourcePackagesWithBinaryNames = zip sourcePackages (map sourcePackageBinaryNames sourcePackages)
@@ -679,7 +677,7 @@ computeNewVersion cache
       checkVersion result =
           maybe (Success result)
                 (\ v -> if result <= v
-                        then Failure ["Autobuilder bug: new version number " ++ show result ++ " is not newer than current version number " ++ show v]
+                        then Failure ["Autobuilder bug: new version number " ++ show (prettyDebianVersion result) ++ " is not newer than current version number " ++ show (prettyDebianVersion v)]
                         else Success result)
                 currentVersion
 
@@ -801,7 +799,7 @@ downloadDependencies os source extra versions =
     
     do -- qPutStrLn "Downloading build dependencies"
        vers <- liftIO (evaluate versions)
-       quieter (+ 1) $ qPutStrLn . intercalate "\n  " $ "Dependency package versions: " : map show vers
+       quieter (+ 1) $ qPutStrLn . intercalate "\n  " $ "Dependency package versions: " : map (show . prettyPkgVersion) vers
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
        (out, _, code) <- useEnv' (rootPath root) forceList (lazyCommandE command L.empty) >>=
                          return . collectOutputUnpacked . mergeToStdout
@@ -886,7 +884,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
           where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [newField]))
       addField (Control []) = error "Invalid control file"
       newField = Field ("Revision", " " ++ newFieldValue)
-      newFieldValue = either (error . show) id revision ++ " " ++ show sourceVersion ++ " " ++ formatVersions versions
+      newFieldValue = either (error . show) id revision ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ formatVersions versions
       formatVersions versions = intercalate " " (map showPkgVersion versions)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 
@@ -931,21 +929,21 @@ buildDecision cache target
                   sourceVersion sourceDependencies =
     case oldVersion == Nothing of
       _ | forceBuild -> Yes "--force-build option is set"
-        | isNothing oldVersion -> Yes ("Initial build of version " ++ show sourceVersion)
+        | isNothing oldVersion -> Yes ("Initial build of version " ++ show (prettyDebianVersion sourceVersion))
       _ ->
           case isJust oldSrcVersion of
             True ->
                 case compare sourceVersion (fromJust oldSrcVersion) of
-                  GT -> Yes ("Source version (" ++ show sourceVersion ++ ") is newer than released source version (" ++ show (fromJust oldSrcVersion) ++ ")")
-                  LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldSrcVersion) ++ ")")
+                  GT -> Yes ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is newer than released source version (" ++ show (prettyDebianVersion (fromJust oldSrcVersion)) ++ ")")
+                  LT -> No ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is trumped by released source version (" ++ show (prettyDebianVersion (fromJust oldSrcVersion)) ++ ")")
                   EQ -> sameSourceTests
             False ->
                 case compare (dropTag allTags sourceVersion) (dropTag allTags (fromJust oldVersion)) of
-                  GT -> Yes ("Source version (" ++ show sourceVersion ++ ") is newer than released source version (" ++ show (fromJust oldVersion) ++ ")")
-                  LT -> No ("Source version (" ++ show sourceVersion ++ ") is trumped by released source version (" ++ show (fromJust oldVersion) ++ ")")
+                  GT -> Yes ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is newer than released source version (" ++ show (prettyDebianVersion (fromJust oldVersion)) ++ ")")
+                  LT -> No ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is trumped by released source version (" ++ show (prettyDebianVersion (fromJust oldVersion)) ++ ")")
                   EQ ->
                       case dropTag allTags sourceVersion == sourceVersion of
-                        False -> Yes ("Source version (" ++ show sourceVersion ++ ") is tagged, and old source version was not recorded")
+                        False -> Yes ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is tagged, and old source version was not recorded")
                         True -> sameSourceTests
     where
       vendorTag = P.vendorTag (P.params cache)
@@ -965,13 +963,13 @@ buildDecision cache target
           case releaseStatus of
             Indep missing | missing /= [] && not (notArchDep (targetControl target)) ->
                   -- The binary packages are missing, we need an arch only build.
-                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
+                  Arch ("Version " ++ maybe "Nothing" show (fmap prettyDebianVersion oldVersion) ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
             _ | badDependencies /= [] && not allowBuildDependencyRegressions ->
                   Error ("Build dependency regression (allow with --allow-build-dependency-regressions): " ++ 
-                         concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
+                         concat (intersperse ", " (map (\ ver -> show (fmap prettyPkgVersion (builtVersion ver)) ++ " -> " ++ show (prettyPkgVersion ver)) badDependencies)))
               | badDependencies /= [] ->
                   Auto ("Build dependency regression: " ++ 
-                        concat (intersperse ", " (map (\ ver -> show (builtVersion ver) ++ " -> " ++ show ver) badDependencies)))
+                        concat (intersperse ", " (map (\ ver -> show (fmap prettyPkgVersion (builtVersion ver)) ++ " -> " ++ show (prettyPkgVersion ver)) badDependencies)))
               | autobuiltDependencies /= [] && isNothing oldSrcVersion ->
 		  -- If oldSrcVersion is Nothing, the autobuilder didn't make the previous build
                   -- so there are no recorded build dependencies.  In that case we don't really
@@ -984,12 +982,12 @@ buildDecision cache target
                   -- of its build dependencies are revved or new ones appear.
                   Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText (revvedDependencies ++ newDependencies))
             Indep _ | notArchDep (targetControl target) ->
-                  No ("Version " ++ show sourceVersion ++ " of architecture independent package is already in release.")
+                  No ("Version " ++ show (prettyDebianVersion sourceVersion) ++ " of architecture independent package is already in release.")
             Indep missing ->
                   -- The binary packages are missing, we need an arch only build.
-                  Arch ("Version " ++ maybe "Nothing" show oldVersion ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
+                  Arch ("Version " ++ maybe "Nothing" show (fmap prettyDebianVersion oldVersion) ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
             All ->
-                  No ("Version " ++ show sourceVersion ++ " is already in release.")
+                  No ("Version " ++ show (prettyDebianVersion sourceVersion) ++ " is already in release.")
             _ ->
                   error ("Unexpected releaseStatus: " ++ show releaseStatus)
       notArchDep control =
@@ -999,7 +997,7 @@ buildDecision cache target
       buildDependencyChangeText dependencies =
           "  " ++ intercalate "\n  " lines
           where
-            lines = map (\ (built, new) -> show built ++ " -> " ++ show new) (zip builtVersions dependencies)
+            lines = map (\ (built, new) -> show (fmap prettyPkgVersion built) ++ " -> " ++ show (prettyPkgVersion new)) (zip builtVersions dependencies)
             builtVersions = map (findDepByName builtDependencies) dependencies
             findDepByName builtDependencies new = find (\ old -> getName new == getName old) builtDependencies
       -- The list of the revved and new dependencies which were built by the autobuilder.

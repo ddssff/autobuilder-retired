@@ -7,6 +7,7 @@ module Debian.AutoBuilder.Main
     ( main
     ) where
 
+import Control.Arrow (first)
 import Control.Applicative.Error (Failing(..))
 import Control.Exception(SomeException, IOException, try, catch)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get))
@@ -40,7 +41,7 @@ import Debian.Repo.Types(EnvRoot(EnvRoot), EnvPath(..),
                          NamedSliceList(..), Repository(LocalRepo),
                          LocalRepository(LocalRepository), outsidePath)
 import Debian.URI(URIAuth(uriUserInfo, uriRegName), URI(uriScheme, uriPath, uriAuthority), parseURI)
-import Debian.Version(DebianVersion, parseDebianVersion)
+import Debian.Version(DebianVersion, parseDebianVersion, prettyDebianVersion)
 import Extra.Lock(withLock)
 import Extra.Misc(checkSuperUser)
 import Prelude hiding (catch)
@@ -151,7 +152,7 @@ runParameterSet cache =
           let abv = parseDebianVersion V.autoBuilderVersion
               rqvs = P.requiredVersion params in
           case filter (\ (v, _) -> v > abv) rqvs of
-            [] -> quieter' (+ 1) $ qPutStrLn $ "Installed autobuilder version " ++ show abv ++ " newer than required: " ++ show rqvs
+            [] -> quieter' (+ 1) $ qPutStrLn $ "Installed autobuilder version " ++ show (prettyDebianVersion abv) ++ " newer than required: " ++ show (map (first prettyDebianVersion) rqvs)
             reasons -> quieter (const 0) $
                 do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
@@ -159,7 +160,7 @@ runParameterSet cache =
           where
             printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
-                qPutStr (" Version >= " ++ show v ++ " is required" ++ maybe "" ((++) ":") s)
+                qPutStr (" Version >= " ++ show (prettyDebianVersion v) ++ " is required" ++ maybe "" ((++) ":") s)
       doShowParams = when (P.showParams params) $
                        quieter (const 0) (qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint params)
       doShowSources =

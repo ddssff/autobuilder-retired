@@ -13,7 +13,7 @@ import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List (isPrefixOf, isSuffixOf, intercalate)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Params as P
-import Debian.Version (DebianVersion, parseDebianVersion)
+import Debian.Version (DebianVersion, parseDebianVersion, prettyDebianVersion)
 import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Exit
@@ -30,7 +30,7 @@ import Text.XML.HaXml.Posn
 data Debianize = Debianize String (Maybe DebianVersion) SourceTree
 
 instance Show Debianize where
-    show (Debianize name version _) = "debianize:" ++ name ++ maybe "" (("=" ++) . show) version
+    show (Debianize name version _) = "debianize:" ++ name ++ maybe "" (("=" ++) . show . prettyDebianVersion) version
 
 documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
@@ -39,7 +39,7 @@ documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of 
 instance BuildTarget Debianize where
     getTop _ (Debianize _ _ tree) = topdir tree
     revision _ (Debianize name (Just version) _) =
-        return $ "debianize:" ++ name ++ "=" ++ show version
+        return $ "debianize:" ++ name ++ "=" ++ show (prettyDebianVersion version)
     revision _ (Debianize _ Nothing _) =
         fail "Attempt to generate revision string for unversioned hackage target"
     logText (Debianize _ _ _) revision =
@@ -177,7 +177,7 @@ findVersion package (Document _ _ (Elem _name _attrs content) _) =
 
 -- |Hackage paths
 packageURL name = "http://hackage.haskell.org/package/" ++ name
-versionURL name version = "http://hackage.haskell.org/packages/archive/" ++ name ++ "/" ++ show version ++ "/" ++ name ++ "-" ++ show version ++ ".tar.gz"
+versionURL name version = "http://hackage.haskell.org/packages/archive/" ++ name ++ "/" ++ show (prettyDebianVersion version) ++ "/" ++ name ++ "-" ++ show (prettyDebianVersion version) ++ ".tar.gz"
 
 -- |Validate the text of a tarball file.
 validate :: B.ByteString -> Maybe B.ByteString
@@ -188,10 +188,10 @@ validate text =
       Right _ -> Just text
 
 tarball :: FilePath -> String -> DebianVersion -> FilePath
-tarball top name version  = tmpDir top </> name ++ "-" ++ show version ++ ".tar.gz"
+tarball top name version  = tmpDir top </> name ++ "-" ++ show (prettyDebianVersion version) ++ ".tar.gz"
 
 unpacked :: FilePath -> String -> DebianVersion -> FilePath
-unpacked top name version = tmpDir top </> name ++ "-" ++ show version
+unpacked top name version = tmpDir top </> name ++ "-" ++ show (prettyDebianVersion version)
 
 tmpDir :: FilePath -> FilePath
 tmpDir top = top ++ "/hackage"
@@ -204,7 +204,7 @@ downloadCommand name version = "curl -s '" ++ versionURL name version ++ "'" {- 
 data Hackage = Hackage String (Maybe DebianVersion) SourceTree
 
 instance Show Hackage where
-    show (Hackage name version _) = "hackage:" ++ name ++ maybe "" (("=" ++) . show) version
+    show (Hackage name version _) = "hackage:" ++ name ++ maybe "" (("=" ++) . show . prettyDebianVersion) version
 
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
@@ -212,7 +212,7 @@ documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target 
 instance BuildTarget Hackage where
     getTop _ (Hackage _ _ tree) = topdir tree
     revision _ (Hackage name (Just version) _) =
-        return $ "hackage:" ++ name ++ "=" ++ show version
+        return $ "hackage:" ++ name ++ "=" ++ show (prettyDebianVersion version)
     revision _ (Hackage _ Nothing _) =
         fail "Attempt to generate revision string for unversioned hackage target"
     logText (Hackage _ _ _) revision =
