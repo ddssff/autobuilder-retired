@@ -432,11 +432,11 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
                               lazyCommandF ("dpkg -s dpkg-dev | sed -n 's/^Version: //p'") L.empty >>= return . head . words . L.unpack . stdoutOnly >>= \ installed ->
                               -- If it is >= 1.16 we may need to run dpkg-source --commit.
                               lazyCommandV ("dpkg --compare-versions '" ++ installed ++ "' ge 1.16") L.empty >>= return . (== ExitSuccess) . exitCodeOnly >>= \ newer ->
-                              when newer (do createDirectoryIfMissing True (path </> "debian/patches")
+                              when newer (do createDirectoryIfMissing True (path' </> "debian/patches")
                                              -- Create the patch if there are any changes
-                                             _ <- lazyProcessF "dpkg-source" ["--commit", ".", "patch"] (Just path') Nothing L.empty
+                                             _ <- lazyProcessF "dpkg-source" ["--commit", ".", "autobuilder.diff"] (Just path') Nothing L.empty
                                              -- If the patch was not created, remove the directory
-                                             exists <- doesFileExist (path' </> "debian/patches/patch")
+                                             exists <- doesFileExist (path' </> "debian/patches/autobuilder.diff")
                                              when (not exists) (removeDirectory (path' </> "debian/patches"))))
              result <- liftIO $ try (buildWrapper (P.params cache) buildOS buildTree status (tgt target)
                                      (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
