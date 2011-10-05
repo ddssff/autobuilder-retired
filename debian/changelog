@@ -1,3 +1,11 @@
+autobuilder (6.8) unstable; urgency=low
+
+  * If dpkg-dev is 1.16 or newer is installed in the build environment,
+    we may need to run dpkg-source --commit to update the source package
+    when there are local changes created by a Quilt target or similar.
+
+ -- David Fox <dsf@seereason.com>  Tue, 04 Oct 2011 21:48:17 -0700
+
 autobuilder (6.7) unstable; urgency=low
 
   * Add a constructor Patch B.ByteString to the PackageFlags type so we
