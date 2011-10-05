@@ -46,5 +46,6 @@ Library
     Debian.AutoBuilder.Params,
     Debian.AutoBuilder.Spec,
     Debian.AutoBuilder.Target,
+    Debian.AutoBuilder.TargetType,
     Debian.AutoBuilder.Tgt,
     Debian.AutoBuilder.Version
