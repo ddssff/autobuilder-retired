@@ -423,15 +423,15 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
             True -> return (Success buildTree)
       build :: DebianBuildTree -> AptIOT IO (Failing (DebianBuildTree, NominalDiffTime))
       build buildTree =
-          do -- The --commit flag does not appear until dpkg-dev-1.16,
+          do -- The --commit flag does not appear until dpkg-dev-1.16.1,
              -- so we need to check this version number.  We also
              -- don't want to leave the patches subdirectory here
              -- unless we actually created a patch.
              _ <- liftIO $ useEnv' root (\ _ -> return ())
                              (-- Get the version number of dpkg-dev in the build environment
                               lazyCommandF ("dpkg -s dpkg-dev | sed -n 's/^Version: //p'") L.empty >>= return . head . words . L.unpack . stdoutOnly >>= \ installed ->
-                              -- If it is >= 1.16 we may need to run dpkg-source --commit.
-                              lazyCommandV ("dpkg --compare-versions '" ++ installed ++ "' ge 1.16") L.empty >>= return . (== ExitSuccess) . exitCodeOnly >>= \ newer ->
+                              -- If it is >= 1.16.1 we may need to run dpkg-source --commit.
+                              lazyCommandV ("dpkg --compare-versions '" ++ installed ++ "' ge 1.16.1") L.empty >>= return . (== ExitSuccess) . exitCodeOnly >>= \ newer ->
                               when newer (do createDirectoryIfMissing True (path' </> "debian/patches")
                                              -- Create the patch if there are any changes
                                              _ <- lazyProcessF "dpkg-source" ["--commit", ".", "autobuilder.diff"] (Just path') Nothing L.empty
