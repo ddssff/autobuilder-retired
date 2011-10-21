@@ -8,7 +8,6 @@ module Debian.AutoBuilder.Target
     ( changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
     , buildTargets
     , showTargets 
-    , partitionFailing
     ) where
 
 import Control.Arrow (second)
@@ -17,6 +16,7 @@ import Control.Exception(Exception, SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
+import Data.Either (partitionEithers)
 import Data.List(intersperse, find, intercalate, intersect, isSuffixOf,
                  nub, partition, sortBy)
 import qualified Data.Map as Map
@@ -100,28 +100,21 @@ _findSourceParagraph (Control paragraphs) =
 countAndPrepareTargets :: P.CacheRec -> Relations -> OSImage -> [Tgt] -> IO [Target]
 countAndPrepareTargets cache globalBuildDeps os tgts =
     qPutStrLn "\nAssembling source trees:\n" >>
-    countTasks' (zip (map show tgts) (map (prepareTarget cache globalBuildDeps os) tgts)) >>= \ targets ->
-    case partitionFailing targets of
+    countTasks (zip (map (\ tgt count index -> printf "[%2d of %2d] %s" index count (show tgt)) tgts)
+                     (map (prepareTarget cache globalBuildDeps os) tgts)) >>= \ targets ->
+    case partitionEithers targets of
       ([], targets') -> return targets'
-      (failures, _) -> error ("Could not prepare some targets:\n  " ++ intercalate "\n  " (map (intercalate ", ") failures))
+      (failures, _) -> error ("Could not prepare some targets:\n  " ++ intercalate "\n  " (map show failures))
 
 -- | Perform a list of tasks with log messages.
-countTasks' :: [(String, IO Target)] -> IO [Failing Target]
-countTasks' tasks =
-    mapM (countTask (length tasks)) (zip [1..] tasks)
+countTasks :: [(Int -> Int -> String, IO a)] -> IO [Either SomeException a]
+countTasks tasks =
+    mapM (uncurry countTask) (zip [1..] tasks)
     where
-      countTask :: Int -> (Int, (String, IO a)) -> IO (Failing a)
-      countTask count (index, (message, task)) =
-          qPutStrLn (printf "[%2d of %2d] %s:" index count message) >>
-          quieter' (+ 2) (try task >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success)
-
--- |Move to Control.Applicative.Error.
-partitionFailing :: [Failing a] -> ([[String]], [a])
-partitionFailing =
-    foldr f ([], [])
-    where f (Success x) (fs, ss) = (fs, x : ss)
-          f (Failure x) (fs, ss) = (x : fs, ss)
-
+      countTask :: Int -> (Int -> Int -> String, IO a) -> IO (Either SomeException a)
+      countTask index (message, task) =
+          qPutStrLn (message (length tasks) index) >>
+          quieter' (+ 2) (try task)
 
 -- |Generate the details section of the package's new changelog entry
 -- based on the target type and version info.  This includes the
