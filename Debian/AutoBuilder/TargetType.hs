@@ -69,10 +69,9 @@ prepareBuild cache os name target =
              findDebianSourceTree top >>=
              copySource
          [tree] ->
-             qPutStrLn ("Found one build tree: " ++ show tree) >>
              copyBuild tree
          trees ->
-             error ("Multiple build trees found: " ++ show trees)
+             error ("Multiple build trees found")
 {-         
        debBuild <- findOneDebianBuildTree top
        case debBuild of
