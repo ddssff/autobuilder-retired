@@ -30,7 +30,7 @@ import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
-import Debian.Repo.Monad (AptIOT, getRepoMap, runAptIO, tryAB, countTasks)
+import Debian.Repo.Monad (AptIOT, getRepoMap, runAptIO, tryAB)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(buildEssential, prepareEnv)
 import Debian.Repo.Release(prepareRelease)
@@ -54,6 +54,7 @@ import System.Unix.Directory(removeRecursiveSafely)
 import System.Unix.Process(Output)
 import System.Unix.Progress (timeTask, lazyCommandF)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, q12)
+import Text.Printf ( printf )
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
@@ -113,10 +114,10 @@ runParameterSet cache =
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged params) poolSources
-      targets <- prepareTargetList 	-- Make a the list of the targets we hope to build
+      (names, targets) <- prepareTargetList >>= return . unzip 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], targets') ->
-            do buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS targets'
+            do buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS (zip names targets')
                -- If all targets succeed they may be uploaded to a remote repo
                result <- tryAB (upload buildResult >>= lift . newDist) >>=
                          return . either (\ e -> Failure [show e]) id
@@ -200,7 +201,7 @@ runParameterSet cache =
       prepareTargetList =
           do qPutStr ("\n" ++ showTargets allTargets)
              qPutStrLn "Retrieving all source code:\n"
-             countTasks (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)))) allTargets)
+             countTasks' (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)))) allTargets)
           where
             allTargets = Set.toList targetSet
             targetSet = case P.targets params of
@@ -275,3 +276,14 @@ checkResults list =
     where showResult (Right (Left e)) = show e
           showResult (Right (Right _)) = "Ok"
           showResult (Left e) = "Ok (" ++ show e ++ ")"
+
+-- | Perform a list of tasks with log messages.
+countTasks' :: MonadIO m => [(String, m a)] -> m [(String, a)]
+countTasks' tasks =
+    mapM (countTask (length tasks)) (zip [1..] tasks)
+    where
+      countTask :: MonadIO m => Int -> (Int, (String, m a)) -> m (String, a)
+      countTask count (index, (message, task)) =
+          liftIO (IO.hPutStrLn IO.stderr (printf "[%2d of %2d] %s:" index count message)) >>
+          task >>= \ a ->
+          return (message, a)

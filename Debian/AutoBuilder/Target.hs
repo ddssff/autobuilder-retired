@@ -97,24 +97,23 @@ _findSourceParagraph (Control paragraphs) =
       isCommentField _ = False
 -}
 
-countAndPrepareTargets :: P.CacheRec -> Relations -> OSImage -> [Tgt] -> IO [Target]
+countAndPrepareTargets :: P.CacheRec -> Relations -> OSImage -> [(String, Tgt)] -> IO [Target]
 countAndPrepareTargets cache globalBuildDeps os tgts =
     qPutStrLn "\nAssembling source trees:\n" >>
-    countTasks (zip (map (\ tgt count index -> printf "[%2d of %2d] %s" index count (show tgt)) tgts)
-                     (map (prepareTarget cache globalBuildDeps os) tgts)) >>= \ targets ->
+    countTasks tasks >>= \ targets ->
     case partitionEithers targets of
       ([], targets') -> return targets'
       (failures, _) -> error ("Could not prepare some targets:\n  " ++ intercalate "\n  " (map show failures))
-
--- | Perform a list of tasks with log messages.
-countTasks :: [(Int -> Int -> String, IO a)] -> IO [Either SomeException a]
-countTasks tasks =
-    mapM (uncurry countTask) (zip [1..] tasks)
     where
-      countTask :: Int -> (Int -> Int -> String, IO a) -> IO (Either SomeException a)
-      countTask index (message, task) =
-          qPutStrLn (message (length tasks) index) >>
-          quieter' (+ 2) (try task)
+      tasks :: [Int -> Int -> IO (Either SomeException Target)]
+      tasks = map task tgts
+      task :: (String, Tgt) -> Int -> Int -> IO (Either SomeException Target)
+      task (name, tgt) count index =
+          qPutStrLn (printf "[%2d of %2d] %s" index count (show tgt)) >>
+          quieter' (+ 2) (try (prepareTarget cache globalBuildDeps os name tgt))
+
+countTasks :: [Int -> Int -> IO a] -> IO [a]
+countTasks tasks = mapM (\ (index, task) -> task (length tasks) index) (zip [1..] tasks)
 
 -- |Generate the details section of the package's new changelog entry
 -- based on the target type and version info.  This includes the
@@ -151,7 +150,7 @@ _formatVersions buildDeps =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIOT IO (LocalRepository, [Target])
+buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [(String, Tgt)] -> AptIOT IO (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
@@ -319,7 +318,7 @@ buildTarget ::
     AptIOT IO (Failing (Maybe LocalRepository))	-- The local repository after the upload (if it changed), or an error message
 buildTarget cache cleanOS globalBuildDeps repo poolOS target =
     do
-      _cleanOS' <- lift (syncPool cleanOS)
+      _cleanOS' <- lift (quieter (+ 2) $ syncPool cleanOS)
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target

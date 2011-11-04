@@ -16,14 +16,14 @@ import Data.List (intercalate)
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget))
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt)
-import Debian.Changes (logVersion, ChangeLogEntry(logVersion, logPackage))
-import Debian.Control (Control, Control'(Control), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
+import Debian.Changes (logVersion, ChangeLogEntry(..))
+import Debian.Control (Control, Control'(Control, unControl), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G
 --import Debian.Relation (prettyRelation)
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
-import Debian.Repo.SourceTree (DebianBuildTree, control, entry, topdir, subdir, debdir, findOneDebianBuildTree, findDebianBuildTree, copyDebianBuildTree,
-                               DebianSourceTree, findDebianSourceTree, copyDebianSourceTree)
+import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, topdir, subdir, debdir, {-findOneDebianBuildTree,-} findDebianBuildTree, findDebianBuildTrees, copyDebianBuildTree,
+                               DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree)
 import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
 import System.Directory(renameDirectory)
@@ -43,9 +43,9 @@ instance Eq Target where
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: P.CacheRec -> Relations -> OSImage -> Tgt -> IO Target
-prepareTarget cache globalBuildDeps os source =
-    quieter (+ 2) $ prepareBuild cache os source >>= \ tree ->
+prepareTarget :: P.CacheRec -> Relations -> OSImage -> String -> Tgt -> IO Target
+prepareTarget cache globalBuildDeps os name source =
+    quieter (+ 2) $ prepareBuild cache os name source >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=
     failing (error . show)
             (\ deps -> return $ Target { tgt = source
@@ -60,16 +60,32 @@ targetControl = control . cleanSource
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: BuildTarget t => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
-prepareBuild cache os target =
-    do debBuild <- findOneDebianBuildTree top
+prepareBuild :: BuildTarget t => P.CacheRec -> OSImage -> String -> t -> IO DebianBuildTree
+prepareBuild cache os name target =
+    do (_, trees) <- findDebianBuildTrees top
+       case filter checkName trees of
+         [] ->
+             qPutStrLn ("Build tree not found in " ++ top ++ ", creating new one") >>
+             findDebianSourceTree top >>=
+             copySource
+         [tree] ->
+             qPutStrLn ("Found one build tree: " ++ show tree) >>
+             copyBuild tree
+         trees ->
+             error ("Multiple build trees found: " ++ show trees)
+{-         
+       debBuild <- findOneDebianBuildTree top
        case debBuild of
          Success tree -> copyBuild tree
          Failure msgs ->
              qPutStrLn ("Build tree not found in " ++ top ++ ", creating new one\n  " ++ intercalate "\n  " msgs) >>
              findDebianSourceTree top >>=
              copySource
+-}
     where
+      checkName tree = source == Just name
+          where source = fieldValue "Source" (head (unControl (control' (debTree' tree))))
+            
       top = getTop (P.params cache) target
       copySource :: DebianSourceTree -> IO DebianBuildTree
       copySource debSource =
