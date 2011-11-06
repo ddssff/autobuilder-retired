@@ -70,7 +70,7 @@ prepareBuild cache os name target =
              copySource
          [tree] ->
              copyBuild tree
-         trees ->
+         _ ->
              error ("Multiple build trees found")
 {-         
        debBuild <- findOneDebianBuildTree top
