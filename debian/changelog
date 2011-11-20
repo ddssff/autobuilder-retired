@@ -1,3 +1,12 @@
+autobuilder (6.11) unstable; urgency=low
+
+  * Add a Revision String constructor to PackageFlag so we can control the
+    revision string used when debianizing hackage targets.  If the hackage
+    version of a package is already in sid we usually get into trouble
+    because the debian version we generate by default looks older.
+
+ -- David Fox <dsf@seereason.com>  Sun, 20 Nov 2011 07:01:43 -0800
+
 autobuilder (6.10) unstable; urgency=low
 
   * Make sure the debian source package names match the name in the

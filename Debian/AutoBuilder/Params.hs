@@ -80,6 +80,7 @@ data PackageFlag
     = RelaxDep String		-- ^ Build dependencies which be ignored when deciding whether to rebuild
     | ExtraDep String		-- ^ Build dependencies which should be added to the debian/control file
     | DebVersion String         -- ^ The exact debian version number to insert into the changelog.
+    | Revision String           -- ^ Pass --revision <string> to cabal-debian so a suffix will be added to the cabal version to get the debian version.  By default this is -1~hackage1.  Debian policy says this should either be empty or begin with a dash.
     | Epoch Int                 -- ^ Set the epoch number in the version number
     | Patch B.ByteString        -- ^ Apply the patch
     | Maintainer String         -- ^ Use the given string as maintainer name and email

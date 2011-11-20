@@ -127,6 +127,7 @@ debianize cache flags dir =
                              case flag of
                                (P.ExtraDep s) -> ["--build-dep", s] ++ args
                                (P.DebVersion s) -> ["--deb-version", s] ++ args
+                               (P.Revision s) -> ["--revision", s] ++ args
                                (P.Epoch n) -> ["--epoch", show n] ++ args
                                (P.Maintainer s) -> ["--maintainer", s] ++ args
                                _ -> args) [] flags' ++
