@@ -27,7 +27,7 @@ module Debian.AutoBuilder.Params
 
 import Control.Arrow (first)
 import Control.Exception ( SomeException, try, evaluate )
-import Control.Monad.State ( get, put )
+import "mtl" Control.Monad.State ( get, put )
 import "mtl" Control.Monad.Trans ( liftIO )
 import qualified Data.ByteString.Lazy as B
 import Data.List ( isSuffixOf )
