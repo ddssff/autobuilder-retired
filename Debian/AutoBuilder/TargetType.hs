@@ -12,7 +12,8 @@ module Debian.AutoBuilder.TargetType
 import Control.Applicative.Error (Failing(Success, Failure), failing)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget))
+import Data.Maybe (fromMaybe)
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget, origTarball))
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Changes (logVersion, ChangeLogEntry(..))
@@ -26,6 +27,9 @@ import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, topdir, subd
 import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
 import System.Directory(renameDirectory)
+import System.FilePath (takeExtension)
+import System.IO.Error (isAlreadyExistsError)
+import System.Posix.Files (createLink, removeLink)
 import System.Unix.QIO (qPutStrLn, quieter)
 --import Text.PrettyPrint (Doc, text, cat)
 
@@ -95,6 +99,7 @@ prepareBuild cache os name target =
              copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
              -- Clean the revision control files for this target out of the copy of the source tree
              (_out, _time) <- cleanTarget (P.params cache) target (topdir copy)
+             maybe (return ()) (liftIO . copyOrigTarball dest name ver) (origTarball cache target)
              findDebianBuildTree dest newdir
       copyBuild :: DebianBuildTree -> IO DebianBuildTree
       copyBuild debBuild =
@@ -108,6 +113,20 @@ prepareBuild cache os name target =
              when (newdir /= (subdir debBuild))
                       (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
              findDebianBuildTree dest newdir
+
+      copyOrigTarball dest name ver src =
+          hPutStrLn stderr ("forceLink " ++ src ++ " " ++ dest ++ "/" ++ name ++ "-" ++ ver ++ ".orig.tar" ++ takeExtension src) >>
+          forceLink src (dest ++ "/" ++ name ++ "_" ++ ver ++ ".orig.tar" ++ takeExtension src)
+
+-- |calls 'createSymbolicLink' but will remove the target and retry if
+-- 'createSymbolicLink' raises EEXIST.
+forceLink :: FilePath -> FilePath -> IO ()
+forceLink target linkName =
+    createLink target linkName `catch`
+      (\e -> if isAlreadyExistsError e 
+             then do removeLink linkName
+                     createLink target linkName
+             else ioError e)
 
 -- |Make a path "safe" for building.  This shouldn't be necessary,
 -- but various packages make various assumptions about the type

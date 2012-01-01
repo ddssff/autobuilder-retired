@@ -43,6 +43,8 @@ instance BuildTarget Uri where
     revision _ (Uri _ Nothing _) = fail "Uri targets with no checksum do not have revision strings"
 
     logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
+    origTarball c (Uri u (Just s) _) = Just (tarball c (uriToString' u) s)
+    origTarball _ _ = Nothing
 
 -- |Download the tarball using the URI in the target and unpack it.
 prepare :: P.CacheRec -> String -> String -> AptIOT IO Uri

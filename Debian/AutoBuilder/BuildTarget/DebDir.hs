@@ -34,6 +34,7 @@ instance BuildTarget DebDir where
         revision params upstream >>= \ rev ->
         revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
     logText (DebDir _ _ _) revision = "deb-dir revision: " ++ either show id revision
+    origTarball c (DebDir u _ _) = origTarball c u
 
 prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO DebDir
 prepare cache upstream debian = lift $

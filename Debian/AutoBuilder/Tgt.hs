@@ -33,6 +33,8 @@ instance BuildTarget Tgt where
     logText (Top _ x) result = logText x result
     mVersion (Tgt x) = mVersion x
     mVersion (Top _ x) = mVersion x
+    origTarball cache (Tgt x) = origTarball cache x
+    origTarball cache (Top _ x) = origTarball cache x
 
 flags :: Tgt -> [P.PackageFlag]
 flags (Top fs _) = fs

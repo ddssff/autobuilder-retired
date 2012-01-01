@@ -107,6 +107,9 @@ class BuildTarget t where
     -- |Some targets can return a debian version, use this to retrieve it.
     mVersion :: t -> Maybe DebianVersion
     mVersion _ = Nothing
+    -- | If we have access to an original tarball, this returns its path.
+    origTarball :: P.CacheRec -> t -> Maybe FilePath
+    origTarball _ t = Nothing
 
 -- | There are many characters which will confuse make if they appear
 -- in a directory name.  This turns them all into something safer.
