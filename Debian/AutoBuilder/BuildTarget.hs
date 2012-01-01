@@ -35,9 +35,9 @@ readSpec cache flags spec =
       S.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
       S.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)
       S.DebDir upstream debian ->
-          readSpec cache [] upstream >>= \ upstream' ->
-          readSpec cache [] debian >>= \ debian' ->
-          tgt <$> (DebDir.prepare cache upstream' debian')
+          do upstream' <- readSpec cache [] upstream
+             debian' <- readSpec cache [] debian
+             tgt <$> (DebDir.prepare cache upstream' debian')
       S.Cd dir spec' ->
           readSpec cache [] spec' >>= \ t ->
           tgt <$> Cd.prepare cache dir t

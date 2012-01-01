@@ -1,3 +1,10 @@
+autobuilder (6.12) unstable; urgency=low
+
+  * Add support for debian's 3.0 (quilt) source format when target is of
+    the form DebDir (Uri ...) (...).
+
+ -- David Fox <dsf@seereason.com>  Sun, 01 Jan 2012 11:00:24 -0800
+
 autobuilder (6.11) unstable; urgency=low
 
   * Add a Revision String constructor to PackageFlag so we can control the

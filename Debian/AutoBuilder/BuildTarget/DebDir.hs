@@ -1,5 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module Debian.AutoBuilder.BuildTarget.DebDir where
+module Debian.AutoBuilder.BuildTarget.DebDir
+    ( documentation
+    , prepare
+    ) where
 
 import Control.Monad.Trans (lift)
 import Data.ByteString.Lazy.Char8 (empty)

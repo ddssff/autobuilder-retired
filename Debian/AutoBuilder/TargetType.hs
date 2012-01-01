@@ -63,7 +63,7 @@ targetControl = control . cleanSource
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: BuildTarget t => P.CacheRec -> OSImage -> String -> t -> IO DebianBuildTree
+prepareBuild :: (BuildTarget t, Show t) => P.CacheRec -> OSImage -> String -> t -> IO DebianBuildTree
 prepareBuild cache os name target =
     do (_, trees) <- findDebianBuildTrees top
        case filter checkName trees of
