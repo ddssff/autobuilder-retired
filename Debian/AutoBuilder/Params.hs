@@ -85,6 +85,13 @@ data PackageFlag
     | Patch B.ByteString        -- ^ Apply the patch
     | Maintainer String         -- ^ Use the given string as maintainer name and email
     | OmitLTDeps                -- ^ Don't add the << part when converting cabal wildcard dependencies
+    | CabalVersion CabalVersion
+    deriving (Show, Eq, Ord)
+
+data CabalVersion
+    = Pin String
+    | Newest
+    | NewerThan String
     deriving (Show, Eq, Ord)
 
 data Package
@@ -321,6 +328,8 @@ data ParamRec =
     --  * 'SourcesChangedUpdate' - rewrite sources.list and update the environment, [_$_]
     --
     --  * 'SourcesChangedRemove' - discard and rebuild the environment
+    -- , emailTo :: [String]
+    -- -- ^ Who should get emails of autobuilder progress messages.
   }
 
 -- |Output a (somewhat) readable representation of the parameter set.
