@@ -28,6 +28,7 @@ import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
 import System.Directory(renameDirectory)
 import System.FilePath (takeExtension)
+import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
 import System.Unix.QIO (qPutStrLn, quieter)
