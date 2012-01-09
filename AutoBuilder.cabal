@@ -53,7 +53,7 @@ Library
       , Unixutils >= 1.45
       , xhtml
       , zlib
-  GHC-Options: -O2 -threaded -Wall -Werror -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
+  GHC-Options: -O2 -threaded -Wall -Wwarn -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults
   Exposed-modules:
     Debian.AutoBuilder.BuildTarget,
     Debian.AutoBuilder.BuildTarget.Apt,
