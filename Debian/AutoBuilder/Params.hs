@@ -3,7 +3,9 @@ module Debian.AutoBuilder.Params
     ( Strictness(Strict, Moderate, Lax)
     , ParamRec(..)
     , CacheRec(..)
-    , Package(..)
+    , Packages(..)
+    , foldPackages
+    , packageCount
     , PackageFlag(..)
     , TargetSpec(..)
     , computeTopDir
@@ -33,6 +35,7 @@ import qualified Data.ByteString.Lazy as B
 import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
+import Data.Monoid (Monoid(..))
 import qualified Data.Set as Set
 import Debian.AutoBuilder.Spec (Spec)
 import Debian.Release
@@ -94,15 +97,42 @@ data CabalVersion
     | NewerThan String
     deriving (Show, Eq, Ord)
 
-data Package
-    = Package
+data Packages
+    = NoPackage
+    | Package
       { name :: String
       , spec :: Spec
       , flags :: [PackageFlag]
-      } deriving (Show, Eq, Ord)
+      }
+    | Packages (Set.Set Packages)
+    deriving (Show, Eq, Ord)
 
-relaxInfo :: Package -> [String]
-relaxInfo p = foldr f [] (flags p)
+instance Monoid Packages where
+    mempty = NoPackage
+    mappend NoPackage y = y
+    mappend x NoPackage = x
+    mappend x@(Package {}) y = mappend (Packages (Set.singleton x)) y
+    mappend x y@(Package {}) = mappend x (Packages (Set.singleton y))
+    mappend (Packages xs) (Packages ys) =
+        let zs = Set.union xs ys in
+        case Set.size zs of
+          0 -> NoPackage
+          1 -> Set.findMin zs
+          _ -> Packages zs
+
+-- Set.fold :: (a -> b -> b) -> b -> Set a -> b
+
+foldPackages :: (String -> Spec -> [PackageFlag] -> r -> r) -> r -> Packages -> r
+foldPackages _ r NoPackage = r
+foldPackages f r x@(Package {}) = f (name x) (spec x) (flags x) r
+foldPackages f r (Packages s) = Set.fold (flip (foldPackages f)) r s
+
+packageCount :: Packages -> Int
+packageCount = foldPackages (\ _ _ _ n -> n + 1) 0
+
+relaxInfo :: [PackageFlag] -> [String]
+relaxInfo flags =
+    foldr f [] flags
     where f (RelaxDep s) ss = s : ss
           f _ ss = ss
 
@@ -514,8 +544,7 @@ isDevelopmentRelease params =
 -- its build dependencies.\"
 relaxDepends params@(ParamRec {targets = TargetSet s}) =
     G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
-                  concatMap (\ target -> map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (name target))))
-                             (relaxInfo target)) (Set.toList s)
+                  foldPackages (\ name _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName name))) (relaxInfo flags)) [] s
 relaxDepends _params = error "relaxDepends: invalid target set"
 
 -- |Information about what targets to build are temporarily held in a
@@ -525,7 +554,7 @@ relaxDepends _params = error "relaxDepends: invalid target set"
 data TargetSpec
     = AllTargets
     | TargetNames (Set.Set String)
-    | TargetSet (Set.Set Package)
+    | TargetSet Packages
     deriving Show
 
 -- |Adjust the vendor tag so we don't get trumped by Debian's new +b

@@ -1,3 +1,10 @@
+autobuilder (6.13) unstable; urgency=low
+
+  * Rename the type Package -> Packages and make it a Monoid, adding
+    NoPackage and Packages (Set.Set Packages) construcors.
+
+ -- David Fox <dsf@seereason.com>  Wed, 11 Jan 2012 09:22:45 -0800
+
 autobuilder (6.12) unstable; urgency=low
 
   * Add support for debian's 3.0 (quilt) source format when target is of

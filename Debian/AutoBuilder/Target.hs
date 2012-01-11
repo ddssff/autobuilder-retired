@@ -282,14 +282,19 @@ cycleMessage cache arcs =
       binaryNamesOfRelations (_, rels, _) =
           concat (map (map (\ (Rel name _ _) -> name)) rels)
 
-showTargets :: [P.Package] -> String
+showTargets :: P.Packages -> String
 showTargets targets =
     unlines (heading :
              map (const '-') heading :
+             map concat (columns (reverse (snd (P.foldPackages (\ name spec _flags (count, rows) -> (count + 1, [printf "%4d. " count, name, " ", show spec] : rows)) (1 :: Int, []) targets)))))
+{-
+    unlines (heading :
+             map (const '-') heading :
              map concat (columns (map (\ (n, t) -> [printf "%4d. " n, P.name t, " ", show (P.spec t)]) pairs))) ++ "\n"
+-}
     where
-      pairs = zip [1..] targets :: [(Int, P.Package)]
-      heading = show (length targets) ++ " Targets:"
+      -- pairs = zip [1..] targets :: [(Int, P.Packages)]
+      heading = show (P.packageCount targets) ++ " Targets:"
 
 -- |Represents a decision whether to build a package, with a text juststification.
 data BuildDecision

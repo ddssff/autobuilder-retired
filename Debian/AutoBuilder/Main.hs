@@ -15,7 +15,6 @@ import Control.Monad(when, unless)
 import qualified Data.ByteString.Lazy as L
 import Data.Either (partitionEithers)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import Data.List(intercalate)
 import Data.Maybe(catMaybes)
@@ -201,13 +200,16 @@ runParameterSet cache =
       prepareTargetList =
           do qPutStr ("\n" ++ showTargets allTargets)
              qPutStrLn "Retrieving all source code:\n"
-             countTasks' (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)))) allTargets)
+             countTasks' (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target))))
+                              (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) [] allTargets))
           where
-            allTargets = Set.toList targetSet
-            targetSet = case P.targets params of
-                          P.TargetSet s -> s
-                          _ -> error "prepareTargetList: invalid target set"
-
+{-          allTargets = P.foldPackages (\ name spec flags l -> 
+                                             P.Package name spec flags : l) [] (case P.targets params of
+                                                                                  P.TargetSet s -> s
+                                                                                  _ -> error "relaxDepends: invalid target set") -}
+            allTargets = case P.targets params of
+                           P.TargetSet s -> s
+                           _ -> error "prepareTargetList: invalid target set"
       upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =

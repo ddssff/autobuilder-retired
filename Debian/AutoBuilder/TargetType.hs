@@ -12,7 +12,6 @@ module Debian.AutoBuilder.TargetType
 import Control.Applicative.Error (Failing(Success, Failure), failing)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
-import Data.Maybe (fromMaybe)
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget, origTarball))
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt)
