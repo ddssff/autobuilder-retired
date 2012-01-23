@@ -2,6 +2,8 @@ autobuilder (6.14) unstable; urgency=low
 
   * Add an ExtraDevDep entry to the Param record, pass a --dev-dep flag to
     cabal-debian when we see this parameter.
+  * Add a MapDep entry to the Param record, pass a --map-dep flag to
+    cabal-debian when we see it.
 
  -- David Fox <dsf@seereason.com>  Mon, 23 Jan 2012 05:22:57 -0800
 
