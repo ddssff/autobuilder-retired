@@ -1,3 +1,10 @@
+autobuilder (6.14) unstable; urgency=low
+
+  * Add an ExtraDevDep entry to the Param record, pass a --dev-dep flag to
+    cabal-debian when we see this parameter.
+
+ -- David Fox <dsf@seereason.com>  Mon, 23 Jan 2012 05:22:57 -0800
+
 autobuilder (6.13) unstable; urgency=low
 
   * Rename the type Package -> Packages and make it a Monoid, adding

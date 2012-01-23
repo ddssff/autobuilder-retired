@@ -126,6 +126,7 @@ debianize cache flags dir =
                       foldr (\ flag args ->
                              case flag of
                                (P.ExtraDep s) -> ["--build-dep", s] ++ args
+                               (P.ExtraDevDep s) -> ["--dev-dep", s] ++ args
                                (P.DebVersion s) -> ["--deb-version", s] ++ args
                                (P.Revision s) -> ["--revision", s] ++ args
                                (P.Epoch n) -> ["--epoch", show n] ++ args
