@@ -10,6 +10,7 @@ module Debian.AutoBuilder.TargetType
     ) where
 
 import Control.Applicative.Error (Failing(Success, Failure), failing)
+import Control.Exception (catch)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget, origTarball))
@@ -25,6 +26,7 @@ import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, topdir, subd
                                DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree)
 import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
+import Prelude hiding (catch)
 import System.Directory(renameDirectory)
 import System.FilePath (takeExtension)
 import System.IO (hPutStrLn, stderr)
