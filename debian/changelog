@@ -1,3 +1,11 @@
+autobuilder (6.15) unstable; urgency=low
+
+  * Maintain a map from cabal package names to debian epoch numbers so we
+    can create correct debian version numbers in both the changelog for
+    the package being built and for the version numbers of dependencies.
+
+ -- David Fox <dsf@seereason.com>  Thu, 09 Feb 2012 07:29:54 -0800
+
 autobuilder (6.14) unstable; urgency=low
 
   * Add an ExtraDevDep entry to the Param record, pass a --dev-dep flag to
