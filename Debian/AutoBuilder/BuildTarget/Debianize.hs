@@ -130,7 +130,7 @@ debianize cache flags dir =
                                (P.MapDep c d) -> ["--map-dep", c ++ "=" ++ d] ++ args
                                (P.DebVersion s) -> ["--deb-version", s] ++ args
                                (P.Revision s) -> ["--revision", s] ++ args
-                               (P.Epoch n) -> ["--epoch", show n] ++ args
+                               (P.Epoch name d) -> ["--epoch-map", name ++ "=" ++ show d] ++ args
                                (P.Maintainer s) -> ["--maintainer", s] ++ args
                                _ -> args) [] flags' ++
                       [{- "--root", root -}] ++

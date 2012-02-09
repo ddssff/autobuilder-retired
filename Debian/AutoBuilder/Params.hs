@@ -86,7 +86,7 @@ data PackageFlag
     | MapDep String String	-- ^ Tell cabal-debian to map the first argument (a name that appears in Extra-Libraries field of the cabal file) to the second argument (a debian binary package name.)
     | DebVersion String         -- ^ The exact debian version number to insert into the changelog.  An exception will be thrown if the hackage version looks newer than this.
     | Revision String           -- ^ Pass --revision <string> to cabal-debian so a suffix will be added to the cabal version to get the debian version.  By default this is -1~hackage1.  Debian policy says this should either be empty or begin with a dash.
-    | Epoch Int                 -- ^ Set the epoch number in the version number
+    | Epoch String Int          -- ^ Set the epoch number in the version number of the given cabal package
     | Patch B.ByteString        -- ^ Apply the patch
     | Maintainer String         -- ^ Use the given string as maintainer name and email
     | OmitLTDeps                -- ^ Don't add the << part when converting cabal wildcard dependencies
