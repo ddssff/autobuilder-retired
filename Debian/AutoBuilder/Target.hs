@@ -2,7 +2,7 @@
 -- methods to retrieve and update it.
 -- 
 -- Author: David Fox <ddssff@gmail.com>
-{-# LANGUAGE ScopedTypeVariables, StandaloneDeriving #-}
+{-# LANGUAGE PackageImports, ScopedTypeVariables, StandaloneDeriving #-}
 {-# OPTIONS -Wall -Werror -fwarn-unused-imports -fno-warn-name-shadowing -fno-warn-orphans #-}
 module Debian.AutoBuilder.Target
     ( changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
@@ -62,7 +62,7 @@ import Debian.Version(DebianVersion, parseDebianVersion, prettyDebianVersion)
 import Debian.VersionPolicy(dropTag, parseTag, setTag)
 import System.Unix.Process(Output(..), collectOutputUnpacked, mergeToStdout, lazyProcess, stdoutOnly)
 import Extra.Files(replaceFile)
-import Extra.List(dropPrefix)
+import "Extra" Extra.List(dropPrefix)
 import Extra.Misc(columns)
 import System.Directory (doesFileExist, removeDirectory, createDirectoryIfMissing)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)

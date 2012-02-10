@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PackageImports, ScopedTypeVariables #-}
 -- | The quilt target takes two other targets, one a base source
 -- directory and another a quilt-style patch directory, and creates
 -- a build target with the patches applied to the source directory.
@@ -25,7 +25,7 @@ import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo (AptIOT)
 import Extra.Files (replaceFile)
-import Extra.List ()
+import "Extra" Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Unix.Process (collectOutputUnpacked, collectOutput, mergeToStderr)
