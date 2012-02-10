@@ -64,7 +64,7 @@ import System.Unix.Process(Output(..), collectOutputUnpacked, mergeToStdout, laz
 import Extra.Files(replaceFile)
 import "Extra" Extra.List(dropPrefix)
 import Extra.Misc(columns)
-import System.Directory (doesFileExist, removeDirectory, createDirectoryIfMissing)
+import System.Directory (doesFileExist, doesDirectoryExist, removeDirectory, createDirectoryIfMissing)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.FilePath ((</>))
 import System.Posix.Files(fileSize, getFileStatus)
@@ -429,18 +429,29 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
                               lazyCommandF ("dpkg -s dpkg-dev | sed -n 's/^Version: //p'") L.empty >>= return . head . words . L.unpack . stdoutOnly >>= \ installed ->
                               -- If it is >= 1.16.1 we may need to run dpkg-source --commit.
                               lazyCommandV ("dpkg --compare-versions '" ++ installed ++ "' ge 1.16.1") L.empty >>= return . (== ExitSuccess) . exitCodeOnly >>= \ newer ->
-                              when newer (do createDirectoryIfMissing True (path' </> "debian/patches")
+                              when newer (doesDirectoryExist (path' </> "debian/patches") >>= doDpkgSource)
+                              {- when newer (do createDirectoryIfMissing True (path' </> "debian/patches")
                                              -- Create the patch if there are any changes
                                              _ <- lazyProcessF "dpkg-source" ["--commit", ".", "autobuilder.diff"] (Just path') Nothing L.empty
                                              -- If the patch was not created, remove the directory
                                              exists <- doesFileExist (path' </> "debian/patches/autobuilder.diff")
-                                             when (not exists) (removeDirectory (path' </> "debian/patches"))))
+                                             when (not exists) (removeDirectory (path' </> "debian/patches"))) -}
+                             )
              result <- liftIO $ try (buildWrapper (P.params cache) buildOS buildTree status (tgt target)
                                      (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
              case result of
                Left (e :: SomeException) -> return (Failure [show e])
                Right elapsed -> return (Success (buildTree, elapsed))
           where
+            doDpkgSource False =
+                createDirectoryIfMissing True (path' </> "debian/patches") >>
+                doDpkgSource' >>
+                doesFileExist (path' </> "debian/patches/autobuilder.diff") >>= \ exists ->
+                when (not exists) (removeDirectory (path' </> "debian/patches"))
+            doDpkgSource True =
+                doDpkgSource' >>
+                return ()
+            doDpkgSource' = lazyProcessF "dpkg-source" ["--commit", ".", "autobuilder.diff"] (Just path') Nothing L.empty
             path' = fromJust (dropPrefix root path)
             path = debdir buildTree
             root = rootPath (rootDir buildOS)
