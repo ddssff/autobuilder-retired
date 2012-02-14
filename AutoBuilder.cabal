@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        6.16
+Version:        6.16.1
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -46,7 +46,7 @@ Library
       , regex-compat
       , regex-posix
       , regex-tdfa
-      , tar
+      , tar >= 0.4
       , template-haskell
       , time
       , unix

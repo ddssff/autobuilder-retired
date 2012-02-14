@@ -6,6 +6,7 @@ module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, documen
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
+import Control.Exception (throw)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 -- import qualified Data.ByteString.Lazy as B
@@ -186,7 +187,7 @@ versionURL name version = "http://hackage.haskell.org/packages/archive/" ++ name
 validate :: B.ByteString -> Maybe B.ByteString
 validate text =
     let entries = Tar.read (Z.decompress text) in
-    case Tar.foldEntries (\ _ -> either error (Right . (+ 1))) (Right 0) Left entries of
+    case Tar.foldEntries (\ _ -> either throw (Right . (+ 1))) (Right 0) Left entries of
       Left _ -> Nothing
       Right _ -> Just text
 
