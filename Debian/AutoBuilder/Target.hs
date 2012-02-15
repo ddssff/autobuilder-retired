@@ -228,7 +228,7 @@ chooseNextTarget cache goals targets =
     case G.buildable depends targets of
       (G.CycleInfo arcs) -> error (cycleMessage cache arcs)
       info ->
-          do quieter (+ (-3)) $ qPutStrLn (makeTable info)
+          do quieter (\x->x-2) $ qPutStrLn (makeTable info)
              return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
     where
       makeTable (G.BuildableInfo ready _other) =
