@@ -49,7 +49,7 @@ instance BuildTarget Debianize where
 
 prepare :: P.CacheRec -> [P.PackageFlag] -> String -> Maybe String -> AptIOT IO Debianize
 prepare cache flags name version = liftIO $
-    do (version' :: DebianVersion) <- maybe (getVersion name) (return . parseDebianVersion) version
+    do (version' :: DebianVersion) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . parseDebianVersion) version
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball (P.topDir cache) name version'))
        downloadAndDebianize cache flags name version'
        findSourceTree (unpacked (P.topDir cache) name version') >>= return . Debianize name (Just version')
@@ -66,7 +66,7 @@ parse cmd output =
 downloadAndDebianize :: P.CacheRec -> [P.PackageFlag] -> String -> DebianVersion -> IO ()
 downloadAndDebianize cache flags name version =
     removeRecursiveSafely (unpacked (P.topDir cache) name version) >>
-    downloadCached (P.topDir cache) name version >>=
+    downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version >>=
     unpack (P.topDir cache) >>
     patch (P.topDir cache) flags name version >>
     debianize cache flags (unpacked (P.topDir cache) name version)
@@ -93,22 +93,22 @@ unpack top text = Tar.unpack (tmpDir top) (Tar.read (Z.decompress text))
 -- |Download and unpack the given package version to the autobuilder's
 -- hackage temporary directory.  After the download it validates the
 -- tarball text and saves the compressed tarball.
-downloadCached :: FilePath -> String -> DebianVersion -> IO B.ByteString
-downloadCached top name version =
+downloadCached :: String -> FilePath -> String -> DebianVersion -> IO B.ByteString
+downloadCached server top name version =
     do exists <- doesFileExist (tarball top name version)
        case exists of
          True -> B.readFile (tarball top name version) >>=
                  return . validate >>=
-                 maybe (download' top name version) return
-         False -> download' top name version
+                 maybe (download' server top name version) return
+         False -> download' server top name version
     
 -- |Download and save the tarball, return its contents.
-download' :: FilePath -> String -> DebianVersion -> IO B.ByteString
-download' top name version =
-    do (out, err, res) <- lazyCommandE (downloadCommand name version) B.empty >>= return . collectOutput
+download' :: String -> FilePath -> String -> DebianVersion -> IO B.ByteString
+download' server top name version =
+    do (out, err, res) <- lazyCommandE (downloadCommand server name version) B.empty >>= return . collectOutput
        case res of
          ExitFailure _ ->
-             let msg = downloadCommand name version ++ " ->\n" ++ show (err, res) in
+             let msg = downloadCommand server name version ++ " ->\n" ++ show (err, res) in
              hPutStrLn stderr msg >>
              error msg
          ExitSuccess ->
@@ -151,10 +151,10 @@ debianize cache flags dir =
 
 -- |Given a package name, get the newest version in hackage of the hackage package with that name:
 -- > getVersion \"binary\" -> \"0.5.0.2\"
-getVersion :: String -> IO DebianVersion
-getVersion name =
+getVersion :: String -> String -> IO DebianVersion
+getVersion server name =
     lazyCommandE cmd B.empty >>= return . parseDebianVersion . findVersion name . parse cmd
-    where cmd = curlCmd (packageURL name)
+    where cmd = curlCmd (packageURL server name)
           curlCmd url = "curl -s '" ++ url ++ "'"
 
 findVersion :: String -> Document Posn -> String
@@ -180,8 +180,8 @@ findVersion package (Document _ _ (Elem _name _attrs content) _) =
           else error $ "findVersion - not a tarball: " ++ show s
 
 -- |Hackage paths
-packageURL name = "http://hackage.haskell.org/package/" ++ name
-versionURL name version = "http://hackage.haskell.org/packages/archive/" ++ name ++ "/" ++ show (prettyDebianVersion version) ++ "/" ++ name ++ "-" ++ show (prettyDebianVersion version) ++ ".tar.gz"
+packageURL server name = "http://" ++ server ++ "/package/" ++ name
+versionURL server name version = "http://" ++ server ++ "/packages/archive/" ++ name ++ "/" ++ show (prettyDebianVersion version) ++ "/" ++ name ++ "-" ++ show (prettyDebianVersion version) ++ ".tar.gz"
 
 -- |Validate the text of a tarball file.
 validate :: B.ByteString -> Maybe B.ByteString
@@ -200,8 +200,8 @@ unpacked top name version = tmpDir top </> name ++ "-" ++ show (prettyDebianVers
 tmpDir :: FilePath -> FilePath
 tmpDir top = top ++ "/hackage"
 
-downloadCommand :: String -> DebianVersion -> String
-downloadCommand name version = "curl -s '" ++ versionURL name version ++ "'" {- ++ " > '" ++ destPath top name version ++ "'" -}
+downloadCommand :: String -> String -> DebianVersion -> String
+downloadCommand server name version = "curl -s '" ++ versionURL server name version ++ "'" {- ++ " > '" ++ destPath top name version ++ "'" -}
 
 -- Hackage target
 
@@ -225,7 +225,7 @@ instance BuildTarget Hackage where
 
 prepareHackage :: P.CacheRec -> String -> Maybe String -> AptIOT IO Hackage
 prepareHackage cache name version = liftIO $
-    do (version' :: DebianVersion) <- maybe (getVersion name) (return . parseDebianVersion) version
+    do (version' :: DebianVersion) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . parseDebianVersion) version
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [tarball (P.topDir cache) name version', unpacked (P.topDir cache) name version'])
-       downloadCached (P.topDir cache) name version' >>= unpack (P.topDir cache)
+       downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
        findSourceTree (unpacked (P.topDir cache) name version') >>= return . Hackage name (Just version')

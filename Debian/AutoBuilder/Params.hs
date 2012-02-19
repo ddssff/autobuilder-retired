@@ -330,6 +330,8 @@ data ParamRec =
     -- directory to the repository.
     , requiredVersion :: [(DebianVersion, Maybe String)]
     -- ^ Specifies the version of the library required.
+    , hackageServer :: String
+    -- ^ Hostname of the hackage server, normally hackage.haskell.org
 
     -- THINGS THAT ARE PROBABLY OBSOLETE
 
@@ -411,6 +413,7 @@ prettyPrint x =
             , "uploadURI=" ++ take 120 (show (uploadURI x))
             , "buildURI=" ++ take 120 (show (buildURI x))
             , "createRelease=" ++ take 120 (show (createRelease x))
+            , "hackageServer=" ++ take 120 (show (hackageServer x))
             --, "ifSourcesChanged=" ++ take 120 (show (ifSourcesChanged x))
             , "doSSHExport=" ++ take 120 (show (doSSHExport x))
             , "autobuilderEmail=" ++ take 120 (show (autobuilderEmail x))
