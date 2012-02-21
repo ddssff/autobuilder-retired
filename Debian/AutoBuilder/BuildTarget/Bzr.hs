@@ -8,7 +8,8 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), md5sum)
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Repo
 import Debian.URI
 import System.Exit (ExitCode(..))

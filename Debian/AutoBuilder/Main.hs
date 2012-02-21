@@ -23,6 +23,9 @@ import Debian.AutoBuilder.BuildTarget (readSpec)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
 import Debian.AutoBuilder.TargetType (Target, targetName)
+import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.Packages as P
+import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Release (parseSection', releaseName')
 import Debian.Sources (SliceName(..))

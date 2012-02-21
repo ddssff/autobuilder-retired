@@ -71,7 +71,8 @@ import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.Char (ord)
 import Data.Time (NominalDiffTime)
 import Debian.Repo
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Version (DebianVersion)
 import Happstack.Crypto.MD5 (md5)
 import Network.URI (URI, parseURI)

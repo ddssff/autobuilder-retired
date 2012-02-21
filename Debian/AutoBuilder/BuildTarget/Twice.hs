@@ -3,7 +3,7 @@ module Debian.AutoBuilder.BuildTarget.Twice where
 
 import Control.Monad.Trans (liftIO)
 import Debian.AutoBuilder.BuildTarget.Common
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Repo (AptIOT)
 

@@ -4,7 +4,8 @@ module Debian.AutoBuilder.BuildTarget.Apt where
 import Control.Monad
 import Control.Monad.Trans
 import Debian.AutoBuilder.BuildTarget.Common
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
 import Debian.Sources

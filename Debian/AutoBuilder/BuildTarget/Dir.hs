@@ -2,7 +2,7 @@ module Debian.AutoBuilder.BuildTarget.Dir where
 
 import Control.Monad.Trans (lift)
 import Debian.AutoBuilder.BuildTarget.Common
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.Repo
 
 -- |Dir is a simple instance of BuildTarget representing building the

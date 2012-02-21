@@ -1,7 +1,7 @@
 -- |Data type representing the pure data in a package specification - it describes
 -- how to obtain the source code for the package, but doesn't contain any of the
 -- results of perform the IO operations to actually obtain the source.
-module Debian.AutoBuilder.Spec
+module Debian.AutoBuilder.Types.Spec
     ( Spec(..)
     ) where
 

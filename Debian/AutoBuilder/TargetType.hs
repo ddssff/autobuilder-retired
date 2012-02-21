@@ -14,8 +14,8 @@ import Control.Exception (catch)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget, origTarball))
-import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Tgt (Tgt)
+import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.Changes (logVersion, ChangeLogEntry(..))
 import Debian.Control (Control, Control'(Control, unControl), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G

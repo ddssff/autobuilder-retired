@@ -27,8 +27,11 @@ import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(logText, buildWrapper)
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.TargetType (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl)
 import Debian.AutoBuilder.Tgt (Tgt)
+import qualified Debian.AutoBuilder.Types.Packages as P
+import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
                        ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),

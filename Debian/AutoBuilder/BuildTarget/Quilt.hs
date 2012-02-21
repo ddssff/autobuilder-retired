@@ -4,11 +4,6 @@
 -- a build target with the patches applied to the source directory.
 module Debian.AutoBuilder.BuildTarget.Quilt where
 
-import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
-import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findDebianSourceTree, findOneDebianBuildTree, copySourceTree)
---import Debian.OldShell (setStart, commandTask, runTaskAndTest)
-import Debian.Version
-
 import Control.Applicative.Error (Failing(..))
 import Control.Exception (SomeException, try, throw)
 import Control.Monad (when)
@@ -21,9 +16,11 @@ import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(cleanTarget, logText), getTop, md5sum)
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
-import Debian.Repo (AptIOT)
+import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
+import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findDebianSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
+import Debian.Version
 import Extra.Files (replaceFile)
 import "Extra" Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)

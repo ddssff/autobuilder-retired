@@ -5,7 +5,7 @@ module Debian.AutoBuilder.Tgt
     ) where
 
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..))
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.

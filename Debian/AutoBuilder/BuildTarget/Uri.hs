@@ -15,7 +15,8 @@ import qualified Data.ByteString.Lazy.Char8 as B (empty, readFile)
 import Data.Digest.Pure.MD5 (md5)
 import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget.Common
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.Repo as R
 --import Debian.OldShell (runCommand, runCommandTimed)
 import Debian.URI

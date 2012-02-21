@@ -83,8 +83,12 @@ Library
     Debian.AutoBuilder.BuildTarget.Uri,
     Debian.AutoBuilder.Main,
     Debian.AutoBuilder.Params,
-    Debian.AutoBuilder.Spec,
     Debian.AutoBuilder.Target,
     Debian.AutoBuilder.TargetType,
     Debian.AutoBuilder.Tgt,
+    Debian.AutoBuilder.Types.CacheRec
+    Debian.AutoBuilder.Types.PackageFlag,
+    Debian.AutoBuilder.Types.Packages,
+    Debian.AutoBuilder.Types.ParamRec
+    Debian.AutoBuilder.Types.Spec,
     Debian.AutoBuilder.Version

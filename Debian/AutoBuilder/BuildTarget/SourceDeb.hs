@@ -7,7 +7,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Debian.AutoBuilder.BuildTarget.Common as BuildTarget
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import qualified Debian.Control.String as S
 import qualified Debian.Version as V

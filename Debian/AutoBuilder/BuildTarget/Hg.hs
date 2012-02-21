@@ -17,7 +17,8 @@ import System.IO
 import System.Process
 import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget.Common
-import qualified Debian.AutoBuilder.Params as P
+import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.ParamRec as P
 import System.Unix.Progress (lazyCommandF, timeTask)
 
 data Hg = Hg String SourceTree
