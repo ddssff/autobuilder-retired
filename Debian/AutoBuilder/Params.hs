@@ -80,7 +80,7 @@ instance Show Strictness where
     show Strict = "Strict"
 
 data PackageFlag
-    = RelaxDep String		-- ^ Build dependencies which be ignored when deciding whether to rebuild
+    = RelaxDep String		-- ^ Build dependencies which should be ignored when deciding whether to rebuild
     | ExtraDep String		-- ^ Build dependencies which should be added to the debian/control file
     | ExtraDevDep String	-- ^ Install dependencies which should be added to the Depends entry for the dev package in the debian/control file
     | MapDep String String	-- ^ Tell cabal-debian to map the first argument (a name that appears in Extra-Libraries field of the cabal file) to the second argument (a debian binary package name.)
