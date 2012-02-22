@@ -9,9 +9,9 @@ module Debian.AutoBuilder.Main
 
 import Control.Arrow (first)
 import Control.Applicative.Error (Failing(..))
-import Control.Exception(SomeException, IOException, try, catch)
-import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get))
-import Control.Monad(when, unless)
+import Control.Exception(Exception, SomeException, try, catch)
+import Control.Monad(foldM, when, unless)
+import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
 import qualified Data.ByteString.Lazy as L
 import Data.Either (partitionEithers)
 import qualified Data.Map as Map
@@ -32,7 +32,7 @@ import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
-import Debian.Repo.Monad (AptIOT, getRepoMap, runAptIO, tryAB)
+import Debian.Repo.Monad (AptIOT, AptState, initState, getRepoMap, tryAB)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(buildEssential, prepareEnv)
 import Debian.Repo.Release(prepareRelease)
@@ -63,18 +63,36 @@ import Text.Printf ( printf )
 main :: [P.ParamRec] -> IO ()
 main [] = error $ "No parameter sets"
 main paramSets =
-    runAptIO (mapM doParameterSet paramSets) >>=
-    checkResults >>
+    foldM (\ (xs, s) paramSet ->
+               try (doParameterSet s paramSet) >>=
+               return . either (\ (e :: SomeException) -> (Left e : xs, initState)) (\ (result, s') -> (Right result : xs, s')))
+          ([], initState)
+          paramSets >>=
+    checkResults . fst >>
     IO.hFlush IO.stderr
+
+-- |The result of processing a set of parameters is either an
+-- exception or a completion code, or, if we fail to get a lock,
+-- nothing.  For a single result we can print a simple message,
+-- for multiple paramter sets we need to print a summary.
+checkResults :: Exception e => [Either e (Failing ([Output], NominalDiffTime))] -> IO ()
+checkResults [Left e] = qPutStrLn (show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
+checkResults [Right _] = (liftIO $ exitWith ExitSuccess)
+checkResults list =
+    do mapM_ (\ (num, result) -> qPutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
+       case partitionEithers list of
+         ([], _) -> exitWith ExitSuccess
+         (_, _) -> exitWith (ExitFailure 1)
+    where showResult (Left e) = show e
+          showResult (Right _) = "Ok"
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.
-doParameterSet :: P.ParamRec -> AptIOT IO (Either IOException (Either SomeException (Failing ([Output], NominalDiffTime))))
-doParameterSet params =
+doParameterSet :: AptState -> P.ParamRec -> IO (Failing ([Output], NominalDiffTime), AptState)
+doParameterSet state params =
     quieter (const (- (P.verbosity params))) $
-    do top <- liftIO (P.computeTopDir params)
-       cache <- quieter (+ 2) (P.buildCache params top)
-       withLock (top ++ "/lockfile") (tryAB $ runParameterSet cache)
+    do top <- P.computeTopDir params
+       withLock (top ++ "/lockfile") (runStateT (quieter (+ 2) (P.buildCache params top) >>= runParameterSet) state)
 
 runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet cache =
@@ -264,23 +282,6 @@ runParameterSet cache =
                                                          Nothing -> Nothing
                                                          Just uri -> Just (uri, x)) pairs)
                    return . Map.fromList . filter isRemote $ pairs'
-
--- |The result of processing a set of parameters is either an
--- exception or a completion code, or, if we fail to get a lock,
--- nothing.  For a single result we can print a simple message,
--- for multiple paramter sets we need to print a summary.
-checkResults :: [Either IOException (Either SomeException (Failing ([Output], NominalDiffTime)))] -> IO ()
-checkResults [Right (Left e)] = (qPutStrLn (show e)) >> liftIO (exitWith $ ExitFailure 1)
-checkResults [Right (Right _)] = (liftIO $ exitWith ExitSuccess)
-checkResults [Left e] = qPutStrLn ("Failed to obtain lock: " ++ show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
-checkResults list =
-    do mapM_ (\ (num, result) -> qPutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
-       case partitionEithers list of
-         ([], _) -> liftIO (exitWith ExitSuccess)
-         (_, _) -> liftIO (exitWith (ExitFailure 1))
-    where showResult (Right (Left e)) = show e
-          showResult (Right (Right _)) = "Ok"
-          showResult (Left e) = "Ok (" ++ show e ++ ")"
 
 -- | Perform a list of tasks with log messages.
 countTasks' :: MonadIO m => [(String, m a)] -> m [(String, a)]
