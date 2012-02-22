@@ -22,7 +22,6 @@ import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
 import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
-import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.Spec as S

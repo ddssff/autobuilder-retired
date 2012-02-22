@@ -77,12 +77,11 @@ main paramSets =
 -- for multiple paramter sets we need to print a summary.
 checkResults :: Exception e => [Either e (Failing ([Output], NominalDiffTime))] -> IO ()
 checkResults [Left e] = qPutStrLn (show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
-checkResults [Right _] = (liftIO $ exitWith ExitSuccess)
+checkResults [Right _] = return ()
 checkResults list =
-    do mapM_ (\ (num, result) -> qPutStrLn ("Parameter set " ++ show num ++ ": " ++ showResult result)) (zip [(1 :: Int)..] list)
-       case partitionEithers list of
-         ([], _) -> exitWith ExitSuccess
-         (_, _) -> exitWith (ExitFailure 1)
+    case partitionEithers list of
+      ([], []) -> return ()
+      (es, _) -> error $ intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] list))
     where showResult (Left e) = show e
           showResult (Right _) = "Ok"
 
@@ -219,7 +218,7 @@ runParameterSet cache =
                      False -> return repo'
                _ -> error "Expected local repo"
       prepareTargetList =
-          do qPutStr ("\n" ++ showTargets allTargets)
+          do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              qPutStrLn "Retrieving all source code:\n"
              countTasks' (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target))))
                               (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) [] allTargets))
