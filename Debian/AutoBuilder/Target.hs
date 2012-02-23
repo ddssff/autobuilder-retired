@@ -12,7 +12,7 @@ module Debian.AutoBuilder.Target
 
 import Control.Arrow (second)
 import Control.Applicative.Error (Failing(..), failing)
-import Control.Exception(Exception, SomeException, try, evaluate)
+import Control.Exception (Exception(..), SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -70,6 +70,7 @@ import Extra.Misc(columns)
 import System.Directory (doesFileExist, doesDirectoryExist, removeDirectory, createDirectoryIfMissing)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.FilePath ((</>))
+import System.IO (hPutStrLn, stderr)
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Chroot (useEnv, forceList)
 import System.Unix.Process (collectResult, exitCodeOnly)
@@ -99,24 +100,6 @@ _findSourceParagraph (Control paragraphs) =
       isCommentField (Comment _) = True
       isCommentField _ = False
 -}
-
-countAndPrepareTargets :: P.CacheRec -> Relations -> OSImage -> [(String, Tgt)] -> IO [Target]
-countAndPrepareTargets cache globalBuildDeps os tgts =
-    qPutStrLn "\nAssembling source trees:\n" >>
-    countTasks tasks >>= \ targets ->
-    case partitionEithers targets of
-      ([], targets') -> return targets'
-      (failures, _) -> error ("Could not prepare some targets:\n  " ++ intercalate "\n  " (map show failures))
-    where
-      tasks :: [Int -> Int -> IO (Either SomeException Target)]
-      tasks = map task tgts
-      task :: (String, Tgt) -> Int -> Int -> IO (Either SomeException Target)
-      task (name, tgt) count index =
-          qPutStrLn (printf "[%2d of %2d] %s" index count (show tgt)) >>
-          quieter' (+ 2) (try (prepareTarget cache globalBuildDeps os name tgt))
-
-countTasks :: [Int -> Int -> IO a] -> IO [a]
-countTasks tasks = mapM (\ (index, task) -> task (length tasks) index) (zip [1..] tasks)
 
 -- |Generate the details section of the package's new changelog entry
 -- based on the target type and version info.  This includes the
@@ -157,13 +140,31 @@ buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepos
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
+      qPutStrLn "\nAssembling source trees:\n"
       -- showTargets targetSpecs
-      targetList <- lift $ countAndPrepareTargets cache globalBuildDeps cleanOS targetSpecs
-      qPutStrLn "\nBuilding all targets:"
-      failed <- buildLoop cleanOS (length targetList) (targetList, [])
-      return (localRepo, failed)
-      --buildAll cleanOS targetList globalBuildDeps
+      results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
+      case partitionEithers results of
+        ([], targets) ->
+            do qPutStrLn "\nBuilding all targets:"
+               failed <- buildLoop cleanOS (length targets) (targets, [])
+               return (localRepo, failed)
+        (exceptions, _) ->
+            do let msg = intercalate "\n " (("Could not prepare " ++ show (length exceptions) ++ " targets:") : map (show . toException) exceptions)
+               liftIO $ hPutStrLn stderr msg
+               error msg
     where
+      prepare :: Int -> (Int, (String, Tgt)) -> IO (Either SomeException Target)
+      prepare count (index, (name, tgt)) =
+          do qPutStrLn (printf "[%2d of %2d] %s" index count (show tgt))
+             result <- quieter' (+ 2) (try' (prepareTarget cache globalBuildDeps cleanOS name tgt))
+             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count name (show e))
+                               return (Left e))
+                    (return . Right) result
+      try' :: IO a -> IO (Either SomeException a)
+      try' = try
+      -- targetList <- lift $ countAndPrepareTargets cache globalBuildDeps cleanOS targetSpecs
+      --buildAll cleanOS targetList globalBuildDeps
+
       -- Execute the target build loop until all the goals (or everything) is built
       buildLoop :: OSImage -> Int -> ([Target], [Target]) -> AptIOT IO [Target]
       buildLoop _ _ ([], failed) = return failed

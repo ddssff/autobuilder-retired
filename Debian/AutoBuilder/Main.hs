@@ -81,7 +81,7 @@ checkResults [Right _] = return ()
 checkResults list =
     case partitionEithers list of
       ([], []) -> return ()
-      (es, _) -> error $ intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] list))
+      (_, _) -> error $ intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] list))
     where showResult (Left e) = show e
           showResult (Right _) = "Ok"
 
@@ -133,7 +133,7 @@ runParameterSet cache =
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged params) poolSources
-      (names, targets) <- prepareTargetList >>= return . unzip 	-- Make a the list of the targets we hope to build
+      (names, targets) <- retrieveTargetList >>= return . unzip 	-- Make a the list of the targets we hope to build
       case partitionEithers targets of
         ([], targets') ->
             do buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS (zip names targets')
@@ -143,7 +143,9 @@ runParameterSet cache =
                updateRepoCache
                return result
         (failures, _) ->
-            error $ "Some targets could not be prepared:\n " ++ intercalate "\n " (map show failures)
+            do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
+               liftIO $ IO.hPutStrLn IO.stderr msg
+               error msg
 {-
       case partitionFailing targets of
         ([], ok) ->
@@ -217,10 +219,13 @@ runParameterSet cache =
                      True -> deleteGarbage repo'
                      False -> return repo'
                _ -> error "Expected local repo"
-      prepareTargetList =
+      retrieveTargetList =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              qPutStrLn "Retrieving all source code:\n"
-             countTasks' (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target))))
+             countTasks' (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)) >>=
+                                                           either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ P.name target ++ ":\n " ++ show e)) >>
+                                                                          return (Left e))
+                                                                  (return . Right)))
                               (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) [] allTargets))
           where
 {-          allTargets = P.foldPackages (\ name spec flags l -> 
@@ -229,7 +234,7 @@ runParameterSet cache =
                                                                                   _ -> error "relaxDepends: invalid target set") -}
             allTargets = case P.targets params of
                            P.TargetSet s -> s
-                           _ -> error "prepareTargetList: invalid target set"
+                           _ -> error "retrieveTargetList: invalid target set"
       upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =

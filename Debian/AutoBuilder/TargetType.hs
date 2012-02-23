@@ -10,7 +10,7 @@ module Debian.AutoBuilder.TargetType
     ) where
 
 import Control.Applicative.Error (Failing(Success, Failure), failing)
-import Control.Exception (catch)
+import Control.Exception (catch, throw)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget, origTarball))
@@ -125,10 +125,10 @@ prepareBuild cache os name target =
 forceLink :: FilePath -> FilePath -> IO ()
 forceLink target linkName =
     createLink target linkName `catch`
-      (\e -> if isAlreadyExistsError e 
-             then do removeLink linkName
-                     createLink target linkName
-             else ioError e)
+      (\ e -> if isAlreadyExistsError e 
+              then do removeLink linkName
+                      createLink target linkName
+              else throw e)
 
 -- |Make a path "safe" for building.  This shouldn't be necessary,
 -- but various packages make various assumptions about the type
