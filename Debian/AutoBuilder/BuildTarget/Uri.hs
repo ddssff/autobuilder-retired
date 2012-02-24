@@ -60,7 +60,15 @@ prepare c u s = liftIO $
     validateTarget >>=
     unpackTarget
     where
-      checkTarget = doesFileExist (tarball c u s)
+      checkTarget =
+          do exists <- doesFileExist (tarball c u s)
+             case exists of
+               True -> 
+                   do realSum <- try (B.readFile (tarball c u s) >>= return . show . md5) :: IO (Either SomeException String)
+                      case realSum of
+                        Right realSum | realSum == s -> return True
+                        _ -> removeRecursiveSafely (tarball c u s ) >> return False
+               False -> return False
 
       -- See if the file is already available in the checksum directory
       -- Download the target into the tmp directory, compute its checksum, and see if it matches.
@@ -79,7 +87,7 @@ prepare c u s = liftIO $
       -- Make sure what we just downloaded has the correct checksum
       validateTarget :: IO String
       validateTarget =
-          liftIO (try (B.readFile (tarball c u s) >>= return . show . md5)) >>= \ (realSum :: Either SomeException String) ->
+          try (B.readFile (tarball c u s) >>= return . show . md5) >>= \ (realSum :: Either SomeException String) ->
           case realSum of
             Right realSum | realSum == s -> return realSum
             Right realSum -> error ("Checksum mismatch for " ++ tarball c u s ++ ": expected " ++ s ++ ", saw " ++ realSum ++ ".")
