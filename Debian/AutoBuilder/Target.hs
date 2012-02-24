@@ -133,25 +133,16 @@ _formatVersions buildDeps =
 
 --  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
 
--- | Build a set of targets.  When a target build is successful it
--- is uploaded to the incoming directory of the local repository,
--- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [(String, Tgt)] -> AptIOT IO (LocalRepository, [Target])
-buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
-buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
-    do
-      qPutStrLn "\nAssembling source trees:\n"
-      -- showTargets targetSpecs
-      results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
-      case partitionEithers results of
-        ([], targets) ->
-            do qPutStrLn "\nBuilding all targets:"
-               failed <- buildLoop cleanOS (length targets) (targets, [])
-               return (localRepo, failed)
-        (exceptions, _) ->
-            do let msg = intercalate "\n " (("Could not prepare " ++ show (length exceptions) ++ " targets:") : map (show . toException) exceptions)
-               liftIO $ hPutStrLn stderr msg
-               error msg
+prepareTargets :: P.CacheRec -> OSImage -> Relations -> [(String, Tgt)] -> AptIOT IO [Target]
+prepareTargets cache cleanOS globalBuildDeps targetSpecs =
+    do -- showTargets targetSpecs
+       results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
+       let (failures, targets) = partitionEithers results
+       when (not (null failures))
+                (do let msg = intercalate "\n " (("Could not prepare " ++ show (length failures) ++ " targets:") : map (show . toException) failures)
+                    liftIO $ hPutStrLn stderr msg
+                    error msg)
+       return targets
     where
       prepare :: Int -> (Int, (String, Tgt)) -> IO (Either SomeException Target)
       prepare count (index, (name, tgt)) =
@@ -162,15 +153,31 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                     (return . Right) result
       try' :: IO a -> IO (Either SomeException a)
       try' = try
+
+-- | Build a set of targets.  When a target build is successful it
+-- is uploaded to the incoming directory of the local repository,
+-- and then the function to process the incoming queue is called.
+buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [(String, Tgt)] -> AptIOT IO (LocalRepository, [Target])
+buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
+buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
+    do
+      qPutStrLn "\nAssembling source trees:\n"
+      targets <- prepareTargets cache cleanOS globalBuildDeps targetSpecs
+      qPutStrLn "\nBuilding all targets:"
+      failed <- buildLoop cache globalBuildDeps localRepo poolOS cleanOS targets
+      return (localRepo, failed)
+    where
       -- targetList <- lift $ countAndPrepareTargets cache globalBuildDeps cleanOS targetSpecs
       --buildAll cleanOS targetList globalBuildDeps
 
-      -- Execute the target build loop until all the goals (or everything) is built
-      buildLoop :: OSImage -> Int -> ([Target], [Target]) -> AptIOT IO [Target]
-      buildLoop _ _ ([], failed) = return failed
-      buildLoop cleanOS' count (unbuilt, failed) =
-          do
-            -- relaxed <- lift $ updateDependencyInfo (P.relaxDepends (P.params cache)) globalBuildDeps unbuilt
+-- Execute the target build loop until all the goals (or everything) is built
+buildLoop :: (AptCache t) => P.CacheRec -> Relations -> LocalRepository -> t -> OSImage -> [Target] -> AptIOT IO [Target]
+buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
+    loop cleanOS' (length targets) (targets, [])
+    where
+      loop _ _ ([], failed) = return failed
+      loop cleanOS' count (unbuilt, failed) =
+         do -- relaxed <- lift $ updateDependencyInfo (P.relaxDepends (P.params cache)) globalBuildDeps unbuilt
             next <- lift $ chooseNextTarget cache (goals unbuilt) unbuilt
             case next of
               Nothing -> return failed
@@ -185,12 +192,12 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
                                        qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
                                                   "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                                   concat (intersperse "\n  " (map targetName blocked)))
-                                     buildLoop cleanOS' count (other, (target : blocked) ++ failed))
+                                     loop cleanOS' count (other, (target : blocked) ++ failed))
                              (\ mRepo ->
                                   do cleanOS'' <- maybe (return cleanOS')
                                                        (\ _ -> updateEnv cleanOS' >>= either (\ e -> error ("Failed to update clean OS:\n " ++ show e)) return)
                                                        mRepo
-                                     buildLoop cleanOS'' count (blocked ++ other, failed))
+                                     loop cleanOS'' count (blocked ++ other, failed))
                              result
 
       -- If no goals are given in the build parameters, assume all

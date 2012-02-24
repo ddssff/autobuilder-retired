@@ -133,34 +133,18 @@ runParameterSet cache =
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged params) poolSources
-      (names, targets) <- retrieveTargetList >>= return . unzip 	-- Make a the list of the targets we hope to build
-      case partitionEithers targets of
-        ([], targets') ->
-            do buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS (zip names targets')
-               -- If all targets succeed they may be uploaded to a remote repo
-               result <- tryAB (upload buildResult >>= lift . newDist) >>=
-                         return . either (\ e -> Failure [show e]) id
-               updateRepoCache
-               return result
-        (failures, _) ->
-            do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
+      targets <- retrieveTargetList >>= return . map (\ (name, result) -> either (\ x -> Left (name, x)) (\ x -> Right (name, x)) result)
+      let (failures, targets') = partitionEithers targets
+      when (not (null failures))
+           (do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
                liftIO $ IO.hPutStrLn IO.stderr msg
-               error msg
-{-
-      case partitionFailing targets of
-        ([], ok) ->
-            do -- Build all the targets
-               buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS ok
-               -- If all targets succeed they may be uploaded to a remote repo
-               uploadResult <- upload buildResult
-               -- This processes the remote incoming dir
-               result <- lift (newDist uploadResult)
-               updateRepoCache cache
-               return result
-        (bad, _) ->
-            do lift (qPutStrLn ("Could not prepare source code of some targets:\n " ++ intercalate "\n " (map (intercalate "\n  ") bad)))
-               return (Failure ("Could not prepare source code of some targets:" : map (intercalate "\n  ") bad))
--}
+               error msg)
+      buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS targets'
+      -- If all targets succeed they may be uploaded to a remote repo
+      result <- tryAB (upload buildResult >>= lift . newDist) >>=
+                return . either (\ e -> Failure [show e]) id
+      updateRepoCache
+      return result
     where
       top = P.topDir cache
       params = P.params cache
