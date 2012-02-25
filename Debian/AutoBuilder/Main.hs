@@ -19,7 +19,7 @@ import Data.Time(NominalDiffTime)
 import Data.List(intercalate)
 import Data.Maybe(catMaybes)
 --import qualified Debian.AutoBuilder.OldParams as O
-import Debian.AutoBuilder.BuildTarget (readSpec)
+import Debian.AutoBuilder.BuildTarget (retrieve)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
 import Debian.AutoBuilder.TargetType (Target, targetName)
@@ -206,7 +206,7 @@ runParameterSet cache =
       retrieveTargetList =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              qPutStrLn "Retrieving all source code:\n"
-             countTasks' (map (\ target -> (P.name target, tryAB (readSpec cache (P.flags target) (P.spec target)) >>=
+             countTasks' (map (\ target -> (P.name target, tryAB (retrieve cache (P.flags target) (P.spec target)) >>=
                                                            either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ P.name target ++ ":\n " ++ show e)) >>
                                                                           return (Left e))
                                                                   (return . Right)))

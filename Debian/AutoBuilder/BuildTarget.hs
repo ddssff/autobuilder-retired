@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 module Debian.AutoBuilder.BuildTarget
-    ( readSpec
+    ( retrieve
     , targetDocumentation
     ) where
 
@@ -29,32 +29,33 @@ import Debian.AutoBuilder.Tgt (Tgt(Tgt, Top))
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
-readSpec :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Tgt
-readSpec cache flags spec =
+-- | Given a RetrieveMethod, perform the retrieval and return the result.
+retrieve :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Tgt
+retrieve cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of
       R.Apt dist package flags -> tgt <$> Apt.prepare cache dist package flags
       R.Darcs uri flags -> tgt <$> lift (Darcs.prepare cache uri flags)
       R.DebDir upstream debian ->
-          do upstream' <- readSpec cache [] upstream
-             debian' <- readSpec cache [] debian
+          do upstream' <- retrieve cache [] upstream
+             debian' <- retrieve cache [] debian
              tgt <$> (DebDir.prepare cache upstream' debian')
       R.Cd dir spec' ->
-          readSpec cache [] spec' >>= \ t ->
+          retrieve cache [] spec' >>= \ t ->
           tgt <$> Cd.prepare cache dir t
       R.Dir path -> tgt <$> Dir.prepare cache path
       R.Debianize package version -> tgt <$> Debianize.prepare cache flags package version
       R.Hackage package version -> tgt <$> Debianize.prepareHackage cache package version
       R.Hg string -> tgt <$> Hg.prepare cache string
       R.Proc spec' ->
-          readSpec cache [] spec' >>= \ t ->
+          retrieve cache [] spec' >>= \ t ->
           tgt <$> Proc.prepare cache t
       R.Quilt base patches ->
-          readSpec cache [] base >>= \ base' ->
-          readSpec cache [] patches >>= \ patches' ->
+          retrieve cache [] base >>= \ base' ->
+          retrieve cache [] patches >>= \ patches' ->
           tgt <$> Quilt.prepare cache base' patches'
       R.SourceDeb spec' ->
-          readSpec cache [] spec' >>= \ t ->
+          retrieve cache [] spec' >>= \ t ->
           tgt <$> SourceDeb.prepare cache t
       R.Svn uri -> tgt <$> Svn.prepare cache uri
       R.Tla string -> tgt <$> Tla.prepare cache string

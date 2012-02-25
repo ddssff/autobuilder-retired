@@ -6,6 +6,7 @@ module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, documen
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
+import Control.Applicative.Error (maybeRead)
 import Control.Exception (throw)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
@@ -13,7 +14,7 @@ import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List (isPrefixOf, isSuffixOf, intercalate, nub, sort)
 import Data.Maybe (catMaybes)
-import Data.Version (Version, showVersion)
+import Data.Version (Version, showVersion, parseVersion)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
@@ -27,6 +28,7 @@ import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Unix.Process (collectOutput, collectOutputUnpacked)
 import System.Unix.Progress (lazyCommandE, lazyProcessE)
+import Text.ParserCombinators.ReadP (readP_to_S)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
@@ -53,14 +55,14 @@ instance BuildTarget Debianize where
 
 prepare :: P.CacheRec -> [P.PackageFlag] -> String -> [P.CabalFlag] -> AptIOT IO Debianize
 prepare cache flags name cabalFlags = liftIO $
-    do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . read) versionString
+    do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball (P.topDir cache) name version'))
-       downloadAndDebianize cache flags name version'
+       downloadAndDebianize cache cabalFlags flags name version'
        findSourceTree (unpacked (P.topDir cache) name version') >>= return . Debianize name (Just version')
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                                   P.CabalPin s -> Just s
-                                                                  {- _ -> Nothing -}) cabalFlags))) of
+                                                                  _ -> Nothing) cabalFlags))) of
                         [] -> Nothing
                         [v] -> Just v
                         vs -> error ("Conflicting cabal version numbers passed to Debianize: [" ++ intercalate ", " vs ++ "]")
@@ -74,13 +76,13 @@ parse cmd output =
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-downloadAndDebianize :: P.CacheRec -> [P.PackageFlag] -> String -> Version -> IO ()
-downloadAndDebianize cache flags name version =
+downloadAndDebianize :: P.CacheRec -> [P.CabalFlag] -> [P.PackageFlag] -> String -> Version -> IO ()
+downloadAndDebianize cache cabalFlags flags name version =
     removeRecursiveSafely (unpacked (P.topDir cache) name version) >>
     downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version >>=
     unpack (P.topDir cache) >>
     patch (P.topDir cache) flags name version >>
-    debianize cache flags (unpacked (P.topDir cache) name version)
+    debianize cache cabalFlags flags (unpacked (P.topDir cache) name version)
 
 -- |Scan the flag list for Patch flag, and apply the patches
 patch :: FilePath -> [P.PackageFlag] -> String -> Version -> IO ()
@@ -131,30 +133,29 @@ download' server top name version =
 -- debianization, then we could debianize cabal packages whatever their origin,
 -- and we wouldn't have to debianize *every* hackage target.  But I'm out of
 -- patience right now...
-debianize :: P.CacheRec -> [P.PackageFlag] -> FilePath -> IO ()
-debianize cache flags dir =
-    do let flags' = if any isMaintainerFlag flags then flags else P.Maintainer "Unknown Maintainer <unknown@debian.org>" : flags
-           flags'' = (["--debianize"] ++
-                      foldr (\ flag args ->
-                             case flag of
-                               (P.ExtraDep s) -> ["--build-dep", s] ++ args
-                               (P.ExtraDevDep s) -> ["--dev-dep", s] ++ args
-                               (P.MapDep c d) -> ["--map-dep", c ++ "=" ++ d] ++ args
-                               (P.DebVersion s) -> ["--deb-version", s] ++ args
-                               (P.Revision s) -> ["--revision", s] ++ args
-                               (P.Epoch name d) -> ["--epoch-map", name ++ "=" ++ show d] ++ args
-                               (P.Maintainer s) -> ["--maintainer", s] ++ args
-                               _ -> args) [] flags' ++
-                      [{- "--root", root -}] ++
-                      -- Used to determine which packages are bundled
-                      maybe [] (\ x -> ["--ghc-version", x]) ver)
-       -- hPutStrLn stderr ("cabal-debian " ++ intercalate " " flags')
-       (out, err, code) <- lazyProcessE "cabal-debian" flags'' (Just dir) Nothing B.empty >>= return . collectOutputUnpacked
+debianize :: P.CacheRec -> [P.CabalFlag] -> [P.PackageFlag] -> FilePath -> IO ()
+debianize cache cflags pflags dir =
+    do let pflags' = if any isMaintainerFlag pflags then pflags else P.Maintainer "Unknown Maintainer <unknown@debian.org>" : pflags
+           args = (["--debianize"] ++
+                   maybe [] (\ x -> ["--ghc-version", x]) ver ++
+                   concatMap cflag cflags ++
+                   concatMap pflag pflags')
+       (out, err, code) <- lazyProcessE "cabal-debian" args (Just dir) Nothing B.empty >>= return . collectOutputUnpacked
        case code of
-         ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian " ++ intercalate " " flags'' ++ "\n -> " ++ show n ++
+         ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian " ++ intercalate " " args ++ "\n -> " ++ show n ++
                                  "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
          ExitSuccess -> return ()
     where
+      cflag (P.ExtraDep s) = ["--build-dep", s]
+      cflag (P.ExtraDevDep s) = ["--dev-dep", s]
+      cflag (P.MapDep c d) = ["--map-dep", c ++ "=" ++ d]
+      cflag (P.DebVersion s) = ["--deb-version", s]
+      cflag (P.Revision s) = ["--revision", s]
+      cflag (P.Epoch name d) = ["--epoch-map", name ++ "=" ++ show d]
+      cflag _ = []
+      pflag (P.Maintainer s) = ["--maintainer", s]
+      pflag _ = []
+
       -- root = rootPath (P.cleanRootOfRelease cache (P.buildRelease (P.params cache)))
       ver = P.ghcVersion (P.params cache)
       isMaintainerFlag (P.Maintainer _) = True
@@ -164,7 +165,7 @@ debianize cache flags dir =
 -- > getVersion \"binary\" -> \"0.5.0.2\"
 getVersion :: String -> String -> IO Version
 getVersion server name =
-    lazyCommandE cmd B.empty >>= return . read . findVersion name . parse cmd
+    lazyCommandE cmd B.empty >>= return . readVersion . findVersion name . parse cmd
     where cmd = curlCmd (packageURL server name)
           curlCmd url = "curl -s '" ++ url ++ "'"
 
@@ -236,14 +237,20 @@ instance BuildTarget Hackage where
 
 prepareHackage :: P.CacheRec -> String -> [P.CabalFlag] -> AptIOT IO Hackage
 prepareHackage cache name cabalFlags = liftIO $
-    do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . read) versionString
+    do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [tarball (P.topDir cache) name version', unpacked (P.topDir cache) name version'])
        downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
        findSourceTree (unpacked (P.topDir cache) name version') >>= return . Hackage name (Just version')
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                                   P.CabalPin s -> Just s
-                                                                  {- _ -> Nothing -}) cabalFlags))) of
+                                                                  _ -> Nothing) cabalFlags))) of
                         [] -> Nothing
                         [v] -> Just v
                         vs -> error ("Conflicting cabal version numbers passed to Debianize: [" ++ intercalate ", " vs ++ "]")
+
+readVersion :: String -> Version
+readVersion s =
+    case filter (null . snd) $ readP_to_S parseVersion s of
+      [(v, _)] -> v
+      _ -> error $ "Failure reading cabal vesion: " ++ show s
