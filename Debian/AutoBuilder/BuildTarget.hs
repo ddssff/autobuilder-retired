@@ -33,8 +33,8 @@ readSpec :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Tgt
 readSpec cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of
-      R.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
-      R.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)
+      R.Apt dist package flags -> tgt <$> Apt.prepare cache dist package flags
+      R.Darcs uri flags -> tgt <$> lift (Darcs.prepare cache uri flags)
       R.DebDir upstream debian ->
           do upstream' <- readSpec cache [] upstream
              debian' <- readSpec cache [] debian

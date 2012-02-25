@@ -3,16 +3,18 @@ module Debian.AutoBuilder.Types.RetrieveMethod
     ( RetrieveMethod(..)
     ) where
 
+import Debian.AutoBuilder.Types.PackageFlag (AptFlag, CabalFlag, DarcsFlag)
+
 -- |Represents only the data resulting from parsing the spec string (which is going away)
 data RetrieveMethod
-    = Apt String String (Maybe String)
+    = Apt String String [AptFlag]
     | Bzr String
     | Cd FilePath RetrieveMethod
-    | Darcs String (Maybe String)
+    | Darcs String [DarcsFlag]
     | DebDir RetrieveMethod RetrieveMethod
-    | Debianize String (Maybe String)
+    | Debianize String [CabalFlag]
     | Dir FilePath
-    | Hackage String (Maybe String)
+    | Hackage String [CabalFlag]
     | Hg String
     | Proc RetrieveMethod
     | Quilt RetrieveMethod RetrieveMethod

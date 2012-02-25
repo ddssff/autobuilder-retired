@@ -3,8 +3,11 @@ module Debian.AutoBuilder.BuildTarget.Apt where
 
 import Control.Monad
 import Control.Monad.Trans
+import Data.List (sort, nub)
+import Data.Maybe (catMaybes)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
@@ -31,8 +34,8 @@ instance BuildTarget Apt where
     revision _ (Apt _ _ Nothing _) = fail "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> String -> Maybe String -> AptIOT IO Apt
-prepare cache dist package version =
+prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> AptIOT IO Apt
+prepare cache dist package flags =
     do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
        os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
@@ -42,7 +45,12 @@ prepare cache dist package version =
        return $ Apt distro package (Just version'') tree
     where
       dist' = SliceName dist
-      version' = fmap parseDebianVersion version
+      version' = case (nub (sort (catMaybes (map (\ flag -> case flag of
+                                                   P.AptPin s -> Just (parseDebianVersion s)
+                                                   {- _ -> Nothing -}) flags)))) of
+                   [] -> Nothing
+                   [v] -> Just v
+                   vs -> error ("Conflicting pin versions for apt-get: " ++ show (map prettyDebianVersion vs))
       findRelease distros dist = 
           case filter ((== dist) . sliceListName) distros of
             [a] -> Just a

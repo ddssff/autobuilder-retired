@@ -4,8 +4,11 @@ module Debian.AutoBuilder.BuildTarget.Darcs where
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as B
+import Data.List (nub, sort)
+import Data.Maybe (catMaybes)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Repo
 --import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
@@ -53,8 +56,8 @@ instance BuildTarget Darcs where
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> Maybe String -> IO Darcs
-prepare cache theUri theTag =
+prepare :: P.CacheRec -> String -> [P.DarcsFlag] -> IO Darcs
+prepare cache theUri flags =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
@@ -63,6 +66,12 @@ prepare cache theUri theTag =
       return $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
     where
       theUri' = mustParseURI theUri
+      theTag = case nub (sort (catMaybes (map (\ flag -> case flag of
+                                                           P.DarcsTag s -> Just s
+                                                           {- _ -> Nothing -}) flags))) of
+                 [] -> Nothing
+                 [x] -> Just x
+                 xs -> error ("Conflicting tags for darcs get of " ++ theUri ++ ": " ++ show xs)
       uriAndTag = uriToString id theUri' "" ++ maybe "" (\ tag -> "=" ++ tag) theTag
 
       verifySource :: FilePath -> IO SourceTree

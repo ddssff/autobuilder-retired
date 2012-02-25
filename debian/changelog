@@ -1,6 +1,7 @@
 autobuilder (6.18) unstable; urgency=low
 
   * Rename type Spec -> RetrieveMethod
+  * Split up PackageFlag into several target specific types 
   * Improve package pipeline.
 
  -- David Fox <dsf@seereason.com>  Sat, 25 Feb 2012 06:25:09 -0800
