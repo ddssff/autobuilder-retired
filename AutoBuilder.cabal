@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        6.17
+Version:        6.18
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -90,5 +90,5 @@ Library
     Debian.AutoBuilder.Types.PackageFlag,
     Debian.AutoBuilder.Types.Packages,
     Debian.AutoBuilder.Types.ParamRec
-    Debian.AutoBuilder.Types.Spec,
+    Debian.AutoBuilder.Types.RetrieveMethod,
     Debian.AutoBuilder.Version

@@ -7,13 +7,13 @@ module Debian.AutoBuilder.Types.Packages
 import Data.Monoid (Monoid(..))
 import qualified Data.Set as Set
 import Debian.AutoBuilder.Types.PackageFlag (PackageFlag)
-import Debian.AutoBuilder.Types.Spec (Spec)
+import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 
 data Packages
     = NoPackage
     | Package
       { name :: String
-      , spec :: Spec
+      , spec :: RetrieveMethod
       , flags :: [PackageFlag]
       }
     | Packages (Set.Set Packages)
@@ -34,7 +34,7 @@ instance Monoid Packages where
 
 -- Set.fold :: (a -> b -> b) -> b -> Set a -> b
 
-foldPackages :: (String -> Spec -> [PackageFlag] -> r -> r) -> r -> Packages -> r
+foldPackages :: (String -> RetrieveMethod -> [PackageFlag] -> r -> r) -> r -> Packages -> r
 foldPackages _ r NoPackage = r
 foldPackages f r x@(Package {}) = f (name x) (spec x) (flags x) r
 foldPackages f r (Packages s) = Set.fold (flip (foldPackages f)) r s

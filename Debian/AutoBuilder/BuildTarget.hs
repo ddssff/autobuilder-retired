@@ -24,43 +24,43 @@ import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.Spec as S
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.AutoBuilder.Tgt (Tgt(Tgt, Top))
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
-readSpec :: P.CacheRec -> [P.PackageFlag] -> S.Spec -> AptIOT IO Tgt
+readSpec :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Tgt
 readSpec cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of
-      S.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
-      S.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)
-      S.DebDir upstream debian ->
+      R.Apt dist package version -> tgt <$> Apt.prepare cache dist package version
+      R.Darcs uri tag -> tgt <$> lift (Darcs.prepare cache uri tag)
+      R.DebDir upstream debian ->
           do upstream' <- readSpec cache [] upstream
              debian' <- readSpec cache [] debian
              tgt <$> (DebDir.prepare cache upstream' debian')
-      S.Cd dir spec' ->
+      R.Cd dir spec' ->
           readSpec cache [] spec' >>= \ t ->
           tgt <$> Cd.prepare cache dir t
-      S.Dir path -> tgt <$> Dir.prepare cache path
-      S.Debianize package version -> tgt <$> Debianize.prepare cache flags package version
-      S.Hackage package version -> tgt <$> Debianize.prepareHackage cache package version
-      S.Hg string -> tgt <$> Hg.prepare cache string
-      S.Proc spec' ->
+      R.Dir path -> tgt <$> Dir.prepare cache path
+      R.Debianize package version -> tgt <$> Debianize.prepare cache flags package version
+      R.Hackage package version -> tgt <$> Debianize.prepareHackage cache package version
+      R.Hg string -> tgt <$> Hg.prepare cache string
+      R.Proc spec' ->
           readSpec cache [] spec' >>= \ t ->
           tgt <$> Proc.prepare cache t
-      S.Quilt base patches ->
+      R.Quilt base patches ->
           readSpec cache [] base >>= \ base' ->
           readSpec cache [] patches >>= \ patches' ->
           tgt <$> Quilt.prepare cache base' patches'
-      S.SourceDeb spec' ->
+      R.SourceDeb spec' ->
           readSpec cache [] spec' >>= \ t ->
           tgt <$> SourceDeb.prepare cache t
-      S.Svn uri -> tgt <$> Svn.prepare cache uri
-      S.Tla string -> tgt <$> Tla.prepare cache string
-      S.Bzr string -> tgt <$> Bzr.prepare cache string
-      S.Uri uri sum -> tgt <$> Uri.prepare cache uri sum
-      S.Twice {} -> error "Unimplemented: Twice")
+      R.Svn uri -> tgt <$> Svn.prepare cache uri
+      R.Tla string -> tgt <$> Tla.prepare cache string
+      R.Bzr string -> tgt <$> Bzr.prepare cache string
+      R.Uri uri sum -> tgt <$> Uri.prepare cache uri sum
+      R.Twice {} -> error "Unimplemented: Twice")
     where
       -- If any flags were passed in we want to build a Top, otherwise a Tgt
       tgt :: forall a. (Show a, BuildTarget a) => a -> Tgt
