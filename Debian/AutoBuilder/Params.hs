@@ -24,10 +24,13 @@ import Control.Monad.Trans ( liftIO )
 import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Debian.AutoBuilder.Types.CacheRec (CacheRec(..))
 import Debian.AutoBuilder.Types.PackageFlag (relaxInfo)
 import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))
+import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Debian.Release ( ReleaseName(relName), releaseName' )
 import Debian.Sources ( SliceName(..) )
 import Debian.Repo ( EnvRoot(EnvRoot), NamedSliceList(..), parseSourcesList, verifySourcesList, repoSources )
@@ -161,9 +164,22 @@ isDevelopmentRelease params =
 -- is rebuilt, don't rebuild hscolour even though ghc6 is one of
 -- its build dependencies.\"
 relaxDepends params@(ParamRec {targets = TargetSet s}) =
-    G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
-                  foldPackages (\ name _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName name))) (relaxInfo flags)) [] s
+    makeRelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
+                    foldPackages (\ name _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName name))) (relaxInfo flags)) [] s
 relaxDepends _params = error "relaxDepends: invalid target set"
+
+srcPkgName :: RetrieveMethod -> String
+srcPkgName = undefined
+
+makeRelaxInfo :: [(G.BinPkgName, Maybe G.SrcPkgName)] -> G.RelaxInfo
+makeRelaxInfo xs srcPkgName binPkgName =
+    Set.member binPkgName global || maybe False (Set.member binPkgName) (Map.lookup srcPkgName mp)
+    where
+      (global :: Set.Set G.BinPkgName, mp :: Map.Map G.SrcPkgName (Set.Set G.BinPkgName)) =
+          foldr (\ entry (global', mp') ->
+                     case entry of
+                       (b, Just s) -> (global', Map.insertWith Set.union s (Set.singleton b) mp')
+                       (b, Nothing) -> (Set.insert b global', mp')) (Set.empty, Map.empty) xs
 
 -- |Adjust the vendor tag so we don't get trumped by Debian's new +b
 -- notion for binary uploads.  The version number of the uploaded
