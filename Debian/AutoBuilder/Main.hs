@@ -206,11 +206,12 @@ runParameterSet cache =
       retrieveTargetList =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              qPutStrLn "Retrieving all source code:\n"
-             countTasks' (map (\ target -> (P.name target, tryAB (retrieve cache (P.flags target) (P.spec target)) >>=
-                                                           either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ P.name target ++ ":\n " ++ show e)) >>
-                                                                          return (Left e))
-                                                                  (return . Right)))
-                              (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) [] allTargets))
+             countTasks' (map (\ (target :: P.Packages) ->
+                                   (P.srcPkgName (P.spec target), tryAB (retrieve cache (P.flags target) (P.spec target)) >>=
+                                    either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ P.srcPkgName (P.spec target) ++ ":\n " ++ show e)) >>
+                                                   return (Left e))
+                                           (return . Right)))
+                              (P.foldPackages (\ spec flags l -> P.Package spec flags : l) [] allTargets))
           where
 {-          allTargets = P.foldPackages (\ name spec flags l -> 
                                              P.Package name spec flags : l) [] (case P.targets params of

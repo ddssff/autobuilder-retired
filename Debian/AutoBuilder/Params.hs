@@ -11,6 +11,7 @@ module Debian.AutoBuilder.Params
     , baseRelease
     , isDevelopmentRelease
     , relaxDepends
+    , srcPkgName
     -- , dropSuffix
     -- , dropOneSuffix
     -- , dropAllSuffixes
@@ -165,11 +166,11 @@ isDevelopmentRelease params =
 -- its build dependencies.\"
 relaxDepends params@(ParamRec {targets = TargetSet s}) =
     makeRelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
-                    foldPackages (\ name _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName name))) (relaxInfo flags)) [] s
+                    foldPackages (\ spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName spec)))) (relaxInfo flags)) [] s
 relaxDepends _params = error "relaxDepends: invalid target set"
 
 srcPkgName :: RetrieveMethod -> String
-srcPkgName = undefined
+srcPkgName = error "srcPkgName"
 
 makeRelaxInfo :: [(G.BinPkgName, Maybe G.SrcPkgName)] -> G.RelaxInfo
 makeRelaxInfo xs srcPkgName binPkgName =

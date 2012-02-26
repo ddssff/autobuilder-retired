@@ -12,8 +12,7 @@ import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 data Packages
     = NoPackage
     | Package
-      { name :: String
-      , spec :: RetrieveMethod
+      { spec :: RetrieveMethod
       , flags :: [PackageFlag]
       }
     | Packages (Set.Set Packages)
@@ -34,10 +33,10 @@ instance Monoid Packages where
 
 -- Set.fold :: (a -> b -> b) -> b -> Set a -> b
 
-foldPackages :: (String -> RetrieveMethod -> [PackageFlag] -> r -> r) -> r -> Packages -> r
+foldPackages :: (RetrieveMethod -> [PackageFlag] -> r -> r) -> r -> Packages -> r
 foldPackages _ r NoPackage = r
-foldPackages f r x@(Package {}) = f (name x) (spec x) (flags x) r
+foldPackages f r x@(Package {}) = f (spec x) (flags x) r
 foldPackages f r (Packages s) = Set.fold (flip (foldPackages f)) r s
 
 packageCount :: Packages -> Int
-packageCount = foldPackages (\ _ _ _ n -> n + 1) 0
+packageCount = foldPackages (\ _ _ n -> n + 1) 0
