@@ -4,6 +4,7 @@ import Control.Monad.Trans (lift)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.Repo
+import System.IO.Unsafe (unsafePerformIO)
 
 -- |Dir is a simple instance of BuildTarget representing building the
 -- debian source in a local directory.  This type of target is used
@@ -19,6 +20,7 @@ instance BuildTarget Dir where
     getTop _ (Dir tree) = topdir tree
     revision _ (Dir _) = fail "Dir targets do not have revision strings"
     logText (Dir tree) _ = "Built from local directory " ++ topdir tree
+    debianSourceTree (Dir tree) = unsafePerformIO (findDebianSourceTree (topdir tree))
 
 -- |Build is similar to Dir, except that it owns the parent directory
 -- of the source directory.  This is required for building packages
@@ -32,6 +34,7 @@ instance BuildTarget Build where
     getTop _ (Build tree) = topdir tree
     revision _ (Build _) = fail "Build targets do not have revision strings"
     logText (Build tree) _ = "Built from local directory " ++ topdir tree
+    debianSourceTree (Build tree) = debTree' tree
 
 -- |Prepare a Dir target
 prepare :: P.CacheRec -> FilePath -> AptIOT IO Dir

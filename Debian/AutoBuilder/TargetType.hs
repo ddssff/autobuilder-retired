@@ -48,9 +48,9 @@ instance Eq Target where
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: P.CacheRec -> Relations -> OSImage -> String -> Tgt -> IO Target
-prepareTarget cache globalBuildDeps os name source =
-    quieter (+ 2) $ prepareBuild cache os name source >>= \ tree ->
+prepareTarget :: P.CacheRec -> Relations -> OSImage -> Tgt -> IO Target
+prepareTarget cache globalBuildDeps os source =
+    quieter (+ 2) $ prepareBuild cache os source >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=
     failing (error . show)
             (\ deps -> return $ Target { tgt = source
@@ -65,8 +65,8 @@ targetControl = control . cleanSource
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: (BuildTarget t, Show t) => P.CacheRec -> OSImage -> String -> t -> IO DebianBuildTree
-prepareBuild cache os name target =
+prepareBuild :: (BuildTarget t, Show t) => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
+prepareBuild cache os target =
     do (_, trees) <- findDebianBuildTrees top
        case filter checkName trees of
          [] ->
@@ -87,9 +87,11 @@ prepareBuild cache os name target =
              copySource
 -}
     where
+      checkName _ = True
+{-
       checkName tree = source == Just name
           where source = fieldValue "Source" (head (unControl (control' (debTree' tree))))
-            
+-}
       top = getTop (P.params cache) target
       copySource :: DebianSourceTree -> IO DebianBuildTree
       copySource debSource =

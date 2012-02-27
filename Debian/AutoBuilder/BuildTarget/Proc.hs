@@ -29,6 +29,7 @@ instance BuildTarget Proc where
         Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . ("proc:" ++)
     buildWrapper _params buildOS _buildTree _status _target action = withProc buildOS action
     logText (Proc s) revision = logText s revision ++ " (with /proc mounted)"
+    debianSourceTree (Proc s) = debianSourceTree s
 
 prepare :: P.CacheRec -> Tgt -> AptIOT IO Proc
 prepare _cache base = return $ Proc base

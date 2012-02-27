@@ -133,7 +133,7 @@ runParameterSet cache =
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged params) poolSources
-      targets <- retrieveTargetList >>= return . map (\ (name, result) -> either (\ x -> Left (name, x)) (\ x -> Right (name, x)) result)
+      targets <- retrieveTargetList
       let (failures, targets') = partitionEithers targets
       when (not (null failures))
            (do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
@@ -203,15 +203,17 @@ runParameterSet cache =
                      True -> deleteGarbage repo'
                      False -> return repo'
                _ -> error "Expected local repo"
+      -- retrieveTargetList :: AptIOT IO (Either SomeException Tgt)
       retrieveTargetList =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              qPutStrLn "Retrieving all source code:\n"
              countTasks' (map (\ (target :: P.Packages) ->
-                                   (P.srcPkgName (P.spec target), tryAB (retrieve cache (P.flags target) (P.spec target)) >>=
-                                    either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ P.srcPkgName (P.spec target) ++ ":\n " ++ show e)) >>
+                                   (show (P.spec target),
+                                    tryAB (retrieve cache (P.flags target) (P.spec target)) >>=
+                                    either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >>
                                                    return (Left e))
                                            (return . Right)))
-                              (P.foldPackages (\ spec flags l -> P.Package spec flags : l) [] allTargets))
+                              (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) [] allTargets))
           where
 {-          allTargets = P.foldPackages (\ name spec flags l -> 
                                              P.Package name spec flags : l) [] (case P.targets params of
@@ -273,12 +275,12 @@ runParameterSet cache =
                    return . Map.fromList . filter isRemote $ pairs'
 
 -- | Perform a list of tasks with log messages.
-countTasks' :: MonadIO m => [(String, m a)] -> m [(String, a)]
+countTasks' :: MonadIO m => [(String, m a)] -> m [a]
 countTasks' tasks =
     mapM (countTask (length tasks)) (zip [1..] tasks)
     where
-      countTask :: MonadIO m => Int -> (Int, (String, m a)) -> m (String, a)
+      countTask :: MonadIO m => Int -> (Int, (String, m a)) -> m a
       countTask count (index, (message, task)) =
           liftIO (IO.hPutStrLn IO.stderr (printf "[%2d of %2d] %s:" index count message)) >>
           task >>= \ a ->
-          return (message, a)
+          return a

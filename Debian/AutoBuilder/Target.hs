@@ -29,7 +29,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.TargetType (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl)
-import Debian.AutoBuilder.Tgt (Tgt)
+import Debian.AutoBuilder.Tgt (Tgt, relaxDepends)
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
@@ -133,7 +133,7 @@ _formatVersions buildDeps =
 
 --  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
 
-prepareTargets :: P.CacheRec -> OSImage -> Relations -> [(String, Tgt)] -> AptIOT IO [Target]
+prepareTargets :: P.CacheRec -> OSImage -> Relations -> [Tgt] -> AptIOT IO [Target]
 prepareTargets cache cleanOS globalBuildDeps targetSpecs =
     do -- showTargets targetSpecs
        results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
@@ -144,11 +144,11 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
                     error msg)
        return targets
     where
-      prepare :: Int -> (Int, (String, Tgt)) -> IO (Either SomeException Target)
-      prepare count (index, (name, tgt)) =
+      prepare :: Int -> (Int, Tgt) -> IO (Either SomeException Target)
+      prepare count (index, tgt) =
           do qPutStrLn (printf "[%2d of %2d] %s" index count (show tgt))
-             result <- quieter' (+ 2) (try' (prepareTarget cache globalBuildDeps cleanOS name tgt))
-             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count name (show e))
+             result <- quieter' (+ 2) (try' (prepareTarget cache globalBuildDeps cleanOS tgt))
+             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count (show tgt) (show e))
                                return (Left e))
                     (return . Right) result
       try' :: IO a -> IO (Either SomeException a)
@@ -157,7 +157,7 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [(String, Tgt)] -> AptIOT IO (LocalRepository, [Target])
+buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [Tgt] -> AptIOT IO (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
@@ -253,7 +253,7 @@ chooseNextTarget cache goals targets =
           error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (tgt a, tgt b)) pairs)
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
-      depends target1 target2 = G.compareSource (targetRelaxed (P.relaxDepends (P.params cache)) target1) (targetRelaxed (P.relaxDepends (P.params cache)) target2)
+      depends target1 target2 = G.compareSource (targetRelaxed (relaxDepends (P.params cache) (tgt target1)) target1) (targetRelaxed (relaxDepends (P.params cache) (tgt target2)) target2)
       -- Choose the next target to build.  Look for targets which are
       -- in the goal list, or which block packages in the goal list.
       -- Among those, prefer the target which blocks the most
@@ -281,15 +281,15 @@ cycleMessage cache arcs =
     intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs))))
     where
       arcTuple (pkg, dep) = 
-          let rels = targetRelaxed (P.relaxDepends (P.params cache)) pkg in
-          [(show (intersect (binaryNames dep) (binaryNamesOfRelations rels))), targetName dep, " -> ", targetName pkg]
-      binaryNames dep =
+          let rels = targetRelaxed (relaxDepends (P.params cache) (tgt pkg)) pkg in
+          [(show (intersect (binaryNames pkg dep) (binaryNamesOfRelations rels))), targetName dep, " -> ", targetName pkg]
+      binaryNames pkg dep =
           map (\ (G.BinPkgName name) -> name) xs
-          where (_, _, xs) = (targetRelaxed (P.relaxDepends (P.params cache)) dep)
+          where (_, _, xs) = (targetRelaxed (relaxDepends (P.params cache) (tgt pkg)) dep)
       relaxLine (bin, src) = "Relax-Depends: " ++ bin ++ " " ++ src
       pairs (pkg, dep) =
           map (\ bin -> (bin, targetName pkg)) binaryDependencies
-              where binaryDependencies = intersect (binaryNames dep) (binaryNamesOfRelations (targetRelaxed (P.relaxDepends (P.params cache)) pkg))
+              where binaryDependencies = intersect (binaryNames pkg dep) (binaryNamesOfRelations (targetRelaxed (relaxDepends (P.params cache) (tgt pkg)) pkg))
       binaryNamesOfRelations (_, rels, _) =
           concat (map (map (\ (Rel name _ _) -> name)) rels)
 
@@ -297,7 +297,7 @@ showTargets :: P.Packages -> String
 showTargets targets =
     unlines (heading :
              map (const '-') heading :
-             map concat (columns (reverse (snd (P.foldPackages (\ spec _flags (count, rows) -> (count + 1, [printf "%4d. " count, P.srcPkgName spec, " ", show spec] : rows)) (1 :: Int, []) targets)))))
+             map concat (columns (reverse (snd (P.foldPackages (\ name spec _flags (count, rows) -> (count + 1, [printf "%4d. " count, name, " ", show spec] : rows)) (1 :: Int, []) targets)))))
 {-
     unlines (heading :
              map (const '-') heading :
@@ -1048,7 +1048,7 @@ buildDecision cache target
       builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
       -- Remove any package not mentioned in the relaxed dependency list
       -- from the list of build dependencies which can trigger a rebuild.
-      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed (P.relaxDepends (P.params cache)) target))) sourceDependencies
+      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed (relaxDepends (P.params cache) (tgt target)) target))) sourceDependencies
       -- All the package names mentioned in a dependency list
       packageNames :: G.DepInfo -> [String]
       packageNames (_, deps, _) = nub (map (\ (Rel name _ _) -> name) (concat deps))

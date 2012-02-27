@@ -110,6 +110,9 @@ class Show t => BuildTarget t where
     -- | If we have access to an original tarball, this returns its path.
     origTarball :: P.CacheRec -> t -> Maybe FilePath
     origTarball _ _ = Nothing
+    -- | Return the debian source tree.  Every target must be able to return this,
+    -- since this package only builds debian packages.
+    debianSourceTree :: t -> DebianSourceTree
 
 -- | There are many characters which will confuse make if they appear
 -- in a directory name.  This turns them all into something safer.
