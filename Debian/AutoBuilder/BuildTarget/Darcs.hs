@@ -32,9 +32,6 @@ documentation = [ "darcs:<string> - a target of this form obtains the source cod
                 , "repository, it is necessary to set up ssh keys to allow access without"
                 , "typing a password.  See the --ssh-export option for help doing this." ]
 
-instance Show Darcs where
-    show t = "darcs:" ++ uri t
-
 instance BuildTarget Darcs where
     method = Debian.AutoBuilder.BuildTarget.Darcs.method
     getTop _ t = topdir (sourceTree t)
@@ -53,7 +50,7 @@ instance BuildTarget Darcs where
              Right rev' ->
                  do -- Nastygram to self: thanks for not documenting this
                     -- liftIO $ evaluate (length rev')
-                    return $ show tgt ++ "=" ++ rev'
+                    return $ show (Debian.AutoBuilder.BuildTarget.Common.method tgt) ++ "=" ++ rev'
         where
           path = topdir (sourceTree tgt)
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"

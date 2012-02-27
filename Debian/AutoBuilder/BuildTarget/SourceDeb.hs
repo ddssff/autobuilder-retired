@@ -20,9 +20,6 @@ import System.Unix.Process
 -- | Treat the data returned by a target as a source deb.
 data SourceDeb = SourceDeb Tgt FilePath String R.RetrieveMethod
 
-instance Show SourceDeb where
-    show (SourceDeb t _ _ _) = "sourcedeb:" ++ show t
-
 documentation = [ "sourcedeb:<target> - A target of this form unpacks the source deb"
                 , "retrieved by the original target and presents an unpacked source"
                 , "tree for building.  Thus, the original target should retrieve a"
@@ -46,7 +43,7 @@ prepare cache base m =
                    return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> liftIO (readFile (top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
-         [] -> return $  error ("Invalid sourcedeb base: no .dsc file in " ++ show base)
+         [] -> return $  error ("Invalid sourcedeb base: no .dsc file in " ++ show (method base))
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
              do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of

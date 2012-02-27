@@ -22,9 +22,6 @@ import System.Directory
 -- | A TLA archive
 data Tla = Tla String SourceTree R.RetrieveMethod
 
-instance Show Tla where
-    show (Tla s _ _) = "tla:" ++ s
-
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
                 , "given revision name." ]
 

@@ -10,9 +10,6 @@ import System.FilePath ((</>))
 
 data Cd = Cd FilePath Tgt R.RetrieveMethod
 
-instance Show Cd where
-    show (Cd p t _) = "cd:" ++ p ++ ":" ++ show t
-
 documentation = [ "cd:<relpath>:<target> - A target of this form modifies another target by"
                 , "changing directories into a subdirectory before doing the build.  It is"
                 , "used for repositories where the debian directory is in a subdirectory."]

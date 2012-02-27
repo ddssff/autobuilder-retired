@@ -37,9 +37,6 @@ import Text.XML.HaXml.Posn
 
 data Debianize = Debianize String (Maybe Version) SourceTree R.RetrieveMethod
 
-instance Show Debianize where
-    show (Debianize name version _ _) = "debianize:" ++ name ++ maybe "" (("=" ++) . showVersion) version
-
 documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
@@ -221,9 +218,6 @@ downloadCommand server name version = "curl -s '" ++ versionURL server name vers
 -- Hackage target
 
 data Hackage = Hackage String (Maybe Version) SourceTree R.RetrieveMethod
-
-instance Show Hackage where
-    show (Hackage name version _ _) = "hackage:" ++ name ++ maybe "" (("=" ++) . showVersion) version
 
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]

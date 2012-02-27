@@ -14,9 +14,6 @@ import System.IO.Unsafe (unsafePerformIO)
 -- of BuildTarget.
 data Dir = Dir SourceTree R.RetrieveMethod
 
-instance Show Dir where
-    show (Dir tree _) = "dir:" ++ topdir tree
-
 instance BuildTarget Dir where
     method (Dir _ m) = m
     getTop _ (Dir tree _) = topdir tree
@@ -28,9 +25,6 @@ instance BuildTarget Dir where
 -- of the source directory.  This is required for building packages
 -- because all of the debs, tarballs etc appear in the parent directory.
 data Build = Build DebianBuildTree R.RetrieveMethod
-
-instance Show Build where
-    show (Build tree _) = "build:" ++ topdir tree
 
 instance BuildTarget Build where
     method (Build _ m) = m

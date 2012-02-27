@@ -23,13 +23,13 @@ import qualified Data.Map as Map
 import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(logText, buildWrapper))
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(logText, buildWrapper, method))
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.TargetType (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl)
-import Debian.AutoBuilder.Tgt (Tgt, relaxDepends)
+import Debian.AutoBuilder.Tgt (Tgt, relaxDepends, srcPkgName)
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
@@ -146,9 +146,9 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
     where
       prepare :: Int -> (Int, Tgt) -> IO (Either SomeException Target)
       prepare count (index, tgt) =
-          do qPutStrLn (printf "[%2d of %2d] %s" index count (show tgt))
+          do qPutStrLn (printf "[%2d of %2d] %s" index count (show (method tgt)))
              result <- quieter' (+ 2) (try' (prepareTarget cache globalBuildDeps cleanOS tgt))
-             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count (show tgt) (show e))
+             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count (show (method tgt)) (show e))
                                return (Left e))
                     (return . Right) result
       try' :: IO a -> IO (Either SomeException a)
@@ -183,7 +183,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
               Nothing -> return failed
               Just (target, blocked, other) ->
                   do quieter' (const 0) (qPutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                                               (count - length unbuilt + 1) count (targetName target) (show (tgt target))))
+                                               (count - length unbuilt + 1) count (targetName target) (show (method (tgt target)))))
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
                                then return (Failure ["--discard option set"])
                                else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
@@ -250,7 +250,7 @@ chooseNextTarget cache goals targets =
             readyLine (ready', blocked, _other) = 
                 [" Ready:", targetName ready', "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       makeTable (G.CycleInfo pairs) =
-          error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (tgt a, tgt b)) pairs)
+          error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (srcPkgName (tgt a), srcPkgName (tgt b))) pairs)
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed (relaxDepends (P.params cache) (tgt target1)) target1) (targetRelaxed (relaxDepends (P.params cache) (tgt target2)) target2)

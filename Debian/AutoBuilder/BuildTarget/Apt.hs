@@ -19,9 +19,6 @@ import System.Unix.Directory
 -- | A package retrieved via apt-get in the given slice
 data Apt = Apt NamedSliceList String (Maybe DebianVersion) DebianBuildTree RetrieveMethod
 
-instance Show Apt where
-    show (Apt d n v _ _) = "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ n ++ maybe "" (("=" ++) . show . prettyDebianVersion) v
-
 documentation = [ "apt:<distribution>:<packagename> - a target of this form looks up"
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]

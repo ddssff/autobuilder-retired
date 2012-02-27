@@ -12,25 +12,22 @@ import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..))
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))
-import Debian.Control (Control'(Control, unControl), fieldValue)
+import Debian.Control (Control'(unControl), fieldValue)
 import qualified Debian.GenBuildDeps as G
-import Debian.Repo.SourceTree (DebianSourceTree(control'), DebianBuildTree(debTree'))
-import System.IO.Unsafe (unsafePerformIO)
+import Debian.Repo.SourceTree (DebianSourceTree(control'), DebianBuildTree)
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
 data Tgt
-    = forall a. (Show a, BuildTarget a) => Tgt a
-    | forall a. (Show a, BuildTarget a) => Top [P.PackageFlag] a
-
-instance Show Tgt where
-    show (Tgt a) = show a
-    show (Top _ a) = show a
+    = forall a. BuildTarget a => Tgt a
+    | forall a. BuildTarget a => Top [P.PackageFlag] a
 
 --getSourceTree' :: Tgt -> SourceTree
 --getSourceTree' (Tgt a) = getSourceTree a
 
 instance BuildTarget Tgt where
+    method (Tgt x) = method x
+    method (Top _ x) = method x
     getTop params (Tgt x) = getTop params x
     getTop params (Top _ x) = getTop params x
     cleanTarget params (Tgt x) path = cleanTarget params x path

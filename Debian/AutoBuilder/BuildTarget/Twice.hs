@@ -10,9 +10,6 @@ import Debian.Repo (AptIOT)
 
 data Twice = Twice Tgt R.RetrieveMethod
 
-instance Show Twice where
-    show (Twice t _) = "twice:" ++ show t
-
 documentation = [ "twice:<target> - A target of this form modifies another target by"
                 , "ensuring that dpkg-buildpackage is run a second time if it fails"
                 , "the first time.  For some reason, certain packages are designed"

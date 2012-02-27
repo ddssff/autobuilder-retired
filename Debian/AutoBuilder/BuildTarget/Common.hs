@@ -82,7 +82,7 @@ import Text.Printf (printf)
 
 -- | BuildTarget represents the type class of methods for obtaining a
 -- SourceTree: tla, apt, darcs, etc.
-class Show t => BuildTarget t where
+class BuildTarget t where
     -- | The method used to retrieve this target.
     method :: t -> RetrieveMethod
     -- | The directory containing the target's files.  For most target types, these

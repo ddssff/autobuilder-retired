@@ -35,9 +35,6 @@ import Text.Regex
 
 data Quilt = Quilt Tgt Tgt SourceTree R.RetrieveMethod
 
-instance Show Quilt where
-    show (Quilt t q _ _) = "quilt:(" ++ show t ++ "):(" ++ show q ++ ")"
-
 documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, target1 is"
                 , "any source tree, and target2 is a quilt directory which contains"
                 , "a debian style changelog file named 'changelog', a file named"
@@ -76,12 +73,12 @@ instance BuildTarget Quilt where
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (Show a, Show b, BuildTarget a, BuildTarget b) => P.CacheRec -> a -> b -> IO (SourceTree, FilePath)
+makeQuiltTree :: (BuildTarget a, BuildTarget b) => P.CacheRec -> a -> b -> IO (SourceTree, FilePath)
 makeQuiltTree cache base patch =
     do qPutStrLn $ "Quilt base: " ++ getTop (P.params cache) base
        qPutStrLn $ "Quilt patch: " ++ getTop (P.params cache) patch
        -- This will be the top directory of the quilt target
-       let copyDir = P.topDir cache ++ "/quilt/" ++ md5sum ("quilt:(" ++ show base ++ "):(" ++ show patch ++ ")")
+       let copyDir = P.topDir cache ++ "/quilt/" ++ md5sum ("quilt:(" ++ show (method base) ++ "):(" ++ show (method patch) ++ ")")
        liftIO (createDirectoryIfMissing True (P.topDir cache ++ "/quilt"))
        baseTree <- try (findSourceTree (getTop (P.params cache) base))
        patchTree <- try (findSourceTree (getTop (P.params cache) patch))
@@ -183,7 +180,7 @@ prepare cache base patch m = liftIO $
                  intercalate " && " (map ("quilt -v --leave-reject push " ++) patches))
             cmd3 = ("cd '" ++ quiltDir ++ "' && " ++
                     "rm -rf '" ++ quiltDir ++ "/.pc' '" ++ quiltDir ++ "/" ++ quiltPatchesDir ++ "'")
-            target = "quilt:(" ++ show base ++ "):(" ++ show patch ++ ")"
+            target = "quilt:(" ++ show (method base) ++ "):(" ++ show (method patch) ++ ")"
              
 --myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x
 

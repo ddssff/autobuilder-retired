@@ -24,9 +24,6 @@ import System.Unix.Progress (lazyCommandF, timeTask)
 
 data Hg = Hg String SourceTree R.RetrieveMethod
 
-instance Show Hg where
-    show (Hg s _ _) = "hg:" ++ s
-
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 

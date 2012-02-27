@@ -26,9 +26,6 @@ import System.Directory
 -- | A Bazaar archive
 data Bzr = Bzr String SourceTree
 
-instance Show Bzr where
-    show (Bzr s _) = "bzr:" ++ s
-
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
 

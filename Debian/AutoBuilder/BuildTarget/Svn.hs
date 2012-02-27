@@ -28,9 +28,6 @@ import System.Directory
 -- | A Subversion archive
 data Svn = Svn URI SourceTree R.RetrieveMethod
 
-instance Show Svn where
-    show (Svn s _ _) = "svn:" ++ uriToString id s ""
-
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 

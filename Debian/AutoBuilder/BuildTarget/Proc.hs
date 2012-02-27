@@ -14,9 +14,6 @@ import System.Unix.QIO (quieter)
 
 data Proc = Proc Tgt R.RetrieveMethod
 
-instance Show Proc where
-    show (Proc t _) = "proc:" ++ show t
-
 documentation = [ "proc:<target> - A target of this form modifies another target by ensuring"
                 , "that /proc is mounted during the build.  This target should only be"
                 , "used if absolutely necessary, because it reveals details of the build"

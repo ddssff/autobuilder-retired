@@ -22,9 +22,6 @@ import System.Unix.Progress (lazyCommandF)
 -- | Get the upstream source from one location, and the debian directory from another
 data DebDir = DebDir Tgt Tgt DebianSourceTree R.RetrieveMethod
 
-instance Show DebDir where
-    show (DebDir t q _ _) = "deb-dir:(" ++ show t ++ "):(" ++ show q ++ ")"
-
 documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
@@ -56,7 +53,7 @@ prepare cache upstream debian m = lift $
           case compare (version debianV) (version upstreamV) of
             -- If the debian version is too old it needs to be bumped, this ensures we notice
             -- when a new upstream appears.  We should just modify the changelog directly.
-            LT -> error $ show tgt ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ version upstreamV ++ ")"
+            LT -> error $ show (method tgt) ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ version upstreamV ++ ")"
             _ -> return tgt
 {-
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
@@ -71,7 +68,7 @@ prepare cache upstream debian m = lift $
       copyDebian = lazyCommandF cmd2 empty -- runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))
       upstreamDir = getTop (P.params cache) upstream
       debianDir = getTop (P.params cache) debian
-      dest = P.topDir cache ++ "/deb-dir/" ++ md5sum ("deb-dir:(" ++ show upstream ++ "):(" ++ show debian ++ ")") 
+      dest = P.topDir cache ++ "/deb-dir/" ++ md5sum ("deb-dir:(" ++ show (method upstream) ++ "):(" ++ show (method debian) ++ ")") 
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")
       -- cleanStyle name = setStart (Just (" Prepare deb-dir target " ++ show name))

@@ -64,7 +64,7 @@ retrieve cache flags spec =
       R.Twice {} -> error "Unimplemented: Twice")
     where
       -- If any flags were passed in we want to build a Top, otherwise a Tgt
-      tgt :: forall a. (Show a, BuildTarget a) => a -> Tgt
+      tgt :: forall a. BuildTarget a => a -> Tgt
       tgt x = case flags of
                 [] -> Tgt x
                 _ -> Top flags x
