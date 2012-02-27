@@ -3,6 +3,7 @@ module Debian.AutoBuilder.BuildTarget.Dir where
 import Control.Monad.Trans (lift)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -11,31 +12,35 @@ import System.IO.Unsafe (unsafePerformIO)
 -- for testing, and is also returned by the clean method when the
 -- source control information has been stripped out of some other type
 -- of BuildTarget.
-data Dir = Dir SourceTree
+data Dir = Dir SourceTree R.RetrieveMethod
 
 instance Show Dir where
-    show (Dir tree) = "dir:" ++ topdir tree
+    show (Dir tree _) = "dir:" ++ topdir tree
 
 instance BuildTarget Dir where
-    getTop _ (Dir tree) = topdir tree
-    revision _ (Dir _) = fail "Dir targets do not have revision strings"
-    logText (Dir tree) _ = "Built from local directory " ++ topdir tree
-    debianSourceTree (Dir tree) = unsafePerformIO (findDebianSourceTree (topdir tree))
+    method (Dir _ m) = m
+    getTop _ (Dir tree _) = topdir tree
+    revision _ (Dir _ _) = fail "Dir targets do not have revision strings"
+    logText (Dir tree _) _ = "Built from local directory " ++ topdir tree
+    debianSourceTree (Dir tree _) = unsafePerformIO (findDebianSourceTree (topdir tree))
 
 -- |Build is similar to Dir, except that it owns the parent directory
 -- of the source directory.  This is required for building packages
 -- because all of the debs, tarballs etc appear in the parent directory.
-data Build = Build DebianBuildTree
+data Build = Build DebianBuildTree R.RetrieveMethod
 
 instance Show Build where
-    show (Build tree) = "build:" ++ topdir tree
+    show (Build tree _) = "build:" ++ topdir tree
 
 instance BuildTarget Build where
-    getTop _ (Build tree) = topdir tree
-    revision _ (Build _) = fail "Build targets do not have revision strings"
-    logText (Build tree) _ = "Built from local directory " ++ topdir tree
-    debianSourceTree (Build tree) = debTree' tree
+    method (Build _ m) = m
+    getTop _ (Build tree _) = topdir tree
+    revision _ (Build _ _) = fail "Build targets do not have revision strings"
+    logText (Build tree _) _ = "Built from local directory " ++ topdir tree
+    debianSourceTree (Build tree _) = debTree' tree
 
 -- |Prepare a Dir target
-prepare :: P.CacheRec -> FilePath -> AptIOT IO Dir
-prepare _cache path = lift (findSourceTree path) >>= return . Dir
+prepare :: P.CacheRec -> FilePath -> R.RetrieveMethod -> AptIOT IO Dir
+prepare _cache path m =
+    do tree <- lift (findSourceTree path)
+       return $ Dir tree m

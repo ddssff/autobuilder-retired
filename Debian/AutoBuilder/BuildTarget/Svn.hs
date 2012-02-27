@@ -14,6 +14,7 @@ import Data.List
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Control.ByteString
 import Debian.Repo
 --import Debian.OldShell (FullTask, runTaskAndTest, processTask, timeTaskAndTest, commandTask, setStart, setError, runTask, processTask)
@@ -25,10 +26,10 @@ import System.Unix.Progress (timeTask, lazyCommandF, lazyProcessF, lazyProcessE)
 import System.Directory
 
 -- | A Subversion archive
-data Svn = Svn URI SourceTree
+data Svn = Svn URI SourceTree R.RetrieveMethod
 
 instance Show Svn where
-    show (Svn s _) = "svn:" ++ uriToString id s ""
+    show (Svn s _ _) = "svn:" ++ uriToString id s ""
 
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
@@ -57,16 +58,17 @@ password userInfo =
     else ["--password",unEscapeString pw]
 
 instance BuildTarget Svn where
-    getTop _ (Svn _ tree) = topdir tree
+    method (Svn _ _ m) = m
+    getTop _ (Svn _ tree _) = topdir tree
     -- We should recursively find and remove all the .svn directories in |dir source|
-    cleanTarget _ (Svn _ _) path =
+    cleanTarget _ (Svn _ _ _) path =
         timeTask (lazyCommandF cmd L.empty)
         -- timeTaskAndTest (cleanStyle path (commandTask cmd))
         where
           cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
           -- cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ path))
 
-    revision _ (Svn uri _) =
+    revision _ (Svn uri _ _) =
         svn (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         -- svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         return . readControl
@@ -98,14 +100,14 @@ instance BuildTarget Svn where
         where
           userInfo = maybe "" uriUserInfo (uriAuthority uri)
 -}
-    logText (Svn _ _) revision = "SVN revision: " ++ either show id revision
+    logText (Svn _ _ _) revision = "SVN revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> AptIOT IO Svn
-prepare cache uri = liftIO $
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Svn
+prepare cache uri m = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
-       return $ Svn uri' tree
+       return $ Svn uri' tree m
     where
       uri' = mustParseURI uri
       verifySource dir =

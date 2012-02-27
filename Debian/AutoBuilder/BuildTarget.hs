@@ -34,33 +34,33 @@ retrieve :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Tgt
 retrieve cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of
-      R.Apt dist package flags -> tgt <$> Apt.prepare cache dist package flags
-      R.Darcs uri flags -> tgt <$> lift (Darcs.prepare cache uri flags)
+      R.Apt dist package flags -> tgt <$> Apt.prepare cache dist package flags spec
+      R.Darcs uri flags -> tgt <$> lift (Darcs.prepare cache uri flags spec)
       R.DebDir upstream debian ->
           do upstream' <- retrieve cache [] upstream
              debian' <- retrieve cache [] debian
-             tgt <$> (DebDir.prepare cache upstream' debian')
+             tgt <$> (DebDir.prepare cache upstream' debian' spec)
       R.Cd dir spec' ->
           retrieve cache [] spec' >>= \ t ->
-          tgt <$> Cd.prepare cache dir t
-      R.Dir path -> tgt <$> Dir.prepare cache path
-      R.Debianize package version -> tgt <$> Debianize.prepare cache flags package version
-      R.Hackage package version -> tgt <$> Debianize.prepareHackage cache package version
-      R.Hg string -> tgt <$> Hg.prepare cache string
+          tgt <$> Cd.prepare cache dir t spec
+      R.Dir path -> tgt <$> Dir.prepare cache path spec
+      R.Debianize package version -> tgt <$> Debianize.prepare cache flags package version spec
+      R.Hackage package version -> tgt <$> Debianize.prepareHackage cache package version spec
+      R.Hg string -> tgt <$> Hg.prepare cache string spec
       R.Proc spec' ->
           retrieve cache [] spec' >>= \ t ->
-          tgt <$> Proc.prepare cache t
+          tgt <$> Proc.prepare cache t spec
       R.Quilt base patches ->
           retrieve cache [] base >>= \ base' ->
           retrieve cache [] patches >>= \ patches' ->
-          tgt <$> Quilt.prepare cache base' patches'
+          tgt <$> Quilt.prepare cache base' patches' spec
       R.SourceDeb spec' ->
           retrieve cache [] spec' >>= \ t ->
-          tgt <$> SourceDeb.prepare cache t
-      R.Svn uri -> tgt <$> Svn.prepare cache uri
-      R.Tla string -> tgt <$> Tla.prepare cache string
+          tgt <$> SourceDeb.prepare cache t spec
+      R.Svn uri -> tgt <$> Svn.prepare cache uri spec
+      R.Tla string -> tgt <$> Tla.prepare cache string spec
       R.Bzr string -> tgt <$> Bzr.prepare cache string
-      R.Uri uri sum -> tgt <$> Uri.prepare cache uri sum
+      R.Uri uri sum -> tgt <$> Uri.prepare cache uri sum spec
       R.Twice {} -> error "Unimplemented: Twice")
     where
       -- If any flags were passed in we want to build a Top, otherwise a Tgt

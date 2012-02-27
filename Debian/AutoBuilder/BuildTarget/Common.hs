@@ -73,6 +73,7 @@ import Data.Time (NominalDiffTime)
 import Debian.Repo
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Debian.Version (DebianVersion)
 import Happstack.Crypto.MD5 (md5)
 import Network.URI (URI, parseURI)
@@ -82,6 +83,8 @@ import Text.Printf (printf)
 -- | BuildTarget represents the type class of methods for obtaining a
 -- SourceTree: tla, apt, darcs, etc.
 class Show t => BuildTarget t where
+    -- | The method used to retrieve this target.
+    method :: t -> RetrieveMethod
     -- | The directory containing the target's files.  For most target types, these
     --  files could be anything, not necessarily a Debian source directory.
     getTop :: P.ParamRec -> t -> FilePath

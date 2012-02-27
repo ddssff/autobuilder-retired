@@ -10,6 +10,7 @@ import Data.Maybe
 import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), md5sum)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 import Debian.URI
 import System.Exit (ExitCode(..))
@@ -32,6 +33,7 @@ documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar
                 , "given revision name." ]
 
 instance BuildTarget Bzr where
+    method (Bzr s _) = R.Bzr s
     getTop _ (Bzr _ tree) = topdir tree
     cleanTarget _ (Bzr _ _) path =
         qPutStrLn ("Clean Bazzar target in " ++ path) >> 

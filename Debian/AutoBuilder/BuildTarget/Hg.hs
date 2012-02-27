@@ -19,22 +19,24 @@ import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import System.Unix.Progress (lazyCommandF, timeTask)
 
-data Hg = Hg String SourceTree
+data Hg = Hg String SourceTree R.RetrieveMethod
 
 instance Show Hg where
-    show (Hg s _) = "hg:" ++ s
+    show (Hg s _ _) = "hg:" ++ s
 
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
 instance BuildTarget Hg where
-    getTop _ (Hg _ tree) = topdir tree
+    method (Hg _ _ m) = m
+    getTop _ (Hg _ tree _) = topdir tree
     --getSourceTree (Hg _ tree) = tree
     --setSpecTree (Hg s _) tree = Hg s tree
 
-    revision _ (Hg _ tree) =
+    revision _ (Hg _ tree _) =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
                   return . maybe (fail $ "no revision info printed by '" ++ cmd ++ "'") id
@@ -45,22 +47,22 @@ instance BuildTarget Hg where
         where
           path = topdir tree
           cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
-    cleanTarget _ (Hg _ _) path =
+    cleanTarget _ (Hg _ _ _) path =
         -- timeTaskAndTest (cleanStyle path (commandTask cmd))
         timeTask (lazyCommandF cmd empty)
         where
           cmd = "rm -rf " ++ path ++ "/.hg"
           -- cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
 
-    logText (Hg _ _) revision = "Hg revision: " ++ either show id revision
+    logText (Hg _ _ _) revision = "Hg revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> AptIOT IO Hg
-prepare cache archive = liftIO $
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Hg
+prepare cache archive m = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      return $ Hg archive tree
+      return $ Hg archive tree m
     where
       verifySource dir =
           -- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q .")))) >>=

@@ -9,6 +9,7 @@ import Data.Maybe
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 import System.FilePath (splitFileName)
 import System.IO
@@ -19,24 +20,25 @@ import System.Unix.QIO (qPutStrLn)
 import System.Directory
 
 -- | A TLA archive
-data Tla = Tla String SourceTree
+data Tla = Tla String SourceTree R.RetrieveMethod
 
 instance Show Tla where
-    show (Tla s _) = "tla:" ++ s
+    show (Tla s _ _) = "tla:" ++ s
 
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
                 , "given revision name." ]
 
 instance BuildTarget Tla where
-    getTop _ (Tla _ tree) = topdir tree
-    cleanTarget _ (Tla _ _) path =
+    method (Tla _ _ m) = m
+    getTop _ (Tla _ tree _) = topdir tree
+    cleanTarget _ (Tla _ _ _) path =
         -- timeTaskAndTest (cleanStyle path (commandTask cmd))
         timeTask (lazyCommandF cmd L.empty)
         where
           cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
           -- cleanStyle path = setStart (Just ("Clean TLA target in " ++ path))
 
-    revision _ (Tla _ tree) =
+    revision _ (Tla _ tree _) =
         do let path = topdir tree
                cmd = "cd " ++ path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
@@ -46,15 +48,15 @@ instance BuildTarget Tla where
            _output <- waitForProcess handle
            return $ "tla:" ++ revision
 
-    logText (Tla _ _) revision = "TLA revision: " ++ either show id revision
+    logText (Tla _ _ _) revision = "TLA revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> AptIOT IO Tla
-prepare cache version = liftIO $
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Tla
+prepare cache version m = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      return $ Tla version tree
+      return $ Tla version tree m
     where
       verifySource dir =
           do -- result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))

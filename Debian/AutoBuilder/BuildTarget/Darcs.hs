@@ -10,6 +10,7 @@ import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 --import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
 import Network.URI (URI(..), URIAuth(..), uriToString)
@@ -23,7 +24,8 @@ import Text.Regex
 -- | A Darcs archive
 data Darcs = Darcs { uri :: String
                    , tag :: Maybe String
-                   , sourceTree :: SourceTree }
+                   , sourceTree :: SourceTree
+                   , method :: R.RetrieveMethod }
 
 documentation = [ "darcs:<string> - a target of this form obtains the source code by running"
                 , "darcs get <string>.  If the argument needs to use ssh to reach the darcs"
@@ -34,6 +36,7 @@ instance Show Darcs where
     show t = "darcs:" ++ uri t
 
 instance BuildTarget Darcs where
+    method = Debian.AutoBuilder.BuildTarget.Darcs.method
     getTop _ t = topdir (sourceTree t)
     cleanTarget _ _ path =
         timeTask (lazyCommandF cmd B.empty)
@@ -56,14 +59,14 @@ instance BuildTarget Darcs where
           cmd = "cd " ++ path ++ " && darcs changes --xml-output"
     logText _ revision = "Darcs revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> [P.DarcsFlag] -> IO Darcs
-prepare cache theUri flags =
+prepare :: P.CacheRec -> String -> [P.DarcsFlag] -> R.RetrieveMethod -> IO Darcs
+prepare cache theUri flags m =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       _output <- liftIO fixLink
-      return $ Darcs { uri = theUri, tag = theTag, sourceTree = tree }
+      return $ Darcs { uri = theUri, tag = theTag, sourceTree = tree, Debian.AutoBuilder.BuildTarget.Darcs.method = m }
     where
       theUri' = mustParseURI theUri
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of

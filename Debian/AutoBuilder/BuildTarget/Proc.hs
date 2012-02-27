@@ -4,6 +4,7 @@ module Debian.AutoBuilder.BuildTarget.Proc where
 import qualified Data.ByteString.Lazy.Char8 as L
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
@@ -11,10 +12,10 @@ import System.Unix.Progress (lazyProcessEF)
 import System.Unix.QIO (quieter)
 --import System.Unix.Progress (qPutStrLn)
 
-data Proc = Proc Tgt
+data Proc = Proc Tgt R.RetrieveMethod
 
 instance Show Proc where
-    show (Proc t) = "proc:" ++ show t
+    show (Proc t _) = "proc:" ++ show t
 
 documentation = [ "proc:<target> - A target of this form modifies another target by ensuring"
                 , "that /proc is mounted during the build.  This target should only be"
@@ -23,16 +24,17 @@ documentation = [ "proc:<target> - A target of this form modifies another target
                 , "is ultimately installed." ]
 
 instance BuildTarget Proc where
-    getTop params (Proc s) = getTop params s
-    cleanTarget params (Proc s) source = cleanTarget params s source
-    revision params (Proc s) =  
+    method (Proc _ m) = m
+    getTop params (Proc s _) = getTop params s
+    cleanTarget params (Proc s _) source = cleanTarget params s source
+    revision params (Proc s _) =  
         Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . ("proc:" ++)
     buildWrapper _params buildOS _buildTree _status _target action = withProc buildOS action
-    logText (Proc s) revision = logText s revision ++ " (with /proc mounted)"
-    debianSourceTree (Proc s) = debianSourceTree s
+    logText (Proc s _) revision = logText s revision ++ " (with /proc mounted)"
+    debianSourceTree (Proc s _) = debianSourceTree s
 
-prepare :: P.CacheRec -> Tgt -> AptIOT IO Proc
-prepare _cache base = return $ Proc base
+prepare :: P.CacheRec -> Tgt -> R.RetrieveMethod -> AptIOT IO Proc
+prepare _cache base m = return $ Proc base m
 
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =

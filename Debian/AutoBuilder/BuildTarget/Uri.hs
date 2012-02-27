@@ -17,6 +17,7 @@ import Data.List (isPrefixOf)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import qualified Debian.Repo as R
 --import Debian.OldShell (runCommand, runCommandTimed)
 import Debian.URI
@@ -29,10 +30,10 @@ import System.Unix.Progress (lazyCommandF, timeTask)
 -- | A URI that returns a tarball, with an optional md5sum which must
 -- match if given.  The purpose of the md5sum is to be able to block
 -- changes to the tarball on the remote host.
-data Uri = Uri URI (Maybe String) R.SourceTree
+data Uri = Uri URI (Maybe String) R.SourceTree R.RetrieveMethod
 
 instance Show Uri where
-    show (Uri s c _) = "uri:" ++ uriToString' s ++ (maybe "" (":" ++) c)
+    show (Uri s c _ _) = "uri:" ++ uriToString' s ++ (maybe "" (":" ++) c)
 
 documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the file at the"
                 , "given URI, which is assumed to be a gzipped tarball.  The optional md5sum"
@@ -40,21 +41,22 @@ documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the f
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
 instance BuildTarget Uri where
-    getTop _ (Uri _ _ tree) = R.topdir tree
+    method (Uri _ _ _ m) = m
+    getTop _ (Uri _ _ tree _) = R.topdir tree
     -- The revision string for a URI target is the md5sum if it is known.
     -- If it isn't known, we raise an error to avoid mysterious things
     -- happening with URI's that, for example, always point to the latest
     -- version of a package.
-    revision _ (Uri _ (Just c) _) = return c
-    revision _ (Uri _ Nothing _) = fail "Uri targets with no checksum do not have revision strings"
+    revision _ (Uri _ (Just c) _ _) = return c
+    revision _ (Uri _ Nothing _ _) = fail "Uri targets with no checksum do not have revision strings"
 
-    logText (Uri s _ _) _ = "Built from URI download " ++ uriToString' s
-    origTarball c (Uri u (Just s) _) = Just (tarball c (uriToString' u) s)
+    logText (Uri s _ _ _) _ = "Built from URI download " ++ uriToString' s
+    origTarball c (Uri u (Just s) _ _) = Just (tarball c (uriToString' u) s)
     origTarball _ _ = Nothing
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepare :: P.CacheRec -> String -> String -> R.AptIOT IO Uri
-prepare c u s = liftIO $
+prepare :: P.CacheRec -> String -> String -> R.RetrieveMethod -> R.AptIOT IO Uri
+prepare c u s m = liftIO $
     checkTarget >>=
     downloadTarget >>
     validateTarget >>=
@@ -124,7 +126,7 @@ prepare c u s = liftIO $
                                  else ""
             read (_output, _elapsed) = liftIO (getDir (sourceDir c s))
             search files = checkContents (filter (not . flip elem [".", ".."]) files)
-            verify tree = return $ Uri (uri u) (Just realSum) tree
+            verify tree = return $ Uri (uri u) (Just realSum) tree m
             getDir dir = getDirectoryContents dir >>= return . filter (not . flip elem [".", ".."])
             checkContents :: [FilePath] -> IO R.SourceTree
             checkContents [] = error ("Empty tarball? " ++ show (uri u))

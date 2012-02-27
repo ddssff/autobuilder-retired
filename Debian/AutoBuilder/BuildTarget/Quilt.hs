@@ -15,8 +15,9 @@ import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(cleanTarget, logText), getTop, md5sum)
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(cleanTarget, logText, method), getTop, md5sum)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
 import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findDebianSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
@@ -32,10 +33,10 @@ import System.Unix.QIO (qPutStrLn, qMessage, q12)
 import Text.Regex
 
 
-data Quilt = Quilt Tgt Tgt SourceTree
+data Quilt = Quilt Tgt Tgt SourceTree R.RetrieveMethod
 
 instance Show Quilt where
-    show (Quilt t q _) = "quilt:(" ++ show t ++ "):(" ++ show q ++ ")"
+    show (Quilt t q _ _) = "quilt:(" ++ show t ++ "):(" ++ show q ++ ")"
 
 documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, target1 is"
                 , "any source tree, and target2 is a quilt directory which contains"
@@ -55,12 +56,13 @@ getEntry (Base x) = x
 getEntry (Patch x) = x
 
 instance BuildTarget Quilt where
-    getTop _ (Quilt _ _ tree) = topdir tree
-    cleanTarget params (Quilt base _ _) source = cleanTarget params base source
+    method (Quilt _ _ _ m) = m
+    getTop _ (Quilt _ _ tree _) = topdir tree
+    cleanTarget params (Quilt base _ _ _) source = cleanTarget params base source
     -- A quilt revision string is the base target revision string and the
     -- patch target revision string connected with a '+'.  If the base
     -- target has no revision string the patch revision string is used.
-    revision params (Quilt base patch _) =
+    revision params (Quilt base patch _ _) =
         do baseRev <- try (BuildTarget.revision params base)
            case baseRev of
              Right (rev :: String) ->
@@ -70,7 +72,7 @@ instance BuildTarget Quilt where
                     let rev = logVersion . entry $ tree
                     BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ show (prettyDebianVersion rev) ++ "):(" ++ patchRev ++ ")")
 
-    logText (Quilt _ _ _) rev = "Quilt revision " ++ either show id rev
+    logText (Quilt _ _ _ _) rev = "Quilt revision " ++ either show id rev
 
 quiltPatchesDir = "quilt-patches"
 
@@ -120,8 +122,8 @@ debug e =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: P.CacheRec -> Tgt -> Tgt -> AptIOT IO Quilt
-prepare cache base patch = liftIO $
+prepare :: P.CacheRec -> Tgt -> Tgt -> R.RetrieveMethod -> AptIOT IO Quilt
+prepare cache base patch m = liftIO $
     q12 "Preparing quilt target" $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make
     where
@@ -163,7 +165,8 @@ prepare cache base patch = liftIO $
                                 do result3 <- liftIO (lazyCommandV cmd3 L.empty) >>= qMessage "Cleaning Quilt target" . collectOutput
                                    case result3 of
                                      (_, _, ExitSuccess) ->
-                                         findSourceTree (topdir quiltTree) >>= return . Quilt (Tgt base) (Tgt patch)
+                                         do tree <- findSourceTree (topdir quiltTree)
+                                            return $ Quilt (Tgt base) (Tgt patch) tree m
                                      _ -> fail $ target ++ " - Failure removing quilt directory: " ++ cmd3
                (_, err, ExitFailure _) -> fail $ target ++ " - Unexpected output from quilt applied: " ++ err
                (_, _, ExitSuccess) -> fail $ target ++ " - Unexpected result code (ExitSuccess) from " ++ show cmd1a

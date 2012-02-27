@@ -8,6 +8,7 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import qualified Debian.Control.String as S
 import qualified Debian.Version as V
@@ -17,10 +18,10 @@ import System.Directory
 import System.Unix.Process
 
 -- | Treat the data returned by a target as a source deb.
-data SourceDeb = SourceDeb Tgt FilePath String
+data SourceDeb = SourceDeb Tgt FilePath String R.RetrieveMethod
 
 instance Show SourceDeb where
-    show (SourceDeb t _ _) = "sourcedeb:" ++ show t
+    show (SourceDeb t _ _ _) = "sourcedeb:" ++ show t
 
 documentation = [ "sourcedeb:<target> - A target of this form unpacks the source deb"
                 , "retrieved by the original target and presents an unpacked source"
@@ -30,15 +31,16 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 
 -- |SourceDeb targets inherit the revision string of the target they modify.
 instance BuildTarget SourceDeb where
-    getTop _ (SourceDeb _ dir _) = dir
-    revision params (SourceDeb t _ _) =
+    method (SourceDeb _ _ _ m) = m
+    getTop _ (SourceDeb _ dir _ _) = dir
+    revision params (SourceDeb t _ _ _) =
         BuildTarget.revision params t >>= return . ("sourcedeb:" ++)
-    logText (SourceDeb t _ _) revision = logText t revision ++ " (source deb)"
+    logText (SourceDeb t _ _ _) revision = logText t revision ++ " (source deb)"
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepare :: P.CacheRec -> Tgt -> AptIOT IO SourceDeb
-prepare cache base =
+prepare :: P.CacheRec -> Tgt -> R.RetrieveMethod -> AptIOT IO SourceDeb
+prepare cache base m =
     do let top = getTop (P.params cache) base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")
@@ -56,7 +58,7 @@ prepare cache base =
           case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
                      (S.fieldValue "Version" dscInfo)) of
             (Just package, Just version) ->
-                (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version))
+                (SourceDeb (Tgt base) top (package ++ "-" ++ V.version version) m)
             _ -> error $ "Invalid .dsc file: " ++ dscName
       unpack top dscName = "cd " ++ top ++ " && dpkg-source -x " ++ dscName
       compareVersions (name2, info2) (name1, info1) =
