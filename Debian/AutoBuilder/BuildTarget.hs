@@ -25,7 +25,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt(Tgt, Top))
+import Debian.AutoBuilder.Tgt (Tgt(Tgt))
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
@@ -65,9 +65,7 @@ retrieve cache flags spec =
     where
       -- If any flags were passed in we want to build a Top, otherwise a Tgt
       tgt :: forall a. BuildTarget a => a -> Tgt
-      tgt x = case flags of
-                [] -> Tgt x
-                _ -> Top flags x
+      tgt x = Tgt x
 
 targetDocumentation :: String
 targetDocumentation =
