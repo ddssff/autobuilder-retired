@@ -6,6 +6,7 @@ import Control.Monad.Trans
 import Data.List (sort, nub)
 import Data.Maybe (catMaybes)
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -33,7 +34,7 @@ instance BuildTarget Apt where
     logText (Apt name _ _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
     method (Apt _ _ _ _ m) = m
 
-prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO Apt
+prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO T.Target
 prepare cache dist package flags method =
     do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
        os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
@@ -41,7 +42,16 @@ prepare cache dist package flags method =
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
        let version'' = logVersion . entry $ tree
-       return $ Apt distro package (Just version'') tree method
+           rev = "apt:" ++ (sliceName . sliceListName $ distro) ++ ":" ++ package ++ "=" ++ show (prettyDebianVersion version'')
+       return $ T.Target { T.method' = method
+                         , T.getTop = topdir tree
+                         , T.revision = rev
+                         , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
+                         , T.mVersion = Nothing
+                         , T.origTarball = Nothing
+                         , T.debianSourceTree = debTree' tree
+                         }
+       -- return $ Apt distro package (Just version'') tree method
     where
       dist' = SliceName dist
       version' = case (nub (sort (catMaybes (map (\ flag -> case flag of
