@@ -6,10 +6,11 @@ module Debian.AutoBuilder.BuildTarget.DebDir
 
 import Control.Monad.Trans (lift)
 import Data.ByteString.Lazy.Char8 (empty)
+import Data.Version (showVersion)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt(DL))
 import Debian.Changes (logVersion)
 import Debian.Version (version)
 import Prelude hiding (catch)
@@ -26,16 +27,16 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
-instance BuildTarget DebDir where
+instance Download DebDir where
     method (DebDir _ _ _ m) = m
     getTop _ (DebDir _ _ tree _) = topdir tree
-    cleanTarget params (DebDir upstream debian _ _) path =
-        cleanTarget params upstream path >>
-        cleanTarget params debian (path ++ "/debian")
     revision params (DebDir upstream debian _ _) =
         revision params upstream >>= \ rev ->
         revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
     logText (DebDir _ _ _ _) revision = "deb-dir revision: " ++ either show id revision
+    cleanTarget params (DebDir upstream debian _ _) path =
+        cleanTarget params upstream path >>
+        cleanTarget params debian (path ++ "/debian")
     origTarball c (DebDir u _ _ _) = origTarball c u
 
 prepare :: P.CacheRec -> Tgt -> Tgt -> R.RetrieveMethod -> AptIOT IO DebDir
@@ -44,16 +45,16 @@ prepare cache upstream debian m = lift $
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
-    let tgt = DebDir (Tgt upstream) (Tgt debian) tree m in
+    let tgt = BT (DebDir (DL upstream) (DL debian) tree m) in
     -- The upstream and downstream versions must match after the epoch and revision is stripped.
     case mVersion upstream of
       Nothing -> return tgt
       Just upstreamV ->
           let debianV = logVersion (entry tree) in
-          case compare (version debianV) (version upstreamV) of
+          case compare (version debianV) (showVersion upstreamV) of
             -- If the debian version is too old it needs to be bumped, this ensures we notice
             -- when a new upstream appears.  We should just modify the changelog directly.
-            LT -> error $ show (method tgt) ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ version upstreamV ++ ")"
+            LT -> error $ show (method tgt) ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ showVersion upstreamV ++ ")"
             _ -> return tgt
 {-
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=

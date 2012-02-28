@@ -54,17 +54,9 @@ password userInfo =
     then []
     else ["--password",unEscapeString pw]
 
-instance BuildTarget Svn where
+instance Download Svn where
     method (Svn _ _ m) = m
     getTop _ (Svn _ tree _) = topdir tree
-    -- We should recursively find and remove all the .svn directories in |dir source|
-    cleanTarget _ (Svn _ _ _) path =
-        timeTask (lazyCommandF cmd L.empty)
-        -- timeTaskAndTest (cleanStyle path (commandTask cmd))
-        where
-          cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
-          -- cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ path))
-
     revision _ (Svn uri _ _) =
         svn (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         -- svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
@@ -82,22 +74,14 @@ instance BuildTarget Svn where
                 (Right (Control [])) -> fail $ "svn info did not appear to produce any output"
                 Left e -> fail $ "Failed to parse svn info\n" ++ show e
           userInfo = maybe "" uriUserInfo (uriAuthority uri)
-{-        
-        do
-          -- FIXME: this command can take a lot of time, message it
-          (out, _) <- svn (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo))
-          case parseControl "svn info" (B.concat (stdoutOnly out)) of
-            (Right (Control (c:_))) ->
-                case (lookupP "URL" c, lookupP "Revision" c) of -- JAS, I don't know why I did not just use the uri that was passed in
-                  (Just (Field (_, url)), Just (Field (_, revision))) ->
-                      return $ Just $ "svn:" ++ (B.unpack (stripWS url)) ++"@" ++ (B.unpack (stripWS revision))
-                  _ -> error $ "Failed to find URL and/or Revision fields in svn info"
-            (Right (Control [])) -> error $ "svn info did not appear to produce any output"
-            Left e -> error $ "Failed to parse svn info\n" ++ show e
-        where
-          userInfo = maybe "" uriUserInfo (uriAuthority uri)
--}
     logText (Svn _ _ _) revision = "SVN revision: " ++ either show id revision
+    -- We should recursively find and remove all the .svn directories in |dir source|
+    cleanTarget _ (Svn _ _ _) path =
+        timeTask (lazyCommandF cmd L.empty)
+        -- timeTaskAndTest (cleanStyle path (commandTask cmd))
+        where
+          cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
+          -- cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ path))
 
 prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Svn
 prepare cache uri m = liftIO $

@@ -14,11 +14,13 @@ import System.IO.Unsafe (unsafePerformIO)
 -- of BuildTarget.
 data Dir = Dir SourceTree R.RetrieveMethod
 
-instance BuildTarget Dir where
+instance Download Dir where
     method (Dir _ m) = m
     getTop _ (Dir tree _) = topdir tree
     revision _ (Dir _ _) = fail "Dir targets do not have revision strings"
     logText (Dir tree _) _ = "Built from local directory " ++ topdir tree
+
+instance BuildTarget Dir where
     debianSourceTree (Dir tree _) = unsafePerformIO (findDebianSourceTree (topdir tree))
 
 -- |Build is similar to Dir, except that it owns the parent directory
@@ -26,11 +28,13 @@ instance BuildTarget Dir where
 -- because all of the debs, tarballs etc appear in the parent directory.
 data Build = Build DebianBuildTree R.RetrieveMethod
 
-instance BuildTarget Build where
+instance Download Build where
     method (Build _ m) = m
     getTop _ (Build tree _) = topdir tree
     revision _ (Build _ _) = fail "Build targets do not have revision strings"
     logText (Build tree _) _ = "Built from local directory " ++ topdir tree
+
+instance BuildTarget Build where
     debianSourceTree (Build tree _) = debTree' tree
 
 -- |Prepare a Dir target

@@ -20,7 +20,6 @@ import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.Version (parseDebianVersion)
 import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.Exit
@@ -41,7 +40,7 @@ documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of 
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
 
-instance BuildTarget Debianize where
+instance Download Debianize where
     method (Debianize _ _ _ m) = m
     getTop _ (Debianize _ _ tree _) = topdir tree
     revision _ (Debianize name (Just version) _ _) =
@@ -50,7 +49,7 @@ instance BuildTarget Debianize where
         fail "Attempt to generate revision string for unversioned hackage target"
     logText (Debianize _ _ _ _) revision =
         "Built from hackage, revision: " ++ either show id revision
-    mVersion (Debianize _ v _ _) = fmap (parseDebianVersion . showVersion) v
+    mVersion (Debianize _ v _ _) = {- fmap (parseDebianVersion . showVersion) -} v
 
 prepare :: P.CacheRec -> [P.PackageFlag] -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO Debianize
 prepare cache flags name cabalFlags m = liftIO $
@@ -222,7 +221,7 @@ data Hackage = Hackage String (Maybe Version) SourceTree R.RetrieveMethod
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
 
-instance BuildTarget Hackage where
+instance Download Hackage where
     method (Hackage _ _ _ m) = m
     getTop _ (Hackage _ _ tree _) = topdir tree
     revision _ (Hackage name (Just version) _ _) =
@@ -231,7 +230,7 @@ instance BuildTarget Hackage where
         fail "Attempt to generate revision string for unversioned hackage target"
     logText (Hackage _ _ _ _) revision =
         "Built from hackage, revision: " ++ either show id revision
-    mVersion (Hackage _ v _ _) = fmap (parseDebianVersion . showVersion) v
+    mVersion (Hackage _ v _ _) = {- fmap (parseDebianVersion . showVersion) -} v
 
 prepareHackage :: P.CacheRec -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO Hackage
 prepareHackage cache name cabalFlags m = liftIO $

@@ -23,7 +23,7 @@ import qualified Data.Map as Map
 import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(logText, buildWrapper, method))
+import Debian.AutoBuilder.BuildTarget.Common (Download (method, buildWrapper, logText))
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P

@@ -15,16 +15,16 @@ documentation = [ "twice:<target> - A target of this form modifies another targe
                 , "the first time.  For some reason, certain packages are designed"
                 , "to fail the first time to prevent fully automated builds."]
 
-instance BuildTarget Twice where
+-- This is a quick and dirty implementation, if you nest this inside another
+-- target type it will have no effect.
+instance Download Twice where
     method (Twice _ m) = m
     getTop params (Twice s _) = getTop params s
-    cleanTarget params (Twice s _) source = cleanTarget params s source
     revision params (Twice s _) =  
         Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . ("twice:" ++)
-    -- This is a quick and dirty implementation, if you nest this inside another
-    -- target type it will have no effect.
     buildWrapper _ _ _ _ _ action = action >> action
     logText (Twice s _) revision = logText s revision ++ " (twice if necessary)"
+    cleanTarget params (Twice s _) source = cleanTarget params s source
 
 prepare :: P.CacheRec -> Tgt -> R.RetrieveMethod -> AptIOT IO (Either String Twice)
 prepare _cache base m = liftIO $ return . Right $ Twice base m

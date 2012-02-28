@@ -27,7 +27,7 @@ Library
   if flag(monolithic)
     Hs-Source-Dirs: ../haskell-debian-repo, .
   else
-    Build-Depends: debian-repo >= 5.20.1
+    Build-Depends: debian-repo >= 5.23
 
   Build-Depends:
         applicative-extras >= 0.1.8

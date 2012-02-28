@@ -20,15 +20,18 @@ documentation = [ "proc:<target> - A target of this form modifies another target
                 , "machine which might be different from the machine on which the package"
                 , "is ultimately installed." ]
 
-instance BuildTarget Proc where
+instance Download Proc where
     method (Proc _ m) = m
     getTop params (Proc s _) = getTop params s
-    cleanTarget params (Proc s _) source = cleanTarget params s source
     revision params (Proc s _) =  
         Debian.AutoBuilder.BuildTarget.Common.revision params s >>= return . ("proc:" ++)
     buildWrapper _params buildOS _buildTree _status _target action = withProc buildOS action
     logText (Proc s _) revision = logText s revision ++ " (with /proc mounted)"
+    cleanTarget params (Proc s _) source = cleanTarget params s source
+{-
+instance BuildTarget Proc where
     debianSourceTree (Proc s _) = debianSourceTree s
+-}
 
 prepare :: P.CacheRec -> Tgt -> R.RetrieveMethod -> AptIOT IO Proc
 prepare _cache base m = return $ Proc base m

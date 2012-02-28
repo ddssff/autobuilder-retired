@@ -1,12 +1,14 @@
 {-# LANGUAGE Rank2Types, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Darcs where
 
+import Control.Exception (try, SomeException)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List (nub, sort)
 import Data.Maybe (catMaybes)
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -25,45 +27,56 @@ import Text.Regex
 data Darcs = Darcs { uri :: String
                    , tag :: Maybe String
                    , sourceTree :: SourceTree
-                   , method :: R.RetrieveMethod }
+                   , method :: R.RetrieveMethod
+                   , rev :: String }
 
 documentation = [ "darcs:<string> - a target of this form obtains the source code by running"
                 , "darcs get <string>.  If the argument needs to use ssh to reach the darcs"
                 , "repository, it is necessary to set up ssh keys to allow access without"
                 , "typing a password.  See the --ssh-export option for help doing this." ]
 
-instance BuildTarget Darcs where
+instance Download Darcs where
     method = Debian.AutoBuilder.BuildTarget.Darcs.method
     getTop _ t = topdir (sourceTree t)
+    revision _ (Darcs _ _ _ _ x) = return x
+    logText _ revision = "Darcs revision: " ++ either show id revision
     cleanTarget _ _ path =
         timeTask (lazyCommandF cmd B.empty)
         -- timeTaskAndTest (cleanStyle path (commandTask cmd))
         where 
           cmd = "find " ++ path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
           -- cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
-    revision _ tgt =
-        do rev <- liftIO (lazyCommand cmd B.empty >>=
-                          return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout >>= 
-                          return . maybe (Left $ "could not find hash field in output of '" ++ cmd ++ "'") (Right . head))
-           case rev of
-             Left message -> fail message
-             Right rev' ->
-                 do -- Nastygram to self: thanks for not documenting this
-                    -- liftIO $ evaluate (length rev')
-                    return $ show (Debian.AutoBuilder.BuildTarget.Common.method tgt) ++ "=" ++ rev'
-        where
-          path = topdir (sourceTree tgt)
-          cmd = "cd " ++ path ++ " && darcs changes --xml-output"
-    logText _ revision = "Darcs revision: " ++ either show id revision
 
-prepare :: P.CacheRec -> String -> [P.DarcsFlag] -> R.RetrieveMethod -> IO Darcs
+darcsRev :: SourceTree -> R.RetrieveMethod -> IO (Either SomeException String)
+darcsRev tree m =
+    try (liftIO (lazyCommand cmd B.empty >>=
+                 return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout >>= 
+                 return . maybe (fail $ "could not find hash field in output of '" ++ cmd ++ "'") head) >>= \ rev' ->
+         return (show m ++ "=" ++ rev'))
+    where
+      cmd = "cd " ++ path ++ " && darcs changes --xml-output"
+      path = topdir tree
+
+prepare :: P.CacheRec -> String -> [P.DarcsFlag] -> R.RetrieveMethod -> IO T.Download
 prepare cache theUri flags m =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       _output <- liftIO fixLink
-      return $ Darcs { uri = theUri, tag = theTag, sourceTree = tree, Debian.AutoBuilder.BuildTarget.Darcs.method = m }
+      -- let darcs = Darcs { uri = theUri, tag = theTag, sourceTree = tree, Debian.AutoBuilder.BuildTarget.Darcs.method = m }
+      rev <- darcsRev tree m >>= either (fail . show) return
+      return $ T.Download { T.method' = m
+                          , T.getTop = topdir tree
+                          , T.revision = rev
+                          , T.logText =  "Darcs revision: " ++ rev }
+{-
+      return $ T.Target { T.download = download
+                        , T.mVersion = Nothing
+                        , T.origTarball = Nothing
+                        , T.debianSourceTree = debTree' tree
+                        }
+-}
     where
       theUri' = mustParseURI theUri
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of

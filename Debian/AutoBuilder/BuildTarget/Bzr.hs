@@ -7,7 +7,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), md5sum)
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), Download(..), md5sum)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -29,15 +29,9 @@ data Bzr = Bzr String SourceTree
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
 
-instance BuildTarget Bzr where
+instance Download Bzr where
     method (Bzr s _) = R.Bzr s
     getTop _ (Bzr _ tree) = topdir tree
-    cleanTarget _ (Bzr _ _) path =
-        qPutStrLn ("Clean Bazzar target in " ++ path) >> 
-        timeTask (lazyCommandF cmd L.empty)
-        where
-          cmd = "find '" ++ path ++ "' -name '.bzr' -prune | xargs rm -rf"
-
     revision _ (Bzr _ tree) =
         do let path = topdir tree
                cmd = "cd " ++ path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
@@ -49,8 +43,12 @@ instance BuildTarget Bzr where
            case code of
              ExitSuccess -> return $ "bzr:" ++ rev
              code -> fail (cmd ++ " -> " ++ show code)
-
     logText (Bzr _ _) revision = "Bazaar revision: " ++ either show id revision
+    cleanTarget _ (Bzr _ _) path =
+        qPutStrLn ("Clean Bazzar target in " ++ path) >> 
+        timeTask (lazyCommandF cmd L.empty)
+        where
+          cmd = "find '" ++ path ++ "' -name '.bzr' -prune | xargs rm -rf"
 
 prepare :: P.CacheRec -> String -> AptIOT IO Bzr
 prepare cache version = liftIO $

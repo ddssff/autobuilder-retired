@@ -24,15 +24,17 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
--- | Apt targets have no revision string, they just have a version
--- number.  This means that we don't have to build version 0.5.12
--- of a package if it is already in the apt repository.
-instance BuildTarget Apt where
+instance Download Apt where
+    method (Apt _ _ _ _ m) = m
     getTop _ (Apt _ _ _ t _) = topdir t
     revision _ (Apt d p (Just v) _ _) = return $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show (prettyDebianVersion v)
     revision _ (Apt _ _ Nothing _ _) = fail "Attempt to generate revision string for unversioned apt package"
     logText (Apt name _ _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
-    method (Apt _ _ _ _ m) = m
+
+-- | Apt targets have no revision string, they just have a version
+-- number.  This means that we don't have to build version 0.5.12
+-- of a package if it is already in the apt repository.
+instance BuildTarget Apt
 
 prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO T.Target
 prepare cache dist package flags method =
@@ -43,14 +45,16 @@ prepare cache dist package flags method =
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
        let version'' = logVersion . entry $ tree
            rev = "apt:" ++ (sliceName . sliceListName $ distro) ++ ":" ++ package ++ "=" ++ show (prettyDebianVersion version'')
-       return $ T.Target { T.method' = method
-                         , T.getTop = topdir tree
-                         , T.revision = rev
-                         , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
-                         , T.mVersion = Nothing
-                         , T.origTarball = Nothing
-                         , T.debianSourceTree = debTree' tree
-                         }
+       return $ T.Target
+                  { T.download = T.Download 
+                                 { T.method' = method
+                                 , T.getTop = topdir tree
+                                 , T.revision = rev
+                                 , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev }
+                  , T.mVersion = Nothing
+                  , T.origTarball = Nothing
+                  , T.debianSourceTree = debTree' tree
+                  }
        -- return $ Apt distro package (Just version'') tree method
     where
       dist' = SliceName dist

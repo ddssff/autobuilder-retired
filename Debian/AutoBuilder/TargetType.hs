@@ -13,11 +13,11 @@ import Control.Applicative.Error (Failing(Success, Failure), failing)
 import Control.Exception (catch, throw)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(getTop, cleanTarget, origTarball))
+import Debian.AutoBuilder.BuildTarget.Common (Download(getTop, cleanTarget, origTarball))
 import Debian.AutoBuilder.Tgt (Tgt)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.Changes (logVersion, ChangeLogEntry(..))
-import Debian.Control (Control, Control'(Control, unControl), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
+import Debian.Control (Control, Control'(Control), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G
 --import Debian.Relation (prettyRelation)
 import Debian.Relation.ByteString(Relations)
@@ -65,7 +65,7 @@ targetControl = control . cleanSource
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: BuildTarget t => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
+prepareBuild :: Download t => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
 prepareBuild cache os target =
     do (_, trees) <- findDebianBuildTrees top
        case filter checkName trees of

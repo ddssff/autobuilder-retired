@@ -27,12 +27,9 @@ data Hg = Hg String SourceTree R.RetrieveMethod
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
-instance BuildTarget Hg where
+instance Download Hg where
     method (Hg _ _ m) = m
     getTop _ (Hg _ tree _) = topdir tree
-    --getSourceTree (Hg _ tree) = tree
-    --setSpecTree (Hg s _) tree = Hg s tree
-
     revision _ (Hg _ tree _) =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
@@ -44,14 +41,13 @@ instance BuildTarget Hg where
         where
           path = topdir tree
           cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
+    logText (Hg _ _ _) revision = "Hg revision: " ++ either show id revision
     cleanTarget _ (Hg _ _ _) path =
         -- timeTaskAndTest (cleanStyle path (commandTask cmd))
         timeTask (lazyCommandF cmd empty)
         where
           cmd = "rm -rf " ++ path ++ "/.hg"
           -- cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
-
-    logText (Hg _ _ _) revision = "Hg revision: " ++ either show id revision
 
 prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Hg
 prepare cache archive m = liftIO $

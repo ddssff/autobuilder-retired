@@ -61,7 +61,8 @@
 --                suffix causes the build to fail if the downloaded file does not match
 --                this checksum.  This prevents builds when the remote tarball has changed.
 module Debian.AutoBuilder.BuildTarget.Common
-    ( BuildTarget(..)
+    ( Download(..)
+    , BuildTarget(..)
     , md5sum
     , mustParseURI
     ) where
@@ -70,28 +71,22 @@ import Control.Exception (Exception)
 import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.Char (ord)
 import Data.Time (NominalDiffTime)
+import Data.Version (Version)
 import Debian.Repo
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
-import Debian.Version (DebianVersion)
 import Happstack.Crypto.MD5 (md5)
 import Network.URI (URI, parseURI)
 import System.Unix.Process
 import Text.Printf (printf)
 
--- | BuildTarget represents the type class of methods for obtaining a
--- SourceTree: tla, apt, darcs, etc.
-class BuildTarget t where
+class Download t where
     -- | The method used to retrieve this target.
     method :: t -> RetrieveMethod
     -- | The directory containing the target's files.  For most target types, these
     --  files could be anything, not necessarily a Debian source directory.
     getTop :: P.ParamRec -> t -> FilePath
-    -- | Given a BuildTarget and a source tree, clean all the revision control
-    -- files out of that source tree.
-    cleanTarget :: P.ParamRec -> t -> FilePath -> IO ([Output], NominalDiffTime)
-    cleanTarget _ _ _ = return ([], fromInteger 0)
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
     -- is intended to characterize the build environment of the
@@ -107,12 +102,24 @@ class BuildTarget t where
     buildWrapper _ _ _ _ _ build = build
     -- | Text to include in changelog entry.
     logText :: Exception e => t -> Either e String -> String
-    -- |Some targets can return a debian version, use this to retrieve it.
-    mVersion :: t -> Maybe DebianVersion
+    -- | Given a BuildTarget and a source tree, clean all the revision control
+    -- files out of that source tree.
+    cleanTarget :: P.ParamRec -> t -> FilePath -> IO ([Output], NominalDiffTime)
+    cleanTarget _ _ _ = return ([], fromInteger 0)
+    -- |Some targets can return a hackage version, use this to retrieve it.
+    mVersion :: t -> Maybe Version
     mVersion _ = Nothing
-    -- | If we have access to an original tarball, this returns its path.
+    -- | If the download provides a tarball which we can use as the
+    -- original tarball during a run of dpkg-buildpackage, this
+    -- returns its path.  Note that this path may not be in the
+    -- correct position for the build to use it, it might still need
+    -- to be copied or linked.  See Debian.Repo.SourceTree.origTarballPath.
     origTarball :: P.CacheRec -> t -> Maybe FilePath
     origTarball _ _ = Nothing
+
+-- | BuildTarget represents the type class of methods for obtaining a
+-- SourceTree: tla, apt, darcs, etc.
+class Download t => BuildTarget t where
     -- | Return the debian source tree.  Every target must be able to return this,
     -- since this package only builds debian packages.
     debianSourceTree :: t -> DebianSourceTree

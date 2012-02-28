@@ -15,10 +15,10 @@ import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(cleanTarget, logText, method), getTop, md5sum)
+import Debian.AutoBuilder.BuildTarget.Common (Download(method, logText, cleanTarget), getTop, md5sum)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt)
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
 import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findDebianSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
 import Debian.Version
@@ -52,10 +52,9 @@ data EntryType = Base ChangeLogEntry | Patch ChangeLogEntry
 getEntry (Base x) = x
 getEntry (Patch x) = x
 
-instance BuildTarget Quilt where
+instance Download Quilt where
     method (Quilt _ _ _ m) = m
     getTop _ (Quilt _ _ tree _) = topdir tree
-    cleanTarget params (Quilt base _ _ _) source = cleanTarget params base source
     -- A quilt revision string is the base target revision string and the
     -- patch target revision string connected with a '+'.  If the base
     -- target has no revision string the patch revision string is used.
@@ -68,12 +67,12 @@ instance BuildTarget Quilt where
                  do tree <- findDebianSourceTree (getTop params base)
                     let rev = logVersion . entry $ tree
                     BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ show (prettyDebianVersion rev) ++ "):(" ++ patchRev ++ ")")
-
     logText (Quilt _ _ _ _) rev = "Quilt revision " ++ either show id rev
+    cleanTarget params (Quilt base _ _ _) source = cleanTarget params base source
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (BuildTarget a, BuildTarget b) => P.CacheRec -> a -> b -> IO (SourceTree, FilePath)
+makeQuiltTree :: (Download a, Download b) => P.CacheRec -> a -> b -> IO (SourceTree, FilePath)
 makeQuiltTree cache base patch =
     do qPutStrLn $ "Quilt base: " ++ getTop (P.params cache) base
        qPutStrLn $ "Quilt patch: " ++ getTop (P.params cache) patch
@@ -163,7 +162,7 @@ prepare cache base patch m = liftIO $
                                    case result3 of
                                      (_, _, ExitSuccess) ->
                                          do tree <- findSourceTree (topdir quiltTree)
-                                            return $ Quilt (Tgt base) (Tgt patch) tree m
+                                            return $ Quilt base patch tree m
                                      _ -> fail $ target ++ " - Failure removing quilt directory: " ++ cmd3
                (_, err, ExitFailure _) -> fail $ target ++ " - Unexpected output from quilt applied: " ++ err
                (_, _, ExitSuccess) -> fail $ target ++ " - Unexpected result code (ExitSuccess) from " ++ show cmd1a

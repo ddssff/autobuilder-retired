@@ -1,6 +1,6 @@
 {-# LANGUAGE ExistentialQuantification, ScopedTypeVariables #-}
 module Debian.AutoBuilder.Tgt
-    ( Tgt(Tgt)
+    ( Tgt(DL, BT)
     -- , flags
     , relaxDepends
     , srcPkgName
@@ -8,7 +8,7 @@ module Debian.AutoBuilder.Tgt
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..))
+import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), Download(..))
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))
@@ -18,25 +18,30 @@ import Debian.Repo.SourceTree (DebianSourceTree(control'))
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
-data Tgt = forall a. BuildTarget a => Tgt a
+data Tgt = forall a. (Download a) => DL a
+         | forall b. (BuildTarget b) => BT b
 
 --getSourceTree' :: Tgt -> SourceTree
 --getSourceTree' (Tgt a) = getSourceTree a
 
-instance BuildTarget Tgt where
-    method (Tgt x) = method x
-    getTop params (Tgt x) = getTop params x
-    cleanTarget params (Tgt x) path = cleanTarget params x path
-    revision params (Tgt x) = revision params x
-    buildWrapper params os tree status (Tgt x) action = buildWrapper params os tree status x action
-    logText (Tgt x) result = logText x result
-    mVersion (Tgt x) = mVersion x
-    origTarball cache (Tgt x) = origTarball cache x
-    debianSourceTree (Tgt x) = debianSourceTree x
+instance Download Tgt where
+    method (DL x) = method x
+    method (BT x) = method x
+    getTop params (DL x) = getTop params x
+    getTop params (BT x) = getTop params x
+    revision params (DL x) = revision params x
+    revision params (BT x) = revision params x
+    buildWrapper params os tree status (DL x) action = buildWrapper params os tree status x action
+    buildWrapper params os tree status (BT x) action = buildWrapper params os tree status x action
+    logText (DL x) result = logText x result
+    logText (BT x) result = logText x result
 
 {-
-flags :: Tgt -> [P.PackageFlag]
-flags (Tgt fs _) = fs
+instance BuildTarget Tgt where
+    cleanTarget params (BT x) path = cleanTarget params x path
+    mVersion (BT x) = mVersion x
+    origTarball cache (BT x) = origTarball cache x
+    debianSourceTree (BT x) = debianSourceTree x
 -}
 
 -- | Prevent the appearance of a new binary package from
@@ -52,8 +57,10 @@ relaxDepends params@(ParamRec {targets = TargetSet s}) tgt =
                     foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName tgt)))) (P.relaxInfo flags)) [] s
 relaxDepends _params _ = error "relaxDepends: invalid target set"
 
+-- | FIX debian-repo: this should already be stored in the DebianSourceTree
 srcPkgName :: Tgt -> String
-srcPkgName tgt =
+srcPkgName (DL tgt) = error $ "srcPkgName Not a source package: " ++ show (method tgt)
+srcPkgName (BT tgt) =
     maybe (error "No Source field in control file") id (fieldValue "Source" (head (unControl (control' (debianSourceTree tgt)))))
 
 makeRelaxInfo :: [(G.BinPkgName, Maybe G.SrcPkgName)] -> G.RelaxInfo

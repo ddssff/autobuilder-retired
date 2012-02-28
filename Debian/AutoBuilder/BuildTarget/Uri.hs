@@ -37,7 +37,7 @@ documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the f
                 , "suffix causes the build to fail if the downloaded file does not match"
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
-instance BuildTarget Uri where
+instance Download Uri where
     method (Uri _ _ _ m) = m
     getTop _ (Uri _ _ tree _) = R.topdir tree
     -- The revision string for a URI target is the md5sum if it is known.
@@ -46,7 +46,6 @@ instance BuildTarget Uri where
     -- version of a package.
     revision _ (Uri _ (Just c) _ _) = return c
     revision _ (Uri _ Nothing _ _) = fail "Uri targets with no checksum do not have revision strings"
-
     logText (Uri s _ _ _) _ = "Built from URI download " ++ uriToString' s
     origTarball c (Uri u (Just s) _ _) = Just (tarball c (uriToString' u) s)
     origTarball _ _ = Nothing

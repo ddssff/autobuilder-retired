@@ -7,7 +7,7 @@ module Debian.AutoBuilder.BuildTarget
 import Control.Applicative ((<$>))
 import Control.Monad.Trans (lift)
 import Data.List (intersperse)
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget)
+import Debian.AutoBuilder.BuildTarget.Common (Download)
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
 import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
 import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
@@ -25,7 +25,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt(Tgt))
+import Debian.AutoBuilder.Tgt (Tgt(DL))
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
@@ -63,9 +63,8 @@ retrieve cache flags spec =
       R.Uri uri sum -> tgt <$> Uri.prepare cache uri sum spec
       R.Twice {} -> error "Unimplemented: Twice")
     where
-      -- If any flags were passed in we want to build a Top, otherwise a Tgt
-      tgt :: forall a. BuildTarget a => a -> Tgt
-      tgt x = Tgt x
+      tgt :: forall a. Download a => a -> Tgt
+      tgt x = DL x
 
 targetDocumentation :: String
 targetDocumentation =
