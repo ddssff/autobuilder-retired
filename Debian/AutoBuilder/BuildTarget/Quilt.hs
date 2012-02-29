@@ -15,11 +15,10 @@ import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget.Common (Download(method, logText, cleanTarget), getTop, md5sum)
+import Debian.AutoBuilder.BuildTarget.Common (Download(method, cleanTarget), getTop, md5sum)
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (DL)
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
 import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findDebianSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
 import Debian.Version
@@ -116,7 +115,7 @@ debug e =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
+prepare :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache base patch m = liftIO $
     q12 "Preparing quilt target" $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make

@@ -37,7 +37,7 @@ instance BuildTarget Proc where
     debianSourceTree (Proc s _) = debianSourceTree s
 -}
 
-prepare :: P.CacheRec -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
+prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache base m =
     -- return $ Proc base m
     do baseRev <- liftIO $ revision (P.params cache) base

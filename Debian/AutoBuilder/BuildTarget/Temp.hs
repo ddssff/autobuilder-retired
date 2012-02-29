@@ -9,7 +9,6 @@ import Control.Exception (SomeException, try)
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
 import qualified Debian.AutoBuilder.BuildTarget.Common as C
-import Debian.AutoBuilder.Tgt (DL(DL))
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod(..))
 import Debian.Repo.SourceTree (DebianBuildTree(debTree'), DebianSourceTree, findOneDebianBuildTree, findDebianSourceTree)
 import System.Unix.Process
@@ -52,7 +51,7 @@ instance C.Download Download where
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.
 data Target
     = Target
-      { download :: DL
+      { download :: Download
       , debianSourceTree :: DebianSourceTree
       -- ^ Return the debian source tree.  Every target must have
       -- this, since this program only builds debian packages.
@@ -72,12 +71,12 @@ instance C.BuildTarget Target where
 -- | Try to turn a Download into a Target.  This will throw an
 -- exception if there is not a valid debian source tree at the
 -- location in getTop.
-asTarget :: (C.Download dl) => dl -> IO Target
+asTarget :: Download -> IO Target
 asTarget download =
     try (findOneDebianBuildTree (C.getTop (error "asTarget: unused getTop argument") download) >>=
          maybe (findDebianSourceTree (C.getTop (error "asTarget: unused getTop argument") download)) (return . debTree')) >>=
     either (\ (e :: SomeException) -> let msg = "asTarget " ++ show (C.method download) ++ " :" ++ show e in hPutStrLn stderr msg >> error msg)
-           (\ tree -> return $ Target { download = DL download
+           (\ tree -> return $ Target { download = download
                                       , debianSourceTree = tree })
        -- tarball <- findOrigTarball tree
        

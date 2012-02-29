@@ -3,10 +3,8 @@
 module Debian.AutoBuilder.BuildTarget.Cd where
 
 import Control.Exception (SomeException)
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Common as C
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
-import Debian.AutoBuilder.Tgt (DL(DL))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo.Monad (AptIOT)
@@ -28,7 +26,7 @@ instance Download Cd where
     cleanTarget params (Cd subdir t _) source = cleanTarget params t (source </> subdir)
 -}
 
-prepare :: P.CacheRec -> FilePath -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
+prepare :: P.CacheRec -> FilePath -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare _cache subdir target m =
     -- FIXME: we should verify that the subdir contains a debian source tree
     -- return $ Cd subdir target m

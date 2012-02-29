@@ -37,7 +37,7 @@ instance Download SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepare :: P.CacheRec -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
+prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache base m =
     do let top = getTop (P.params cache) base
        dscFiles <- liftIO (getDirectoryContents top) >>=
@@ -55,7 +55,7 @@ prepare cache base m =
       makeTarget top dscInfo dscName =
           case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
                      (S.fieldValue "Version" dscInfo)) of
-            (Just package, Just version) ->
+            (Just _package, Just _version) ->
                 -- (SourceDeb base top (package ++ "-" ++ V.version version) m)
                 BuildTarget.revision (P.params cache) base >>= \ rev ->
                 return $ T.Download {

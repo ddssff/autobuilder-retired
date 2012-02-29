@@ -4,10 +4,8 @@ module Debian.AutoBuilder.BuildTarget
     , targetDocumentation
     ) where
 
-import Control.Applicative ((<$>))
 import Control.Monad.Trans (lift)
 import Data.List (intersperse)
-import Debian.AutoBuilder.BuildTarget.Common (Download)
 import qualified Debian.AutoBuilder.BuildTarget.Apt as Apt
 import qualified Debian.AutoBuilder.BuildTarget.Cd as Cd
 import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
@@ -20,51 +18,48 @@ import qualified Debian.AutoBuilder.BuildTarget.Quilt as Quilt
 import qualified Debian.AutoBuilder.BuildTarget.SourceDeb as SourceDeb
 import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
 import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (DL(DL))
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO DL
+retrieve :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
 retrieve cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of
-      R.Apt dist package flags -> tgt <$> Apt.prepare cache dist package flags spec
-      R.Darcs uri flags -> tgt <$> lift (Darcs.prepare cache uri flags spec)
+      R.Apt dist package flags -> Apt.prepare cache dist package flags spec
+      R.Darcs uri flags -> lift (Darcs.prepare cache uri flags spec)
       R.DebDir upstream debian ->
           do upstream' <- retrieve cache [] upstream
              debian' <- retrieve cache [] debian
-             tgt <$> (DebDir.prepare cache upstream' debian' spec)
+             DebDir.prepare cache upstream' debian' spec
       R.Cd dir spec' ->
           retrieve cache [] spec' >>= \ t ->
-          tgt <$> Cd.prepare cache dir t spec
-      R.Dir path -> tgt <$> Dir.prepare cache path spec
-      R.Debianize package version -> tgt <$> Debianize.prepare cache flags package version spec
-      R.Hackage package version -> tgt <$> Debianize.prepareHackage cache package version spec
-      R.Hg string -> tgt <$> Hg.prepare cache string spec
+          Cd.prepare cache dir t spec
+      R.Dir path -> Dir.prepare cache path spec
+      R.Debianize package version -> Debianize.prepare cache flags package version spec
+      R.Hackage package version -> Debianize.prepareHackage cache package version spec
+      R.Hg string -> Hg.prepare cache string spec
       R.Proc spec' ->
           retrieve cache [] spec' >>= \ t ->
-          tgt <$> Proc.prepare cache t spec
+          Proc.prepare cache t spec
       R.Quilt base patches ->
           retrieve cache [] base >>= \ base' ->
           retrieve cache [] patches >>= \ patches' ->
-          tgt <$> Quilt.prepare cache base' patches' spec
+          Quilt.prepare cache base' patches' spec
       R.SourceDeb spec' ->
           retrieve cache [] spec' >>= \ t ->
-          tgt <$> SourceDeb.prepare cache t spec
-      R.Svn uri -> tgt <$> Svn.prepare cache uri spec
-      R.Tla string -> tgt <$> Tla.prepare cache string spec
-      R.Bzr string -> tgt <$> Bzr.prepare cache string spec
-      R.Uri uri sum -> tgt <$> Uri.prepare cache uri sum spec
+          SourceDeb.prepare cache t spec
+      R.Svn uri -> Svn.prepare cache uri spec
+      R.Tla string -> Tla.prepare cache string spec
+      R.Bzr string -> Bzr.prepare cache string spec
+      R.Uri uri sum -> Uri.prepare cache uri sum spec
       R.Twice {} -> error "Unimplemented: Twice")
-    where
-      tgt :: forall a. Download a => a -> DL
-      tgt x = DL x
 
 targetDocumentation :: String
 targetDocumentation =

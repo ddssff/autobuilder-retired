@@ -6,7 +6,6 @@ import Control.Monad.Trans
 import Data.List (sort, nub)
 import Data.Maybe (catMaybes)
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
-import Debian.AutoBuilder.Tgt (DL(DL))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P

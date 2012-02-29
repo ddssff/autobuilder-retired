@@ -11,7 +11,6 @@ import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (DL)
 import Debian.Changes (logVersion)
 import Debian.Version (version)
 import Prelude hiding (catch)
@@ -40,7 +39,7 @@ instance Download DebDir where
         cleanTarget params debian (path ++ "/debian")
     origTarball c (DebDir u _ _ _) = origTarball c u
 
-prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
+prepare :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache upstream debian m = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
