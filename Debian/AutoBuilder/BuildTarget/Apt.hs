@@ -5,7 +5,6 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.List (sort, nub)
 import Data.Maybe (catMaybes)
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import Debian.AutoBuilder.Tgt (DL(DL))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
@@ -38,7 +37,8 @@ prepare cache dist package flags method =
                                           , T.revision = rev
                                           , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
                                           , T.mVersion = Nothing
-                                          , T.origTarball = Nothing })
+                                          , T.origTarball = Nothing
+                                          , T.cleanTarget = \ _ -> return ([], 0) })
                   , T.debianSourceTree = debTree' tree
                   }
        -- return $ Apt distro package (Just version'') tree method

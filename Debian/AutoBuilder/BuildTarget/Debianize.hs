@@ -1,8 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |The intent is that this target debianize any cabal target, but currently
 -- it combines debianization with the hackage target.
-module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, documentation,
-                                                 Hackage(..), prepareHackage, documentationHackage) where
+module Debian.AutoBuilder.BuildTarget.Debianize (prepare, documentation,
+                                                 prepareHackage, documentationHackage) where
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
@@ -16,6 +16,7 @@ import Data.List (isPrefixOf, isSuffixOf, intercalate, nub, sort)
 import Data.Maybe (catMaybes)
 import Data.Version (Version, showVersion, parseVersion)
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -34,12 +35,13 @@ import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
 
-data Debianize = Debianize String (Maybe Version) SourceTree R.RetrieveMethod
+-- data Debianize = Debianize String (Maybe Version) SourceTree R.RetrieveMethod
 
 documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
 
+{-
 instance Download Debianize where
     method (Debianize _ _ _ m) = m
     getTop _ (Debianize _ _ tree _) = topdir tree
@@ -50,14 +52,23 @@ instance Download Debianize where
     logText (Debianize _ _ _ _) revision =
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Debianize _ v _ _) = {- fmap (parseDebianVersion . showVersion) -} v
+-}
 
-prepare :: P.CacheRec -> [P.PackageFlag] -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO Debianize
+prepare :: P.CacheRec -> [P.PackageFlag] -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache flags name cabalFlags m = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball (P.topDir cache) name version'))
        downloadAndDebianize cache cabalFlags flags name version'
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
-       return $ Debianize name (Just version') tree m
+       let rev = "debianize:" ++ name ++ "=" ++ showVersion version'
+       -- return $ Debianize name (Just version') tree m
+       return $ T.Download { T.method' = m
+                           , T.getTop = topdir tree
+                           , T.revision = rev
+                           , T.logText =  "Built from hackage, revision: " ++ rev
+                           , T.mVersion = Just version'
+                           , T.origTarball = Nothing
+                           , T.cleanTarget = \ _ -> return ([], 0) }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                                   P.CabalPin s -> Just s
@@ -173,8 +184,8 @@ debianize cache cflags pflags dir =
 getVersion :: String -> String -> IO Version
 getVersion server name =
     lazyCommandE cmd B.empty >>= return . readVersion . findVersion name . parse cmd
-    where cmd = curlCmd (packageURL server name)
-          curlCmd url = "curl -s '" ++ url ++ "'"
+    where cmd = "curl -s '" ++ url ++ "'"
+          url = packageURL server name
 
 findVersion :: String -> Document Posn -> String
 findVersion package (Document _ _ (Elem _name _attrs content) _) =
@@ -224,11 +235,12 @@ downloadCommand server name version = "curl -s '" ++ versionURL server name vers
 
 -- Hackage target
 
-data Hackage = Hackage String (Maybe Version) SourceTree R.RetrieveMethod
+-- data Hackage = Hackage String (Maybe Version) SourceTree R.RetrieveMethod
 
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
 
+{-
 instance Download Hackage where
     method (Hackage _ _ _ m) = m
     getTop _ (Hackage _ _ tree _) = topdir tree
@@ -239,14 +251,23 @@ instance Download Hackage where
     logText (Hackage _ _ _ _) revision =
         "Built from hackage, revision: " ++ either show id revision
     mVersion (Hackage _ v _ _) = {- fmap (parseDebianVersion . showVersion) -} v
+-}
 
-prepareHackage :: P.CacheRec -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO Hackage
+prepareHackage :: P.CacheRec -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
 prepareHackage cache name cabalFlags m = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [tarball (P.topDir cache) name version', unpacked (P.topDir cache) name version'])
        downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
-       return $ Hackage name (Just version') tree m
+       let rev = "hackage:" ++ name ++ "=" ++ showVersion version'
+       -- return $ Hackage name (Just version') tree m
+       return $ T.Download { T.method' = m
+                           , T.getTop = topdir tree
+                           , T.revision = rev
+                           , T.logText =  "Built from hackage, revision: " ++ rev
+                           , T.mVersion = Just version'
+                           , T.origTarball = Nothing
+                           , T.cleanTarget = \ _ -> return ([], 0) }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                                   P.CabalPin s -> Just s

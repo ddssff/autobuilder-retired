@@ -2,17 +2,23 @@
 -- |Modify a target so we cd to a subdirectory before building
 module Debian.AutoBuilder.BuildTarget.Cd where
 
+import Control.Exception (SomeException)
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Common as C
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+import Debian.AutoBuilder.Tgt (DL(DL))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo.Monad (AptIOT)
 import System.FilePath ((</>))
-
-data Cd = forall a. Download a => Cd FilePath a R.RetrieveMethod
+import System.IO.Unsafe (unsafePerformIO)
 
 documentation = [ "cd:<relpath>:<target> - A target of this form modifies another target by"
                 , "changing directories into a subdirectory before doing the build.  It is"
                 , "used for repositories where the debian directory is in a subdirectory."]
+
+{-
+data Cd = forall a. Download a => Cd FilePath a R.RetrieveMethod
 
 instance Download Cd where
     method (Cd _ _ m) = m
@@ -20,8 +26,18 @@ instance Download Cd where
     revision params (Cd subdir t _) =  Debian.AutoBuilder.BuildTarget.Common.revision params t >>= return . (("cd:" ++ subdir ++ ":") ++)
     logText (Cd subdir t _) revision = logText t revision ++ " (in subdirectory " ++ subdir ++ ")"
     cleanTarget params (Cd subdir t _) source = cleanTarget params t (source </> subdir)
+-}
 
-prepare :: forall a. Download a => P.CacheRec -> FilePath -> a -> R.RetrieveMethod -> AptIOT IO Cd
+prepare :: P.CacheRec -> FilePath -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare _cache subdir target m =
     -- FIXME: we should verify that the subdir contains a debian source tree
-    return $ Cd subdir target m
+    -- return $ Cd subdir target m
+    do     
+    return $ T.Download { T.method' = m
+                        , T.getTop = C.getTop (error "cd") target </> subdir
+                        , T.revision = "cd:" ++ subdir ++ ":" ++ unsafePerformIO (C.revision (error "cd") target)
+                        , T.logText = C.logText target (error "cd" :: Either SomeException String) ++ " (in subdirectory " ++ subdir ++ ")"
+                        , T.mVersion = Nothing
+                        , T.origTarball = Nothing
+                        , T.cleanTarget = \ top -> C.cleanTarget (error "cd") target top
+                        } 

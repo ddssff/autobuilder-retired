@@ -59,7 +59,7 @@ retrieve cache flags spec =
           tgt <$> SourceDeb.prepare cache t spec
       R.Svn uri -> tgt <$> Svn.prepare cache uri spec
       R.Tla string -> tgt <$> Tla.prepare cache string spec
-      R.Bzr string -> tgt <$> Bzr.prepare cache string
+      R.Bzr string -> tgt <$> Bzr.prepare cache string spec
       R.Uri uri sum -> tgt <$> Uri.prepare cache uri sum spec
       R.Twice {} -> error "Unimplemented: Twice")
     where

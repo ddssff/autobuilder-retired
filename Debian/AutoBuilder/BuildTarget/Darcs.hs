@@ -23,29 +23,10 @@ import System.Unix.Process
 import System.Unix.Progress (lazyCommandF, lazyCommandV, timeTask)
 import Text.Regex
 
--- | A Darcs archive
-data Darcs = Darcs { uri :: String
-                   , tag :: Maybe String
-                   , sourceTree :: SourceTree
-                   , method :: R.RetrieveMethod
-                   , rev :: String }
-
 documentation = [ "darcs:<string> - a target of this form obtains the source code by running"
                 , "darcs get <string>.  If the argument needs to use ssh to reach the darcs"
                 , "repository, it is necessary to set up ssh keys to allow access without"
                 , "typing a password.  See the --ssh-export option for help doing this." ]
-
-instance Download Darcs where
-    method = Debian.AutoBuilder.BuildTarget.Darcs.method
-    getTop _ t = topdir (sourceTree t)
-    revision _ (Darcs _ _ _ _ x) = return x
-    logText _ revision = "Darcs revision: " ++ either show id revision
-    cleanTarget _ _ path =
-        timeTask (lazyCommandF cmd B.empty)
-        -- timeTaskAndTest (cleanStyle path (commandTask cmd))
-        where 
-          cmd = "find " ++ path ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf"
-          -- cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
 
 darcsRev :: SourceTree -> R.RetrieveMethod -> IO (Either SomeException String)
 darcsRev tree m =
@@ -71,7 +52,13 @@ prepare cache theUri flags m =
                           , T.revision = rev
                           , T.logText =  "Darcs revision: " ++ rev
                           , T.mVersion = Nothing
-                          , T.origTarball = Nothing }
+                          , T.origTarball = Nothing
+                          , T.cleanTarget =
+                              \ top -> let cmd = "find " ++ top ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf" in
+                                       timeTask (lazyCommandF cmd B.empty)
+          
+          -- cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
+ }
     where
       theUri' = mustParseURI theUri
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of

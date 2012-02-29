@@ -8,6 +8,8 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget.Common (Download(..), md5sum)
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+import Debian.AutoBuilder.Tgt (DL(DL))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -22,41 +24,52 @@ import qualified System.Unix.Process as P
 import System.Unix.Progress (timeTask, lazyCommandF)
 import System.Unix.QIO (qPutStrLn)
 import System.Directory
-
--- | A Bazaar archive
-data Bzr = Bzr String SourceTree
-
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
+
+-- | A Bazaar archive
+{-
+data Bzr = Bzr String SourceTree
 
 instance Download Bzr where
     method (Bzr s _) = R.Bzr s
     getTop _ (Bzr _ tree) = topdir tree
-    revision _ (Bzr _ tree) =
-        do let path = topdir tree
-               cmd = "cd " ++ path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
-           -- FIXME: this command can take a lot of time, message it
-           (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
-                       return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           code <- waitForProcess handle
-           case code of
-             ExitSuccess -> return $ "bzr:" ++ rev
-             code -> fail (cmd ++ " -> " ++ show code)
+    revision _ (Bzr _ tree) = rev'
     logText (Bzr _ _) revision = "Bazaar revision: " ++ either show id revision
     cleanTarget _ (Bzr _ _) path =
         qPutStrLn ("Clean Bazzar target in " ++ path) >> 
         timeTask (lazyCommandF cmd L.empty)
         where
           cmd = "find '" ++ path ++ "' -name '.bzr' -prune | xargs rm -rf"
+-}
 
-prepare :: P.CacheRec -> String -> AptIOT IO Bzr
-prepare cache version = liftIO $
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
+prepare cache version method = liftIO $
   do
     when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
-    return $ Bzr version tree
+    let path = topdir tree
+        cmd = "cd " ++ path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
+    -- FIXME: this command can take a lot of time, message it
+    (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
+    rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
+           return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
+    code <- waitForProcess handle
+    let rev' = case code of
+                 ExitSuccess -> "bzr:" ++ rev
+                 code -> fail (cmd ++ " -> " ++ show code)
+    return $ T.Download
+               { T.method' = method
+               , T.getTop = topdir tree
+               , T.revision = rev'
+               , T.logText = "Bazaar revision: " ++ show rev'
+               , T.mVersion = Nothing
+               , T.origTarball = Nothing
+               , T.cleanTarget = \ top ->
+                   do qPutStrLn ("Clean Bazaar target in " ++ top)
+                      let cmd = "find '" ++ top ++ "' -name '.bzr' -prune | xargs rm -rf"
+                      timeTask (lazyCommandF cmd L.empty) }
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =
