@@ -7,6 +7,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Maybe
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -45,13 +46,32 @@ instance Download Tla where
           cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
           -- cleanStyle path = setStart (Just ("Clean TLA target in " ++ path))
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Tla
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache version m = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      return $ Tla version tree m
+      -- return $ Tla version tree m
+      rev <- do let path = topdir tree
+                    cmd = "cd " ++ path ++ " && tla revisions -f -r | head -1"
+                -- FIXME: this command can take a lot of time, message it
+                (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
+                revision <- (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
+                            return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
+                _output <- waitForProcess handle
+                return $ "tla:" ++ revision
+      return $ T.Download { T.method' = m
+                          , T.getTop = topdir tree
+                          , T.revision = rev
+                          , T.logText =  "TLA revision: " ++ rev
+                          , T.mVersion = Nothing
+                          , T.origTarball = Nothing
+                          , T.cleanTarget =
+                              \ path -> 
+                                  let cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf" in
+                                  timeTask (lazyCommandF cmd L.empty)
+                          }
     where
       verifySource dir =
           do -- result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))

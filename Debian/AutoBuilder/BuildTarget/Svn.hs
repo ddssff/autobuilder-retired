@@ -12,6 +12,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -83,12 +84,38 @@ instance Download Svn where
           cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
           -- cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ path))
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Svn
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache uri m = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
-       return $ Svn uri' tree m
+       -- return $ Svn uri' tree m
+       rev <- let readControl :: [Output] -> String
+                  readControl out = 
+                      case parseControl "svn info" (B.concat (L.toChunks (stdoutOnly out))) of
+                        (Right (Control (c:_))) ->
+                        -- JAS, I don't know why I did not just use the uri that was passed in
+                            case (lookupP "URL" c, lookupP "Revision" c) of
+                              (Just (Field (_, url)), Just (Field (_, revision))) ->
+                                  "svn:" ++ (B.unpack (stripWS url)) ++"@" ++ (B.unpack (stripWS revision))
+                              _ -> fail "Failed to find URL and/or Revision fields in svn info"
+                        (Right (Control [])) -> fail $ "svn info did not appear to produce any output"
+                        Left e -> fail $ "Failed to parse svn info\n" ++ show e
+                  userInfo = maybe "" uriUserInfo (uriAuthority uri') in
+              svn (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
+              -- svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
+              return . readControl
+       return $ T.Download { T.method' = m
+                           , T.getTop = topdir tree
+                           , T.revision = rev
+                           , T.logText =  "SVN revision: " ++ rev
+                           , T.mVersion = Nothing
+                           , T.origTarball = Nothing
+                           , T.cleanTarget =
+                               \ path -> 
+                                   let cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf" in
+                                   timeTask (lazyCommandF cmd L.empty)
+                           }
     where
       uri' = mustParseURI uri
       verifySource dir =

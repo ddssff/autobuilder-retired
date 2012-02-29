@@ -7,6 +7,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Debian.AutoBuilder.BuildTarget.Common as BuildTarget
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.AutoBuilder.Tgt (DL)
@@ -36,7 +37,7 @@ instance Download SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepare :: P.CacheRec -> DL -> R.RetrieveMethod -> AptIOT IO SourceDeb
+prepare :: P.CacheRec -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache base m =
     do let top = getTop (P.params cache) base
        dscFiles <- liftIO (getDirectoryContents top) >>=
@@ -47,7 +48,7 @@ prepare cache base m =
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
              do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of
-                  ExitSuccess -> return $ makeTarget top dscInfo dscName
+                  ExitSuccess -> liftIO $ makeTarget top dscInfo dscName
                   _ -> error ("*** FAILURE: " ++ unpack top dscName)
          (dscName, _) : _ -> error ("Invalid .dsc file: " ++ dscName)
     where
@@ -55,7 +56,17 @@ prepare cache base m =
           case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
                      (S.fieldValue "Version" dscInfo)) of
             (Just package, Just version) ->
-                (SourceDeb base top (package ++ "-" ++ V.version version) m)
+                -- (SourceDeb base top (package ++ "-" ++ V.version version) m)
+                BuildTarget.revision (P.params cache) base >>= \ rev ->
+                return $ T.Download {
+                             T.method' = m
+                           , T.getTop = top
+                           , T.revision = "sourcedeb:" ++ rev
+                           , T.logText = rev ++ " (source deb)"
+                           , T.mVersion = Nothing
+                           , T.origTarball = Nothing
+                           , T.cleanTarget = \ _ -> return ([], 0)
+                           }
             _ -> error $ "Invalid .dsc file: " ++ dscName
       unpack top dscName = "cd " ++ top ++ " && dpkg-source -x " ++ dscName
       compareVersions (name2, info2) (name1, info1) =

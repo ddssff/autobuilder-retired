@@ -16,6 +16,7 @@ import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget.Common (Download(method, logText, cleanTarget), getTop, md5sum)
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.AutoBuilder.Tgt (DL)
@@ -33,7 +34,7 @@ import System.Unix.QIO (qPutStrLn, qMessage, q12)
 import Text.Regex
 
 
-data Quilt = Quilt DL DL SourceTree R.RetrieveMethod
+-- data Quilt = Quilt DL DL SourceTree R.RetrieveMethod
 
 documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, target1 is"
                 , "any source tree, and target2 is a quilt directory which contains"
@@ -42,16 +43,12 @@ documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, tar
                 , "files listed in the series file.  The quilt system is used to apply"
                 , "the patches to the source tree before building." ]
 
-{-
-instance Eq Quilt where
-    Quilt t q _ == Quilt t' q' _ = t == t' && q == q'
--}
-
 data EntryType = Base ChangeLogEntry | Patch ChangeLogEntry
 
 getEntry (Base x) = x
 getEntry (Patch x) = x
 
+{-
 instance Download Quilt where
     method (Quilt _ _ _ m) = m
     getTop _ (Quilt _ _ tree _) = topdir tree
@@ -69,6 +66,7 @@ instance Download Quilt where
                     BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ show (prettyDebianVersion rev) ++ "):(" ++ patchRev ++ ")")
     logText (Quilt _ _ _ _) rev = "Quilt revision " ++ either show id rev
     cleanTarget params (Quilt base _ _ _) source = cleanTarget params base source
+-}
 
 quiltPatchesDir = "quilt-patches"
 
@@ -118,7 +116,7 @@ debug e =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO Quilt
+prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache base patch m = liftIO $
     q12 "Preparing quilt target" $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make
@@ -130,7 +128,7 @@ prepare cache base patch m = liftIO $
                 pc = (quiltDir ++ "/.pc")
                 pch = (quiltDir ++ "/.pc.hide")
                 rmrf d = lazyCommandV ("rm -rf '"  ++ d ++ "'") L.empty
-      make :: (SourceTree, FilePath) -> IO Quilt
+      make :: (SourceTree, FilePath) -> IO T.Download
       make (quiltTree, quiltDir) =
           do applied <- lazyCommandV cmd1a L.empty >>= qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
              case applied of
@@ -162,7 +160,24 @@ prepare cache base patch m = liftIO $
                                    case result3 of
                                      (_, _, ExitSuccess) ->
                                          do tree <- findSourceTree (topdir quiltTree)
-                                            return $ Quilt base patch tree m
+                                            -- return $ Quilt base patch tree m
+                                            baseRev <- try (BuildTarget.revision (P.params cache) base)
+                                            rev <- case baseRev of
+                                                     Right (rev :: String) ->
+                                                         BuildTarget.revision (P.params cache) patch >>= \ patchRev -> return ("quilt:(" ++ rev ++ "):(" ++ patchRev ++ ")")
+                                                     Left (_ :: SomeException) ->
+                                                         do baseTree <- findDebianSourceTree (getTop (P.params cache) base)
+                                                            let rev = logVersion . entry $ baseTree
+                                                            BuildTarget.revision (P.params cache) patch >>= \ patchRev -> return ("quilt:(" ++ show (prettyDebianVersion rev) ++ "):(" ++ patchRev ++ ")")
+                                            return $ T.Download {
+                                                         T.method' = m
+                                                       , T.getTop = topdir tree
+                                                       , T.revision = rev
+                                                       , T.logText = "Quilt revision " ++ rev
+                                                       , T.mVersion = Nothing
+                                                       , T.origTarball = Nothing
+                                                       , T.cleanTarget = cleanTarget (P.params cache) base
+                                                       }
                                      _ -> fail $ target ++ " - Failure removing quilt directory: " ++ cmd3
                (_, err, ExitFailure _) -> fail $ target ++ " - Unexpected output from quilt applied: " ++ err
                (_, _, ExitSuccess) -> fail $ target ++ " - Unexpected result code (ExitSuccess) from " ++ show cmd1a

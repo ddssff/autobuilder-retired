@@ -17,6 +17,7 @@ import System.IO
 import System.Process
 import System.Unix.Directory
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -49,13 +50,33 @@ instance Download Hg where
           cmd = "rm -rf " ++ path ++ "/.hg"
           -- cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Hg
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache archive m = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      return $ Hg archive tree m
+      rev <- do let path = topdir tree
+                    cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
+                (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
+                rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
+                       return . maybe (fail $ "no revision info printed by '" ++ cmd ++ "'") id
+                result <- waitForProcess handle
+                case (rev, result) of
+                  (rev', ExitSuccess) -> return $ "hg:" ++ rev'
+                  (_, ExitFailure _) -> fail $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
+      -- return $ Hg archive tree m
+      return $ T.Download { T.method' = m
+                          , T.getTop = topdir tree
+                          , T.revision = rev
+                          , T.logText =  "Hg revision: " ++ rev
+                          , T.mVersion = Nothing
+                          , T.origTarball = Nothing
+                          , T.cleanTarget =
+                              \ path -> 
+                                  let cmd = "rm -rf " ++ path ++ "/.hg" in
+                                  timeTask (lazyCommandF cmd empty)
+                          }
     where
       verifySource dir =
           -- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && hg status | grep -q .")))) >>=

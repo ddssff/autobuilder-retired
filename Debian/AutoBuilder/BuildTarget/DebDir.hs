@@ -8,6 +8,7 @@ import Control.Monad.Trans (lift)
 import Data.ByteString.Lazy.Char8 (empty)
 import Data.Version (showVersion)
 import Debian.AutoBuilder.BuildTarget.Common
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.AutoBuilder.Tgt (DL)
@@ -39,13 +40,25 @@ instance Download DebDir where
         cleanTarget params debian (path ++ "/debian")
     origTarball c (DebDir u _ _ _) = origTarball c u
 
-prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO DebDir
+prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache upstream debian m = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
-    let tgt = DebDir upstream debian tree m in
+    revision (P.params cache) upstream >>= \ urev ->
+    revision (P.params cache) debian >>= \ drev ->
+    -- let tgt = DebDir upstream debian tree m in
+    let rev = "deb-dir:(" ++ urev ++ "):(" ++ drev ++")"
+        tgt = T.Download {
+                T.method' = m
+              , T.getTop = topdir tree
+              , T.revision = rev
+              , T.logText = "deb-dir revision: " ++ rev
+              , T.mVersion = Nothing
+              , T.origTarball = origTarball cache upstream
+              , T.cleanTarget = \ _ -> return ([], 0)
+              } in
     -- The upstream and downstream versions must match after the epoch and revision is stripped.
     case mVersion upstream of
       Nothing -> return tgt
@@ -54,7 +67,7 @@ prepare cache upstream debian m = lift $
           case compare (version debianV) (showVersion upstreamV) of
             -- If the debian version is too old it needs to be bumped, this ensures we notice
             -- when a new upstream appears.  We should just modify the changelog directly.
-            LT -> error $ show (method tgt) ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ showVersion upstreamV ++ ")"
+            LT -> error $ show m ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ showVersion upstreamV ++ ")"
             _ -> return tgt
 {-
     liftIO  (try (createDirectoryIfMissing True (P.topDir params ++ "/deb-dir"))) >>=
