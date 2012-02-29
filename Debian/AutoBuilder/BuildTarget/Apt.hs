@@ -21,7 +21,7 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO T.Target
+prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO T.Download
 prepare cache dist package flags method =
     do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
        os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
@@ -30,17 +30,15 @@ prepare cache dist package flags method =
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
        let version'' = logVersion . entry $ tree
            rev = "apt:" ++ (sliceName . sliceListName $ distro) ++ ":" ++ package ++ "=" ++ show (prettyDebianVersion version'')
-       return $ T.Target
-                  { T.download = DL (T.Download 
-                                          { T.method' = method
-                                          , T.getTop = topdir tree
-                                          , T.revision = rev
-                                          , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
-                                          , T.mVersion = Nothing
-                                          , T.origTarball = Nothing
-                                          , T.cleanTarget = \ _ -> return ([], 0) })
-                  , T.debianSourceTree = debTree' tree
-                  }
+       return $ T.Download {
+                    T.method' = method
+                  , T.getTop = topdir tree
+                  , T.revision = rev
+                  , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
+                  , T.mVersion = Nothing
+                  , T.origTarball = Nothing
+                  , T.cleanTarget = \ _ -> return ([], 0) }
+                  -- , T.debianSourceTree = debTree' tree
        -- return $ Apt distro package (Just version'') tree method
     where
       dist' = SliceName dist
