@@ -18,7 +18,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
 import Debian.AutoBuilder.BuildTarget.Common (Download(method, logText, cleanTarget), getTop, md5sum)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt)
+import Debian.AutoBuilder.Tgt (DL)
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
 import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findDebianSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
 import Debian.Version
@@ -33,7 +33,7 @@ import System.Unix.QIO (qPutStrLn, qMessage, q12)
 import Text.Regex
 
 
-data Quilt = Quilt Tgt Tgt SourceTree R.RetrieveMethod
+data Quilt = Quilt DL DL SourceTree R.RetrieveMethod
 
 documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, target1 is"
                 , "any source tree, and target2 is a quilt directory which contains"
@@ -88,7 +88,7 @@ makeQuiltTree cache base patch =
                 -- the patch to the subdirectory containing the DebianSourceTree.
                 debTree <- findOneDebianBuildTree copyDir
                 -- Compute the directory where the patches will be applied
-                let quiltDir = failing (const copyDir) debdir debTree
+                let quiltDir = maybe copyDir debdir debTree
                 qPutStrLn $ "copyDir: " ++ copyDir
                 qPutStrLn $ "quiltDir: " ++ quiltDir
                 let patchDir = topdir patchTree
@@ -118,7 +118,7 @@ debug e =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: P.CacheRec -> Tgt -> Tgt -> R.RetrieveMethod -> AptIOT IO Quilt
+prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO Quilt
 prepare cache base patch m = liftIO $
     q12 "Preparing quilt target" $
     makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make

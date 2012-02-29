@@ -69,14 +69,9 @@ prepare cache theUri flags m =
       return $ T.Download { T.method' = m
                           , T.getTop = topdir tree
                           , T.revision = rev
-                          , T.logText =  "Darcs revision: " ++ rev }
-{-
-      return $ T.Target { T.download = download
-                        , T.mVersion = Nothing
-                        , T.origTarball = Nothing
-                        , T.debianSourceTree = debTree' tree
-                        }
--}
+                          , T.logText =  "Darcs revision: " ++ rev
+                          , T.mVersion = Nothing
+                          , T.origTarball = Nothing }
     where
       theUri' = mustParseURI theUri
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of

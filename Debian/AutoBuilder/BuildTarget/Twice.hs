@@ -5,10 +5,10 @@ import Control.Monad.Trans (liftIO)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt)
+import Debian.AutoBuilder.Tgt (DL)
 import Debian.Repo (AptIOT)
 
-data Twice = Twice Tgt R.RetrieveMethod
+data Twice = Twice DL R.RetrieveMethod
 
 documentation = [ "twice:<target> - A target of this form modifies another target by"
                 , "ensuring that dpkg-buildpackage is run a second time if it fails"
@@ -26,5 +26,5 @@ instance Download Twice where
     logText (Twice s _) revision = logText s revision ++ " (twice if necessary)"
     cleanTarget params (Twice s _) source = cleanTarget params s source
 
-prepare :: P.CacheRec -> Tgt -> R.RetrieveMethod -> AptIOT IO (Either String Twice)
+prepare :: P.CacheRec -> DL -> R.RetrieveMethod -> AptIOT IO (Either String Twice)
 prepare _cache base m = liftIO $ return . Right $ Twice base m

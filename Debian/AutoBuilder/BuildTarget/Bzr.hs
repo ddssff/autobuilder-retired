@@ -7,7 +7,7 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import Data.Maybe
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), Download(..), md5sum)
+import Debian.AutoBuilder.BuildTarget.Common (Download(..), md5sum)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R

@@ -1,6 +1,7 @@
 {-# LANGUAGE ExistentialQuantification, ScopedTypeVariables #-}
 module Debian.AutoBuilder.Tgt
-    ( Tgt(DL, BT)
+    ( DL(DL)
+    , BT(BT)
     -- , flags
     , relaxDepends
     , srcPkgName
@@ -18,31 +19,34 @@ import Debian.Repo.SourceTree (DebianSourceTree(control'))
 
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
-data Tgt = forall a. (Download a) => DL a
-         | forall b. (BuildTarget b) => BT b
+data DL = forall a. (Download a) => DL a
+data BT = forall b. (BuildTarget b) => BT b
 
 --getSourceTree' :: Tgt -> SourceTree
 --getSourceTree' (Tgt a) = getSourceTree a
 
-instance Download Tgt where
+instance Download DL where
     method (DL x) = method x
-    method (BT x) = method x
     getTop params (DL x) = getTop params x
-    getTop params (BT x) = getTop params x
     revision params (DL x) = revision params x
-    revision params (BT x) = revision params x
     buildWrapper params os tree status (DL x) action = buildWrapper params os tree status x action
-    buildWrapper params os tree status (BT x) action = buildWrapper params os tree status x action
     logText (DL x) result = logText x result
-    logText (BT x) result = logText x result
+    cleanTarget params (DL x) path = cleanTarget params x path
+    mVersion (DL x) = mVersion x
+    origTarball cache (DL x) = origTarball cache x
 
-{-
-instance BuildTarget Tgt where
+instance Download BT where
+    method (BT x) = method x
+    getTop params (BT x) = getTop params x
+    revision params (BT x) = revision params x
+    buildWrapper params os tree status (BT x) action = buildWrapper params os tree status x action
+    logText (BT x) result = logText x result
     cleanTarget params (BT x) path = cleanTarget params x path
     mVersion (BT x) = mVersion x
     origTarball cache (BT x) = origTarball cache x
+
+instance BuildTarget BT where
     debianSourceTree (BT x) = debianSourceTree x
--}
 
 -- | Prevent the appearance of a new binary package from
 -- triggering builds of its build dependencies.  Optionally, a
@@ -51,16 +55,14 @@ instance BuildTarget Tgt where
 -- example, @Relax-Depends: ghc6 hscolour@ means \"even if ghc6
 -- is rebuilt, don't rebuild hscolour even though ghc6 is one of
 -- its build dependencies.\"
-relaxDepends :: ParamRec -> Tgt -> G.RelaxInfo
+relaxDepends :: ParamRec -> BT -> G.RelaxInfo
 relaxDepends params@(ParamRec {targets = TargetSet s}) tgt =
     makeRelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
                     foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName tgt)))) (P.relaxInfo flags)) [] s
 relaxDepends _params _ = error "relaxDepends: invalid target set"
 
--- | FIX debian-repo: this should already be stored in the DebianSourceTree
-srcPkgName :: Tgt -> String
-srcPkgName (DL tgt) = error $ "srcPkgName Not a source package: " ++ show (method tgt)
-srcPkgName (BT tgt) =
+srcPkgName :: BT -> String
+srcPkgName tgt =
     maybe (error "No Source field in control file") id (fieldValue "Source" (head (unControl (control' (debianSourceTree tgt)))))
 
 makeRelaxInfo :: [(G.BinPkgName, Maybe G.SrcPkgName)] -> G.RelaxInfo

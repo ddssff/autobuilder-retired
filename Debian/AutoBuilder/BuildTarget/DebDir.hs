@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ExistentialQuantification, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.DebDir
     ( documentation
     , prepare
@@ -10,7 +10,7 @@ import Data.Version (showVersion)
 import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt(DL))
+import Debian.AutoBuilder.Tgt (DL)
 import Debian.Changes (logVersion)
 import Debian.Version (version)
 import Prelude hiding (catch)
@@ -21,7 +21,7 @@ import System.Unix.Progress (lazyCommandF)
 --import ChangeLog
 
 -- | Get the upstream source from one location, and the debian directory from another
-data DebDir = DebDir Tgt Tgt DebianSourceTree R.RetrieveMethod
+data DebDir = forall a b. (Download a, Download b) => DebDir a b DebianSourceTree R.RetrieveMethod
 
 documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"
@@ -39,13 +39,13 @@ instance Download DebDir where
         cleanTarget params debian (path ++ "/debian")
     origTarball c (DebDir u _ _ _) = origTarball c u
 
-prepare :: P.CacheRec -> Tgt -> Tgt -> R.RetrieveMethod -> AptIOT IO DebDir
+prepare :: P.CacheRec -> DL -> DL -> R.RetrieveMethod -> AptIOT IO DebDir
 prepare cache upstream debian m = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
-    let tgt = BT (DebDir (DL upstream) (DL debian) tree m) in
+    let tgt = DebDir upstream debian tree m in
     -- The upstream and downstream versions must match after the epoch and revision is stripped.
     case mVersion upstream of
       Nothing -> return tgt

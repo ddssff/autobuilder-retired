@@ -25,12 +25,12 @@ import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt(DL))
+import Debian.AutoBuilder.Tgt (DL(DL))
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Tgt
+retrieve :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO DL
 retrieve cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of
@@ -63,7 +63,7 @@ retrieve cache flags spec =
       R.Uri uri sum -> tgt <$> Uri.prepare cache uri sum spec
       R.Twice {} -> error "Unimplemented: Twice")
     where
-      tgt :: forall a. Download a => a -> Tgt
+      tgt :: forall a. Download a => a -> DL
       tgt x = DL x
 
 targetDocumentation :: String

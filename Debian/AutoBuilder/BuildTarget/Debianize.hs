@@ -7,7 +7,7 @@ module Debian.AutoBuilder.BuildTarget.Debianize (Debianize(..), prepare, documen
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
 -- import Control.Applicative.Error (maybeRead)
-import Control.Exception (throw)
+import Control.Exception (SomeException, try, throw)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
 -- import qualified Data.ByteString.Lazy as B
@@ -21,7 +21,7 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo hiding (getVersion)
-import System.Directory (doesFileExist, createDirectoryIfMissing)
+import System.Directory (doesFileExist, createDirectoryIfMissing, removeFile)
 import System.Exit
 import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
@@ -109,9 +109,17 @@ downloadCached :: String -> FilePath -> String -> Version -> IO B.ByteString
 downloadCached server top name version =
     do exists <- doesFileExist (tarball top name version)
        case exists of
-         True -> B.readFile (tarball top name version) >>=
-                 return . validate >>=
-                 maybe (download' server top name version) return
+         True -> let path = tarball top name version in
+                 try (B.readFile path >>=
+                      return . validate >>=
+                      maybe (download' server top name version) return) >>=
+                 either (\ (e :: SomeException) ->
+                             let msg = "Failure reading " ++ path ++ ": " ++ show e in
+                             hPutStrLn stderr msg >>
+                             hPutStrLn stderr ("Removing " ++ path) >>
+                             removeFile path >>
+                             download' server top name version)
+                        return
          False -> download' server top name version
     
 -- |Download and save the tarball, return its contents.
@@ -192,7 +200,7 @@ findVersion package (Document _ _ (Elem _name _attrs content) _) =
 
 -- |Hackage paths
 packageURL server name = "http://" ++ server ++ "/package/" ++ name
-versionURL server name version = "http://" ++ server ++ "/packages/archive/" ++ name ++ "/" ++ show (showVersion version) ++ "/" ++ name ++ "-" ++ show (showVersion version) ++ ".tar.gz"
+versionURL server name version = "http://" ++ server ++ "/packages/archive/" ++ name ++ "/" ++ showVersion version ++ "/" ++ name ++ "-" ++ showVersion version ++ ".tar.gz"
 
 -- |Validate the text of a tarball file.
 validate :: B.ByteString -> Maybe B.ByteString

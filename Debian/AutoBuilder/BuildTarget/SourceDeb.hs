@@ -9,7 +9,7 @@ import Data.List
 import Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.AutoBuilder.Tgt (Tgt)
+import Debian.AutoBuilder.Tgt (DL)
 import qualified Debian.Control.String as S
 import qualified Debian.Version as V
 import Debian.Repo (AptIOT)
@@ -18,7 +18,7 @@ import System.Directory
 import System.Unix.Process
 
 -- | Treat the data returned by a target as a source deb.
-data SourceDeb = SourceDeb Tgt FilePath String R.RetrieveMethod
+data SourceDeb = SourceDeb DL FilePath String R.RetrieveMethod
 
 documentation = [ "sourcedeb:<target> - A target of this form unpacks the source deb"
                 , "retrieved by the original target and presents an unpacked source"
@@ -36,7 +36,7 @@ instance Download SourceDeb where
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepare :: P.CacheRec -> Tgt -> R.RetrieveMethod -> AptIOT IO SourceDeb
+prepare :: P.CacheRec -> DL -> R.RetrieveMethod -> AptIOT IO SourceDeb
 prepare cache base m =
     do let top = getTop (P.params cache) base
        dscFiles <- liftIO (getDirectoryContents top) >>=

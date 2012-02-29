@@ -14,7 +14,7 @@ import Control.Exception (catch, throw)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
 import Debian.AutoBuilder.BuildTarget.Common (Download(getTop, cleanTarget, origTarball))
-import Debian.AutoBuilder.Tgt (Tgt)
+import Debian.AutoBuilder.Tgt (BT)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.Changes (logVersion, ChangeLogEntry(..))
 import Debian.Control (Control, Control'(Control), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
@@ -37,7 +37,7 @@ import System.Unix.QIO (qPutStrLn, quieter)
 
 -- | Information collected from the build tree for a Tgt.
 data Target
-    = Target { tgt :: Tgt			-- ^ The instance of BuildTarget
+    = Target { tgt :: BT			-- ^ The instance of BuildTarget
              , cleanSource :: DebianBuildTree	-- ^ The source code stripped of SCCS info
              , targetDepends :: G.DepInfo	-- ^ The dependency info parsed from the control file
              }
@@ -48,7 +48,7 @@ instance Eq Target where
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: P.CacheRec -> Relations -> OSImage -> Tgt -> IO Target
+prepareTarget :: P.CacheRec -> Relations -> OSImage -> BT -> IO Target
 prepareTarget cache globalBuildDeps os source =
     quieter (+ 2) $ prepareBuild cache os source >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=

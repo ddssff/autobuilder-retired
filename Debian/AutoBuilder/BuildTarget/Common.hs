@@ -120,9 +120,9 @@ class Download t where
 -- | BuildTarget represents the type class of methods for obtaining a
 -- SourceTree: tla, apt, darcs, etc.
 class Download t => BuildTarget t where
-    -- | Return the debian source tree.  Every target must be able to return this,
-    -- since this package only builds debian packages.
     debianSourceTree :: t -> DebianSourceTree
+    -- ^ Return the debian source tree.  Every target must be able to return this,
+    -- since this package only builds debian packages.
 
 -- | There are many characters which will confuse make if they appear
 -- in a directory name.  This turns them all into something safer.
