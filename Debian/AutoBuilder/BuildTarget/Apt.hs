@@ -18,19 +18,9 @@ import Debian.Sources
 import Debian.Version
 import System.Unix.Directory
 
--- | A package retrieved via apt-get in the given slice
-data Apt = Apt NamedSliceList String (Maybe DebianVersion) DebianBuildTree RetrieveMethod
-
 documentation = [ "apt:<distribution>:<packagename> - a target of this form looks up"
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
-
-instance Download Apt where
-    method (Apt _ _ _ _ m) = m
-    getTop _ (Apt _ _ _ t _) = topdir t
-    revision _ (Apt d p (Just v) _ _) = return $ "apt:" ++ (sliceName . sliceListName $ d) ++ ":" ++ p ++ "=" ++ show (prettyDebianVersion v)
-    revision _ (Apt _ _ Nothing _ _) = fail "Attempt to generate revision string for unversioned apt package"
-    logText (Apt name _ _ _ _) revision = "Built from " ++ sliceName (sliceListName name) ++ " apt pool, apt-revision: " ++ either show id revision
 
 prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO T.Target
 prepare cache dist package flags method =
