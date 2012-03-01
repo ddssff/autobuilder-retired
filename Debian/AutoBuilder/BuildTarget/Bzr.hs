@@ -1,3 +1,4 @@
+-- | A Bazaar archive
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Bzr where
 
@@ -23,24 +24,9 @@ import qualified System.Unix.Process as P
 import System.Unix.Progress (timeTask, lazyCommandF)
 import System.Unix.QIO (qPutStrLn)
 import System.Directory
+
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
-
--- | A Bazaar archive
-{-
-data Bzr = Bzr String SourceTree
-
-instance Download Bzr where
-    method (Bzr s _) = R.Bzr s
-    getTop _ (Bzr _ tree) = topdir tree
-    revision _ (Bzr _ tree) = rev'
-    logText (Bzr _ _) revision = "Bazaar revision: " ++ either show id revision
-    cleanTarget _ (Bzr _ _) path =
-        qPutStrLn ("Clean Bazzar target in " ++ path) >> 
-        timeTask (lazyCommandF cmd L.empty)
-        where
-          cmd = "find '" ++ path ++ "' -name '.bzr' -prune | xargs rm -rf"
--}
 
 prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache version method = liftIO $

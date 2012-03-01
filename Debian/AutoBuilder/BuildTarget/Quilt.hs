@@ -29,11 +29,7 @@ import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Unix.Process (collectOutputUnpacked, collectOutput, mergeToStderr)
 import System.Unix.Progress (lazyCommandF, lazyCommandV)
 import System.Unix.QIO (qPutStrLn, qMessage, q12)
---import Debian.Time(parseTimeRFC822)
 import Text.Regex
-
-
--- data Quilt = Quilt DL DL SourceTree R.RetrieveMethod
 
 documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, target1 is"
                 , "any source tree, and target2 is a quilt directory which contains"
@@ -46,26 +42,6 @@ data EntryType = Base ChangeLogEntry | Patch ChangeLogEntry
 
 getEntry (Base x) = x
 getEntry (Patch x) = x
-
-{-
-instance Download Quilt where
-    method (Quilt _ _ _ m) = m
-    getTop _ (Quilt _ _ tree _) = topdir tree
-    -- A quilt revision string is the base target revision string and the
-    -- patch target revision string connected with a '+'.  If the base
-    -- target has no revision string the patch revision string is used.
-    revision params (Quilt base patch _ _) =
-        do baseRev <- try (BuildTarget.revision params base)
-           case baseRev of
-             Right (rev :: String) ->
-                 BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ rev ++ "):(" ++ patchRev ++ ")")
-             Left (_ :: SomeException) ->
-                 do tree <- findDebianSourceTree (getTop params base)
-                    let rev = logVersion . entry $ tree
-                    BuildTarget.revision params patch >>= \ patchRev -> return ("quilt:(" ++ show (prettyDebianVersion rev) ++ "):(" ++ patchRev ++ ")")
-    logText (Quilt _ _ _ _) rev = "Quilt revision " ++ either show id rev
-    cleanTarget params (Quilt base _ _ _) source = cleanTarget params base source
--}
 
 quiltPatchesDir = "quilt-patches"
 
@@ -100,17 +76,6 @@ makeQuiltTree cache base patch =
                 return (copyTree, quiltDir)
          (Left (e :: SomeException), _) -> throw e
          (_, Left (e :: SomeException)) -> throw e
-    -- where linkStyle = setStart (Just "Linking to quilt target")
-
-{-
-debug :: SomeException -> IO (Either String Tgt)
-debug e =
-    do IO.hPutStrLn IO.stderr ("Missed exception: " ++ s) 
-       IO.hFlush IO.stderr
-       exitWith (ExitFailure 2)
-       return (Left s)
-    where s = show e
--}
 
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
@@ -188,8 +153,6 @@ prepare cache base patch m = liftIO $
             cmd3 = ("cd '" ++ quiltDir ++ "' && " ++
                     "rm -rf '" ++ quiltDir ++ "/.pc' '" ++ quiltDir ++ "/" ++ quiltPatchesDir ++ "'")
             target = "quilt:(" ++ show (method base) ++ "):(" ++ show (method patch) ++ ")"
-             
---myParseTimeRFC822 x = maybe (error ("Invalid time string: " ++ show x)) id . parseTimeRFC822 $ x
 
 mergeChangelogs' :: FilePath -> FilePath -> IO (Either String ())
 mergeChangelogs' basePath patchPath =

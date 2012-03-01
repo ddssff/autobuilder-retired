@@ -25,28 +25,6 @@ import System.Directory
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
                 , "given revision name." ]
 
-{-
-instance Download Tla where
-    method (Tla _ _ m) = m
-    getTop (Tla _ tree _) = topdir tree
-    revision (Tla _ tree _) =
-        do let path = topdir tree
-               cmd = "cd " ++ path ++ " && tla revisions -f -r | head -1"
-           -- FIXME: this command can take a lot of time, message it
-           (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-           revision <- (hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines) >>=
-                       return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-           _output <- waitForProcess handle
-           return $ "tla:" ++ revision
-    logText (Tla _ _ _) revision = "TLA revision: " ++ either show id revision
-    cleanTarget _ (Tla _ _ _) path =
-        -- timeTaskAndTest (cleanStyle path (commandTask cmd))
-        timeTask (lazyCommandF cmd L.empty)
-        where
-          cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
-          -- cleanStyle path = setStart (Just ("Clean TLA target in " ++ path))
--}
-
 prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache version m = liftIO $
     do
@@ -76,8 +54,7 @@ prepare cache version m = liftIO $
                           }
     where
       verifySource dir =
-          do -- result <- try (runTaskAndTest (verifyStyle (commandTask ("cd " ++ dir ++ " && tla changes"))))
-             result <- try (lazyCommandF ("cd " ++ dir ++ " && tla changes") L.empty)
+          do result <- try (lazyCommandF ("cd " ++ dir ++ " && tla changes") L.empty)
              case result of
                Left (e :: SomeException) -> qPutStrLn (show e) >> removeSource dir >> createSource dir -- Failure means there is corruption
                Right _output -> updateSource dir						         -- Success means no changes
@@ -85,7 +62,6 @@ prepare cache version m = liftIO $
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
-          -- runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && tla update " ++ version))) >>
           lazyCommandF ("cd " ++ dir ++ " && tla update " ++ version) L.empty >>
              -- At one point we did a tla undo here.  However, we are
              -- going to assume that the "clean" copies in the cache
@@ -98,16 +74,7 @@ prepare cache version m = liftIO $
             -- Create parent dir and let tla create dir
             let (parent, _) = splitFileName dir
             liftIO $ createDirectoryIfMissing True parent
-            -- runTaskAndTest (createStyle (commandTask ("tla get " ++ version ++ " " ++ dir)))
             _output <- lazyCommandF ("tla get " ++ version ++ " " ++ dir) L.empty
             findSourceTree dir
 
-{-
-      verifyStyle = (setStart (Just ("Verifying TLA source archive " ++ version)) .
-                     setError (Just (\ _ -> "tla changes failed in" ++ dir)) {- . Output Indented-})
-      updateStyle = (setStart (Just ("Updating TLA source for " ++ version)) .
-                     setError (Just (\ _ -> "updateSource failed")) {- . Output Indented -})
-      createStyle = (setStart (Just ("Retrieving TLA source for " ++ version)) .
-                     setError (Just (\ _ -> "tla get failed in " ++ dir)))
--}
       dir = P.topDir cache ++ "/tla/" ++ version

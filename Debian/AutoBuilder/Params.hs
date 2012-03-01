@@ -3,17 +3,12 @@ module Debian.AutoBuilder.Params
     ( computeTopDir
     , buildCache
     , findSlice
-    -- , dirtyRootOfRelease
     , cleanRootOfRelease
     , dirtyRoot
     , cleanRoot
     , localPoolDir
     , baseRelease
     , isDevelopmentRelease
-    -- , dropSuffix
-    -- , dropOneSuffix
-    -- , dropAllSuffixes
-
     , adjustVendorTag -- Export for testing
     ) where
 
@@ -23,25 +18,17 @@ import Control.Monad.Trans ( liftIO )
 import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
---import qualified Data.Map as Map
---import qualified Data.Set as Set
 import Debian.AutoBuilder.Types.CacheRec (CacheRec(..))
---import Debian.AutoBuilder.Types.PackageFlag (relaxInfo)
---import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..))
---import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Debian.Release ( ReleaseName(relName), releaseName' )
 import Debian.Sources ( SliceName(..) )
 import Debian.Repo ( EnvRoot(EnvRoot), NamedSliceList(..), parseSourcesList, verifySourcesList, repoSources )
 import Debian.Repo.Monad ( AptIOT, setRepoMap )
 import Debian.Repo.Types ( SliceList(..) )
 import Debian.URI ( parseURI )
---import qualified Debian.GenBuildDeps as G ( RelaxInfo, SrcPkgName(..), BinPkgName(..) )
 import System.Directory ( createDirectoryIfMissing, getPermissions, writable )
 import System.Environment ( getEnv )
 import System.Unix.QIO (qPutStrLn)
-
--- import Debian.AutoBuilder.ParamClass as P ( ParamClass(..), Target, Strictness )
 
 -- |Create a Cache object from a parameter set.
 buildCache :: ParamRec -> FilePath -> AptIOT IO CacheRec
@@ -107,15 +94,12 @@ dirtyRootOfRelease cache distro =
 cleanRootOfRelease :: CacheRec -> ReleaseName -> EnvRoot
 cleanRootOfRelease cache distro =
     EnvRoot $ topDir cache ++ "/dists/" ++ releaseName' distro ++ "/clean-" ++ (show (strictness (params cache)))
-    --ReleaseCache.cleanRoot distro (show (strictness params))
 
 dirtyRoot :: CacheRec -> EnvRoot
 dirtyRoot cache = dirtyRootOfRelease cache (buildRelease (params cache))
-    --EnvRoot $ topDir params ++ "/dists/" ++ show (buildRelease params) ++ "/build-" ++ (show (strictness params))
 
 cleanRoot :: CacheRec -> EnvRoot
 cleanRoot cache = cleanRootOfRelease cache (buildRelease (params cache))
-    -- cleanRootOfRelease params (buildRelease params)
 
 -- |Location of the local repository for uploaded packages.
 localPoolDir :: CacheRec -> FilePath
@@ -138,11 +122,6 @@ dropOneSuffix suffixes s =
     case catMaybes (map (`dropSuffixMaybe` s) suffixes) of
       [s'] -> Just s'
       _ -> Nothing
-
-{-
-dropAllSuffixes :: [String] -> String -> String
-dropAllSuffixes suffixes s = maybe s (dropAllSuffixes suffixes) (dropOneSuffix suffixes s)
--}
 
 -- | Signifies that the release we are building for is a development
 -- (or unstable) release.  This means we the tag we add doesn't need

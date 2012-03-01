@@ -11,9 +11,6 @@ import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
 import System.Unix.Progress (lazyProcessEF)
 import System.Unix.QIO (quieter)
---import System.Unix.Progress (qPutStrLn)
-
--- data Proc = Proc DL R.RetrieveMethod
 
 documentation = [ "proc:<target> - A target of this form modifies another target by ensuring"
                 , "that /proc is mounted during the build.  This target should only be"
@@ -21,23 +18,8 @@ documentation = [ "proc:<target> - A target of this form modifies another target
                 , "machine which might be different from the machine on which the package"
                 , "is ultimately installed." ]
 
-{-
-instance Download Proc where
-    method (Proc _ m) = m
-    getTop (Proc s _) = getTop s
-    revision (Proc s _) =  
-        "proc:" ++ Debian.AutoBuilder.BuildTarget.Common.revision s
-    buildWrapper _params buildOS _buildTree _status _target action = withProc buildOS action
-    logText (Proc s _) revision = logText s revision ++ " (with /proc mounted)"
-    cleanTarget params (Proc s _) source = cleanTarget params s source
-
-instance BuildTarget Proc where
-    debianSourceTree (Proc s _) = debianSourceTree s
--}
-
 prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> OSImage -> AptIOT IO T.Download
 prepare _cache base m buildOS =
-    -- return $ Proc base m
     return $ T.Download {
                  T.method = m
                , T.getTop = getTop base

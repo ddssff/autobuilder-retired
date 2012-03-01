@@ -1,65 +1,6 @@
+-- | BuildTarget represents the type class of methods for obtaining a
+-- SourceTree: tla, apt, darcs, etc.
 {-# LANGUAGE ScopedTypeVariables, ExistentialQuantification, FlexibleContexts #-}
--- |Various ways of obtaining a Debian source code tree.  Here is
--- a list giving the syntax of the supported target types:
---
--- [apt:\<distribution\>:\<packagename\>, @apt:\<distribution\>:\<packagename\>=\<version\>@] - a target of this form looks up
---                the sources.list named @\<distribution\>@ and retrieves the package with
---                the given name from that distribution.
---
--- [@cd:\<relpath\>:\<target\>@] - A target of this form modifies another target by
---                changing directories into a subdirectory before doing the build.  It is
---                used for repositories where the debian directory is in a subdirectory.
---
--- [@darcs:\<string\>@] - a target of this form obtains the source code by running
---                darcs get @\<string\>@.  If the argument needs to use ssh to reach the darcs
---                repository, it is necessary to set up ssh keys to allow access without
---                typing a password.  See 'Debian.AutoBuilder.ParamClass.doSSHExport' for help doing this.
---
--- [@deb-dir:(\<target\>):(\<target\>)@] - A target of this form combines two targets,
---                where one points to an un-debianized source tree and the other contains
---                a debian subdirectory.
---
--- [@dir:\<path\>@] - A target of this form simply uses whatever it finds on
---              the local machine at the given path as the debian source tree.
---              Packages built using this targets are not allowed to be uploaded
---              since they include no revision control information.
--- 
--- [@hackage:\<uri\>, hackage:\<uri\>=\<version\>@] - Similar to the URI target, this
---                target downloads and unpacks source code from the haskell hackage
---                repository.  Without the version number the newest version is retrieved.
--- 
--- [@hg:\<string\>@] - A target of this form target obtains the source
---                code by running the Mercurial command @hg clone \<string\>@.
---
--- [@proc:\<target\>@] - A target of this form modifies another target by ensuring
---                that @/proc@ is mounted during the build.  This target should only be
---                used if absolutely necessary, because it reveals details of the build
---                machine which might be different from the machine on which the package
---                is ultimately installed.
---
--- [@quilt:(\<target1\>):(\<target2\>)@] - In a target of this form, target1 is
---                any source tree, and target2 is a quilt directory which contains
---                a debian style changelog file named @changelog@, a file named
---                @series@ with a list of patch file names, and finally the patch
---                files listed in the series file.  The quilt system is used to apply
---                the patches to the source tree before building.
---
--- [@sourcedeb:\<target\>@] - A target of this form unpacks the source deb
---                retrieved by the original target and presents an unpacked source
---                tree for building.  Thus, the original target should retrieve a
---                directory containing a @.dsc@ file, a @.tar.gz@, and an optional
---                @.diff.gz@ file.
---
--- [@svn:\<uri\>@] - A target of this form retrieves the source code from
---                a subversion repository.
---
--- [@tla:\<revision\>@] - A target of this form retrieves the a TLA archive with the
---                given revision name.
---
--- [@uri:\<string\>:\<md5sum\>@] - A target of this form retrieves the file at the
---                given URI, which is assumed to be a gzipped tarball.  The optional md5sum
---                suffix causes the build to fail if the downloaded file does not match
---                this checksum.  This prevents builds when the remote tarball has changed.
 module Debian.AutoBuilder.BuildTarget.Common
     ( Download(..)
     , md5sum
@@ -70,8 +11,6 @@ import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.Char (ord)
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
---import Debian.Repo
---import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Happstack.Crypto.MD5 (md5)
 import Network.URI (URI, parseURI)
@@ -114,8 +53,6 @@ class Download t where
     origTarball :: t -> Maybe FilePath
     origTarball _ = Nothing
 
--- | BuildTarget represents the type class of methods for obtaining a
--- SourceTree: tla, apt, darcs, etc.
 {-
 class Download t => BuildTarget t where
     debianSourceTree :: t -> DebianSourceTree

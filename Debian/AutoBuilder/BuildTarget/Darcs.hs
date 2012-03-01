@@ -14,7 +14,6 @@ import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
---import Debian.OldShell (timeTaskAndTest, commandTask, setStart, setError, runTask)
 import Network.URI (URI(..), URIAuth(..), uriToString)
 import System.Directory
 import System.FilePath
@@ -44,7 +43,6 @@ prepare cache theUri flags m =
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       _output <- liftIO fixLink
-      -- let darcs = Darcs { uri = theUri, tag = theTag, sourceTree = tree, Debian.AutoBuilder.BuildTarget.Darcs.method = m }
       rev <- darcsRev tree m >>= either (fail . show) return
       return $ T.Download { T.method = m
                           , T.getTop = topdir tree
@@ -91,22 +89,6 @@ prepare cache theUri flags m =
              findSourceTree dir
           where
             cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
-{-
-          do
-            -- Create parent dir and let tla create dir
-            let (parent, _) = splitFileName dir
-            liftIO $ createDirectoryIfMissing True parent
-            createStyle . systemTask . unwords $ ["darcs", "get", "--partial", theUri] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
-            findSourceTree (rootEnvPath dir) >>= return . maybe (error ("Couldn't find sourceTree at " ++ dir)) id
--}
-{-
-      verifyStyle = (setStart (Just ("Verifying Darcs source archive " ++ theUri)) .
-                     setError Nothing)
-      updateStyle = (setStart (Just ("Updating Darcs source for " ++ theUri)) .
-                     setError (Just (\ _ -> "updateSource failed")))
-      createStyle = (setStart (Just ("Retrieving Darcs source for " ++  theUri)) . 
-                     setError (Just (\ _ -> "darcs get failed in " ++ dir)))
--}
       name = snd . splitFileName $ (uriPath theUri')
       -- Maybe we should include the "darcs:" in the string we checksum?
       fixLink = let link = base ++ "/" ++ name

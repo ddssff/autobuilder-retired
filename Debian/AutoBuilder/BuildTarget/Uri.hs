@@ -38,21 +38,6 @@ documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the f
                 , "suffix causes the build to fail if the downloaded file does not match"
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
-{-
-instance Download Uri where
-    method (Uri _ _ _ m) = m
-    getTop _ (Uri _ _ tree _) = R.topdir tree
-    -- The revision string for a URI target is the md5sum if it is known.
-    -- If it isn't known, we raise an error to avoid mysterious things
-    -- happening with URI's that, for example, always point to the latest
-    -- version of a package.
-    revision _ (Uri _ (Just c) _ _) = return c
-    revision _ (Uri _ Nothing _ _) = fail "Uri targets with no checksum do not have revision strings"
-    logText (Uri s _ _ _) _ = "Built from URI download " ++ uriToString' s
-    origTarball c (Uri u (Just s) _ _) = Just (tarball c (uriToString' u) s)
-    origTarball _ _ = Nothing
--}
-
 -- |Download the tarball using the URI in the target and unpack it.
 prepare :: P.CacheRec -> String -> String -> R.RetrieveMethod -> R.AptIOT IO T.Download
 prepare c u s m = liftIO $
@@ -98,18 +83,6 @@ prepare c u s m = liftIO $
             Right realSum | realSum == s -> return realSum
             Right realSum -> error ("Checksum mismatch for " ++ tarball c u s ++ ": expected " ++ s ++ ", saw " ++ realSum ++ ".")
             Left msg -> error ("Checksum failure for " ++ tarball c u s ++ ": " ++ show msg)
-{-
-          do realSum <- liftIO $ Extra.md5sum dest
-             -- We have checksummed the file and it either matches
-             -- what we expected or we don't know what checksum to
-             -- expect.
-             if Right sum == realSum then
-                 return (realSum, sumDir, name) else
-             -- We have checksummed the file but it doesn't match
-                 error ("Checksum mismatch for " ++ dest ++
-                        ": expected " ++ sum ++ ", saw " ++ realSum ++ ".")
--}
-      -- unpackTarget :: String -> IO Uri
       unpackTarget realSum =
           mkdir >> untar >>= read >>= search >>= verify
           where
@@ -118,7 +91,6 @@ prepare c u s m = liftIO $
             untar =
                 do ch <- liftIO unpackChar
                    timeTask (lazyCommandF ("tar xf" ++ ch ++ " " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty)
-                   -- runCommandTimed 1 ("tar xf" ++ c ++ " " ++ tarball c u s ++ " -C " ++ sourceDir c s)
             unpackChar =
                 do magic <- magicOpen []
                    magicLoadDefault magic
@@ -136,8 +108,6 @@ prepare c u s m = liftIO $
             checkContents [] = error ("Empty tarball? " ++ show (mustParseURI u))
             checkContents [subdir] = R.findSourceTree (sourceDir c s ++ "/" ++ subdir)
             checkContents _ = R.findSourceTree (sourceDir c s)
-
--- uri u = mustParseURI u
 
 sumDir c s = P.topDir c ++ "/tmp/" ++ s
 

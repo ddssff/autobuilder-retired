@@ -18,13 +18,11 @@ import qualified Data.Map as Map
 import Data.Time(NominalDiffTime)
 import Data.List(intercalate)
 import Data.Maybe(catMaybes)
---import qualified Debian.AutoBuilder.OldParams as O
 import Debian.AutoBuilder.BuildTarget (retrieve)
 import Debian.AutoBuilder.BuildTarget.Temp (asBuildable)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
 import Debian.AutoBuilder.TargetType (Target, targetName)
---import Debian.AutoBuilder.Tgt (BT(BT))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -98,8 +96,6 @@ doParameterSet state params =
 runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet cache =
     do
-      -- qPutStrLn $ "topDir=" ++ show (P.topDir cache)
-      -- liftIO $ writeParams cache
       lift doRequiredVersion
       lift doShowParams
       doShowSources
@@ -114,7 +110,7 @@ runParameterSet cache =
                          (Just localRepo)
                          (P.flushRoot params)
                          (P.ifSourcesChanged params)
-                         (P.includePackages params {- ++ ["haskell-debian-utils"] -})
+                         (P.includePackages params)
                          (P.excludePackages params)
                          (P.components params)
       _ <- updateCacheSources (P.ifSourcesChanged params) cleanOS

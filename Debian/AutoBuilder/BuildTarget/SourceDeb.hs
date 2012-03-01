@@ -13,7 +13,6 @@ import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import qualified Debian.Control.String as S
 import qualified Debian.Version as V
 import Debian.Repo (AptIOT)
---import Debian.Repo.Types
 import System.Directory
 import System.Unix.Process
 
@@ -25,15 +24,6 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
                 , "tree for building.  Thus, the original target should retrieve a"
                 , "directory containing a .dsc file, a .tar.gz, and an optional"
                 , ".diff.gz file." ]
-
-{-
-instance Download SourceDeb where
-    method (SourceDeb _ _ _ m) = m
-    getTop (SourceDeb _ dir _ _) = dir
-    -- SourceDeb targets inherit the revision string of the target they modify.
-    revision (SourceDeb t _ _ _) = "sourcedeb:" ++ BuildTarget.revision t
-    logText (SourceDeb t _ _ _) revision = logText t revision ++ " (source deb)"
--}
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
@@ -56,7 +46,6 @@ prepare _cache base m =
           case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
                      (S.fieldValue "Version" dscInfo)) of
             (Just _package, Just _version) ->
-                -- (SourceDeb base top (package ++ "-" ++ V.version version) m)
                 return $ T.Download {
                              T.method = m
                            , T.getTop = top

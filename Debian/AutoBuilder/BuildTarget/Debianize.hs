@@ -6,11 +6,9 @@ module Debian.AutoBuilder.BuildTarget.Debianize (prepare, documentation,
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as Z
--- import Control.Applicative.Error (maybeRead)
 import Control.Exception (SomeException, try, throw)
 import Control.Monad (when)
 import Control.Monad.Trans (liftIO)
--- import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List (isPrefixOf, isSuffixOf, intercalate, nub, sort)
 import Data.Maybe (catMaybes)
@@ -34,24 +32,9 @@ import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
 
--- data Debianize = Debianize String (Maybe Version) SourceTree R.RetrieveMethod
-
 documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
-
-{-
-instance Download Debianize where
-    method (Debianize _ _ _ m) = m
-    getTop _ (Debianize _ _ tree _) = topdir tree
-    revision _ (Debianize name (Just version) _ _) =
-        return $ "debianize:" ++ name ++ "=" ++ showVersion version
-    revision _ (Debianize _ Nothing _ _) =
-        fail "Attempt to generate revision string for unversioned hackage target"
-    logText (Debianize _ _ _ _) revision =
-        "Built from hackage, revision: " ++ either show id revision
-    mVersion (Debianize _ v _ _) = {- fmap (parseDebianVersion . showVersion) -} v
--}
 
 prepare :: P.CacheRec -> [P.PackageFlag] -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache flags name cabalFlags m = liftIO $
@@ -60,7 +43,6 @@ prepare cache flags name cabalFlags m = liftIO $
        downloadAndDebianize cache cabalFlags flags name version'
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
        let rev = "debianize:" ++ name ++ "=" ++ showVersion version'
-       -- return $ Debianize name (Just version') tree m
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
                            , T.revision = rev
@@ -174,7 +156,6 @@ debianize cache cflags pflags dir =
       pflag (P.Maintainer s) = ["--maintainer", s]
       pflag _ = []
 
-      -- root = rootPath (P.cleanRootOfRelease cache (P.buildRelease (P.params cache)))
       ver = P.ghcVersion (P.params cache)
       isMaintainerFlag (P.Maintainer _) = True
       isMaintainerFlag _ = False
@@ -235,23 +216,8 @@ downloadCommand server name version = "curl -s '" ++ versionURL server name vers
 
 -- Hackage target
 
--- data Hackage = Hackage String (Maybe Version) SourceTree R.RetrieveMethod
-
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
-
-{-
-instance Download Hackage where
-    method (Hackage _ _ _ m) = m
-    getTop _ (Hackage _ _ tree _) = topdir tree
-    revision _ (Hackage name (Just version) _ _) =
-        return $ "hackage:" ++ name ++ "=" ++ showVersion version
-    revision _ (Hackage _ Nothing _ _) =
-        fail "Attempt to generate revision string for unversioned hackage target"
-    logText (Hackage _ _ _ _) revision =
-        "Built from hackage, revision: " ++ either show id revision
-    mVersion (Hackage _ v _ _) = {- fmap (parseDebianVersion . showVersion) -} v
--}
 
 prepareHackage :: P.CacheRec -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
 prepareHackage cache name cabalFlags m = liftIO $
@@ -260,7 +226,6 @@ prepareHackage cache name cabalFlags m = liftIO $
        downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
        let rev = "hackage:" ++ name ++ "=" ++ showVersion version'
-       -- return $ Hackage name (Just version') tree m
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
                            , T.revision = rev

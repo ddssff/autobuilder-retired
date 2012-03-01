@@ -24,7 +24,6 @@ prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> Ap
 prepare cache dist package flags method =
     do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
        os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
-       --when flush (lift $ removeRecursiveSafely $ ReleaseCache.aptDir distro package)
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
        let version'' = logVersion . entry $ tree
@@ -38,8 +37,6 @@ prepare cache dist package flags method =
                   , T.origTarball = Nothing
                   , T.cleanTarget = \ _ -> return ([], 0)
                   , T.buildWrapper = id }
-                  -- , T.debianSourceTree = debTree' tree
-       -- return $ Apt distro package (Just version'') tree method
     where
       dist' = SliceName dist
       version' = case (nub (sort (catMaybes (map (\ flag -> case flag of

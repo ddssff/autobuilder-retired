@@ -80,27 +80,9 @@ import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, q12 {-, q02-})
 import Text.PrettyPrint (Doc, text, cat)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
-{-
-deriving instance Show VersionReq
-deriving instance Show ArchitectureReq
-deriving instance Show Relation
--}
-
---liftTIO = lift
 
 prettySimpleRelation :: Maybe PkgVersion -> Doc
 prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v ++ "="), prettyDebianVersion (getVersion v)]) rel
-
-{-
-_findSourceParagraph (Control paragraphs) = 
-    case dropWhile isCommentParagraph paragraphs of
-      (paragraph : _) -> Just paragraph
-      _ -> Nothing
-    where
-      isCommentParagraph (Paragraph fields) = all isCommentField fields
-      isCommentField (Comment _) = True
-      isCommentField _ = False
--}
 
 -- |Generate the details section of the package's new changelog entry
 -- based on the target type and version info.  This includes the
@@ -126,18 +108,14 @@ changelogText spec _revision oldDeps newDeps =
 -- package1=version1 package2=version2 ...
 _formatVersions :: [PkgVersion] -> String
 _formatVersions buildDeps =
-    -- "\n  * Build dependency versions:" ++
     prefix ++
     intercalate prefix (map (show . prettyPkgVersion) buildDeps) ++
     "\n"
     where prefix = "\n    "
 
---  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
-
 prepareTargets :: P.CacheRec -> OSImage -> Relations -> [Buildable] -> AptIOT IO [Target]
 prepareTargets cache cleanOS globalBuildDeps targetSpecs =
-    do -- showTargets targetSpecs
-       results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
+    do results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
        let (failures, targets) = partitionEithers results
        when (not (null failures))
                 (do let msg = intercalate "\n " (("Could not prepare " ++ show (length failures) ++ " targets:") : map (show . toException) failures)
@@ -178,8 +156,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
     where
       loop _ _ ([], failed) = return failed
       loop cleanOS' count (unbuilt, failed) =
-         do -- relaxed <- lift $ updateDependencyInfo (P.relaxDepends (P.params cache)) globalBuildDeps unbuilt
-            next <- lift $ chooseNextTarget cache (goals unbuilt) unbuilt
+         do next <- lift $ chooseNextTarget cache (goals unbuilt) unbuilt
             case next of
               Nothing -> return failed
               Just (target, blocked, other) ->
@@ -246,7 +223,7 @@ chooseNextTarget cache goals targets =
       makeTable (G.BuildableInfo ready _other) =
           unlines . map (intercalate " ") . columns $ goalsLine ++ readyLines
           where
-            goalsLine = [{- [" Goals: ", "[" ++ intercalate ", " (map targetName goals) ++ "]"] -}]
+            goalsLine = []
             readyLines = map readyLine ready
             readyLine (ready', blocked, _other) = 
                 [" Ready:", targetName ready', "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
@@ -299,13 +276,7 @@ showTargets targets =
     unlines (heading :
              map (const '-') heading :
              map concat (columns (reverse (snd (P.foldPackages (\ name spec _flags (count, rows) -> (count + 1, [printf "%4d. " count, name, " ", show spec] : rows)) (1 :: Int, []) targets)))))
-{-
-    unlines (heading :
-             map (const '-') heading :
-             map concat (columns (map (\ (n, t) -> [printf "%4d. " n, P.name t, " ", show (P.spec t)]) pairs))) ++ "\n"
--}
     where
-      -- pairs = zip [1..] targets :: [(Int, P.Packages)]
       heading = show (P.packageCount targets) ++ " Targets:"
 
 -- |Represents a decision whether to build a package, with a text juststification.

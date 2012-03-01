@@ -68,11 +68,6 @@ instance C.Download Buildable where
     mVersion tgt = C.mVersion (download tgt)
     origTarball tgt = C.origTarball (download tgt)
 
-{-
-instance C.BuildTarget Buildable where
-    debianSourceTree tgt = debianSourceTree tgt
--}
-
 -- | Try to turn a Download into a Target.  This will throw an
 -- exception if there is not a valid debian source tree at the
 -- location in getTop.
@@ -83,5 +78,4 @@ asBuildable download =
     either (\ (e :: SomeException) -> let msg = "asTarget " ++ show (C.method download) ++ " :" ++ show e in hPutStrLn stderr msg >> error msg)
            (\ tree -> return $ Buildable { download = download
                                          , debianSourceTree = tree })
-       -- tarball <- findOrigTarball tree
        

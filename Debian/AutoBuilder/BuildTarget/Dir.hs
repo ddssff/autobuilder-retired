@@ -6,7 +6,6 @@ import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
---import System.IO.Unsafe (unsafePerformIO)
 
 -- |Dir is a simple instance of BuildTarget representing building the
 -- debian source in a local directory.  This type of target is used
@@ -36,7 +35,6 @@ instance Download Build where
 prepare :: P.CacheRec -> FilePath -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare _cache path m =
     do tree <- lift (findSourceTree path)
-       -- return $ Dir tree m
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
                            , T.revision = fail "Build targets do not have revision strings"
