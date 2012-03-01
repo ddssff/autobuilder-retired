@@ -25,9 +25,9 @@ flag monolithic
 Library
 
   if flag(monolithic)
-    Hs-Source-Dirs: ../haskell-debian-repo, .
+    Hs-Source-Dirs: ., ../haskell-debian-repo, ../haskell-debian
   else
-    Build-Depends: debian-repo >= 5.23
+    Build-Depends: debian-repo >= 5.23, debian >= 3.60
 
   Build-Depends:
         applicative-extras >= 0.1.8
@@ -36,7 +36,6 @@ Library
       , bzlib
       , Cabal
       , containers
-      , debian >= 3.60
       , directory
       , Extra
       , filepath
