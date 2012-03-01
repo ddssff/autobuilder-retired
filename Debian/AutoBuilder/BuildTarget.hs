@@ -21,6 +21,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
+import qualified Debian.AutoBuilder.BuildTarget.Twice as Twice
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -60,7 +61,8 @@ retrieve buildOS cache flags spec =
       R.Tla string -> Tla.prepare cache string spec
       R.Bzr string -> Bzr.prepare cache string spec
       R.Uri uri sum -> Uri.prepare cache uri sum spec
-      R.Twice {} -> error "Unimplemented: Twice")
+      R.Twice base -> retrieve buildOS cache [] base >>= \ t ->
+                      Twice.prepare t spec )
 
 targetDocumentation :: String
 targetDocumentation =
