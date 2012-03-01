@@ -23,10 +23,8 @@ import qualified Data.Map as Map
 import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import Debian.AutoBuilder.BuildTarget.Common (Download (method, buildWrapper, logText))
-import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
-import Debian.AutoBuilder.BuildTarget.Temp (Buildable)
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.TargetType (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl)
@@ -89,9 +87,9 @@ prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v +
 -- revision info and build dependency versions in a human readable
 -- form.  FIXME: this should also include revision control log
 -- entries.
-changelogText :: Buildable -> String -> [PkgVersion] -> [PkgVersion] -> String
-changelogText spec _revision oldDeps newDeps =
-    ("  * " ++ logText spec ++ "\n" ++ depChanges changedDeps ++ "\n")
+changelogText :: T.Buildable -> String -> [PkgVersion] -> [PkgVersion] -> String
+changelogText buildable _revision oldDeps newDeps =
+    ("  * " ++ T.logText (T.download buildable) ++ "\n" ++ depChanges changedDeps ++ "\n")
     where
       depChanges [] = ""
       depChanges _ = "  * Build dependency changes:" ++ prefix ++ intercalate prefix padded ++ "\n"
@@ -113,7 +111,7 @@ _formatVersions buildDeps =
     "\n"
     where prefix = "\n    "
 
-prepareTargets :: P.CacheRec -> OSImage -> Relations -> [Buildable] -> AptIOT IO [Target]
+prepareTargets :: P.CacheRec -> OSImage -> Relations -> [T.Buildable] -> AptIOT IO [Target]
 prepareTargets cache cleanOS globalBuildDeps targetSpecs =
     do results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
        let (failures, targets) = partitionEithers results
@@ -123,11 +121,11 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
                     error msg)
        return targets
     where
-      prepare :: Int -> (Int, Buildable) -> IO (Either SomeException Target)
+      prepare :: Int -> (Int, T.Buildable) -> IO (Either SomeException Target)
       prepare count (index, tgt) =
-          do qPutStrLn (printf "[%2d of %2d] %s" index count (show (method tgt)))
+          do qPutStrLn (printf "[%2d of %2d] %s" index count (show (T.method (T.download tgt))))
              result <- quieter' (+ 2) (try' (prepareTarget cache globalBuildDeps cleanOS tgt))
-             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count (show (method tgt)) (show e))
+             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count (show (T.method (T.download tgt))) (show e))
                                return (Left e))
                     (return . Right) result
       try' :: IO a -> IO (Either SomeException a)
@@ -136,7 +134,7 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [Buildable] -> AptIOT IO (LocalRepository, [Target])
+buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [T.Buildable] -> AptIOT IO (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
@@ -161,7 +159,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
               Nothing -> return failed
               Just (target, blocked, other) ->
                   do quieter' (const 0) (qPutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                                               (count - length unbuilt + 1) count (targetName target) (show (method (tgt target)))))
+                                               (count - length unbuilt + 1) count (targetName target) (show (T.method (T.download (tgt target))))))
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
                                then return (Failure ["--discard option set"])
                                else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
@@ -335,7 +333,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               let sourceRevision = BuildTarget.revision (tgt target)
+               let sourceRevision = T.revision (T.download (tgt target))
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -420,7 +418,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
                                              exists <- doesFileExist (path' </> "debian/patches/autobuilder.diff")
                                              when (not exists) (removeDirectory (path' </> "debian/patches"))) -}
                              )
-             result <- liftIO $ try (buildWrapper (tgt target)
+             result <- liftIO $ try (T.buildWrapper (T.download (tgt target))
                                      (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
              case result of
                Left (e :: SomeException) -> return (Failure [show e])

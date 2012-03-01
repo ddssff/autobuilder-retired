@@ -1,15 +1,11 @@
 {-# LANGUAGE ExistentialQuantification, ScopedTypeVariables #-}
 module Debian.AutoBuilder.Tgt
-    ( DL(DL)
-    -- , BT(BT)
-    -- , flags
-    , relaxDepends
+    ( relaxDepends
     , srcPkgName
     ) where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Debian.AutoBuilder.BuildTarget.Common (Download(..))
 import Debian.AutoBuilder.BuildTarget.Temp (Buildable(debianSourceTree))
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
@@ -17,39 +13,6 @@ import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))
 import Debian.Control (Control'(unControl), fieldValue)
 import qualified Debian.GenBuildDeps as G
 import Debian.Repo.SourceTree (DebianSourceTree(control'))
-
--- | Objects of type Tgt contain an instance of the BuildTarget type
--- class.
-data DL = forall a. (Download a) => DL a
---data BT = forall b. (BuildTarget b) => BT b
-
---getSourceTree' :: Tgt -> SourceTree
---getSourceTree' (Tgt a) = getSourceTree a
-
-instance Download DL where
-    method (DL x) = method x
-    getTop (DL x) = getTop x
-    revision (DL x) = revision x
-    buildWrapper (DL x) action = buildWrapper x action
-    logText (DL x) = logText x
-    cleanTarget (DL x) = cleanTarget x
-    mVersion (DL x) = mVersion x
-    origTarball (DL x) = origTarball x
-
-{-
-instance Download BT where
-    method (BT x) = method x
-    getTop (BT x) = getTop x
-    revision (BT x) = revision x
-    buildWrapper (BT x) action = buildWrapper x action
-    logText (BT x) = logText x
-    cleanTarget (BT x) = cleanTarget x
-    mVersion (BT x) = mVersion x
-    origTarball (BT x) = origTarball x
-
-instance BuildTarget BT where
-    debianSourceTree (BT x) = debianSourceTree x
--}
 
 -- | Prevent the appearance of a new binary package from
 -- triggering builds of its build dependencies.  Optionally, a

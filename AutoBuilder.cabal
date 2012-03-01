@@ -68,7 +68,6 @@ Library
     Debian.AutoBuilder.BuildTarget.Apt,
     Debian.AutoBuilder.BuildTarget.Bzr,
     Debian.AutoBuilder.BuildTarget.Cd,
-    Debian.AutoBuilder.BuildTarget.Common,
     Debian.AutoBuilder.BuildTarget.Darcs,
     Debian.AutoBuilder.BuildTarget.DebDir,
     Debian.AutoBuilder.BuildTarget.Debianize,

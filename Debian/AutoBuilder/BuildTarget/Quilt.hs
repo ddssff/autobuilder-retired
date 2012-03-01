@@ -9,13 +9,12 @@ import Control.Exception (SomeException, try, throw)
 import Control.Monad (when)
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
+import Data.Digest.Pure.MD5 (md5)
 import Data.Either (partitionEithers)
 import Data.List (intercalate, sortBy)
 import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
-import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget.Common (Download(method), getTop, md5sum)
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -45,15 +44,15 @@ getEntry (Patch x) = x
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: (Download a, Download b) => P.CacheRec -> a -> b -> IO (SourceTree, FilePath)
-makeQuiltTree cache base patch =
-    do qPutStrLn $ "Quilt base: " ++ getTop base
-       qPutStrLn $ "Quilt patch: " ++ getTop patch
+makeQuiltTree :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> IO (SourceTree, FilePath)
+makeQuiltTree cache base patch m =
+    do qPutStrLn $ "Quilt base: " ++ T.getTop base
+       qPutStrLn $ "Quilt patch: " ++ T.getTop patch
        -- This will be the top directory of the quilt target
-       let copyDir = P.topDir cache ++ "/quilt/" ++ md5sum ("quilt:(" ++ show (method base) ++ "):(" ++ show (method patch) ++ ")")
+       let copyDir = P.topDir cache ++ "/quilt/" ++ show (md5 (L.pack (show m)))
        liftIO (createDirectoryIfMissing True (P.topDir cache ++ "/quilt"))
-       baseTree <- try (findSourceTree (getTop base))
-       patchTree <- try (findSourceTree (getTop patch))
+       baseTree <- try (findSourceTree (T.getTop base))
+       patchTree <- try (findSourceTree (T.getTop patch))
        case (baseTree, patchTree) of
          (Right baseTree, Right patchTree) ->
              do copyTree <- copySourceTree baseTree copyDir
@@ -83,7 +82,7 @@ failing _ s (Success x) = s x
 prepare :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache base patch m = liftIO $
     q12 "Preparing quilt target" $
-    makeQuiltTree cache base patch >>= withUpstreamQuiltHidden make
+    makeQuiltTree cache base patch m >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =
           hide >> make (quiltTree, quiltDir) >>= unhide
@@ -125,7 +124,7 @@ prepare cache base patch m = liftIO $
                                      (_, _, ExitSuccess) ->
                                          do tree <- findSourceTree (topdir quiltTree)
                                             -- return $ Quilt base patch tree m
-                                            let rev = "quilt:(" ++ BuildTarget.revision base ++ "):(" ++ BuildTarget.revision patch ++ ")"
+                                            let rev = "quilt:(" ++ T.revision base ++ "):(" ++ T.revision patch ++ ")"
                                             return $ T.Download {
                                                          T.method = m
                                                        , T.getTop = topdir tree
@@ -152,7 +151,7 @@ prepare cache base patch m = liftIO $
                  intercalate " && " (map ("quilt -v --leave-reject push " ++) patches))
             cmd3 = ("cd '" ++ quiltDir ++ "' && " ++
                     "rm -rf '" ++ quiltDir ++ "/.pc' '" ++ quiltDir ++ "/" ++ quiltPatchesDir ++ "'")
-            target = "quilt:(" ++ show (method base) ++ "):(" ++ show (method patch) ++ ")"
+            target = "quilt:(" ++ show (T.method base) ++ "):(" ++ show (T.method patch) ++ ")"
 
 mergeChangelogs' :: FilePath -> FilePath -> IO (Either String ())
 mergeChangelogs' basePath patchPath =

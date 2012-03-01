@@ -6,9 +6,9 @@ import Control.Exception (SomeException, try, throw)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
+import Data.Digest.Pure.MD5 (md5)
 import Data.List
 import Data.Maybe
-import Debian.AutoBuilder.BuildTarget.Common (md5sum)
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -104,5 +104,5 @@ prepare cache version method = liftIO $
         uri = mustParseURI version
             where
                 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
-        dir = (P.topDir cache) ++ "/bzr/" ++ md5sum (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))
+        dir = (P.topDir cache) ++ "/bzr/" ++ show (md5 (L.pack (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))))
 

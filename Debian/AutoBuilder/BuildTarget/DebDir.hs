@@ -5,9 +5,9 @@ module Debian.AutoBuilder.BuildTarget.DebDir
     ) where
 
 import Control.Monad.Trans (lift)
-import Data.ByteString.Lazy.Char8 (empty)
+import Data.ByteString.Lazy.Char8 (empty, pack)
+import Data.Digest.Pure.MD5 (md5)
 import Data.Version (showVersion)
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -31,19 +31,19 @@ prepare cache upstream debian m = lift $
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
-    let rev = "deb-dir:(" ++ revision upstream ++ "):(" ++ revision debian ++")"
+    let rev = "deb-dir:(" ++ T.revision upstream ++ "):(" ++ T.revision debian ++")"
         tgt = T.Download {
                 T.method = m
               , T.getTop = topdir tree
               , T.revision = rev
               , T.logText = "deb-dir revision: " ++ rev
               , T.mVersion = Nothing
-              , T.origTarball = origTarball upstream
+              , T.origTarball = T.origTarball upstream
               , T.cleanTarget = \ _ -> return ([], 0)
               , T.buildWrapper = id
               } in
     -- The upstream and downstream versions must match after the epoch and revision is stripped.
-    case mVersion upstream of
+    case T.mVersion upstream of
       Nothing -> return tgt
       Just upstreamV ->
           let debianV = logVersion (entry tree) in
@@ -55,8 +55,8 @@ prepare cache upstream debian m = lift $
     where
       copyUpstream = lazyCommandF cmd1 empty
       copyDebian = lazyCommandF cmd2 empty
-      upstreamDir = getTop upstream
-      debianDir = getTop debian
-      dest = P.topDir cache ++ "/deb-dir/" ++ md5sum ("deb-dir:(" ++ show (method upstream) ++ "):(" ++ show (method debian) ++ ")") 
+      upstreamDir = T.getTop upstream
+      debianDir = T.getTop debian
+      dest = P.topDir cache ++ "/deb-dir/" ++ show (md5 (pack (show m)))
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")

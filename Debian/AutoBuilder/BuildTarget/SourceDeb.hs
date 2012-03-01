@@ -6,7 +6,6 @@ module Debian.AutoBuilder.BuildTarget.SourceDeb where
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
-import Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -29,12 +28,12 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 -- by unpacking the source deb.
 prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare _cache base m =
-    do let top = getTop base
+    do let top = T.getTop base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> liftIO (readFile (top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
-         [] -> return $  error ("Invalid sourcedeb base: no .dsc file in " ++ show (method base))
+         [] -> return $  error ("Invalid sourcedeb base: no .dsc file in " ++ show (T.method base))
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
              do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of
@@ -49,8 +48,8 @@ prepare _cache base m =
                 return $ T.Download {
                              T.method = m
                            , T.getTop = top
-                           , T.revision = "sourcedeb:" ++ BuildTarget.revision base
-                           , T.logText = BuildTarget.revision base ++ " (source deb)"
+                           , T.revision = "sourcedeb:" ++ T.revision base
+                           , T.logText = T.revision base ++ " (source deb)"
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)

@@ -8,8 +8,8 @@ import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
+import Data.Digest.Pure.MD5 (md5)
 import Data.List
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -109,4 +109,7 @@ prepare cache uri m = liftIO $
                               ExitSuccess -> Right output
                               _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
       userInfo = maybe "" uriUserInfo (uriAuthority uri')
-      dir = P.topDir cache ++ "/svn/" ++ md5sum (maybe "" uriRegName (uriAuthority uri') ++ (uriPath uri'))
+      dir = P.topDir cache ++ "/svn/" ++ show (md5 (L.pack (maybe "" uriRegName (uriAuthority uri') ++ (uriPath uri'))))
+
+mustParseURI :: String -> URI
+mustParseURI s = maybe (error ("Svn - parse failure: " ++ show s)) id (parseURI s)

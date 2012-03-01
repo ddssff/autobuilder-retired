@@ -3,7 +3,6 @@
 module Debian.AutoBuilder.BuildTarget.Proc where
 
 import qualified Data.ByteString.Lazy.Char8 as L
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
@@ -22,9 +21,9 @@ prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> OSImage -> AptIOT IO 
 prepare _cache base m buildOS =
     return $ T.Download {
                  T.method = m
-               , T.getTop = getTop base
-               , T.revision = "proc:" ++ revision base
-               , T.logText = logText base ++ " (with /proc mounted)"
+               , T.getTop = T.getTop base
+               , T.revision = "proc:" ++ T.revision base
+               , T.logText = T.logText base ++ " (with /proc mounted)"
                , T.mVersion = Nothing
                , T.origTarball = Nothing
                , T.cleanTarget = T.cleanTarget base

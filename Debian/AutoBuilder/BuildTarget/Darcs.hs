@@ -5,16 +5,16 @@ import Control.Exception (try, SomeException)
 import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as B
+import Data.Digest.Pure.MD5 (md5)
 import Data.List (nub, sort)
 import Data.Maybe (catMaybes)
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
-import Network.URI (URI(..), URIAuth(..), uriToString)
+import Network.URI (URI(..), URIAuth(..), uriToString, parseURI)
 import System.Directory
 import System.FilePath
 import System.Unix.Directory
@@ -95,7 +95,7 @@ prepare cache theUri flags m =
                     cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
                 lazyCommandF cmd B.empty
       dir = base ++ "/" ++ sum
-      sum = md5sum uriAndTag
+      sum = show (md5 (B.pack uriAndTag))
       base = P.topDir cache ++ "/darcs"
 
 renderForDarcs :: URI -> String
@@ -103,3 +103,6 @@ renderForDarcs uri =
     case (uriScheme uri, uriAuthority uri) of
       ("ssh:", Just auth) -> uriUserInfo auth ++ uriRegName auth ++ ":" ++ uriPath uri ++ uriQuery uri ++ uriFragment uri
       (_, _) -> show uri
+
+mustParseURI :: String -> URI
+mustParseURI s = maybe (error ("Darcs - failed to parse URI: " ++ show s)) id (parseURI s)

@@ -5,7 +5,6 @@ module Debian.AutoBuilder.TargetType
     , targetName
     , targetRelaxed
     , targetControl
-    -- , updateDependencyInfo
     , getRelaxedDependencyInfo
     ) where
 
@@ -13,14 +12,12 @@ import Control.Applicative.Error (Failing(Success, Failure), failing)
 import Control.Exception (catch, throw)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
-import Debian.AutoBuilder.BuildTarget.Common (Download(getTop, cleanTarget, origTarball))
 import Debian.AutoBuilder.BuildTarget.Temp (Buildable)
---import Debian.AutoBuilder.Tgt (BT)
+import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.Changes (logVersion, ChangeLogEntry(..))
 import Debian.Control (Control, Control'(Control), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G
---import Debian.Relation (prettyRelation)
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
 import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, subdir, debdir, {-findOneDebianBuildTree,-} findDebianBuildTree, findDebianBuildTrees, copyDebianBuildTree,
@@ -29,12 +26,11 @@ import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
 import Prelude hiding (catch)
 import System.Directory(renameDirectory)
-import System.FilePath (takeExtension)
+import System.FilePath (takeExtension, (</>))
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
 import System.Unix.QIO (qPutStrLn, quieter)
---import Text.PrettyPrint (Doc, text, cat)
 
 -- | Information collected from the build tree for a Tgt.
 data Target
@@ -51,7 +47,7 @@ instance Eq Target where
 -- DebianBuildTree. 
 prepareTarget :: P.CacheRec -> Relations -> OSImage -> Buildable -> IO Target
 prepareTarget cache globalBuildDeps os source =
-    quieter (+ 2) $ prepareBuild cache os source >>= \ tree ->
+    quieter (+ 2) $ prepareBuild cache os (T.download source) >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=
     failing (error . show)
             (\ deps -> return $ Target { tgt = source
@@ -66,7 +62,7 @@ targetControl = control . cleanSource
 -- This ensures that the tarball and\/or the .diff.gz file in the deb
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
-prepareBuild :: Download t => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
+prepareBuild :: P.CacheRec -> OSImage -> T.Download -> IO DebianBuildTree
 prepareBuild _cache os target =
     do (_, trees) <- findDebianBuildTrees top
        case filter checkName trees of
@@ -93,7 +89,7 @@ prepareBuild _cache os target =
       checkName tree = source == Just name
           where source = fieldValue "Source" (head (unControl (control' (debTree' tree))))
 -}
-      top = getTop target
+      top = T.getTop target
       copySource :: DebianSourceTree -> IO DebianBuildTree
       copySource debSource =
           do let name = logPackage . entry $ debSource
@@ -101,10 +97,10 @@ prepareBuild _cache os target =
                  ver = Debian.Version.version . logVersion . entry $ debSource
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
-             _copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
+             _copy <- copyDebianSourceTree debSource (dest </> newdir)
              -- Clean the revision control files for this target out of the copy of the source tree
-             (_out, _time) <- cleanTarget target
-             maybe (return ()) (liftIO . copyOrigTarball dest name ver) (origTarball target)
+             (_out, _time) <- T.cleanTarget target (dest </> newdir)
+             maybe (return ()) (liftIO . copyOrigTarball dest name ver) (T.origTarball target)
              findDebianBuildTree dest newdir
       copyBuild :: DebianBuildTree -> IO DebianBuildTree
       copyBuild debBuild =
@@ -114,7 +110,7 @@ prepareBuild _cache os target =
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
              _copy <- copyDebianBuildTree debBuild dest
-             (_output, _time) <- cleanTarget target
+             (_output, _time) <- T.cleanTarget target (dest </> newdir)
              when (newdir /= (subdir debBuild))
                       (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
              findDebianBuildTree dest newdir
