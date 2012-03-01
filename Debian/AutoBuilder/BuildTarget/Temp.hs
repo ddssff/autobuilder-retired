@@ -16,7 +16,7 @@ import System.IO (hPutStrLn, stderr)
 
 data Download
     = Download
-      { method' :: RetrieveMethod
+      { method :: RetrieveMethod
       -- ^ The method used to retrieve this target.
       , getTop :: FilePath
       -- ^ The directory containing the target's files.  For most target types, these
@@ -45,7 +45,7 @@ data Download
       }
 
 instance C.Download Download where
-    method = method'
+    method = method
     getTop tgt = getTop tgt
     revision tgt = revision tgt
     logText x = logText x

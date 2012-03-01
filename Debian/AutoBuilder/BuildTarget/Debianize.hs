@@ -61,7 +61,7 @@ prepare cache flags name cabalFlags m = liftIO $
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
        let rev = "debianize:" ++ name ++ "=" ++ showVersion version'
        -- return $ Debianize name (Just version') tree m
-       return $ T.Download { T.method' = m
+       return $ T.Download { T.method = m
                            , T.getTop = topdir tree
                            , T.revision = rev
                            , T.logText =  "Built from hackage, revision: " ++ rev
@@ -261,7 +261,7 @@ prepareHackage cache name cabalFlags m = liftIO $
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
        let rev = "hackage:" ++ name ++ "=" ++ showVersion version'
        -- return $ Hackage name (Just version') tree m
-       return $ T.Download { T.method' = m
+       return $ T.Download { T.method = m
                            , T.getTop = topdir tree
                            , T.revision = rev
                            , T.logText =  "Built from hackage, revision: " ++ rev

@@ -39,7 +39,7 @@ prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> OSImage -> AptIOT IO 
 prepare _cache base m buildOS =
     -- return $ Proc base m
     return $ T.Download {
-                 T.method' = m
+                 T.method = m
                , T.getTop = getTop base
                , T.revision = "proc:" ++ revision base
                , T.logText = logText base ++ " (with /proc mounted)"

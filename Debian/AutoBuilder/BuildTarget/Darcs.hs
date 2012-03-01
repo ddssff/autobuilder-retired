@@ -46,7 +46,7 @@ prepare cache theUri flags m =
       _output <- liftIO fixLink
       -- let darcs = Darcs { uri = theUri, tag = theTag, sourceTree = tree, Debian.AutoBuilder.BuildTarget.Darcs.method = m }
       rev <- darcsRev tree m >>= either (fail . show) return
-      return $ T.Download { T.method' = m
+      return $ T.Download { T.method = m
                           , T.getTop = topdir tree
                           , T.revision = rev
                           , T.logText =  "Darcs revision: " ++ rev

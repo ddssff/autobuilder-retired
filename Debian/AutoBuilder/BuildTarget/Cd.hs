@@ -29,7 +29,7 @@ prepare _cache subdir target m =
     -- FIXME: we should verify that the subdir contains a debian source tree
     -- return $ Cd subdir target m
     do     
-    return $ T.Download { T.method' = m
+    return $ T.Download { T.method = m
                         , T.getTop = C.getTop target </> subdir
                         , T.revision = "cd:" ++ subdir ++ ":" ++ C.revision target
                         , T.logText = T.logText target ++ " (in subdirectory " ++ subdir ++ ")"

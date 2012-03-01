@@ -67,7 +67,7 @@ prepare cache archive m = liftIO $
                   (rev', ExitSuccess) -> return $ "hg:" ++ rev'
                   (_, ExitFailure _) -> fail $ "FAILURE: " ++ cmd	-- return . Right $ "hg:" ++ revision
       -- return $ Hg archive tree m
-      return $ T.Download { T.method' = m
+      return $ T.Download { T.method = m
                           , T.getTop = topdir tree
                           , T.revision = rev
                           , T.logText =  "Hg revision: " ++ rev

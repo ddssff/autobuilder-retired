@@ -62,7 +62,7 @@ prepare cache version m = liftIO $
                             return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
                 _output <- waitForProcess handle
                 return $ "tla:" ++ revision
-      return $ T.Download { T.method' = m
+      return $ T.Download { T.method = m
                           , T.getTop = topdir tree
                           , T.revision = rev
                           , T.logText =  "TLA revision: " ++ rev

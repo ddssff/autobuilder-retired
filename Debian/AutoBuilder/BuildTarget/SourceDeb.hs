@@ -58,7 +58,7 @@ prepare _cache base m =
             (Just _package, Just _version) ->
                 -- (SourceDeb base top (package ++ "-" ++ V.version version) m)
                 return $ T.Download {
-                             T.method' = m
+                             T.method = m
                            , T.getTop = top
                            , T.revision = "sourcedeb:" ++ BuildTarget.revision base
                            , T.logText = BuildTarget.revision base ++ " (source deb)"

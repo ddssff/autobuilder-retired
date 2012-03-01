@@ -105,7 +105,7 @@ prepare cache uri m = liftIO $
               svn (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
               -- svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
               return . readControl
-       return $ T.Download { T.method' = m
+       return $ T.Download { T.method = m
                            , T.getTop = topdir tree
                            , T.revision = rev
                            , T.logText =  "SVN revision: " ++ rev

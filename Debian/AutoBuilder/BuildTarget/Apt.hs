@@ -30,7 +30,7 @@ prepare cache dist package flags method =
        let version'' = logVersion . entry $ tree
            rev = "apt:" ++ (sliceName . sliceListName $ distro) ++ ":" ++ package ++ "=" ++ show (prettyDebianVersion version'')
        return $ T.Download {
-                    T.method' = method
+                    T.method = method
                   , T.getTop = topdir tree
                   , T.revision = rev
                   , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev

@@ -37,7 +37,7 @@ prepare :: P.CacheRec -> FilePath -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare _cache path m =
     do tree <- lift (findSourceTree path)
        -- return $ Dir tree m
-       return $ T.Download { T.method' = m
+       return $ T.Download { T.method = m
                            , T.getTop = topdir tree
                            , T.revision = fail "Build targets do not have revision strings"
                            , T.logText =  "Built from local directory " ++ topdir tree

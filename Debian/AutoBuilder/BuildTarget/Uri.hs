@@ -57,7 +57,7 @@ instance Download Uri where
 prepare :: P.CacheRec -> String -> String -> R.RetrieveMethod -> R.AptIOT IO T.Download
 prepare c u s m = liftIO $
     do (uri, sum, tree) <- checkTarget >>= downloadTarget >> validateTarget >>= unpackTarget
-       return $ T.Download { T.method' = m
+       return $ T.Download { T.method = m
                            , T.getTop = R.topdir tree
                            , T.revision = sum
                            , T.logText = "Built from URI download " ++ (uriToString' uri)

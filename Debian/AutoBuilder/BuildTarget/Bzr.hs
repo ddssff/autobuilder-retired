@@ -59,7 +59,7 @@ prepare cache version method = liftIO $
                  ExitSuccess -> "bzr:" ++ rev
                  code -> fail (cmd ++ " -> " ++ show code)
     return $ T.Download
-               { T.method' = method
+               { T.method = method
                , T.getTop = topdir tree
                , T.revision = rev'
                , T.logText = "Bazaar revision: " ++ show rev'

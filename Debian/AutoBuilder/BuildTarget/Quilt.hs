@@ -162,7 +162,7 @@ prepare cache base patch m = liftIO $
                                             -- return $ Quilt base patch tree m
                                             let rev = "quilt:(" ++ BuildTarget.revision base ++ "):(" ++ BuildTarget.revision patch ++ ")"
                                             return $ T.Download {
-                                                         T.method' = m
+                                                         T.method = m
                                                        , T.getTop = topdir tree
                                                        , T.revision = rev
                                                        , T.logText = "Quilt revision " ++ rev
