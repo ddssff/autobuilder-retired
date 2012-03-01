@@ -21,23 +21,24 @@ import System.Unix.Progress (lazyCommandF)
 --import ChangeLog
 
 -- | Get the upstream source from one location, and the debian directory from another
-data DebDir = forall a b. (Download a, Download b) => DebDir a b DebianSourceTree R.RetrieveMethod
+-- data DebDir = forall a b. (Download a, Download b) => DebDir a b DebianSourceTree R.RetrieveMethod
 
 documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
+{-
 instance Download DebDir where
     method (DebDir _ _ _ m) = m
-    getTop _ (DebDir _ _ tree _) = topdir tree
-    revision params (DebDir upstream debian _ _) =
-        revision params upstream >>= \ rev ->
-        revision params debian >>= \ x -> return ("deb-dir:(" ++ rev ++ "):(" ++ x ++")")
-    logText (DebDir _ _ _ _) revision = "deb-dir revision: " ++ either show id revision
+    getTop (DebDir _ _ tree _) = topdir tree
+    revision (DebDir upstream debian _ _) =
+         "deb-dir:(" ++ revision upstream ++ "):(" ++ revision debian ++")"
+    logText (DebDir _ _ _ _) revision = "deb-dir revision: " ++ revision
     cleanTarget params (DebDir upstream debian _ _) path =
         cleanTarget params upstream path >>
         cleanTarget params debian (path ++ "/debian")
     origTarball c (DebDir u _ _ _) = origTarball c u
+-}
 
 prepare :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache upstream debian m = lift $
@@ -45,18 +46,16 @@ prepare cache upstream debian m = lift $
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
-    revision (P.params cache) upstream >>= \ urev ->
-    revision (P.params cache) debian >>= \ drev ->
-    -- let tgt = DebDir upstream debian tree m in
-    let rev = "deb-dir:(" ++ urev ++ "):(" ++ drev ++")"
+    let rev = "deb-dir:(" ++ revision upstream ++ "):(" ++ revision debian ++")"
         tgt = T.Download {
                 T.method' = m
               , T.getTop = topdir tree
               , T.revision = rev
               , T.logText = "deb-dir revision: " ++ rev
               , T.mVersion = Nothing
-              , T.origTarball = origTarball cache upstream
+              , T.origTarball = origTarball upstream
               , T.cleanTarget = \ _ -> return ([], 0)
+              , T.buildWrapper = id
               } in
     -- The upstream and downstream versions must match after the epoch and revision is stripped.
     case mVersion upstream of
@@ -79,8 +78,8 @@ prepare cache upstream debian m = lift $
     where
       copyUpstream = lazyCommandF cmd1 empty -- runTaskAndTest (cleanStyle (show upstream) (commandTask cmd1))
       copyDebian = lazyCommandF cmd2 empty -- runTaskAndTest (cleanStyle (show debian) (commandTask cmd2))
-      upstreamDir = getTop (P.params cache) upstream
-      debianDir = getTop (P.params cache) debian
+      upstreamDir = getTop upstream
+      debianDir = getTop debian
       dest = P.topDir cache ++ "/deb-dir/" ++ md5sum ("deb-dir:(" ++ show (method upstream) ++ "):(" ++ show (method debian) ++ ")") 
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")

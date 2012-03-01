@@ -2,7 +2,6 @@
 module Debian.AutoBuilder.BuildTarget.Svn 
     ( BuildTarget(..)
     , prepare
-    , Svn
     , documentation
     ) where
 
@@ -27,7 +26,7 @@ import System.Unix.Progress (timeTask, lazyCommandF, lazyProcessF, lazyProcessE)
 import System.Directory
 
 -- | A Subversion archive
-data Svn = Svn URI SourceTree R.RetrieveMethod
+-- data Svn = Svn URI SourceTree R.RetrieveMethod
 
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
@@ -55,10 +54,11 @@ password userInfo =
     then []
     else ["--password",unEscapeString pw]
 
+{-
 instance Download Svn where
     method (Svn _ _ m) = m
-    getTop _ (Svn _ tree _) = topdir tree
-    revision _ (Svn uri _ _) =
+    getTop (Svn _ tree _) = topdir tree
+    revision (Svn uri _ _) =
         svn (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         -- svn id (Just $ topdir tree) (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
         return . readControl
@@ -83,6 +83,7 @@ instance Download Svn where
         where
           cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf"
           -- cleanStyle path = setStart (Just (" Copy and clean SVN target to " ++ path))
+-}
 
 prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache uri m = liftIO $
@@ -115,6 +116,7 @@ prepare cache uri m = liftIO $
                                \ path -> 
                                    let cmd = "find " ++ path ++ " -name .svn -type d -print0 | xargs -0 -r -n1 rm -rf" in
                                    timeTask (lazyCommandF cmd L.empty)
+                           , T.buildWrapper = id
                            }
     where
       uri' = mustParseURI uri

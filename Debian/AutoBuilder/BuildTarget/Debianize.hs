@@ -67,7 +67,8 @@ prepare cache flags name cabalFlags m = liftIO $
                            , T.logText =  "Built from hackage, revision: " ++ rev
                            , T.mVersion = Just version'
                            , T.origTarball = Nothing
-                           , T.cleanTarget = \ _ -> return ([], 0) }
+                           , T.cleanTarget = \ _ -> return ([], 0)
+                           , T.buildWrapper = id }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                                   P.CabalPin s -> Just s
@@ -266,7 +267,8 @@ prepareHackage cache name cabalFlags m = liftIO $
                            , T.logText =  "Built from hackage, revision: " ++ rev
                            , T.mVersion = Just version'
                            , T.origTarball = Nothing
-                           , T.cleanTarget = \ _ -> return ([], 0) }
+                           , T.cleanTarget = \ _ -> return ([], 0)
+                           , T.buildWrapper = id }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                                   P.CabalPin s -> Just s

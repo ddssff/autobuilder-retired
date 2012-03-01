@@ -68,7 +68,8 @@ prepare cache version method = liftIO $
                , T.cleanTarget = \ top ->
                    do qPutStrLn ("Clean Bazaar target in " ++ top)
                       let cmd = "find '" ++ top ++ "' -name '.bzr' -prune | xargs rm -rf"
-                      timeTask (lazyCommandF cmd L.empty) }
+                      timeTask (lazyCommandF cmd L.empty)
+               , T.buildWrapper = id }
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =

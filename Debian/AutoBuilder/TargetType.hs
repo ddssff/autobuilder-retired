@@ -22,7 +22,7 @@ import qualified Debian.GenBuildDeps as G
 --import Debian.Relation (prettyRelation)
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
-import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, topdir, subdir, debdir, {-findOneDebianBuildTree,-} findDebianBuildTree, findDebianBuildTrees, copyDebianBuildTree,
+import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, subdir, debdir, {-findOneDebianBuildTree,-} findDebianBuildTree, findDebianBuildTrees, copyDebianBuildTree,
                                DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree)
 import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
@@ -66,7 +66,7 @@ targetControl = control . cleanSource
 -- don't contain extra junk.  It also makes sure that debian\/rules is
 -- executable.
 prepareBuild :: Download t => P.CacheRec -> OSImage -> t -> IO DebianBuildTree
-prepareBuild cache os target =
+prepareBuild _cache os target =
     do (_, trees) <- findDebianBuildTrees top
        case filter checkName trees of
          [] ->
@@ -92,7 +92,7 @@ prepareBuild cache os target =
       checkName tree = source == Just name
           where source = fieldValue "Source" (head (unControl (control' (debTree' tree))))
 -}
-      top = getTop (P.params cache) target
+      top = getTop target
       copySource :: DebianSourceTree -> IO DebianBuildTree
       copySource debSource =
           do let name = logPackage . entry $ debSource
@@ -100,10 +100,10 @@ prepareBuild cache os target =
                  ver = Debian.Version.version . logVersion . entry $ debSource
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
-             copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
+             _copy <- copyDebianSourceTree debSource (dest ++ "/" ++ newdir)
              -- Clean the revision control files for this target out of the copy of the source tree
-             (_out, _time) <- cleanTarget (P.params cache) target (topdir copy)
-             maybe (return ()) (liftIO . copyOrigTarball dest name ver) (origTarball cache target)
+             (_out, _time) <- cleanTarget target
+             maybe (return ()) (liftIO . copyOrigTarball dest name ver) (origTarball target)
              findDebianBuildTree dest newdir
       copyBuild :: DebianBuildTree -> IO DebianBuildTree
       copyBuild debBuild =
@@ -112,8 +112,8 @@ prepareBuild cache os target =
                  ver = Debian.Version.version . logVersion . entry $ debBuild
                  newdir = escapeForBuild $ name ++ "-" ++ ver
              --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
-             copy <- copyDebianBuildTree debBuild dest
-             (_output, _time) <- cleanTarget (P.params cache) target (topdir copy)
+             _copy <- copyDebianBuildTree debBuild dest
+             (_output, _time) <- cleanTarget target
              when (newdir /= (subdir debBuild))
                       (liftIO $ renameDirectory (dest ++ "/" ++ subdir debBuild) (dest ++ "/" ++ newdir))
              findDebianBuildTree dest newdir

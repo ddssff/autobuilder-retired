@@ -63,7 +63,8 @@ prepare c u s m = liftIO $
                            , T.logText = "Built from URI download " ++ (uriToString' uri)
                            , T.mVersion = Nothing
                            , T.origTarball = Just (tarball c (uriToString' uri) sum)
-                           , T.cleanTarget = \ _ -> return ([], 0) }
+                           , T.cleanTarget = \ _ -> return ([], 0)
+                           , T.buildWrapper = id }
     where
       checkTarget =
           do exists <- doesFileExist (tarball c u s)

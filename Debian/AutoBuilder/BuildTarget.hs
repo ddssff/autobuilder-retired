@@ -24,36 +24,37 @@ import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import Debian.Repo (OSImage)
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
-retrieve cache flags spec =
+retrieve :: OSImage -> P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
+retrieve buildOS cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of
       R.Apt dist package flags -> Apt.prepare cache dist package flags spec
       R.Darcs uri flags -> lift (Darcs.prepare cache uri flags spec)
       R.DebDir upstream debian ->
-          do upstream' <- retrieve cache [] upstream
-             debian' <- retrieve cache [] debian
+          do upstream' <- retrieve buildOS cache [] upstream
+             debian' <- retrieve buildOS cache [] debian
              DebDir.prepare cache upstream' debian' spec
       R.Cd dir spec' ->
-          retrieve cache [] spec' >>= \ t ->
+          retrieve buildOS cache [] spec' >>= \ t ->
           Cd.prepare cache dir t spec
       R.Dir path -> Dir.prepare cache path spec
       R.Debianize package version -> Debianize.prepare cache flags package version spec
       R.Hackage package version -> Debianize.prepareHackage cache package version spec
       R.Hg string -> Hg.prepare cache string spec
       R.Proc spec' ->
-          retrieve cache [] spec' >>= \ t ->
-          Proc.prepare cache t spec
+          retrieve buildOS cache [] spec' >>= \ t ->
+          Proc.prepare cache t spec buildOS
       R.Quilt base patches ->
-          retrieve cache [] base >>= \ base' ->
-          retrieve cache [] patches >>= \ patches' ->
+          retrieve buildOS cache [] base >>= \ base' ->
+          retrieve buildOS cache [] patches >>= \ patches' ->
           Quilt.prepare cache base' patches' spec
       R.SourceDeb spec' ->
-          retrieve cache [] spec' >>= \ t ->
+          retrieve buildOS cache [] spec' >>= \ t ->
           SourceDeb.prepare cache t spec
       R.Svn uri -> Svn.prepare cache uri spec
       R.Tla string -> Tla.prepare cache string spec

@@ -27,23 +27,23 @@ data BT = forall b. (BuildTarget b) => BT b
 
 instance Download DL where
     method (DL x) = method x
-    getTop params (DL x) = getTop params x
-    revision params (DL x) = revision params x
-    buildWrapper params os tree status (DL x) action = buildWrapper params os tree status x action
-    logText (DL x) result = logText x result
-    cleanTarget params (DL x) path = cleanTarget params x path
+    getTop (DL x) = getTop x
+    revision (DL x) = revision x
+    buildWrapper (DL x) action = buildWrapper x action
+    logText (DL x) = logText x
+    cleanTarget (DL x) = cleanTarget x
     mVersion (DL x) = mVersion x
-    origTarball cache (DL x) = origTarball cache x
+    origTarball (DL x) = origTarball x
 
 instance Download BT where
     method (BT x) = method x
-    getTop params (BT x) = getTop params x
-    revision params (BT x) = revision params x
-    buildWrapper params os tree status (BT x) action = buildWrapper params os tree status x action
-    logText (BT x) result = logText x result
-    cleanTarget params (BT x) path = cleanTarget params x path
+    getTop (BT x) = getTop x
+    revision (BT x) = revision x
+    buildWrapper (BT x) action = buildWrapper x action
+    logText (BT x) = logText x
+    cleanTarget (BT x) = cleanTarget x
     mVersion (BT x) = mVersion x
-    origTarball cache (BT x) = origTarball cache x
+    origTarball (BT x) = origTarball x
 
 instance BuildTarget BT where
     debianSourceTree (BT x) = debianSourceTree x

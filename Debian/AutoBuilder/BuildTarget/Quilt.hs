@@ -15,12 +15,12 @@ import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget (revision)
-import Debian.AutoBuilder.BuildTarget.Common (Download(method, cleanTarget), getTop, md5sum)
+import Debian.AutoBuilder.BuildTarget.Common (Download(method), getTop, md5sum)
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
-import Debian.Repo (DebianSourceTreeC(entry, debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findDebianSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
+import Debian.Repo (DebianSourceTreeC(debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
 import Debian.Version
 import Extra.Files (replaceFile)
 import "Extra" Extra.List ()
@@ -71,13 +71,13 @@ quiltPatchesDir = "quilt-patches"
 
 makeQuiltTree :: (Download a, Download b) => P.CacheRec -> a -> b -> IO (SourceTree, FilePath)
 makeQuiltTree cache base patch =
-    do qPutStrLn $ "Quilt base: " ++ getTop (P.params cache) base
-       qPutStrLn $ "Quilt patch: " ++ getTop (P.params cache) patch
+    do qPutStrLn $ "Quilt base: " ++ getTop base
+       qPutStrLn $ "Quilt patch: " ++ getTop patch
        -- This will be the top directory of the quilt target
        let copyDir = P.topDir cache ++ "/quilt/" ++ md5sum ("quilt:(" ++ show (method base) ++ "):(" ++ show (method patch) ++ ")")
        liftIO (createDirectoryIfMissing True (P.topDir cache ++ "/quilt"))
-       baseTree <- try (findSourceTree (getTop (P.params cache) base))
-       patchTree <- try (findSourceTree (getTop (P.params cache) patch))
+       baseTree <- try (findSourceTree (getTop base))
+       patchTree <- try (findSourceTree (getTop patch))
        case (baseTree, patchTree) of
          (Right baseTree, Right patchTree) ->
              do copyTree <- copySourceTree baseTree copyDir
@@ -160,14 +160,7 @@ prepare cache base patch m = liftIO $
                                      (_, _, ExitSuccess) ->
                                          do tree <- findSourceTree (topdir quiltTree)
                                             -- return $ Quilt base patch tree m
-                                            baseRev <- try (BuildTarget.revision (P.params cache) base)
-                                            rev <- case baseRev of
-                                                     Right (rev :: String) ->
-                                                         BuildTarget.revision (P.params cache) patch >>= \ patchRev -> return ("quilt:(" ++ rev ++ "):(" ++ patchRev ++ ")")
-                                                     Left (_ :: SomeException) ->
-                                                         do baseTree <- findDebianSourceTree (getTop (P.params cache) base)
-                                                            let rev = logVersion . entry $ baseTree
-                                                            BuildTarget.revision (P.params cache) patch >>= \ patchRev -> return ("quilt:(" ++ show (prettyDebianVersion rev) ++ "):(" ++ patchRev ++ ")")
+                                            let rev = "quilt:(" ++ BuildTarget.revision base ++ "):(" ++ BuildTarget.revision patch ++ ")"
                                             return $ T.Download {
                                                          T.method' = m
                                                        , T.getTop = topdir tree
@@ -175,7 +168,8 @@ prepare cache base patch m = liftIO $
                                                        , T.logText = "Quilt revision " ++ rev
                                                        , T.mVersion = Nothing
                                                        , T.origTarball = Nothing
-                                                       , T.cleanTarget = cleanTarget (P.params cache) base
+                                                       , T.cleanTarget = \ top -> T.cleanTarget base top
+                                                       , T.buildWrapper = id
                                                        }
                                      _ -> fail $ target ++ " - Failure removing quilt directory: " ++ cmd3
                (_, err, ExitFailure _) -> fail $ target ++ " - Unexpected output from quilt applied: " ++ err

@@ -36,7 +36,7 @@ import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
 import Debian.Repo.Monad (AptIOT, AptState, initState, getRepoMap, tryAB)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
-import Debian.Repo.OSImage(buildEssential, prepareEnv)
+import Debian.Repo.OSImage(buildEssential, prepareEnv, chrootEnv)
 import Debian.Repo.Release(prepareRelease)
 import Debian.Repo.Repository(uploadRemote, verifyUploadURI)
 import Debian.Repo.Slice(appendSliceLists, inexactPathSlices, releaseSlices, repoSources)
@@ -135,7 +135,7 @@ runParameterSet cache =
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged params) poolSources
-      (failures, targets) <- retrieveTargetList >>= mapM (either (return . Left) (liftIO . try . asTarget)) >>= return . partitionEithers
+      (failures, targets) <- retrieveTargetList cleanOS >>= mapM (either (return . Left) (liftIO . try . asTarget)) >>= return . partitionEithers
       when (not (null failures))
            (do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
                liftIO $ IO.hPutStrLn IO.stderr msg
@@ -205,21 +205,18 @@ runParameterSet cache =
                      False -> return repo'
                _ -> error "Expected local repo"
       -- retrieveTargetList :: AptIOT IO (Either SomeException Tgt)
-      retrieveTargetList =
+      retrieveTargetList cleanOS =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              qPutStrLn "Retrieving all source code:\n"
              countTasks' (map (\ (target :: P.Packages) ->
                                    (show (P.spec target),
-                                    tryAB (retrieve cache (P.flags target) (P.spec target)) >>=
+                                    tryAB (retrieve buildOS cache (P.flags target) (P.spec target)) >>=
                                     either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >>
                                                    return (Left e))
                                            (return . Right)))
                               (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) [] allTargets))
           where
-{-          allTargets = P.foldPackages (\ name spec flags l -> 
-                                             P.Package name spec flags : l) [] (case P.targets params of
-                                                                                  P.TargetSet s -> s
-                                                                                  _ -> error "relaxDepends: invalid target set") -}
+            buildOS = chrootEnv cleanOS (P.dirtyRoot cache)
             allTargets = case P.targets params of
                            P.TargetSet s -> s
                            _ -> error "retrieveTargetList: invalid target set"

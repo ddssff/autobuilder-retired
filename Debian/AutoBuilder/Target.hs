@@ -106,9 +106,9 @@ _findSourceParagraph (Control paragraphs) =
 -- revision info and build dependency versions in a human readable
 -- form.  FIXME: this should also include revision control log
 -- entries.
-changelogText :: Exception e => BT -> Either e String -> [PkgVersion] -> [PkgVersion] -> String
-changelogText spec revision oldDeps newDeps =
-    ("  * " ++ logText spec revision ++ "\n" ++ depChanges changedDeps ++ "\n")
+changelogText :: BT -> String -> [PkgVersion] -> [PkgVersion] -> String
+changelogText spec _revision oldDeps newDeps =
+    ("  * " ++ logText spec ++ "\n" ++ depChanges changedDeps ++ "\n")
     where
       depChanges [] = ""
       depChanges _ = "  * Build dependency changes:" ++ prefix ++ intercalate prefix padded ++ "\n"
@@ -363,7 +363,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                -- default it is simply the debian version number.  The version
                -- number in the source tree should not have our vendor tag,
                -- that should only be added by the autobuilder.
-               sourceRevision <- lift (try (BuildTarget.revision (P.params cache) (tgt target)))
+               let sourceRevision = BuildTarget.revision (tgt target)
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
@@ -412,7 +412,7 @@ makeVersion package =
                , getVersion = packageVersion (packageID package) }
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: P.CacheRec -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> Either SomeException String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
+buildPackage :: P.CacheRec -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
 buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
     checkDryRun >>
     lift prepareImage >>=
@@ -448,7 +448,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
                                              exists <- doesFileExist (path' </> "debian/patches/autobuilder.diff")
                                              when (not exists) (removeDirectory (path' </> "debian/patches"))) -}
                              )
-             result <- liftIO $ try (buildWrapper (P.params cache) buildOS buildTree status (tgt target)
+             result <- liftIO $ try (buildWrapper (tgt target)
                                      (buildDebs (P.noClean (P.params cache)) False (P.setEnv (P.params cache)) buildOS buildTree status))
              case result of
                Left (e :: SomeException) -> return (Failure [show e])
@@ -874,7 +874,7 @@ outputToString (Result r : out) = show r ++ outputToString out
 -- included in the package's entry in the Sources.gz file.  Then we
 -- can compare the revision from the uploaded package with the current
 -- TLA revision to decide whether to build.
-setRevisionInfo :: Exception e => DebianVersion -> Either e String -> [PkgVersion] -> ChangesFile -> IO ChangesFile
+setRevisionInfo :: DebianVersion -> String -> [PkgVersion] -> ChangesFile -> IO ChangesFile
 setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name version arch fields files) -} =
     q12 "Setting revision info" $
     case partition isDscFile (changeFiles changes) of
@@ -903,7 +903,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
           where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [newField]))
       addField (Control []) = error "Invalid control file"
       newField = Field ("Revision", " " ++ newFieldValue)
-      newFieldValue = either (error . show) id revision ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ formatVersions versions
+      newFieldValue = revision ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ formatVersions versions
       formatVersions versions = intercalate " " (map showPkgVersion versions)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 

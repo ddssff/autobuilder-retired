@@ -6,7 +6,6 @@ import Control.Monad
 import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Maybe
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -21,15 +20,16 @@ import System.Unix.QIO (qPutStrLn)
 import System.Directory
 
 -- | A TLA archive
-data Tla = Tla String SourceTree R.RetrieveMethod
+-- data Tla = Tla String SourceTree R.RetrieveMethod
 
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
                 , "given revision name." ]
 
+{-
 instance Download Tla where
     method (Tla _ _ m) = m
-    getTop _ (Tla _ tree _) = topdir tree
-    revision _ (Tla _ tree _) =
+    getTop (Tla _ tree _) = topdir tree
+    revision (Tla _ tree _) =
         do let path = topdir tree
                cmd = "cd " ++ path ++ " && tla revisions -f -r | head -1"
            -- FIXME: this command can take a lot of time, message it
@@ -45,6 +45,7 @@ instance Download Tla where
         where
           cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf"
           -- cleanStyle path = setStart (Just ("Clean TLA target in " ++ path))
+-}
 
 prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache version m = liftIO $
@@ -71,6 +72,7 @@ prepare cache version m = liftIO $
                               \ path -> 
                                   let cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf" in
                                   timeTask (lazyCommandF cmd L.empty)
+                          , T.buildWrapper = id
                           }
     where
       verifySource dir =

@@ -20,7 +20,7 @@ import System.Directory
 import System.FilePath
 import System.Unix.Directory
 import System.Unix.Process
-import System.Unix.Progress (lazyCommandF, lazyCommandV, timeTask)
+import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, timeTask)
 import Text.Regex
 
 documentation = [ "darcs:<string> - a target of this form obtains the source code by running"
@@ -30,10 +30,9 @@ documentation = [ "darcs:<string> - a target of this form obtains the source cod
 
 darcsRev :: SourceTree -> R.RetrieveMethod -> IO (Either SomeException String)
 darcsRev tree m =
-    try (liftIO (lazyCommand cmd B.empty >>=
-                 return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout >>= 
-                 return . maybe (fail $ "could not find hash field in output of '" ++ cmd ++ "'") head) >>= \ rev' ->
-         return (show m ++ "=" ++ rev'))
+    try (lazyCommandE cmd B.empty >>= return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout) >>= 
+    return . either Left (maybe (fail $ "could not find hash field in output of '" ++ cmd ++ "'")
+                                (\ rev -> Right (show m ++ "=" ++ head rev)))
     where
       cmd = "cd " ++ path ++ " && darcs changes --xml-output"
       path = topdir tree
@@ -56,9 +55,8 @@ prepare cache theUri flags m =
                           , T.cleanTarget =
                               \ top -> let cmd = "find " ++ top ++ " -name '_darcs' -maxdepth 1 -prune | xargs rm -rf" in
                                        timeTask (lazyCommandF cmd B.empty)
-          
-          -- cleanStyle path = setStart (Just (" Copy and clean Darcs target to " ++ path))
- }
+                          , T.buildWrapper = id
+                          }
     where
       theUri' = mustParseURI theUri
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of

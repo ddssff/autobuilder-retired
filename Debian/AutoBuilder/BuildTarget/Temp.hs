@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Temp
     ( Download(..)
     , Target(..)
@@ -39,13 +39,16 @@ data Download
       , cleanTarget :: FilePath -> IO ([Output], NominalDiffTime)
       -- ^ Clean version control info out of a target after it has
       -- been moved to the given location.
+      , buildWrapper :: forall a. IO a -> IO a
+      -- ^ Modify the build process in some way - currently only the
+      -- proc target modifies this by mounting and then unmounting /proc.
       }
 
 instance C.Download Download where
     method = method'
-    getTop _ tgt = getTop tgt
-    revision _ tgt = return (revision tgt)
-    logText x _ = logText x
+    getTop tgt = getTop tgt
+    revision tgt = revision tgt
+    logText x = logText x
 
 -- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.
@@ -59,11 +62,11 @@ data Target
 
 instance C.Download Target where
     method = C.method . download
-    getTop x tgt = C.getTop x (download tgt)
-    revision x tgt = C.revision x (download tgt)
-    logText tgt x = C.logText (download tgt) x
+    getTop tgt = C.getTop (download tgt)
+    revision tgt = C.revision (download tgt)
+    logText tgt = C.logText (download tgt)
     mVersion tgt = C.mVersion (download tgt)
-    origTarball x tgt = C.origTarball x (download tgt)
+    origTarball tgt = C.origTarball (download tgt)
 
 instance C.BuildTarget Target where
     debianSourceTree tgt = debianSourceTree tgt
@@ -73,8 +76,8 @@ instance C.BuildTarget Target where
 -- location in getTop.
 asTarget :: Download -> IO Target
 asTarget download =
-    try (findOneDebianBuildTree (C.getTop (error "asTarget: unused getTop argument") download) >>=
-         maybe (findDebianSourceTree (C.getTop (error "asTarget: unused getTop argument") download)) (return . debTree')) >>=
+    try (findOneDebianBuildTree (C.getTop download) >>=
+         maybe (findDebianSourceTree (C.getTop download)) (return . debTree')) >>=
     either (\ (e :: SomeException) -> let msg = "asTarget " ++ show (C.method download) ++ " :" ++ show e in hPutStrLn stderr msg >> error msg)
            (\ tree -> return $ Target { download = download
                                       , debianSourceTree = tree })

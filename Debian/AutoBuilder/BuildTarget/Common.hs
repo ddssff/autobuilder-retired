@@ -67,14 +67,12 @@ module Debian.AutoBuilder.BuildTarget.Common
     , mustParseURI
     ) where
 
-import Control.Exception (Exception)
 import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.Char (ord)
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
 import Debian.Repo
-import qualified Debian.AutoBuilder.Types.CacheRec as P
-import qualified Debian.AutoBuilder.Types.ParamRec as P
+--import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Happstack.Crypto.MD5 (md5)
 import Network.URI (URI, parseURI)
@@ -86,7 +84,7 @@ class Download t where
     method :: t -> RetrieveMethod
     -- | The directory containing the target's files.  For most target types, these
     --  files could be anything, not necessarily a Debian source directory.
-    getTop :: P.ParamRec -> t -> FilePath
+    getTop :: t -> FilePath
     -- | The 'revision' function constructs a string to be used as the
     -- /Revision:/ attribute of the source package information.  This
     -- is intended to characterize the build environment of the
@@ -95,17 +93,17 @@ class Download t where
     -- the build dependencies that were installed when the package was
     -- build.  If the package is not in a revision control system its
     -- upstream version number is used.
-    revision :: P.ParamRec -> t -> IO String
+    revision :: t -> String
     -- | Transform the normal package build in some way - currently the
     -- only place this is overridden is in the Proc target.
-    buildWrapper :: P.ParamRec -> OSImage -> DebianBuildTree -> SourcePackageStatus -> t -> IO NominalDiffTime -> IO NominalDiffTime
-    buildWrapper _ _ _ _ _ build = build
+    buildWrapper :: t -> IO NominalDiffTime -> IO NominalDiffTime
+    buildWrapper _ x = x
     -- | Text to include in changelog entry.
-    logText :: Exception e => t -> Either e String -> String
+    logText :: t -> String
     -- | Given a BuildTarget and a source tree, clean all the revision control
     -- files out of that source tree.
-    cleanTarget :: P.ParamRec -> t -> FilePath -> IO ([Output], NominalDiffTime)
-    cleanTarget _ _ _ = return ([], fromInteger 0)
+    cleanTarget :: t -> IO ([Output], NominalDiffTime)
+    cleanTarget _ = return ([], fromInteger 0)
     -- |Some targets can return a hackage version, use this to retrieve it.
     mVersion :: t -> Maybe Version
     mVersion _ = Nothing
@@ -114,8 +112,8 @@ class Download t where
     -- returns its path.  Note that this path may not be in the
     -- correct position for the build to use it, it might still need
     -- to be copied or linked.  See Debian.Repo.SourceTree.origTarballPath.
-    origTarball :: P.CacheRec -> t -> Maybe FilePath
-    origTarball _ _ = Nothing
+    origTarball :: t -> Maybe FilePath
+    origTarball _ = Nothing
 
 -- | BuildTarget represents the type class of methods for obtaining a
 -- SourceTree: tla, apt, darcs, etc.

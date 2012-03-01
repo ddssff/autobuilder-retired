@@ -16,22 +16,22 @@ import System.FilePath (splitFileName)
 import System.IO
 import System.Process
 import System.Unix.Directory
-import Debian.AutoBuilder.BuildTarget.Common
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import System.Unix.Progress (lazyCommandF, timeTask)
 
-data Hg = Hg String SourceTree R.RetrieveMethod
+-- data Hg = Hg String SourceTree R.RetrieveMethod
 
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
+{-
 instance Download Hg where
     method (Hg _ _ m) = m
-    getTop _ (Hg _ tree _) = topdir tree
-    revision _ (Hg _ tree _) =
+    getTop (Hg _ tree _) = topdir tree
+    revision (Hg _ tree _) =
         do (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
            rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
                   return . maybe (fail $ "no revision info printed by '" ++ cmd ++ "'") id
@@ -49,6 +49,7 @@ instance Download Hg where
         where
           cmd = "rm -rf " ++ path ++ "/.hg"
           -- cleanStyle path = setStart (Just ("Clean Hg target in " ++ path))
+-}
 
 prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
 prepare cache archive m = liftIO $
@@ -76,6 +77,7 @@ prepare cache archive m = liftIO $
                               \ path -> 
                                   let cmd = "rm -rf " ++ path ++ "/.hg" in
                                   timeTask (lazyCommandF cmd empty)
+                          , T.buildWrapper = id
                           }
     where
       verifySource dir =

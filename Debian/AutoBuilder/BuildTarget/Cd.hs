@@ -2,14 +2,12 @@
 -- |Modify a target so we cd to a subdirectory before building
 module Debian.AutoBuilder.BuildTarget.Cd where
 
-import Control.Exception (SomeException)
 import qualified Debian.AutoBuilder.BuildTarget.Common as C
 import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo.Monad (AptIOT)
 import System.FilePath ((</>))
-import System.IO.Unsafe (unsafePerformIO)
 
 documentation = [ "cd:<relpath>:<target> - A target of this form modifies another target by"
                 , "changing directories into a subdirectory before doing the build.  It is"
@@ -32,10 +30,11 @@ prepare _cache subdir target m =
     -- return $ Cd subdir target m
     do     
     return $ T.Download { T.method' = m
-                        , T.getTop = C.getTop (error "cd") target </> subdir
-                        , T.revision = "cd:" ++ subdir ++ ":" ++ unsafePerformIO (C.revision (error "cd") target)
-                        , T.logText = C.logText target (error "cd" :: Either SomeException String) ++ " (in subdirectory " ++ subdir ++ ")"
+                        , T.getTop = C.getTop target </> subdir
+                        , T.revision = "cd:" ++ subdir ++ ":" ++ C.revision target
+                        , T.logText = T.logText target ++ " (in subdirectory " ++ subdir ++ ")"
                         , T.mVersion = Nothing
                         , T.origTarball = Nothing
-                        , T.cleanTarget = \ top -> C.cleanTarget (error "cd") target top
+                        , T.cleanTarget = T.cleanTarget target
+                        , T.buildWrapper = id
                         } 

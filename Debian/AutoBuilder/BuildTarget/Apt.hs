@@ -36,7 +36,8 @@ prepare cache dist package flags method =
                   , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
                   , T.mVersion = Nothing
                   , T.origTarball = Nothing
-                  , T.cleanTarget = \ _ -> return ([], 0) }
+                  , T.cleanTarget = \ _ -> return ([], 0)
+                  , T.buildWrapper = id }
                   -- , T.debianSourceTree = debTree' tree
        -- return $ Apt distro package (Just version'') tree method
     where

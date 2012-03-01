@@ -17,9 +17,9 @@ data Dir = Dir SourceTree R.RetrieveMethod
 
 instance Download Dir where
     method (Dir _ m) = m
-    getTop _ (Dir tree _) = topdir tree
-    revision _ (Dir _ _) = fail "Dir targets do not have revision strings"
-    logText (Dir tree _) _ = "Built from local directory " ++ topdir tree
+    getTop (Dir tree _) = topdir tree
+    revision (Dir _ _) = fail "Dir targets do not have revision strings"
+    logText (Dir tree _) = "Built from local directory " ++ topdir tree
 
 -- |Build is similar to Dir, except that it owns the parent directory
 -- of the source directory.  This is required for building packages
@@ -28,9 +28,9 @@ data Build = Build DebianBuildTree R.RetrieveMethod
 
 instance Download Build where
     method (Build _ m) = m
-    getTop _ (Build tree _) = topdir tree
-    revision _ (Build _ _) = fail "Build targets do not have revision strings"
-    logText (Build tree _) _ = "Built from local directory " ++ topdir tree
+    getTop (Build tree _) = topdir tree
+    revision (Build _ _) = fail "Build targets do not have revision strings"
+    logText (Build tree _) = "Built from local directory " ++ topdir tree
 
 -- |Prepare a Dir target
 prepare :: P.CacheRec -> FilePath -> R.RetrieveMethod -> AptIOT IO T.Download
@@ -44,4 +44,5 @@ prepare _cache path m =
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)
+                           , T.buildWrapper = id
                            }
