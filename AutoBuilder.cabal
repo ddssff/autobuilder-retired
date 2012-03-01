@@ -82,8 +82,6 @@ Library
     Debian.AutoBuilder.Main,
     Debian.AutoBuilder.Params,
     Debian.AutoBuilder.Target,
-    Debian.AutoBuilder.TargetType,
-    Debian.AutoBuilder.Tgt,
     Debian.AutoBuilder.Types.Buildable
     Debian.AutoBuilder.Types.CacheRec
     Debian.AutoBuilder.Types.Download

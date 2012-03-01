@@ -28,8 +28,7 @@ import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Types.Buildable (Buildable(..))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
-import Debian.AutoBuilder.TargetType (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl)
-import Debian.AutoBuilder.Tgt (relaxDepends, srcPkgName)
+import Debian.AutoBuilder.Types.Buildable (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName)
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V

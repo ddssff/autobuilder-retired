@@ -21,8 +21,7 @@ import Data.Maybe(catMaybes)
 import Debian.AutoBuilder.BuildTarget (retrieve)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
-import Debian.AutoBuilder.TargetType (Target, targetName)
-import Debian.AutoBuilder.Types.Buildable (asBuildable)
+import Debian.AutoBuilder.Types.Buildable (Target, targetName, asBuildable)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
