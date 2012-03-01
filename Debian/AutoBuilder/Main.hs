@@ -24,7 +24,7 @@ import Debian.AutoBuilder.BuildTarget.Temp (asBuildable)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
 import Debian.AutoBuilder.TargetType (Target, targetName)
-import Debian.AutoBuilder.Tgt (BT(BT))
+--import Debian.AutoBuilder.Tgt (BT(BT))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -140,7 +140,7 @@ runParameterSet cache =
            (do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
                liftIO $ IO.hPutStrLn IO.stderr msg
                error msg)
-      buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS (map BT targets)
+      buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS targets
       -- If all targets succeed they may be uploaded to a remote repo
       result <- tryAB (upload buildResult >>= lift . newDist) >>=
                 return . either (\ e -> Failure [show e]) id

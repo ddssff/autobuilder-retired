@@ -26,10 +26,11 @@ import Data.Time(NominalDiffTime)
 import Debian.AutoBuilder.BuildTarget.Common (Download (method, buildWrapper, logText))
 import qualified Debian.AutoBuilder.BuildTarget.Common as BuildTarget
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
+import Debian.AutoBuilder.BuildTarget.Temp (Buildable)
 import qualified Debian.AutoBuilder.Params as P
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.TargetType (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl)
-import Debian.AutoBuilder.Tgt (BT, relaxDepends, srcPkgName)
+import Debian.AutoBuilder.Tgt (relaxDepends, srcPkgName)
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
@@ -106,7 +107,7 @@ _findSourceParagraph (Control paragraphs) =
 -- revision info and build dependency versions in a human readable
 -- form.  FIXME: this should also include revision control log
 -- entries.
-changelogText :: BT -> String -> [PkgVersion] -> [PkgVersion] -> String
+changelogText :: Buildable -> String -> [PkgVersion] -> [PkgVersion] -> String
 changelogText spec _revision oldDeps newDeps =
     ("  * " ++ logText spec ++ "\n" ++ depChanges changedDeps ++ "\n")
     where
@@ -133,7 +134,7 @@ _formatVersions buildDeps =
 
 --  (P.debug params) (P.topDir params) (P.flushSource params) (P.ifSourcesChanged params) (P.allSources params)
 
-prepareTargets :: P.CacheRec -> OSImage -> Relations -> [BT] -> AptIOT IO [Target]
+prepareTargets :: P.CacheRec -> OSImage -> Relations -> [Buildable] -> AptIOT IO [Target]
 prepareTargets cache cleanOS globalBuildDeps targetSpecs =
     do -- showTargets targetSpecs
        results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
@@ -144,7 +145,7 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
                     error msg)
        return targets
     where
-      prepare :: Int -> (Int, BT) -> IO (Either SomeException Target)
+      prepare :: Int -> (Int, Buildable) -> IO (Either SomeException Target)
       prepare count (index, tgt) =
           do qPutStrLn (printf "[%2d of %2d] %s" index count (show (method tgt)))
              result <- quieter' (+ 2) (try' (prepareTarget cache globalBuildDeps cleanOS tgt))
@@ -157,7 +158,7 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [BT] -> AptIOT IO (LocalRepository, [Target])
+buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [Buildable] -> AptIOT IO (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do

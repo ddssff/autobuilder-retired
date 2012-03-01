@@ -1,7 +1,7 @@
 {-# LANGUAGE ExistentialQuantification, ScopedTypeVariables #-}
 module Debian.AutoBuilder.Tgt
     ( DL(DL)
-    , BT(BT)
+    -- , BT(BT)
     -- , flags
     , relaxDepends
     , srcPkgName
@@ -9,7 +9,8 @@ module Debian.AutoBuilder.Tgt
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Debian.AutoBuilder.BuildTarget.Common (BuildTarget(..), Download(..))
+import Debian.AutoBuilder.BuildTarget.Common (Download(..))
+import Debian.AutoBuilder.BuildTarget.Temp (Buildable(debianSourceTree))
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))
@@ -20,7 +21,7 @@ import Debian.Repo.SourceTree (DebianSourceTree(control'))
 -- | Objects of type Tgt contain an instance of the BuildTarget type
 -- class.
 data DL = forall a. (Download a) => DL a
-data BT = forall b. (BuildTarget b) => BT b
+--data BT = forall b. (BuildTarget b) => BT b
 
 --getSourceTree' :: Tgt -> SourceTree
 --getSourceTree' (Tgt a) = getSourceTree a
@@ -35,6 +36,7 @@ instance Download DL where
     mVersion (DL x) = mVersion x
     origTarball (DL x) = origTarball x
 
+{-
 instance Download BT where
     method (BT x) = method x
     getTop (BT x) = getTop x
@@ -47,6 +49,7 @@ instance Download BT where
 
 instance BuildTarget BT where
     debianSourceTree (BT x) = debianSourceTree x
+-}
 
 -- | Prevent the appearance of a new binary package from
 -- triggering builds of its build dependencies.  Optionally, a
@@ -55,13 +58,13 @@ instance BuildTarget BT where
 -- example, @Relax-Depends: ghc6 hscolour@ means \"even if ghc6
 -- is rebuilt, don't rebuild hscolour even though ghc6 is one of
 -- its build dependencies.\"
-relaxDepends :: ParamRec -> BT -> G.RelaxInfo
+relaxDepends :: ParamRec -> Buildable -> G.RelaxInfo
 relaxDepends params@(ParamRec {targets = TargetSet s}) tgt =
     makeRelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
                     foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName tgt)))) (P.relaxInfo flags)) [] s
 relaxDepends _params _ = error "relaxDepends: invalid target set"
 
-srcPkgName :: BT -> String
+srcPkgName :: Buildable -> String
 srcPkgName tgt =
     maybe (error "No Source field in control file") id (fieldValue "Source" (head (unControl (control' (debianSourceTree tgt)))))
 

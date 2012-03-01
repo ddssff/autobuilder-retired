@@ -62,7 +62,6 @@
 --                this checksum.  This prevents builds when the remote tarball has changed.
 module Debian.AutoBuilder.BuildTarget.Common
     ( Download(..)
-    , BuildTarget(..)
     , md5sum
     , mustParseURI
     ) where
@@ -71,7 +70,7 @@ import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.Char (ord)
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
-import Debian.Repo
+--import Debian.Repo
 --import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Happstack.Crypto.MD5 (md5)
@@ -117,8 +116,10 @@ class Download t where
 
 -- | BuildTarget represents the type class of methods for obtaining a
 -- SourceTree: tla, apt, darcs, etc.
+{-
 class Download t => BuildTarget t where
     debianSourceTree :: t -> DebianSourceTree
+-}
     -- ^ Return the debian source tree.  Every target must be able to return this,
     -- since this package only builds debian packages.
 

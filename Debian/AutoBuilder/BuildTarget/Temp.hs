@@ -68,8 +68,10 @@ instance C.Download Buildable where
     mVersion tgt = C.mVersion (download tgt)
     origTarball tgt = C.origTarball (download tgt)
 
+{-
 instance C.BuildTarget Buildable where
     debianSourceTree tgt = debianSourceTree tgt
+-}
 
 -- | Try to turn a Download into a Target.  This will throw an
 -- exception if there is not a valid debian source tree at the

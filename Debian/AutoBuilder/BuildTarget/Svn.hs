@@ -1,7 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Svn 
-    ( BuildTarget(..)
-    , prepare
+    ( prepare
     , documentation
     ) where
 
