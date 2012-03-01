@@ -42,7 +42,7 @@ prepare cache theUri flags m =
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      _output <- liftIO fixLink
+      _output <- fixLink
       rev <- darcsRev tree m >>= either (fail . show) return
       return $ T.Download { T.method = m
                           , T.getTop = topdir tree
@@ -56,15 +56,6 @@ prepare cache theUri flags m =
                           , T.buildWrapper = id
                           }
     where
-      theUri' = mustParseURI theUri
-      theTag = case nub (sort (catMaybes (map (\ flag -> case flag of
-                                                           P.DarcsTag s -> Just s
-                                                           {- _ -> Nothing -}) flags))) of
-                 [] -> Nothing
-                 [x] -> Just x
-                 xs -> error ("Conflicting tags for darcs get of " ++ theUri ++ ": " ++ show xs)
-      uriAndTag = uriToString id theUri' "" ++ maybe "" (\ tag -> "=" ++ tag) theTag
-
       verifySource :: FilePath -> IO SourceTree
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
@@ -73,7 +64,7 @@ prepare cache theUri flags m =
                ExitFailure _ -> updateSource dir				-- No Changes!
                ExitSuccess -> removeSource dir >> createSource dir		-- Yes changes
       removeSource :: FilePath -> IO ()
-      removeSource dir = liftIO $ removeRecursiveSafely dir
+      removeSource dir = removeRecursiveSafely dir
 
       updateSource :: FilePath -> IO SourceTree
       updateSource dir =
@@ -89,14 +80,22 @@ prepare cache theUri flags m =
              findSourceTree dir
           where
             cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
-      name = snd . splitFileName $ (uriPath theUri')
       -- Maybe we should include the "darcs:" in the string we checksum?
       fixLink = let link = base ++ "/" ++ name
                     cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
                 lazyCommandF cmd B.empty
+      base = P.topDir cache ++ "/darcs"
+      name = snd . splitFileName $ (uriPath theUri')
       dir = base ++ "/" ++ sum
       sum = show (md5 (B.pack uriAndTag))
-      base = P.topDir cache ++ "/darcs"
+      uriAndTag = uriToString id theUri' "" ++ maybe "" (\ tag -> "=" ++ tag) theTag
+      theTag = case nub (sort (catMaybes (map (\ flag -> case flag of
+                                                           P.DarcsTag s -> Just s
+                                                           {- _ -> Nothing -}) flags))) of
+                 [] -> Nothing
+                 [x] -> Just x
+                 xs -> error ("Conflicting tags for darcs get of " ++ theUri ++ ": " ++ show xs)
+      theUri' = mustParseURI theUri
 
 renderForDarcs :: URI -> String
 renderForDarcs uri =
