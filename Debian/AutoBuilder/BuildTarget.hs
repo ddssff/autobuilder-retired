@@ -18,11 +18,11 @@ import qualified Debian.AutoBuilder.BuildTarget.Quilt as Quilt
 import qualified Debian.AutoBuilder.BuildTarget.SourceDeb as SourceDeb
 import qualified Debian.AutoBuilder.BuildTarget.Svn as Svn
 import qualified Debian.AutoBuilder.BuildTarget.Tla as Tla
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.BuildTarget.Bzr as Bzr
 import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.BuildTarget.Twice as Twice
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import Debian.AutoBuilder.Types.Download
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo (OSImage)
@@ -30,7 +30,7 @@ import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: OSImage -> P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
+retrieve :: OSImage -> P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Download
 retrieve buildOS cache flags spec =
     q12 (" " ++ show spec) $     
      (case spec of

@@ -5,22 +5,23 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.List (sort, nub)
 import Data.Maybe (catMaybes)
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+--import Debian.AutoBuilder.BuildTarget (Download(..))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
 import Debian.Sources
-import Debian.Version
+import Debian.Version (parseDebianVersion, prettyDebianVersion)
 import System.Unix.Directory
 
 documentation = [ "apt:<distribution>:<packagename> - a target of this form looks up"
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO T.Download
+prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO Download
 prepare cache dist package flags method =
     do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
        os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
@@ -28,15 +29,15 @@ prepare cache dist package flags method =
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
        let version'' = logVersion . entry $ tree
            rev = "apt:" ++ (sliceName . sliceListName $ distro) ++ ":" ++ package ++ "=" ++ show (prettyDebianVersion version'')
-       return $ T.Download {
-                    T.method = method
-                  , T.getTop = topdir tree
-                  , T.revision = rev
-                  , T.logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
-                  , T.mVersion = Nothing
-                  , T.origTarball = Nothing
-                  , T.cleanTarget = \ _ -> return ([], 0)
-                  , T.buildWrapper = id }
+       return $ Download {
+                    method = method
+                  , getTop = topdir tree
+                  , revision = rev
+                  , logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
+                  , mVersion = Nothing
+                  , origTarball = Nothing
+                  , cleanTarget = \ _ -> return ([], 0)
+                  , buildWrapper = id }
     where
       dist' = SliceName dist
       version' = case (nub (sort (catMaybes (map (\ flag -> case flag of

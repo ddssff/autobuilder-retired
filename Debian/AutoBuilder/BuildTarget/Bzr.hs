@@ -9,8 +9,8 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Digest.Pure.MD5 (md5)
 import Data.List
 import Data.Maybe
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
@@ -28,7 +28,7 @@ import System.Directory
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
+prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Download
 prepare cache version method = liftIO $
   do
     when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
@@ -44,18 +44,18 @@ prepare cache version method = liftIO $
     let rev' = case code of
                  ExitSuccess -> "bzr:" ++ rev
                  code -> fail (cmd ++ " -> " ++ show code)
-    return $ T.Download
-               { T.method = method
-               , T.getTop = topdir tree
-               , T.revision = rev'
-               , T.logText = "Bazaar revision: " ++ show rev'
-               , T.mVersion = Nothing
-               , T.origTarball = Nothing
-               , T.cleanTarget = \ top ->
+    return $ Download
+               { method = method
+               , getTop = topdir tree
+               , revision = rev'
+               , logText = "Bazaar revision: " ++ show rev'
+               , mVersion = Nothing
+               , origTarball = Nothing
+               , cleanTarget = \ top ->
                    do qPutStrLn ("Clean Bazaar target in " ++ top)
                       let cmd = "find '" ++ top ++ "' -name '.bzr' -prune | xargs rm -rf"
                       timeTask (lazyCommandF cmd L.empty)
-               , T.buildWrapper = id }
+               , buildWrapper = id }
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =

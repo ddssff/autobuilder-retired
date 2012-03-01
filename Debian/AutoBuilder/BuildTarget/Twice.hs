@@ -1,7 +1,7 @@
 -- |Modify a target so that dpkg-buildpackage is run again if it fails the first time.
 module Debian.AutoBuilder.BuildTarget.Twice where
 
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo (AptIOT)
 

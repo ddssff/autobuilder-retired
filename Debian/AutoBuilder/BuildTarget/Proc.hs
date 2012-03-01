@@ -3,7 +3,7 @@
 module Debian.AutoBuilder.BuildTarget.Proc where
 
 import qualified Data.ByteString.Lazy.Char8 as L
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo

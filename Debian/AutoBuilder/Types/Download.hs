@@ -1,17 +1,12 @@
-{-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
-module Debian.AutoBuilder.BuildTarget.Temp
+{-# LANGUAGE RankNTypes #-}
+module Debian.AutoBuilder.Types.Download
     ( Download(..)
-    , Buildable(..)
-    , asBuildable
     ) where
 
-import Control.Exception (SomeException, try)
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod(..))
-import Debian.Repo.SourceTree (DebianBuildTree(debTree'), DebianSourceTree, findOneDebianBuildTree, findDebianSourceTree)
 import System.Unix.Process
-import System.IO (hPutStrLn, stderr)
 
 data Download
     = Download
@@ -42,25 +37,3 @@ data Download
       -- ^ Modify the build process in some way - currently only the
       -- proc target modifies this by mounting and then unmounting /proc.
       }
-
--- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
--- moves into the function that turns a RetrieveMethod into a BuildTarget.
-data Buildable
-    = Buildable
-      { download :: Download
-      , debianSourceTree :: DebianSourceTree
-      -- ^ Return the debian source tree.  Every target must have
-      -- this, since this program only builds debian packages.
-      }
-
--- | Try to turn a Download into a Target.  This will throw an
--- exception if there is not a valid debian source tree at the
--- location in getTop.
-asBuildable :: Download -> IO Buildable
-asBuildable download =
-    try (findOneDebianBuildTree (getTop download) >>=
-         maybe (findDebianSourceTree (getTop download)) (return . debTree')) >>=
-    either (\ (e :: SomeException) -> let msg = "asTarget " ++ show (method download) ++ " :" ++ show e in hPutStrLn stderr msg >> error msg)
-           (\ tree -> return $ Buildable { download = download
-                                         , debianSourceTree = tree })
-       

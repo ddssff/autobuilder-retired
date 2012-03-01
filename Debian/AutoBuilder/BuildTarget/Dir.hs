@@ -1,7 +1,7 @@
 module Debian.AutoBuilder.BuildTarget.Dir where
 
 import Control.Monad.Trans (lift)
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo

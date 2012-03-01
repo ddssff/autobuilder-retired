@@ -15,7 +15,7 @@ import Data.List (intercalate, sortBy)
 import Data.Maybe
 import Data.Time
 import Data.Time.LocalTime ()
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)

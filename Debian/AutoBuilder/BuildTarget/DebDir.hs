@@ -8,8 +8,8 @@ import Control.Monad.Trans (lift)
 import Data.ByteString.Lazy.Char8 (empty, pack)
 import Data.Digest.Pure.MD5 (md5)
 import Data.Version (showVersion)
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Changes (logVersion)
 import Debian.Version (version)

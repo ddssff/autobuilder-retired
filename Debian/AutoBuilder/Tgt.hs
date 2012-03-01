@@ -6,7 +6,7 @@ module Debian.AutoBuilder.Tgt
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Debian.AutoBuilder.BuildTarget.Temp (Buildable(debianSourceTree))
+import Debian.AutoBuilder.Types.Buildable (Buildable(debianSourceTree))
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))

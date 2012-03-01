@@ -12,9 +12,9 @@ import Control.Applicative.Error (Failing(Success, Failure), failing)
 import Control.Exception (catch, throw)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
-import Debian.AutoBuilder.BuildTarget.Temp (Buildable)
-import qualified Debian.AutoBuilder.BuildTarget.Temp as T
+import Debian.AutoBuilder.Types.Buildable (Buildable(..))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.Changes (logVersion, ChangeLogEntry(..))
 import Debian.Control (Control, Control'(Control), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G
@@ -47,7 +47,7 @@ instance Eq Target where
 -- DebianBuildTree. 
 prepareTarget :: P.CacheRec -> Relations -> OSImage -> Buildable -> IO Target
 prepareTarget cache globalBuildDeps os source =
-    quieter (+ 2) $ prepareBuild cache os (T.download source) >>= \ tree ->
+    quieter (+ 2) $ prepareBuild cache os (download source) >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=
     failing (error . show)
             (\ deps -> return $ Target { tgt = source
