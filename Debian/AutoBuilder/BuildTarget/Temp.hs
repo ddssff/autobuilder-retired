@@ -1,8 +1,8 @@
 {-# LANGUAGE RankNTypes, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Temp
     ( Download(..)
-    , Target(..)
-    , asTarget
+    , Buildable(..)
+    , asBuildable
     ) where
 
 import Control.Exception (SomeException, try)
@@ -52,15 +52,15 @@ instance C.Download Download where
 
 -- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.
-data Target
-    = Target
+data Buildable
+    = Buildable
       { download :: Download
       , debianSourceTree :: DebianSourceTree
       -- ^ Return the debian source tree.  Every target must have
       -- this, since this program only builds debian packages.
       }
 
-instance C.Download Target where
+instance C.Download Buildable where
     method = C.method . download
     getTop tgt = C.getTop (download tgt)
     revision tgt = C.revision (download tgt)
@@ -68,18 +68,18 @@ instance C.Download Target where
     mVersion tgt = C.mVersion (download tgt)
     origTarball tgt = C.origTarball (download tgt)
 
-instance C.BuildTarget Target where
+instance C.BuildTarget Buildable where
     debianSourceTree tgt = debianSourceTree tgt
 
 -- | Try to turn a Download into a Target.  This will throw an
 -- exception if there is not a valid debian source tree at the
 -- location in getTop.
-asTarget :: Download -> IO Target
-asTarget download =
+asBuildable :: Download -> IO Buildable
+asBuildable download =
     try (findOneDebianBuildTree (C.getTop download) >>=
          maybe (findDebianSourceTree (C.getTop download)) (return . debTree')) >>=
     either (\ (e :: SomeException) -> let msg = "asTarget " ++ show (C.method download) ++ " :" ++ show e in hPutStrLn stderr msg >> error msg)
-           (\ tree -> return $ Target { download = download
-                                      , debianSourceTree = tree })
+           (\ tree -> return $ Buildable { download = download
+                                         , debianSourceTree = tree })
        -- tarball <- findOrigTarball tree
        
