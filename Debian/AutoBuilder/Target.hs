@@ -628,6 +628,7 @@ getOldRevision package =
                         (Just revision, Just (parseDebianVersion sourceVersion), map readPkgVersion buildDeps)
                   buildDeps -> (Just revision, Nothing, map readPkgVersion buildDeps)
             -- Accomodate the old revision format.
+{-
             _ -> case words s of
                    (revision : sourceVersion : buildDeps)
                       | not (elem '=' sourceVersion) ->
@@ -635,6 +636,8 @@ getOldRevision package =
                    (revision : buildDeps) ->
                        (Just revision, Nothing, map readPkgVersion buildDeps)                                                         
                    _ -> (Nothing, Nothing, [])
+-}
+            _ -> (Nothing, Nothing, [])
 
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
