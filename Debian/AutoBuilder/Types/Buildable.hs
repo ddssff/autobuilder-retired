@@ -57,11 +57,9 @@ data Buildable
 -- location in getTop.
 asBuildable :: Download -> IO Buildable
 asBuildable download =
-    try (findOneDebianBuildTree (getTop download) >>=
-         maybe (findDebianSourceTree (getTop download)) (return . debTree')) >>=
-    either (\ (e :: SomeException) -> let msg = "asTarget " ++ show (method download) ++ " :" ++ show e in hPutStrLn stderr msg >> error msg)
-           (\ tree -> return $ Buildable { download = download
-                                         , debianSourceTree = tree })
+    try (findDebianSourceTree (getTop download)) >>= 
+    either (\ e -> findOneDebianBuildTree (getTop download) >>= maybe (throw e) (return . debTree')) return >>=
+    return $ Buildable { download = download, debianSourceTree = tree }
 
 -- | Prevent the appearance of a new binary package from
 -- triggering builds of its build dependencies.  Optionally, a

@@ -1,3 +1,10 @@
+autobuilder (6.18.3) unstable; urgency=low
+
+  * in asBuildable, first look for debianization in download directory,
+    then in subdirectories.  Previously it was the other way around.
+
+ -- David Fox <dsf@seereason.com>  Fri, 02 Mar 2012 13:41:48 -0800
+
 autobuilder (6.18.2) unstable; urgency=low
 
   * Accomodate packages with the old revision string format.
