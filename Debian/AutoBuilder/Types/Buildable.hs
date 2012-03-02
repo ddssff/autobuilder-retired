@@ -58,7 +58,7 @@ data Buildable
 asBuildable :: Download -> IO Buildable
 asBuildable download =
     try (findDebianSourceTree (getTop download)) >>= 
-    either (\ e -> findOneDebianBuildTree (getTop download) >>= maybe (throw e) (return . debTree')) return >>=
+    either (\ (e :: SomeException) -> findOneDebianBuildTree (getTop download) >>= maybe (throw e) (return . debTree')) return >>= \ tree ->
     return $ Buildable { download = download, debianSourceTree = tree }
 
 -- | Prevent the appearance of a new binary package from
