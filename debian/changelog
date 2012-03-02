@@ -1,3 +1,9 @@
+autobuilder (6.18.2) unstable; urgency=low
+
+  * Accomodate packages with the old revision string format.
+
+ -- David Fox <dsf@seereason.com>  Fri, 02 Mar 2012 06:31:21 -0800
+
 autobuilder (6.18.1) unstable; urgency=low
 
   * Fix a bug in the format of the revision string.
