@@ -21,8 +21,8 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> String -> String -> [P.AptFlag] -> RetrieveMethod -> AptIOT IO Download
-prepare cache dist package flags method =
+prepare :: P.CacheRec -> RetrieveMethod -> String -> String -> [P.AptFlag] -> AptIOT IO Download
+prepare cache method dist package flags =
     do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
        os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)

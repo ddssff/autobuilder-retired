@@ -35,8 +35,8 @@ instance Download Build where
 -}
 
 -- |Prepare a Dir target
-prepare :: P.CacheRec -> FilePath -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare _cache path m =
+prepare :: P.CacheRec -> R.RetrieveMethod -> FilePath -> AptIOT IO T.Download
+prepare _cache m path =
     do tree <- lift (findSourceTree path)
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree

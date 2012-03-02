@@ -17,8 +17,8 @@ documentation = [ "proc:<target> - A target of this form modifies another target
                 , "machine which might be different from the machine on which the package"
                 , "is ultimately installed." ]
 
-prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> OSImage -> AptIOT IO T.Download
-prepare _cache base m buildOS =
+prepare :: P.CacheRec -> R.RetrieveMethod -> OSImage -> T.Download -> AptIOT IO T.Download
+prepare _cache m buildOS base =
     return $ T.Download {
                  T.method = m
                , T.getTop = T.getTop base

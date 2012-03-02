@@ -10,8 +10,8 @@ documentation = [ "twice:<target> - A target of this form modifies another targe
                 , "the first time.  For some reason, certain packages are designed"
                 , "to fail the first time to prevent fully automated builds."]
 
-prepare :: T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare base m =
+prepare :: R.RetrieveMethod -> T.Download -> AptIOT IO T.Download
+prepare m base =
     do return $ T.Download {
                     T.method = m
                   , T.getTop = T.getTop base

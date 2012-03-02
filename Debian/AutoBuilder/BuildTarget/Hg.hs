@@ -23,8 +23,8 @@ import System.Unix.Progress (lazyCommandF, timeTask)
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare cache archive m = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> String -> AptIOT IO T.Download
+prepare cache m archive = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir

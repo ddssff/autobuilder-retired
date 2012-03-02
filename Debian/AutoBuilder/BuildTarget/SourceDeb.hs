@@ -26,8 +26,8 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepare :: P.CacheRec -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare _cache base m =
+prepare :: P.CacheRec -> R.RetrieveMethod -> T.Download -> AptIOT IO T.Download
+prepare _cache m base =
     do let top = T.getTop base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")

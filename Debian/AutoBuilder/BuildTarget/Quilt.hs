@@ -44,8 +44,8 @@ getEntry (Patch x) = x
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> IO (SourceTree, FilePath)
-makeQuiltTree cache base patch m =
+makeQuiltTree :: P.CacheRec -> R.RetrieveMethod -> T.Download -> T.Download -> IO (SourceTree, FilePath)
+makeQuiltTree cache m base patch =
     do qPutStrLn $ "Quilt base: " ++ T.getTop base
        qPutStrLn $ "Quilt patch: " ++ T.getTop patch
        -- This will be the top directory of the quilt target
@@ -79,10 +79,10 @@ makeQuiltTree cache base patch m =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare cache base patch m = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> T.Download -> T.Download -> AptIOT IO T.Download
+prepare cache m base patch = liftIO $
     q12 "Preparing quilt target" $
-    makeQuiltTree cache base patch m >>= withUpstreamQuiltHidden make
+    makeQuiltTree cache m base patch >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =
           hide >> make (quiltTree, quiltDir) >>= unhide

@@ -25,8 +25,8 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
-prepare :: P.CacheRec -> T.Download -> T.Download -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare cache upstream debian m = lift $
+prepare :: P.CacheRec -> R.RetrieveMethod -> T.Download -> T.Download -> AptIOT IO T.Download
+prepare cache m upstream debian = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>

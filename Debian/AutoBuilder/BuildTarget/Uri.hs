@@ -38,8 +38,8 @@ documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the f
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepare :: P.CacheRec -> String -> String -> R.RetrieveMethod -> R.AptIOT IO T.Download
-prepare c u s m = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> String -> String -> R.AptIOT IO T.Download
+prepare c m u s = liftIO $
     do (uri, sum, tree) <- checkTarget >>= downloadTarget >> validateTarget >>= unpackTarget
        return $ T.Download { T.method = m
                            , T.getTop = R.topdir tree

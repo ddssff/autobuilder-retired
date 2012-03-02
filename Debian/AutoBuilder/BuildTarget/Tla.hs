@@ -25,8 +25,8 @@ import System.Directory
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
                 , "given revision name." ]
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare cache version m = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> String -> AptIOT IO T.Download
+prepare cache m version = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir

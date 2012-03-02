@@ -28,8 +28,8 @@ import System.Directory
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO Download
-prepare cache version method = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> String -> AptIOT IO Download
+prepare cache method version = liftIO $
   do
     when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir

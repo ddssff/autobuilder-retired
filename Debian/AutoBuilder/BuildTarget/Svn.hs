@@ -44,8 +44,8 @@ password userInfo =
     then []
     else ["--password",unEscapeString pw]
 
-prepare :: P.CacheRec -> String -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare cache uri m = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> String -> AptIOT IO T.Download
+prepare cache m uri = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir

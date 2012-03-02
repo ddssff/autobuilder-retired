@@ -30,39 +30,39 @@ import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: OSImage -> P.CacheRec -> [P.PackageFlag] -> R.RetrieveMethod -> AptIOT IO Download
-retrieve buildOS cache flags spec =
+retrieve :: OSImage -> P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> AptIOT IO Download
+retrieve buildOS cache spec flags =
     q12 (" " ++ show spec) $     
-     (case spec of
-      R.Apt dist package flags -> Apt.prepare cache dist package flags spec
-      R.Darcs uri flags -> lift (Darcs.prepare cache uri flags spec)
-      R.DebDir upstream debian ->
-          do upstream' <- retrieve buildOS cache [] upstream
-             debian' <- retrieve buildOS cache [] debian
-             DebDir.prepare cache upstream' debian' spec
+     case spec of
+      R.Apt dist package flags -> Apt.prepare cache spec dist package flags
+      R.Bzr string -> Bzr.prepare cache spec string
       R.Cd dir spec' ->
-          retrieve buildOS cache [] spec' >>= \ t ->
-          Cd.prepare cache dir t spec
-      R.Dir path -> Dir.prepare cache path spec
-      R.Debianize package version -> Debianize.prepare cache flags package version spec
-      R.Hackage package version -> Debianize.prepareHackage cache package version spec
-      R.Hg string -> Hg.prepare cache string spec
+          retrieve buildOS cache spec' [] >>= \ t ->
+          Cd.prepare cache spec dir t
+      R.Darcs uri flags -> lift (Darcs.prepare cache spec uri flags)
+      R.DebDir upstream debian ->
+          do upstream' <- retrieve buildOS cache upstream []
+             debian' <- retrieve buildOS cache debian []
+             DebDir.prepare cache spec upstream' debian'
+      R.Debianize package version -> Debianize.prepare cache spec flags package version
+      R.Dir path -> Dir.prepare cache spec path
+      R.Hackage package version -> Debianize.prepareHackage cache spec package version
+      R.Hg string -> Hg.prepare cache spec string
       R.Proc spec' ->
-          retrieve buildOS cache [] spec' >>= \ t ->
-          Proc.prepare cache t spec buildOS
+          retrieve buildOS cache spec' [] >>= \ t ->
+          Proc.prepare cache spec buildOS t
       R.Quilt base patches ->
-          retrieve buildOS cache [] base >>= \ base' ->
-          retrieve buildOS cache [] patches >>= \ patches' ->
-          Quilt.prepare cache base' patches' spec
+          retrieve buildOS cache base [] >>= \ base' ->
+          retrieve buildOS cache patches [] >>= \ patches' ->
+          Quilt.prepare cache spec base' patches'
       R.SourceDeb spec' ->
-          retrieve buildOS cache [] spec' >>= \ t ->
-          SourceDeb.prepare cache t spec
-      R.Svn uri -> Svn.prepare cache uri spec
-      R.Tla string -> Tla.prepare cache string spec
-      R.Bzr string -> Bzr.prepare cache string spec
-      R.Uri uri sum -> Uri.prepare cache uri sum spec
-      R.Twice base -> retrieve buildOS cache [] base >>= \ t ->
-                      Twice.prepare t spec )
+          retrieve buildOS cache spec' [] >>= \ t ->
+          SourceDeb.prepare cache spec t
+      R.Svn uri -> Svn.prepare cache spec uri
+      R.Tla string -> Tla.prepare cache spec string
+      R.Twice base -> retrieve buildOS cache base [] >>= \ t ->
+                      Twice.prepare spec t
+      R.Uri uri sum -> Uri.prepare cache spec uri sum
 
 targetDocumentation :: String
 targetDocumentation =

@@ -205,7 +205,7 @@ runParameterSet cache =
              qPutStrLn "Retrieving all source code:\n"
              countTasks' (map (\ (target :: P.Packages) ->
                                    (show (P.spec target),
-                                    tryAB (retrieve buildOS cache (P.flags target) (P.spec target)) >>=
+                                    tryAB (retrieve buildOS cache (P.spec target) (P.flags target)) >>=
                                     either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >>
                                                    return (Left e))
                                            (return . Right)))

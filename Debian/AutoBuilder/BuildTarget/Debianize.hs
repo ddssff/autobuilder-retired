@@ -36,8 +36,8 @@ documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of 
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
 
-prepare :: P.CacheRec -> [P.PackageFlag] -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
-prepare cache flags name cabalFlags m = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> [P.CabalFlag] -> AptIOT IO T.Download
+prepare cache m flags name cabalFlags = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball (P.topDir cache) name version'))
        downloadAndDebianize cache cabalFlags flags name version'
@@ -219,8 +219,8 @@ downloadCommand server name version = "curl -s '" ++ versionURL server name vers
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
 
-prepareHackage :: P.CacheRec -> String -> [P.CabalFlag] -> R.RetrieveMethod -> AptIOT IO T.Download
-prepareHackage cache name cabalFlags m = liftIO $
+prepareHackage :: P.CacheRec -> R.RetrieveMethod -> String -> [P.CabalFlag] -> AptIOT IO T.Download
+prepareHackage cache m name cabalFlags = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [tarball (P.topDir cache) name version', unpacked (P.topDir cache) name version'])
        downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
