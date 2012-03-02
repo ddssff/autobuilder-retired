@@ -1,3 +1,9 @@
+autobuilder (6.18.1) unstable; urgency=low
+
+  * Fix a bug in the format of the revision string.
+
+ -- David Fox <dsf@seereason.com>  Thu, 01 Mar 2012 20:29:49 -0800
+
 autobuilder (6.18) unstable; urgency=low
 
   * Rename type Spec -> RetrieveMethod

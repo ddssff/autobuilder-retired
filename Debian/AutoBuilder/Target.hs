@@ -620,12 +620,14 @@ getOldRevision package =
     maybe (Nothing, Nothing, []) (parseRevision . B.unpack) (S.fieldValue "Revision" . sourceParagraph $ package)
     where
       parseRevision s =
-          case words s of
-            [] -> (Nothing, Nothing, [])
-            (revision : sourceVersion : buildDeps)
-                | not (elem '=' sourceVersion) ->
-                    (Just revision, Just (parseDebianVersion sourceVersion), map readPkgVersion buildDeps)
-            (revision : buildDeps) -> (Just revision, Nothing, map readPkgVersion buildDeps)
+          case reads s :: [(String, String)] of
+            [(revision, etc)] ->
+                case words etc of
+                  (sourceVersion : buildDeps)
+                    | not (elem '=' sourceVersion) ->
+                        (Just revision, Just (parseDebianVersion sourceVersion), map readPkgVersion buildDeps)
+                  buildDeps -> (Just revision, Nothing, map readPkgVersion buildDeps)
+            _ -> (Nothing, Nothing, [])
 
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
@@ -873,7 +875,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
           where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [newField]))
       addField (Control []) = error "Invalid control file"
       newField = Field ("Revision", " " ++ newFieldValue)
-      newFieldValue = revision ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ formatVersions versions
+      newFieldValue = show revision ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ formatVersions versions
       formatVersions versions = intercalate " " (map showPkgVersion versions)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 
@@ -905,9 +907,9 @@ doError cmd (_, _, ExitFailure n) = Failure ["Error " ++ show n ++ " running '" 
 -- encoded into the uploaded version's control file.
 buildDecision :: P.CacheRec
               -> Target
-              -> Maybe DebianVersion	-- builtVersion: the version already present in the repository
-              -> Maybe DebianVersion	-- builtSrcVersion: the version of the source code that builtVersion was built from
-              -> Maybe String		-- builtRevision: that version's revision string
+              -> Maybe DebianVersion	-- oldVersion: the version already present in the repository
+              -> Maybe DebianVersion	-- oldSrcVersion: the version of the source code that oldVersion was built from
+              -> Maybe String		-- _oldRevision: that version's revision string
               -> [PkgVersion]		-- builtDependencies: the list of of dependencies for that version
               -> SourcePackageStatus	-- releaseStatus: the status of the version in the repository
               -> DebianVersion		-- sourceVersion: the version number in the newest changelog entry of the source code
