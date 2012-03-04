@@ -40,15 +40,15 @@ import Extra.Misc(columns)
 -- dependencies against which it was or is about to be built.
 data Fingerprint
     = Fingerprint R.RetrieveMethod
-                  -- ^ The method which was used to retrieve the source code.
+                  -- The method which was used to retrieve the source code.
                   (Maybe DebianVersion)
-                  -- ^ The version number in the changelog of the freshly downloaded
-                  -- package (before any suffix is added by the autobuilder.)
+                  -- The version number in the changelog of the freshly downloaded
+                  -- package, before any suffix is added by the autobuilder.
                   [PkgVersion]
-                  -- ^ The names and version numbers of the build dependencies which
+                  -- The names and version numbers of the build dependencies which
                   -- were present when the package was build.
                   (Maybe DebianVersion)
-                  -- ^ This will be the same as the version field plus
+                  -- This will be the same as the version field plus
                   -- the suffix that was added by the autobuilder.
     | NoFingerprint
 
