@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall -Werror #-}
 module Debian.AutoBuilder.Types.Fingerprint
-    ( Fingerprint(..)
+    ( Fingerprint
     , packageFingerprint
     , showFingerprint
     , dependencyChanges
@@ -38,44 +38,18 @@ import Extra.Misc(columns)
 -- it was retrieved, the version number of the resulting Debian source
 -- package, and the names and version numbers of the build
 -- dependencies against which it was or is about to be built.
-{-
 data Fingerprint
-    = Fingerprint
-      { retrieveMethod :: String
-      , version :: DebianVersion
-      , dependencies :: [PkgVersion]
-      }
-
-fingerprint :: SourcePackage -> Maybe Fingerprint
-fingerprint package =
-    -- Ugh, this needs to be straightened out.
-    maybe Nothing (parseFingerprint . B.unpack) (S.fieldValue "Fingerprint" . sourceParagraph $ package)
-    where
-      parseFingerprint s =
-          case reads s :: [(String, String)] of
-            [(revision, etc)] ->
-                case words etc of
-                  (sourceVersion : buildDeps)
-                    | not (elem '=' sourceVersion) ->
-                        Just (Fingerprint { retrieveMethod = revision
-                                          , version = parseDebianVersion sourceVersion
-                                          , dependencies = map readPkgVersion buildDeps })
-                  _ -> Nothing
-            -- Accomodate the old revision format.
-{-
-            _ -> case words s of
-                   (revision : sourceVersion : buildDeps)
-                      | not (elem '=' sourceVersion) ->
-                          (Just revision, Just (parseDebianVersion sourceVersion), map readPkgVersion buildDeps)
-                   (revision : buildDeps) ->
-                       (Just revision, Nothing, map readPkgVersion buildDeps)                                                         
-                   _ -> (Nothing, Nothing, [])
--}
-            _ -> Nothing
--}
-
-data Fingerprint
-    = Fingerprint R.RetrieveMethod (Maybe DebianVersion) [PkgVersion] (Maybe DebianVersion)
+    = Fingerprint R.RetrieveMethod
+                  -- ^ The method which was used to retrieve the source code.
+                  (Maybe DebianVersion)
+                  -- ^ The version number in the changelog of the freshly downloaded
+                  -- package (before any suffix is added by the autobuilder.)
+                  [PkgVersion]
+                  -- ^ The names and version numbers of the build dependencies which
+                  -- were present when the package was build.
+                  (Maybe DebianVersion)
+                  -- ^ This will be the same as the version field plus
+                  -- the suffix that was added by the autobuilder.
     | NoFingerprint
 
 packageFingerprint :: Maybe SourcePackage -> Fingerprint
@@ -173,12 +147,14 @@ buildDecision :: P.CacheRec
                                         -- are available, or none, or only the architecture independent.
               -> BuildDecision
 buildDecision cache target _ _ _ | elem (targetName target) (P.forceBuild (P.params cache)) = Yes "--force-build option is set"
-buildDecision _ _ NoFingerprint (Fingerprint _newRevision (Just sourceVersion) _ _) _ =
+buildDecision _ _ NoFingerprint (Fingerprint _ (Just sourceVersion) _ _) _ =
     Yes ("Initial build of version " ++ show (prettyDebianVersion sourceVersion))
+buildDecision _ _ (Fingerprint oldMethod _ _ _) (Fingerprint newMethod _ _ _) _
+    | oldMethod /= newMethod = Yes ("Retrieve method changed: " ++ show oldMethod ++ " -> " ++ show newMethod)
 buildDecision _ _ _ NoFingerprint _ = error "Missing source fingerprint"
 buildDecision _ _ _ (Fingerprint _ Nothing _ _) _ = error "Missing source version"
-buildDecision cache target (Fingerprint _oldRevision oldSrcVersion builtDependencies repoVersion) -- I suspect oldSrcVersion is always equal to repoVersion
-                           (Fingerprint _newRevision (Just sourceVersion) sourceDependencies _)
+buildDecision cache target (Fingerprint _ oldSrcVersion builtDependencies repoVersion) -- I suspect oldSrcVersion is always equal to repoVersion
+                           (Fingerprint _ (Just sourceVersion) sourceDependencies _)
                            releaseStatus =
     case isJust oldSrcVersion of
       True ->
