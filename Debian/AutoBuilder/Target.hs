@@ -762,7 +762,7 @@ outputToString (Result r : out) = show r ++ outputToString out
 setRevisionInfo :: Fingerprint -> ChangesFile -> IO ChangesFile
 setRevisionInfo fingerprint changes {- @(Changes dir name version arch fields files) -} =
     q12 "Setting revision info" $
-    case partition isDscFile (changeFiles changes) of
+    case partition (isSuffixOf ".dsc" . changedFileName) (changeFiles changes) of
       ([file], otherFiles) ->
           do
             let dscFilePath = changeDir changes ++ "/" ++ changedFileName file
@@ -785,10 +785,8 @@ setRevisionInfo fingerprint changes {- @(Changes dir name version arch fields fi
     where
       addField (Control (Paragraph sourceInfo : binaryInfo)) =
           Control (newSourceInfo : binaryInfo)
-          where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [newField]))
+          where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [showFingerprint fingerprint]))
       addField (Control []) = error "Invalid control file"
-      newField = Field ("Revision", " " ++ showFingerprint fingerprint)
-      isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 
 -- | Run a checksum command on a file, return the resulting checksum as text.
 doChecksum :: String -> (String -> String) -> FilePath -> IO (Failing String)

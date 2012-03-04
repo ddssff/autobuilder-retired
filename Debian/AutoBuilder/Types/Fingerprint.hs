@@ -96,9 +96,9 @@ packageFingerprint (Just package) =
                         buildDeps -> Fingerprint method' Nothing (map readPkgVersion buildDeps) (Just . packageVersion . sourcePackageID $ package)
             _ -> NoFingerprint
 
-showFingerprint :: Fingerprint -> String
+showFingerprint :: Fingerprint -> S.Field
 showFingerprint (Fingerprint method (Just sourceVersion) versions _) =
-    show (show method) ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ intercalate " " (map showPkgVersion versions)
+    S.Field ("Fingerprint", " " ++ show (show method) ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ intercalate " " (map showPkgVersion versions))
 showFingerprint _ = error "missing fingerprint info"
 
 showDependencies :: Fingerprint -> [String]
