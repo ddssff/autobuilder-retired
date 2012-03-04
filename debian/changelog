@@ -1,3 +1,9 @@
+autobuilder (6.19) unstable; urgency=low
+
+  * Change revision string format so it begins with a RetrieveMethod.
+
+ -- David Fox <dsf@seereason.com>  Sun, 04 Mar 2012 08:17:02 -0800
+
 autobuilder (6.18.3) unstable; urgency=low
 
   * in asBuildable, first look for debianization in download directory,

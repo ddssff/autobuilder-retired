@@ -10,6 +10,7 @@ module Debian.AutoBuilder.Types.Fingerprint
     , buildDecision
     ) where
 
+import Control.Applicative.Error (maybeRead)
 import qualified Data.ByteString.Char8 as B
 import Data.List (intercalate, intersperse, find, partition, nub)
 import qualified Data.Map as Map
@@ -19,6 +20,7 @@ import Debian.AutoBuilder.Types.Buildable (Target(tgt, cleanSource), Buildable(d
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Changes (logVersion)
 import Debian.Control (lookupP, unControl, stripWS)
 import qualified Debian.Control.String as S
@@ -73,27 +75,30 @@ fingerprint package =
 -}
 
 data Fingerprint
-    = Fingerprint String (Maybe DebianVersion) [PkgVersion] (Maybe DebianVersion)
+    = Fingerprint R.RetrieveMethod (Maybe DebianVersion) [PkgVersion] (Maybe DebianVersion)
     | NoFingerprint
 
 packageFingerprint :: Maybe SourcePackage -> Fingerprint
 packageFingerprint Nothing = NoFingerprint
 packageFingerprint (Just package) =
-    maybe NoFingerprint (parseRevision . B.unpack) (S.fieldValue "Revision" . sourceParagraph $ package)
+    maybe NoFingerprint (parseRevision . B.unpack) (S.fieldValue "Fingerprint" . sourceParagraph $ package)
     where
       parseRevision s =
           case reads s :: [(String, String)] of
-            [(revision, etc)] ->
-                case words etc of
-                  (sourceVersion : buildDeps)
-                    | not (elem '=' sourceVersion) ->
-                        Fingerprint revision (Just (parseDebianVersion sourceVersion)) (map readPkgVersion buildDeps) (Just . packageVersion . sourcePackageID $ package)
-                  buildDeps -> Fingerprint revision Nothing (map readPkgVersion buildDeps) (Just . packageVersion . sourcePackageID $ package)
+            [(method, etc)] ->
+                case maybeRead method :: Maybe R.RetrieveMethod of
+                  Nothing -> NoFingerprint
+                  Just method' ->
+                      case words etc of
+                        (sourceVersion : buildDeps)
+                          | not (elem '=' sourceVersion) ->
+                              Fingerprint method' (Just (parseDebianVersion sourceVersion)) (map readPkgVersion buildDeps) (Just . packageVersion . sourcePackageID $ package)
+                        buildDeps -> Fingerprint method' Nothing (map readPkgVersion buildDeps) (Just . packageVersion . sourcePackageID $ package)
             _ -> NoFingerprint
 
 showFingerprint :: Fingerprint -> String
-showFingerprint (Fingerprint revision (Just sourceVersion) versions _) =
-    show revision ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ intercalate " " (map showPkgVersion versions)
+showFingerprint (Fingerprint method (Just sourceVersion) versions _) =
+    show (show method) ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ intercalate " " (map showPkgVersion versions)
 showFingerprint _ = error "missing fingerprint info"
 
 showDependencies :: Fingerprint -> [String]
@@ -128,7 +133,7 @@ targetFingerprint target buildDependencySolution =
       -- default it is simply the debian version number.  The version
       -- number in the source tree should not have our vendor tag,
       -- that should only be added by the autobuilder.
-      sourceRevision = T.revision (download (tgt target))
+      sourceRevision = {-T.revision-} T.method (download (tgt target))
       sourceVersion = logVersion sourceLog
       sourceLog = entry . cleanSource $ target
       sourceDependencies = map makeVersion buildDependencySolution
