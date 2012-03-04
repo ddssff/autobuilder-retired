@@ -12,15 +12,14 @@ module Debian.AutoBuilder.Target
 
 import Control.Arrow (second)
 import Control.Applicative.Error (Failing(..), failing)
-import Control.Exception (Exception(..), SomeException, try, evaluate)
+import Control.Exception (Exception(..), SomeException, try)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Either (partitionEithers)
-import Data.List(intersperse, find, intercalate, intersect, isSuffixOf,
+import Data.List(intersperse, intercalate, intersect, isSuffixOf,
                  nub, partition, sortBy)
-import qualified Data.Map as Map
-import Data.Maybe(catMaybes, fromJust, isJust, isNothing, listToMaybe)
+import Data.Maybe(catMaybes, fromJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
@@ -28,6 +27,7 @@ import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Types.Buildable (Buildable(..))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
+import Debian.AutoBuilder.Types.Fingerprint (Fingerprint, packageFingerprint, showFingerprint, dependencyChanges, targetFingerprint, showDependencies, BuildDecision(..), buildDecision)
 import Debian.AutoBuilder.Types.Buildable (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName)
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -36,7 +36,7 @@ import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, cha
                        ChangedFileSpec(changedFileSize, changedFileName, changedFileMD5sum, changedFileSHA1sum, changedFileSHA256sum),
                        ChangeLogEntry(logWho, logVersion, logDists, logDate, logComments))
 import Debian.Control
-import qualified Debian.Control.String as S(fieldValue)
+-- import Debian.Control
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation (prettyRelation)
 import Debian.Relation.ByteString(Relations, Relation(..))
@@ -50,18 +50,17 @@ import Debian.Repo.Changes (save, uploadLocal)
 import Debian.Repo.Insert (scanIncoming, showErrors)
 import Debian.Repo.OSImage (OSImage, updateLists)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
-import Debian.Repo.Repository (readPkgVersion, showPkgVersion)
 import Debian.Repo.SourceTree (SourceTreeC(..), DebianSourceTreeC(..),
                                DebianBuildTree, addLogEntry, copyDebianBuildTree,
                                findChanges, findOneDebianBuildTree, SourcePackageStatus(..))
 import Debian.Repo.Monad (AptIOT)
 import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID),
                           AptCache(rootDir, aptBinaryPackages), EnvRoot(rootPath),
-                          PackageID(packageVersion, packageName), LocalRepository, PkgVersion(..),
-                          BinaryPackage(packageInfo, packageID), prettyPkgVersion)
+                          PackageID(packageVersion), LocalRepository, PkgVersion(..),
+                          BinaryPackage(packageInfo), prettyPkgVersion)
 import Debian.Time(getCurrentLocalRFC822Time)
 import Debian.Version(DebianVersion, parseDebianVersion, prettyDebianVersion)
-import Debian.VersionPolicy(dropTag, parseTag, setTag)
+import Debian.VersionPolicy(parseTag, setTag)
 import System.Unix.Process(Output(..), collectOutputUnpacked, mergeToStdout, lazyProcess, stdoutOnly)
 import Extra.Files(replaceFile)
 import "Extra" Extra.List(dropPrefix)
@@ -87,20 +86,8 @@ prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v +
 -- revision info and build dependency versions in a human readable
 -- form.  FIXME: this should also include revision control log
 -- entries.
-changelogText :: Buildable -> String -> [PkgVersion] -> [PkgVersion] -> String
-changelogText buildable _revision oldDeps newDeps =
-    ("  * " ++ T.logText (download buildable) ++ "\n" ++ depChanges changedDeps ++ "\n")
-    where
-      depChanges [] = ""
-      depChanges _ = "  * Build dependency changes:" ++ prefix ++ intercalate prefix padded ++ "\n"
-      padded = map concat . columns . map showDepChange $ changedDeps
-      changedDeps = Set.toList (Set.difference (Set.fromList newDeps) (Set.fromList oldDeps))
-      showDepChange newDep =
-          case filter (hasName (getName newDep)) oldDeps of
-            [] -> [" " ++ getName newDep ++ ": ", "(none)", " -> ", show (prettyDebianVersion (getVersion newDep))]
-            (oldDep : _) -> [" " ++ getName newDep ++ ": ", show (prettyDebianVersion (getVersion oldDep)), " -> ", show (prettyDebianVersion (getVersion newDep))]
-      hasName name deps = ((== name) . getName) deps
-      prefix = "\n    "
+changelogText :: Buildable -> Fingerprint -> Fingerprint -> String
+changelogText buildable old new = ("  * " ++ T.logText (download buildable) ++ "\n" ++ dependencyChanges old new ++ "\n")
 
 -- |Generate the string of build dependency versions:
 -- package1=version1 package2=version2 ...
@@ -277,21 +264,6 @@ showTargets targets =
     where
       heading = show (P.packageCount targets) ++ " Targets:"
 
--- |Represents a decision whether to build a package, with a text juststification.
-data BuildDecision
-    = Yes String
-    | No String
-    | Arch String	-- Needs a -B build, architecture dependent files only
-    | Auto String	-- Needs a 'automated' rebuild, with a generated version number and log entry
-    | Error String	-- A fatal condition was encountered - e.g. a build dependency became older since last build
-
-instance Show BuildDecision where
-    show (Yes reason) = "Yes - " ++ reason
-    show (No reason) = "No - " ++ reason
-    show (Arch reason) = "Yes - " ++ reason
-    show (Auto reason) = "Yes - " ++ reason
-    show (Error reason) = "Error - " ++ reason
-
 -- Decide whether a target needs to be built and, if so, build it.
 buildTarget ::
     (AptCache t) =>
@@ -315,86 +287,49 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                               return $ Failure excuses'
         Success [] -> error "Internal error 4"
         Success ((_count, sourceDependencies) : _) ->
-            do let sourceDependencies' = map makeVersion sourceDependencies
-               -- qPutStrLn (intercalate "\n  " (("Using build dependency solution #" ++ show count) : map show sourceDependencies'))
-               -- Get the newest available version of a source package,
+            do -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
-               let (releaseControlInfo, releaseStatus, _message) = getReleaseControlInfo cleanOS packageName
-               -- quieter (+ 1) (qPutStrLn message)
-               -- qPutStrLn ("Status of " ++ packageName ++ maybe "" (\ p -> "-" ++ show (packageVersion . sourcePackageID $ p)) releaseControlInfo ++ ": " ++ explainSourcePackageStatus releaseStatus)
-               --My.ePutStr ("Target control info:\n" ++ show releaseControlInfo)
-               -- Get the revision info of the package currently in the dist
-               let oldVersion = maybe Nothing (Just . getOldVersion) releaseControlInfo
-               let (oldRevision, oldSrcVersion, oldDependencies) = maybe (Nothing, Nothing, []) getOldRevision releaseControlInfo
-               -- Compute the Revision: string for the source tree.  This
-               -- string will appear in the .dsc file for the package, and will
-               -- then be copied into the Sources.gz file of the distribution.
-               -- For a TLA target this is the current revision name, by
-               -- default it is simply the debian version number.  The version
-               -- number in the source tree should not have our vendor tag,
-               -- that should only be added by the autobuilder.
-               let sourceRevision = T.revision (download (tgt target))
+               let (releaseControlInfo, releaseStatus, _message) = getReleaseControlInfo cleanOS (targetName target)
+               let repoVersion = fmap (packageVersion . sourcePackageID) releaseControlInfo
+                   oldFingerprint = packageFingerprint releaseControlInfo
                -- Get the changelog entry from the clean source
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
-               -- qPutStrLn ("Released source version: " ++ show oldSrcVersion)
-               -- qPutStrLn ("Released version: " ++ show oldVersion)
-               -- qPutStrLn ("Current source version: " ++ show sourceVersion)
-               let spkgs = aptSourcePackagesSorted poolOS [packageName]
-                   buildTrumped = elem packageName (P.buildTrumped (P.params cache))
+                   newFingerprint = targetFingerprint target sourceDependencies
+               let spkgs = aptSourcePackagesSorted poolOS [targetName target]
+                   buildTrumped = elem (targetName target) (P.buildTrumped (P.params cache))
                    newVersion = computeNewVersion cache spkgs (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
-                   decision =
-                       buildDecision cache target
-                                         oldVersion oldSrcVersion oldRevision oldDependencies releaseStatus
-                                         sourceVersion sourceDependencies'
+                   decision = buildDecision cache target oldFingerprint newFingerprint releaseStatus
                quieter (const 0) $ qPutStrLn ("Build decision: " ++ show decision)
-               -- FIXME: incorporate the release status into the build decision
                case newVersion of
                  Failure messages ->
                     return (Failure messages)
                  Success version ->
-                    case decision of
-                      Error message -> return (Failure [message])
-                      No _ -> return (Success Nothing)
-                      Yes _ ->  buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog >>= fm
-                      Arch _ -> buildPackage cache cleanOS oldVersion oldDependencies sourceRevision sourceDependencies' target releaseStatus repo sourceLog >>= fm
-                      Auto _ -> buildPackage cache cleanOS (Just version) oldDependencies sourceRevision sourceDependencies' target None repo sourceLog >>= fm
-    where
-      fm :: Monad m => Failing x -> m (Failing (Maybe x))
-      fm (Failure msgs) = return (Failure msgs)
-      fm (Success x) = return (Success (Just x))
-      --buildTree = maybe (error $ "Invalid target for build: " ++ show target) id (getBuildTree . cleanSource $ target)
-      packageName = targetName target
-      -- Find or create an apt-get environment that will see all the packages
-      -- in both the upload repository and the local repository, and then use
-      -- it to compute a list of all existing versions of the package.
-{-    compareVersion a b = case (fieldValue "Version" a, fieldValue "Version" b) of
-                             (Just a', Just b') -> compare (parseDebianVersion a') (parseDebianVersion b')
-                             _ -> error "Missing Version field" -}
-
--- appPrefix _ = id
-
--- |Convert to a simple name and version record to interface with older
--- code.
-makeVersion :: BinaryPackage -> PkgVersion
-makeVersion package =
-    PkgVersion { getName = packageName (packageID package)
-               , getVersion = packageVersion (packageID package) }
+                     -- If we are doing an arch only build, the version number needs to match the
+                     -- version number of the architecture independent package already uploaded.
+                     let buildVersion = case decision of
+                                          Arch _ -> repoVersion
+                                          _ -> Just version in
+                     case decision of
+                       Error message -> return (Failure [message])
+                       No _ -> return (Success Nothing)
+                       _ ->  buildPackage cache cleanOS buildVersion oldFingerprint newFingerprint sourceLog target releaseStatus repo >>=
+                             return . failing Failure (Success . Just)
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: P.CacheRec -> OSImage -> Maybe DebianVersion -> [PkgVersion] -> String -> [PkgVersion] -> Target -> SourcePackageStatus -> LocalRepository -> ChangeLogEntry -> AptIOT IO (Failing LocalRepository)
-buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDependencies target status repo sourceLog =
+buildPackage :: P.CacheRec -> OSImage -> Maybe DebianVersion -> Fingerprint -> Fingerprint -> ChangeLogEntry -> Target -> SourcePackageStatus -> LocalRepository -> AptIOT IO (Failing LocalRepository)
+buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog target status repo =
     checkDryRun >>
     lift prepareImage >>=
     failing (return . Failure) logEntry >>=
-    failing (return . Failure) (quieter (+ (-1)) . build) >>=
+    failing (return . Failure) (quieter (\x->x-1) . build) >>=
     failing (return . Failure) find >>=
     failing (return . Failure) upload
     where
       checkDryRun = when (P.dryRun (P.params cache))
                       (do qPutStrLn "Not proceeding due to -n option."
                           liftIO (exitWith ExitSuccess))
-      prepareImage = prepareBuildImage cache cleanOS sourceDependencies buildOS target (P.strictness (P.params cache))
+      prepareImage = prepareBuildImage cache cleanOS newFingerprint buildOS target
       logEntry buildTree = 
           case P.noClean (P.params cache) of
             False -> liftIO $ maybeAddLogEntry buildTree newVersion >> return (Success buildTree)
@@ -444,16 +379,13 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
       -- Depending on the strictness, build dependencies either
       -- get installed into the clean or the build environment.
       maybeAddLogEntry _ Nothing = return ()
-      maybeAddLogEntry buildTree (Just newVersion) = makeLogEntry newVersion >>= (flip addLogEntry) buildTree
-      makeLogEntry newVersion = 
-          do
-            date <- getCurrentLocalRFC822Time
-            return $ sourceLog {logVersion=newVersion,
-                                logDists=[P.buildRelease (P.params cache)],
-                                logWho=P.autobuilderEmail (P.params cache),
-                                logDate=date,
-                                logComments=
-                                    init (logComments sourceLog) ++ changelogText (tgt target) sourceRevision oldDependencies sourceDependencies}
+      maybeAddLogEntry buildTree (Just newVersion) = getCurrentLocalRFC822Time >>= return . makeLogEntry newVersion >>= (flip addLogEntry) buildTree
+      makeLogEntry newVersion date = 
+          sourceLog { logVersion = newVersion,
+                      logDists = [P.buildRelease (P.params cache)],
+                      logWho = P.autobuilderEmail (P.params cache),
+                      logDate = date,
+                      logComments = init (logComments sourceLog) ++ changelogText (tgt target) oldFingerprint newFingerprint }
       setDistribution name changes =
           let (Paragraph fields) = changeInfo changes in
           let info' = map (setDist name) fields in
@@ -472,7 +404,7 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
                 liftIO . updateChangesFile elapsed >>=
                 -- Insert the revision info into the .dsc file and update
                 -- the md5sum of the .dsc file in the .changes file.
-                liftIO . setRevisionInfo (logVersion sourceLog) sourceRevision sourceDependencies
+                liftIO . setRevisionInfo newFingerprint
             -- Upload to the local apt repository
             lift $ uploadLocal repo changesFile'
             -- The upload to the local repository is done even when
@@ -490,10 +422,10 @@ buildPackage cache cleanOS newVersion oldDependencies sourceRevision sourceDepen
 -- these operations take place in a different order from other types
 -- of builds.  For lax: dependencies, then image copy, then source
 -- copy.  For other: image copy, then source copy, then dependencies.
-prepareBuildImage :: P.CacheRec -> OSImage -> [PkgVersion] -> OSImage -> Target -> P.Strictness -> IO (Failing DebianBuildTree)
-prepareBuildImage cache cleanOS sourceDependencies buildOS target P.Lax =
+prepareBuildImage :: P.CacheRec -> OSImage -> Fingerprint -> OSImage -> Target -> IO (Failing DebianBuildTree)
+prepareBuildImage cache cleanOS sourceFingerprint buildOS target | P.strictness (P.params cache) == P.Lax =
     -- Install dependencies directly into the clean environment
-    installDependencies cleanOS (cleanSource target) buildDepends sourceDependencies >>=
+    installDependencies cleanOS (cleanSource target) buildDepends sourceFingerprint >>=
     failing (return . Failure) (prepareTree noClean)
     where
       prepareTree True _ =
@@ -509,7 +441,7 @@ prepareBuildImage cache cleanOS sourceDependencies buildOS target P.Lax =
       noClean = P.noClean (P.params cache)
       newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) oldPath)
       oldPath = topdir . cleanSource $ target
-prepareBuildImage cache cleanOS sourceDependencies buildOS target _ =
+prepareBuildImage cache cleanOS sourceFingerprint buildOS target =
     -- Install dependencies directly into the build environment
     findTree noClean >>=
     failing (return . Failure) downloadDeps >>=
@@ -525,7 +457,7 @@ prepareBuildImage cache cleanOS sourceDependencies buildOS target _ =
           findOneDebianBuildTree newPath >>= \ tree ->
           return $ maybe (Failure ["prepareBuildImage: could not find build tree in " ++ newPath]) Success tree
 
-      downloadDeps buildTree = downloadDependencies cleanOS buildTree buildDepends sourceDependencies >>=
+      downloadDeps buildTree = downloadDependencies cleanOS buildTree buildDepends sourceFingerprint >>=
                                failing (return . Failure) (const (return (Success buildTree)))
 
       syncEnv False buildTree =
@@ -534,7 +466,7 @@ prepareBuildImage cache cleanOS sourceDependencies buildOS target _ =
       syncEnv True buildTree =
           return (Success (buildOS, buildTree))
 
-      installDeps (buildOS, buildTree) = installDependencies buildOS buildTree buildDepends sourceDependencies >>=
+      installDeps (buildOS, buildTree) = installDependencies buildOS buildTree buildDepends sourceFingerprint >>=
                                          failing (return . Failure) (const (return (Success buildTree)))
       buildDepends = P.buildDepends (P.params cache)
       noClean = P.noClean (P.params cache)
@@ -610,35 +542,6 @@ getReleaseControlInfo cleanOS packageName =
 
 data Status = Complete | Missing [String]
 
--- | Get the "old" package version number, the one that was already
--- built and uploaded to the repository.
-getOldVersion :: SourcePackage -> DebianVersion
-getOldVersion package = packageVersion . sourcePackageID $ package
-
-getOldRevision :: SourcePackage -> (Maybe String, Maybe DebianVersion, [PkgVersion])
-getOldRevision package = 
-    maybe (Nothing, Nothing, []) (parseRevision . B.unpack) (S.fieldValue "Revision" . sourceParagraph $ package)
-    where
-      parseRevision s =
-          case reads s :: [(String, String)] of
-            [(revision, etc)] ->
-                case words etc of
-                  (sourceVersion : buildDeps)
-                    | not (elem '=' sourceVersion) ->
-                        (Just revision, Just (parseDebianVersion sourceVersion), map readPkgVersion buildDeps)
-                  buildDeps -> (Just revision, Nothing, map readPkgVersion buildDeps)
-            -- Accomodate the old revision format.
-{-
-            _ -> case words s of
-                   (revision : sourceVersion : buildDeps)
-                      | not (elem '=' sourceVersion) ->
-                          (Just revision, Just (parseDebianVersion sourceVersion), map readPkgVersion buildDeps)
-                   (revision : buildDeps) ->
-                       (Just revision, Nothing, map readPkgVersion buildDeps)                                                         
-                   _ -> (Nothing, Nothing, [])
--}
-            _ -> (Nothing, Nothing, [])
-
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
 -- dist, and distinct from versions in any other dist.
@@ -668,7 +571,8 @@ computeNewVersion cache
                                       " of this form.  This makes it difficult for the author to know what version" ++
                                       " needs to go into debian/changelog to trigger a build by the autobuilder," ++
                                       " particularly since each distribution may have different auto-generated versions."]
-            (_, Nothing) -> setTag aliases vendor oldVendors release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion >>= checkVersion
+            (_, Nothing) -> setTag aliases vendor oldVendors release extra currentVersion (catMaybes . map getVersion $ available) sourceVersion >>=
+                            checkVersion
     where
       getVersion paragraph =
           maybe Nothing (Just . parseDebianVersion . B.unpack) (fieldValue "Version" . sourceParagraph $ paragraph)
@@ -795,12 +699,11 @@ sinkFields f (Paragraph fields) =
           f' (Comment _) = False
 
 -- |Download the package's build dependencies into /var/cache
-downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing String)
-downloadDependencies os source extra versions =
+downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> Fingerprint -> IO (Failing String)
+downloadDependencies os source extra sourceFingerprint =
     
     do -- qPutStrLn "Downloading build dependencies"
-       vers <- liftIO (evaluate versions)
-       quieter (+ 1) $ qPutStrLn . intercalate "\n  " $ "Dependency package versions: " : map (show . prettyPkgVersion) vers
+       quieter (+ 1) $ qPutStrLn $ "Dependency package versions:\n " ++ intercalate "\n  " (showDependencies sourceFingerprint)
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
        (out, _, code) <- useEnv' (rootPath root) forceList (lazyCommandE command L.empty) >>=
                          return . collectOutputUnpacked . mergeToStdout
@@ -812,7 +715,7 @@ downloadDependencies os source extra versions =
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
                  (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
-      aptGetCommand = "apt-get --yes --force-yes install -o APT::Install-Recommends=True --download-only " ++ intercalate " " (map showPkgVersion versions ++ extra)
+      aptGetCommand = "apt-get --yes --force-yes install -o APT::Install-Recommends=True --download-only " ++ intercalate " " (showDependencies sourceFingerprint ++ extra)
       path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
 
@@ -822,8 +725,8 @@ pathBelow root path =
     where message = "Expected a path below " ++ root ++ ", saw " ++ path
 
 -- |Install the package's build dependencies.
-installDependencies :: OSImage -> DebianBuildTree -> [String] -> [PkgVersion] -> IO (Failing [Output])
-installDependencies os source extra versions =
+installDependencies :: OSImage -> DebianBuildTree -> [String] -> Fingerprint -> IO (Failing [Output])
+installDependencies os source extra sourceFingerprint =
     do qPutStrLn $ "Installing build dependencies into " ++ rootPath (rootDir os)
        (code, out) <- Proc.withProc os (useEnv' (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectResult
        case code of
@@ -834,7 +737,7 @@ installDependencies os source extra versions =
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
                  (if True then aptGetCommand else pbuilderCommand))
       pbuilderCommand = "cd '" ++  path ++ "' && /usr/lib/pbuilder/pbuilder-satisfydepends"
-      aptGetCommand = "apt-get --yes --force-yes install -o APT::Install-Recommends=True " ++ intercalate " " (map showPkgVersion versions ++ extra)
+      aptGetCommand = "apt-get --yes --force-yes install -o APT::Install-Recommends=True " ++ intercalate " " (showDependencies sourceFingerprint ++ extra)
       --aptGetCommand = "apt-get --yes build-dep -o APT::Install-Recommends=False " ++ sourcpackagename
       path = pathBelow (rootPath root) (topdir source)
       root = rootDir os
@@ -856,8 +759,8 @@ outputToString (Result r : out) = show r ++ outputToString out
 -- included in the package's entry in the Sources.gz file.  Then we
 -- can compare the revision from the uploaded package with the current
 -- TLA revision to decide whether to build.
-setRevisionInfo :: DebianVersion -> String -> [PkgVersion] -> ChangesFile -> IO ChangesFile
-setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name version arch fields files) -} =
+setRevisionInfo :: Fingerprint -> ChangesFile -> IO ChangesFile
+setRevisionInfo fingerprint changes {- @(Changes dir name version arch fields files) -} =
     q12 "Setting revision info" $
     case partition isDscFile (changeFiles changes) of
       ([file], otherFiles) ->
@@ -884,9 +787,7 @@ setRevisionInfo sourceVersion revision versions changes {- @(Changes dir name ve
           Control (newSourceInfo : binaryInfo)
           where newSourceInfo = raiseFields (/= "Files") (Paragraph (sourceInfo ++ [newField]))
       addField (Control []) = error "Invalid control file"
-      newField = Field ("Revision", " " ++ newFieldValue)
-      newFieldValue = show revision ++ " " ++ show (prettyDebianVersion sourceVersion) ++ " " ++ formatVersions versions
-      formatVersions versions = intercalate " " (map showPkgVersion versions)
+      newField = Field ("Revision", " " ++ showFingerprint fingerprint)
       isDscFile file = isSuffixOf ".dsc" $ changedFileName file
 
 -- | Run a checksum command on a file, return the resulting checksum as text.
@@ -910,127 +811,3 @@ toEither x = Left x
 doError :: Show a => String -> (t, a, ExitCode) -> Failing a
 doError cmd (_, s, ExitSuccess) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]
 doError cmd (_, _, ExitFailure n) = Failure ["Error " ++ show n ++ " running '" ++ cmd ++ "'"]
-
--- |Decide whether to build a package.  We will build if the revision
--- is different from the revision of the uploaded source, or if any of
--- the build dependencies are newer than the versions which were
--- encoded into the uploaded version's control file.
-buildDecision :: P.CacheRec
-              -> Target
-              -> Maybe DebianVersion	-- oldVersion: the version already present in the repository
-              -> Maybe DebianVersion	-- oldSrcVersion: the version of the source code that oldVersion was built from
-              -> Maybe String		-- _oldRevision: that version's revision string
-              -> [PkgVersion]		-- builtDependencies: the list of of dependencies for that version
-              -> SourcePackageStatus	-- releaseStatus: the status of the version in the repository
-              -> DebianVersion		-- sourceVersion: the version number in the newest changelog entry of the source code
-              -> [PkgVersion]		-- sourceDependencies: the list of build dependency versions computed from the build environment
-              -> BuildDecision
-buildDecision cache target 
-                  oldVersion oldSrcVersion _oldRevision builtDependencies releaseStatus
-                  sourceVersion sourceDependencies =
-    case oldVersion == Nothing of
-      _ | forceBuild -> Yes "--force-build option is set"
-        | isNothing oldVersion -> Yes ("Initial build of version " ++ show (prettyDebianVersion sourceVersion))
-      _ ->
-          case isJust oldSrcVersion of
-            True ->
-                case compare sourceVersion (fromJust oldSrcVersion) of
-                  GT -> Yes ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is newer than released source version (" ++ show (prettyDebianVersion (fromJust oldSrcVersion)) ++ ")")
-                  LT -> No ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is trumped by released source version (" ++ show (prettyDebianVersion (fromJust oldSrcVersion)) ++ ")")
-                  EQ -> sameSourceTests
-            False ->
-                case compare (dropTag allTags sourceVersion) (dropTag allTags (fromJust oldVersion)) of
-                  GT -> Yes ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is newer than released source version (" ++ show (prettyDebianVersion (fromJust oldVersion)) ++ ")")
-                  LT -> No ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is trumped by released source version (" ++ show (prettyDebianVersion (fromJust oldVersion)) ++ ")")
-                  EQ ->
-                      case dropTag allTags sourceVersion == sourceVersion of
-                        False -> Yes ("Source version (" ++ show (prettyDebianVersion sourceVersion) ++ ") is tagged, and old source version was not recorded")
-                        True -> sameSourceTests
-    where
-      vendorTag = P.vendorTag (P.params cache)
-      oldVendorTags = P.oldVendorTags (P.params cache)
-      forceBuild = elem (targetName target) (P.forceBuild (P.params cache))
-      -- discardTarget = Set.member (targetName target) (P.discard (P.params cache))
-      allowBuildDependencyRegressions = P.allowBuildDependencyRegressions (P.params cache)
-      -- Build decision tests for when the version number of the
-      -- source hasn't changed.  Note that the source itself may have
-      -- changed, but we don't ask the SCCS whether that has happened.
-      -- This is a design decision which avoids building from source
-      -- that might have been checked in but isn't ready to be
-      -- uploaded to the repository.  Note that if the build
-      -- dependencies change the package will be built anyway, so we
-      -- are not completely protected from this possibility.
-      sameSourceTests =
-          case releaseStatus of
-            Indep missing | missing /= [] && not (notArchDep (targetControl target)) ->
-                  -- The binary packages are missing, we need an arch only build.
-                  Arch ("Version " ++ maybe "Nothing" show (fmap prettyDebianVersion oldVersion) ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
-            _ | badDependencies /= [] && not allowBuildDependencyRegressions ->
-                  Error ("Build dependency regression (allow with --allow-build-dependency-regressions): " ++ 
-                         concat (intersperse ", " (map (\ ver -> show (fmap prettyPkgVersion (builtVersion ver)) ++ " -> " ++ show (prettyPkgVersion ver)) badDependencies)))
-              | badDependencies /= [] ->
-                  Auto ("Build dependency regression: " ++ 
-                        concat (intersperse ", " (map (\ ver -> show (fmap prettyPkgVersion (builtVersion ver)) ++ " -> " ++ show (prettyPkgVersion ver)) badDependencies)))
-              | autobuiltDependencies /= [] && isNothing oldSrcVersion ->
-		  -- If oldSrcVersion is Nothing, the autobuilder didn't make the previous build
-                  -- so there are no recorded build dependencies.  In that case we don't really
-                  -- know whether a build is required, so we could go either way.  The decision
-                  -- here is to only built if some of the build dependencies were built by the
-                  -- autobuilder (so their version numbers have been tagged by it.)
-                  Auto ("Build dependency status unknown:\n" ++ buildDependencyChangeText autobuiltDependencies)
-              | (revvedDependencies ++ newDependencies) /= [] && isJust oldSrcVersion ->
-                  -- If the package *was* previously built by the autobuilder we rebuild when any
-                  -- of its build dependencies are revved or new ones appear.
-                  Auto ("Build dependencies changed:\n" ++ buildDependencyChangeText (revvedDependencies ++ newDependencies))
-            Indep _ | notArchDep (targetControl target) ->
-                  No ("Version " ++ show (prettyDebianVersion sourceVersion) ++ " of architecture independent package is already in release.")
-            Indep missing ->
-                  -- The binary packages are missing, we need an arch only build.
-                  Arch ("Version " ++ maybe "Nothing" show (fmap prettyDebianVersion oldVersion) ++ " needs arch only build. (Missing: " ++ show missing ++ ")")
-            All ->
-                  No ("Version " ++ show (prettyDebianVersion sourceVersion) ++ " is already in release.")
-            _ ->
-                  error ("Unexpected releaseStatus: " ++ show releaseStatus)
-      notArchDep control =
-          all (== "all") . map (maybe "all" strip) . map (lookupP "Architecture") . unControl $ control
-          where strip (Field (_, s)) = stripWS s
-                strip (Comment _) = ""
-      buildDependencyChangeText dependencies =
-          "  " ++ intercalate "\n  " lines
-          where
-            lines = map (\ (built, new) -> show (fmap prettyPkgVersion built) ++ " -> " ++ show (prettyPkgVersion new)) (zip builtVersions dependencies)
-            builtVersions = map (findDepByName builtDependencies) dependencies
-            findDepByName builtDependencies new = find (\ old -> getName new == getName old) builtDependencies
-      -- The list of the revved and new dependencies which were built by the autobuilder.
-      autobuiltDependencies = filter isTagged (revvedDependencies ++ newDependencies)
-      isTagged :: PkgVersion -> Bool
-      isTagged dep = isJust . snd . parseTag allTags . getVersion $ dep
-      allTags :: [String]
-      allTags = vendorTag : oldVendorTags
-      -- If we are deciding whether to rebuild the same version of the source package,
-      -- this function checks the status of the build dependencies.  If any are older
-      -- now than when the package was built previously, it is a fatal error.  Probably
-      -- the sources.list changed so that build dependency versions are no longer
-      -- available, or some of the build dependencies were never built for the current
-      -- build architecture.  If any are younger, we need to rebuild the package.
-      -- buildDependencyStatus :: ([PkgVersion], [PkgVersion], [PkgVersion], [PkgVersion])
-      (badDependencies, revvedDependencies, newDependencies, _unchangedDependencies) =
-          (bad, changed, new, unchanged)
-          where
-            -- If any dependency is older than the one we last built with it is an error.
-            (bad, notBad) = partition isOlder sourceDependencies'
-            isOlder new = maybe False (\ built -> getVersion built > getVersion new) (builtVersion new)
-            -- If a dependency is newer it generally triggers a rebuild.
-            (changed, notChanged) = partition isNewer notBad
-            isNewer new = maybe False (\ built -> getVersion built < getVersion new) (builtVersion new)
-	    -- Dependencies which we have never seen before also generally trigger a rebuild.
-            (new, unchanged) = partition (isNothing . builtVersion) notChanged
-	    -- What version of this dependency was most recently used to build?
-      builtVersion x = maybe Nothing (\ ver -> Just (PkgVersion (getName x) ver)) (Map.findWithDefault Nothing (getName x) builtDeps)
-      builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
-      -- Remove any package not mentioned in the relaxed dependency list
-      -- from the list of build dependencies which can trigger a rebuild.
-      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed (relaxDepends (P.params cache) (tgt target)) target))) sourceDependencies
-      -- All the package names mentioned in a dependency list
-      packageNames :: G.DepInfo -> [String]
-      packageNames (_, deps, _) = nub (map (\ (Rel name _ _) -> name) (concat deps))

@@ -79,8 +79,8 @@ srcPkgName :: Buildable -> String
 srcPkgName tgt =
     maybe (error "No Source field in control file") id (fieldValue "Source" (head (unControl (control' (debianSourceTree tgt)))))
 
-makeRelaxInfo :: [(G.BinPkgName, Maybe G.SrcPkgName)] -> G.RelaxInfo
-makeRelaxInfo xs srcPkgName binPkgName =
+makeRelaxInfo :: G.OldRelaxInfo -> G.RelaxInfo
+makeRelaxInfo (G.RelaxInfo xs) srcPkgName binPkgName =
     Set.member binPkgName global || maybe False (Set.member binPkgName) (Map.lookup srcPkgName mp)
     where
       (global :: Set.Set G.BinPkgName, mp :: Map.Map G.SrcPkgName (Set.Set G.BinPkgName)) =
