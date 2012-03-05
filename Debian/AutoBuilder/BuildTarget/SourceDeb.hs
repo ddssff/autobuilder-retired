@@ -48,8 +48,7 @@ prepare _cache m base =
                 return $ T.Download {
                              T.method = m
                            , T.getTop = top
-                           , T.revision = "sourcedeb:" ++ T.revision base
-                           , T.logText = T.revision base ++ " (source deb)"
+                           , T.logText = "Source Deb: " ++ show m
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)

@@ -42,11 +42,9 @@ prepare cache m theUri flags =
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       _output <- fixLink
-      rev <- darcsRev tree m >>= either (fail . show) return
       return $ T.Download { T.method = m
                           , T.getTop = topdir tree
-                          , T.revision = rev
-                          , T.logText =  "Darcs revision: " ++ rev
+                          , T.logText =  "Darcs revision: " ++ show m
                           , T.mVersion = Nothing
                           , T.origTarball = Nothing
                           , T.cleanTarget =

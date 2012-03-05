@@ -6,17 +6,13 @@ import Control.Exception (SomeException, try)
 import Control.Monad
 import Control.Monad.Trans
 import Data.ByteString.Lazy.Char8 (empty)
-import Data.Maybe
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 import System.Directory
-import System.Exit
 import System.FilePath (splitFileName)
-import System.IO
-import System.Process
 import System.Unix.Directory
 import System.Unix.Progress (lazyCommandF, timeTask)
 
@@ -29,19 +25,9 @@ prepare cache m archive = liftIO $
       when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
-      rev <- do let path = topdir tree
-                    cmd = "cd " ++ path ++ " && hg log -r $(hg id | cut -d' ' -f1 )"
-                (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-                rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
-                       return . maybe (fail $ "no revision info printed by '" ++ cmd ++ "'") id
-                result <- waitForProcess handle
-                case (rev, result) of
-                  (rev', ExitSuccess) -> return $ "hg:" ++ rev'
-                  (_, ExitFailure _) -> fail $ "FAILURE: " ++ cmd
       return $ T.Download { T.method = m
                           , T.getTop = topdir tree
-                          , T.revision = rev
-                          , T.logText =  "Hg revision: " ++ rev
+                          , T.logText =  "Hg revision: " ++ show m
                           , T.mVersion = Nothing
                           , T.origTarball = Nothing
                           , T.cleanTarget =

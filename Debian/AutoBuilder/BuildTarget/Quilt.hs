@@ -124,12 +124,10 @@ prepare cache m base patch = liftIO $
                                      (_, _, ExitSuccess) ->
                                          do tree <- findSourceTree (topdir quiltTree)
                                             -- return $ Quilt base patch tree m
-                                            let rev = "quilt:(" ++ T.revision base ++ "):(" ++ T.revision patch ++ ")"
                                             return $ T.Download {
                                                          T.method = m
                                                        , T.getTop = topdir tree
-                                                       , T.revision = rev
-                                                       , T.logText = "Quilt revision " ++ rev
+                                                       , T.logText = "Quilt revision " ++ show m
                                                        , T.mVersion = Nothing
                                                        , T.origTarball = Nothing
                                                        , T.cleanTarget = \ top -> T.cleanTarget base top

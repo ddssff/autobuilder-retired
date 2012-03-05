@@ -8,17 +8,13 @@ import Control.Monad.Trans
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Digest.Pure.MD5 (md5)
 import Data.List
-import Data.Maybe
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 import Debian.URI
-import System.Exit (ExitCode(..))
 import System.FilePath (splitFileName)
-import System.IO
-import System.Process
 import System.Unix.Directory
 import qualified System.Unix.Process as P
 import System.Unix.Progress (timeTask, lazyCommandF)
@@ -34,21 +30,10 @@ prepare cache method version = liftIO $
     when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
-    let path = topdir tree
-        cmd = "cd " ++ path ++ " && bzr info | awk '/parent branch:/ {print $3}'"
-    -- FIXME: this command can take a lot of time, message it
-    (_, outh, _, handle) <- liftIO $ runInteractiveCommand cmd
-    rev <- hSetBinaryMode outh True >> hGetContents outh >>= return . listToMaybe . lines >>=
-           return . maybe (error "no revision info printed by '" ++ cmd ++ "'") id
-    code <- waitForProcess handle
-    let rev' = case code of
-                 ExitSuccess -> "bzr:" ++ rev
-                 code -> fail (cmd ++ " -> " ++ show code)
     return $ Download
                { method = method
                , getTop = topdir tree
-               , revision = rev'
-               , logText = "Bazaar revision: " ++ show rev'
+               , logText = "Bazaar revision: " ++ show method
                , mVersion = Nothing
                , origTarball = Nothing
                , cleanTarget = \ top ->

@@ -6,7 +6,6 @@ module Debian.AutoBuilder.BuildTarget.Svn
 
 import Control.Monad
 import Control.Monad.Trans
-import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Digest.Pure.MD5 (md5)
 import Data.List
@@ -14,7 +13,6 @@ import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
-import Debian.Control.ByteString
 import Debian.Repo
 import Debian.URI
 import System.FilePath (splitFileName)
@@ -49,24 +47,9 @@ prepare cache m uri = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
-       rev <- let readControl :: [Output] -> String
-                  readControl out = 
-                      case parseControl "svn info" (B.concat (L.toChunks (stdoutOnly out))) of
-                        (Right (Control (c:_))) ->
-                        -- JAS, I don't know why I did not just use the uri that was passed in
-                            case (lookupP "URL" c, lookupP "Revision" c) of
-                              (Just (Field (_, url)), Just (Field (_, revision))) ->
-                                  "svn:" ++ (B.unpack (stripWS url)) ++"@" ++ (B.unpack (stripWS revision))
-                              _ -> fail "Failed to find URL and/or Revision fields in svn info"
-                        (Right (Control [])) -> fail $ "svn info did not appear to produce any output"
-                        Left e -> fail $ "Failed to parse svn info\n" ++ show e
-                  userInfo = maybe "" uriUserInfo (uriAuthority uri') in
-              svn (["info","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>=
-              return . readControl
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
-                           , T.revision = rev
-                           , T.logText =  "SVN revision: " ++ rev
+                           , T.logText =  "SVN revision: " ++ show m
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget =

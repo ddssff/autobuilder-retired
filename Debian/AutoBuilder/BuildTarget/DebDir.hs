@@ -31,12 +31,10 @@ prepare cache m upstream debian = lift $
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
-    let rev = "deb-dir:(" ++ T.revision upstream ++ "):(" ++ T.revision debian ++")"
-        tgt = T.Download {
+    let tgt = T.Download {
                 T.method = m
               , T.getTop = topdir tree
-              , T.revision = rev
-              , T.logText = "deb-dir revision: " ++ rev
+              , T.logText = "deb-dir revision: " ++ show m
               , T.mVersion = Nothing
               , T.origTarball = T.origTarball upstream
               , T.cleanTarget = \ _ -> return ([], 0)

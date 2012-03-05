@@ -40,8 +40,7 @@ prepare _cache m path =
     do tree <- lift (findSourceTree path)
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
-                           , T.revision = fail "Build targets do not have revision strings"
-                           , T.logText =  "Built from local directory " ++ topdir tree
+                           , T.logText =  "Built from local directory " ++ show m
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)

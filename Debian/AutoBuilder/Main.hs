@@ -96,10 +96,10 @@ runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet cache =
     do
       lift doRequiredVersion
-      lift doShowParams
-      doShowSources
-      doFlush
-      checkPermissions
+      when (P.showParams params) (quieter (const 0) (liftIO doShowParams))
+      when (P.showSources params) (quieter (const 0) (liftIO doShowSources))
+      when (P.flushAll params) (liftIO doFlush)
+      liftIO checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
       cleanOS <-
@@ -163,24 +163,18 @@ runParameterSet cache =
             printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
                 qPutStr (" Version >= " ++ show (prettyDebianVersion v) ++ " is required" ++ maybe "" ((++) ":") s)
-      doShowParams = when (P.showParams params) $
-                       quieter (const 0) (qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint params)
+      doShowParams = qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint params
       doShowSources =
-          if (P.showSources params) then
-              either (error . show) doShow (P.findSlice cache (SliceName (releaseName' (P.buildRelease params)))) else
-              return ()
+          either (error . show) doShow (P.findSlice cache (SliceName (releaseName' (P.buildRelease params))))
           where
-            doShow sources = quieter (const 0) $
+            doShow sources =
                 do qPutStrLn $ (sliceName . sliceListName $ sources) ++ ":"
                    qPutStrLn . show . sliceList $ sources
-                   liftIO $ exitWith ExitSuccess
-      -- FIXME: This may be too late
-      doFlush
-          | P.flushAll params =
-              do qPutStrLn "Flushing cache"
-                 liftIO $ removeRecursiveSafely (P.topDir cache)
-                 liftIO $ createDirectoryIfMissing True (P.topDir cache)
-          | True = return ()
+                   exitWith ExitSuccess
+      doFlush =
+          do qPutStrLn "Flushing cache"
+             removeRecursiveSafely (P.topDir cache)
+             createDirectoryIfMissing True (P.topDir cache)
       checkPermissions =
           do isRoot <- liftIO $ checkSuperUser
              case isRoot of

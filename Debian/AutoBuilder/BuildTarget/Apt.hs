@@ -11,7 +11,6 @@ import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
-import Debian.Changes (ChangeLogEntry(logVersion))
 import Debian.Repo
 import Debian.Sources
 import Debian.Version (parseDebianVersion, prettyDebianVersion)
@@ -23,22 +22,19 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
 
 prepare :: P.CacheRec -> RetrieveMethod -> String -> String -> [P.AptFlag] -> AptIOT IO Download
 prepare cache method dist package flags =
-    do let distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
-       os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
+    do os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
-       let version'' = logVersion . entry $ tree
-           rev = "apt:" ++ (sliceName . sliceListName $ distro) ++ ":" ++ package ++ "=" ++ show (prettyDebianVersion version'')
        return $ Download {
                     method = method
                   , getTop = topdir tree
-                  , revision = rev
-                  , logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ rev
+                  , logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ show method
                   , mVersion = Nothing
                   , origTarball = Nothing
                   , cleanTarget = \ _ -> return ([], 0)
                   , buildWrapper = id }
     where
+      distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
       dist' = SliceName dist
       version' = case (nub (sort (catMaybes (map (\ flag -> case flag of
                                                    P.AptPin s -> Just (parseDebianVersion s)

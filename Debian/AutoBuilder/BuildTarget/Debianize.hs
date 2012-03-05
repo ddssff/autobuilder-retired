@@ -42,11 +42,9 @@ prepare cache m flags name cabalFlags = liftIO $
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball (P.topDir cache) name version'))
        downloadAndDebianize cache cabalFlags flags name version'
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
-       let rev = "debianize:" ++ name ++ "=" ++ showVersion version'
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
-                           , T.revision = rev
-                           , T.logText =  "Built from hackage, revision: " ++ rev
+                           , T.logText =  "Built from hackage, revision: " ++ show m
                            , T.mVersion = Just version'
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)
@@ -225,11 +223,9 @@ prepareHackage cache m name cabalFlags = liftIO $
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [tarball (P.topDir cache) name version', unpacked (P.topDir cache) name version'])
        downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
-       let rev = "hackage:" ++ name ++ "=" ++ showVersion version'
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
-                           , T.revision = rev
-                           , T.logText =  "Built from hackage, revision: " ++ rev
+                           , T.logText =  "Built from hackage, revision: " ++ show m
                            , T.mVersion = Just version'
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)

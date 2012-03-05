@@ -15,7 +15,6 @@ prepare m base =
     do return $ T.Download {
                     T.method = m
                   , T.getTop = T.getTop base
-                  , T.revision = "twice:" ++ T.revision base
                   , T.logText = T.logText base ++ " (twice if necessary)"
                   , T.mVersion = Nothing
                   , T.origTarball = Nothing

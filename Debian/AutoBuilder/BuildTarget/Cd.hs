@@ -17,7 +17,6 @@ prepare _cache m subdir target =
     do     
     return $ Download { method = m
                         , getTop = getTop target </> subdir
-                        , revision = "cd:" ++ subdir ++ ":" ++ revision target
                         , logText = logText target ++ " (in subdirectory " ++ subdir ++ ")"
                         , mVersion = Nothing
                         , origTarball = Nothing

@@ -22,7 +22,6 @@ prepare _cache m buildOS base =
     return $ T.Download {
                  T.method = m
                , T.getTop = T.getTop base
-               , T.revision = "proc:" ++ T.revision base
                , T.logText = T.logText base ++ " (with /proc mounted)"
                , T.mVersion = Nothing
                , T.origTarball = Nothing
