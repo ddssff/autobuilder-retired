@@ -13,10 +13,10 @@ module Debian.AutoBuilder.Types.Buildable
     ) where
 
 import Control.Applicative.Error (Failing(Success, Failure), failing)
-import Control.Exception (catch, throw)
-import Control.Exception (SomeException, try)
+import Control.Exception (SomeException, try, catch, throw)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
+import Data.List (intercalate)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Debian.AutoBuilder.Types.CacheRec as P
@@ -30,8 +30,8 @@ import Debian.Control (Control, Control'(Control, unControl), fieldValue,  Parag
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
-import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, subdir, debdir, {-findOneDebianBuildTree,-} findDebianBuildTree, findDebianBuildTrees, copyDebianBuildTree,
-                               DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree, findOneDebianBuildTree)
+import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, subdir, debdir, findDebianBuildTrees, findDebianBuildTree, copyDebianBuildTree,
+                               DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree)
 import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
 import Prelude hiding (catch)
@@ -40,7 +40,7 @@ import System.FilePath (takeExtension, (</>))
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
-import System.Unix.QIO (qPutStrLn, quieter)
+import System.Unix.QIO (qPutStrLn, quieter, ePutStrLn)
 
 -- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.
@@ -57,9 +57,9 @@ data Buildable
 -- location in getTop.
 asBuildable :: Download -> IO Buildable
 asBuildable download =
-    try (findDebianSourceTree (getTop download)) >>= 
-    either (\ (e :: SomeException) -> findOneDebianBuildTree (getTop download) >>= maybe (throw e) (return . debTree')) return >>= \ tree ->
-    return $ Buildable { download = download, debianSourceTree = tree }
+    findDebianSourceTree (getTop download) >>= \ tree ->
+    return (Buildable { download = download, debianSourceTree = tree})
+    -- either (\ (e :: SomeException) -> findOneDebianBuildTree (getTop download) >>= maybe (throw e) (return . debTree')) return >>= \ tree ->
 
 -- | Prevent the appearance of a new binary package from
 -- triggering builds of its build dependencies.  Optionally, a
@@ -106,47 +106,33 @@ prepareTarget :: P.CacheRec -> Relations -> OSImage -> Buildable -> IO Target
 prepareTarget cache globalBuildDeps os source =
     quieter (+ 2) $ prepareBuild cache os (download source) >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=
-    failing (error . show)
-            (\ deps -> return $ Target { tgt = source
-                                       , cleanSource = tree
-                                       , targetDepends = deps })
+    failing (\ msgs -> error (intercalate "\n  " ("Failure obtaining dependency information:" : msgs)))
+            (\ deps -> return $ Target { tgt = source, cleanSource = tree, targetDepends = deps })
 
 targetControl :: Target -> Control
 targetControl = control . cleanSource
 
--- |'prepareBuild' returns a Debian build tree for a target with all
--- the revision control files associated with the old target removed.
--- This ensures that the tarball and\/or the .diff.gz file in the deb
--- don't contain extra junk.  It also makes sure that debian\/rules is
--- executable.
+-- | Given a download, examine it to see if it is a debian source
+-- tree, and if that fails see if it is a debian build tree.  Copy the
+-- result into the build position of the OSImage, and clean out any
+-- revision control files.  This ensures that the tarball and\/or the
+-- .diff.gz file in the deb don't contain extra junk.  It also makes
+-- sure that debian\/rules is executable.
 prepareBuild :: P.CacheRec -> OSImage -> T.Download -> IO DebianBuildTree
 prepareBuild _cache os target =
-    do (_, trees) <- findDebianBuildTrees top
-       case filter checkName trees of
-         [] ->
-             qPutStrLn ("Build tree not found in " ++ top ++ ", creating new one") >>
-             findDebianSourceTree top >>=
-             copySource
-         [tree] ->
-             copyBuild tree
-         _ ->
-             error ("Multiple build trees found")
-{-         
-       debBuild <- findOneDebianBuildTree top
-       case debBuild of
-         Success tree -> copyBuild tree
-         Failure msgs ->
-             qPutStrLn ("Build tree not found in " ++ top ++ ", creating new one\n  " ++ intercalate "\n  " msgs) >>
-             findDebianSourceTree top >>=
-             copySource
--}
+    try (findDebianSourceTree (T.getTop target)) >>=
+    either (\ (_ :: SomeException) ->
+                findDebianBuildTrees (T.getTop target) >>= \ trees ->
+                    case trees of
+                      [tree] -> copyBuild tree
+                      [] -> error $ "No debian source tree found in " ++ T.getTop target
+                      _ -> error $ "Multiple debian source trees found in " ++ T.getTop target)
+           copySource
     where
       checkName _ = True
-{-
-      checkName tree = source == Just name
-          where source = fieldValue "Source" (head (unControl (control' (debTree' tree))))
--}
-      top = T.getTop target
+{-    checkName tree = source == Just name
+          where source = fieldValue "Source" (head (unControl (control' (debTree' tree)))) -}
+
       copySource :: DebianSourceTree -> IO DebianBuildTree
       copySource debSource =
           do let name = logPackage . entry $ debSource
@@ -159,6 +145,7 @@ prepareBuild _cache os target =
              (_out, _time) <- T.cleanTarget target (dest </> newdir)
              maybe (return ()) (liftIO . copyOrigTarball dest name ver) (T.origTarball target)
              findDebianBuildTree dest newdir
+
       copyBuild :: DebianBuildTree -> IO DebianBuildTree
       copyBuild debBuild =
           do let name = logPackage . entry $ debBuild

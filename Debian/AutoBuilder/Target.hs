@@ -12,7 +12,7 @@ module Debian.AutoBuilder.Target
 
 import Control.Arrow (second)
 import Control.Applicative.Error (Failing(..), failing)
-import Control.Exception (Exception(..), SomeException, try)
+import Control.Exception (SomeException, try)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -68,12 +68,11 @@ import Extra.Misc(columns)
 import System.Directory (doesFileExist, doesDirectoryExist, removeDirectory, createDirectoryIfMissing)
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.FilePath ((</>))
-import System.IO (hPutStrLn, stderr)
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Chroot (useEnv, forceList)
 import System.Unix.Process (collectResult, exitCodeOnly)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, lazyProcessF)
-import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, q12 {-, q02-})
+import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, ePutStr, ePutStrLn, q12 {-, q02-})
 import Text.PrettyPrint (Doc, text, cat)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
@@ -102,21 +101,31 @@ prepareTargets :: P.CacheRec -> OSImage -> Relations -> [Buildable] -> AptIOT IO
 prepareTargets cache cleanOS globalBuildDeps targetSpecs =
     do results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
        let (failures, targets) = partitionEithers results
-       when (not (null failures))
-                (do let msg = intercalate "\n " (("Could not prepare " ++ show (length failures) ++ " targets:") : map (show . toException) failures)
-                    liftIO $ hPutStrLn stderr msg
-                    error msg)
-       return targets
+       let msg = "Could not prepare " ++ show (length failures) ++ " targets:\n" ++
+                 concatMap (\ (n, e) -> printf "%4d. " n ++ show e ++ "\n") (zip [(1::Int)..] failures)
+       case null failures of
+         True -> return targets
+         False -> ePutStr msg >> error msg
     where
       prepare :: Int -> (Int, Buildable) -> IO (Either SomeException Target)
       prepare count (index, tgt) =
           do qPutStrLn (printf "[%2d of %2d] %s" index count (show (T.method (download tgt))))
-             result <- quieter' (+ 2) (try' (prepareTarget cache globalBuildDeps cleanOS tgt))
-             either (\ e -> do hPutStrLn stderr (printf "[%2d of %2d] - could not prepare %s: %s" index count (show (T.method (download tgt))) (show e))
-                               return (Left e))
-                    (return . Right) result
-      try' :: IO a -> IO (Either SomeException a)
-      try' = try
+             quieter' (+ 2) (try (prepareTarget cache globalBuildDeps cleanOS tgt) >>=
+                             either (\ (e :: SomeException) ->
+                                         ePutStrLn (printf "[%2d of %2d] - could not prepare %s: %s"
+                                                           index count (show (T.method (download tgt))) (show e)) >>
+                                         return (Left e))
+                                    (return . Right))
+
+{-
+partitionFailing :: [Failing a] -> ([[String]], [a])
+partitionFailing xs =
+    loop xs ([], [])
+    where
+      loop [] (fs, xs) = (fs, xs)
+      loop (Success x : more) (fs, xs) = loop more (fs, x : xs)
+      loop (Failure f : more) (fs, xs) = loop more (f : fs, xs)
+-}
 
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,

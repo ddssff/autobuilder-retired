@@ -9,15 +9,15 @@ module Debian.AutoBuilder.Main
 
 import Control.Arrow (first)
 import Control.Applicative.Error (Failing(..))
-import Control.Exception(Exception, SomeException, try, catch)
+import Control.Exception(SomeException, try, catch)
 import Control.Monad(foldM, when, unless)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
 import qualified Data.ByteString.Lazy as L
-import Data.Either (partitionEithers)
+import Data.Either (partitionEithers, lefts)
 import qualified Data.Map as Map
-import Data.Time(NominalDiffTime)
 import Data.List(intercalate)
 import Data.Maybe(catMaybes)
+import Data.Time(NominalDiffTime)
 import Debian.AutoBuilder.BuildTarget (retrieve)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
@@ -54,33 +54,29 @@ import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
 import System.Unix.Process(Output)
 import System.Unix.Progress (timeTask, lazyCommandF)
-import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, q12)
+import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
 import Text.Printf ( printf )
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
 main :: [P.ParamRec] -> IO ()
-main [] = error $ "No parameter sets"
+main [] = error "No parameter sets"
 main paramSets =
-    foldM (\ (xs, s) paramSet ->
-               try (doParameterSet s paramSet) >>=
-               return . either (\ (e :: SomeException) -> (Left e : xs, initState)) (\ (result, s') -> (Right result : xs, s')))
+    foldM (\ (xs, s) params ->
+               try (quieter (const (- (P.verbosity params))) (doParameterSet s params)) >>=
+               either (\ (e :: SomeException) ->
+                           ePutStrLn ("Failure running parameter set: " ++ show e) >> return (Left e : xs, initState))
+                      (\ (result, s') -> return (Right result : xs, s')))
           ([], initState)
-          paramSets >>=
-    checkResults . fst >>
-    IO.hFlush IO.stderr
-
--- |The result of processing a set of parameters is either an
--- exception or a completion code, or, if we fail to get a lock,
--- nothing.  For a single result we can print a simple message,
--- for multiple paramter sets we need to print a summary.
-checkResults :: Exception e => [Either e (Failing ([Output], NominalDiffTime))] -> IO ()
-checkResults [Left e] = qPutStrLn (show e ++ "\nAbort.") >> liftIO (exitWith (ExitFailure 1))
-checkResults [Right _] = return ()
-checkResults list =
-    case partitionEithers list of
-      ([], []) -> return ()
-      (_, _) -> error $ intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] list))
+          paramSets >>= \ (results, _) ->
+    -- The result of processing a set of parameters is either an
+    -- exception or a completion code.  Here we print a summary and
+    -- exit with a suitable result code.
+    ePutStrLn (intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] results))) >>
+    IO.hFlush IO.stderr >>
+    case lefts results of
+      [] -> exitWith ExitSuccess
+      _ -> exitWith (ExitFailure 1)
     where showResult (Left e) = show e
           showResult (Right _) = "Ok"
 
@@ -88,7 +84,6 @@ checkResults list =
 -- can be several which are run sequentially.
 doParameterSet :: AptState -> P.ParamRec -> IO (Failing ([Output], NominalDiffTime), AptState)
 doParameterSet state params =
-    quieter (const (- (P.verbosity params))) $
     do top <- P.computeTopDir params
        withLock (top ++ "/lockfile") (runStateT (quieter (+ 2) (P.buildCache params top) >>= runParameterSet) state)
 
