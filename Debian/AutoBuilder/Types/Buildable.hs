@@ -52,14 +52,19 @@ data Buildable
       -- this, since this program only builds debian packages.
       }
 
--- | Try to turn a Download into a Target.  This will throw an
--- exception if there is not a valid debian source tree at the
--- location in getTop.
+-- | Try to turn a Download into a Target.  First look for a debianization in the
+-- top directory, then for debianizations in subdirectory.  This will throw an
+-- exception if we can't find any, or we find too many.
 asBuildable :: Download -> IO Buildable
 asBuildable download =
-    findDebianSourceTree (getTop download) >>= \ tree ->
-    return (Buildable { download = download, debianSourceTree = tree})
-    -- either (\ (e :: SomeException) -> findOneDebianBuildTree (getTop download) >>= maybe (throw e) (return . debTree')) return >>= \ tree ->
+    try (findDebianSourceTree (getTop download)) >>=
+            either (\ (_ :: SomeException) ->
+                        findDebianBuildTrees (getTop download) >>= \ trees ->
+                        case trees of
+                          [tree] -> return (Buildable { download = download, debianSourceTree = debTree' tree})
+                          [] -> error $ "No build trees found in " ++ getTop download
+                          _ -> error $ "Multiple build trees found in " ++ getTop download)
+                   (\ tree -> return (Buildable { download = download, debianSourceTree = tree}))
 
 -- | Prevent the appearance of a new binary package from
 -- triggering builds of its build dependencies.  Optionally, a
@@ -122,6 +127,7 @@ prepareBuild :: P.CacheRec -> OSImage -> T.Download -> IO DebianBuildTree
 prepareBuild _cache os target =
     try (findDebianSourceTree (T.getTop target)) >>=
     either (\ (_ :: SomeException) ->
+                ePutStrLn ("Failed to find source tree in " ++ T.getTop target ++ ", trying build trees.") >>
                 findDebianBuildTrees (T.getTop target) >>= \ trees ->
                     case trees of
                       [tree] -> copyBuild tree
@@ -254,7 +260,8 @@ targetRelaxed relaxInfo target = head $ G.oldRelaxDeps relaxInfo [targetDepends 
 -- |Retrieve the dependency information for a single target
 getTargetDependencyInfo :: Relations -> DebianBuildTree -> IO (Failing G.DepInfo)
 getTargetDependencyInfo globalBuildDeps buildTree =
-    parseControlFromFile controlPath >>= return . either (Left . show) (G.buildDependencies . removeCommentParagraphs) >>=
+    parseControlFromFile controlPath >>=
+    return . either (Left . show) (G.buildDependencies . removeCommentParagraphs) >>=
     return . either (Failure . (: [])) (\ deps -> Success (addRelations globalBuildDeps deps))
     where
       controlPath = debdir buildTree ++ "/debian/control"

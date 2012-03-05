@@ -23,6 +23,7 @@ import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
 import Debian.AutoBuilder.Types.Buildable (Target, targetName, asBuildable)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import Debian.AutoBuilder.Types.Download (Download)
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
@@ -33,7 +34,7 @@ import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
 import Debian.Repo.Monad (AptIOT, AptState, initState, getRepoMap, tryAB)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
-import Debian.Repo.OSImage(buildEssential, prepareEnv, chrootEnv)
+import Debian.Repo.OSImage(OSImage, buildEssential, prepareEnv, chrootEnv)
 import Debian.Repo.Release(prepareRelease)
 import Debian.Repo.Repository(uploadRemote, verifyUploadURI)
 import Debian.Repo.Slice(appendSliceLists, inexactPathSlices, releaseSlices, repoSources)
@@ -188,7 +189,7 @@ runParameterSet cache =
                      True -> deleteGarbage repo'
                      False -> return repo'
                _ -> error "Expected local repo"
-      -- retrieveTargetList :: AptIOT IO (Either SomeException Tgt)
+      retrieveTargetList :: OSImage -> AptIOT IO [Either SomeException Download]
       retrieveTargetList cleanOS =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              qPutStrLn "Retrieving all source code:\n"
