@@ -79,7 +79,7 @@ main paramSets =
       [] -> exitWith ExitSuccess
       _ -> exitWith (ExitFailure 1)
     where showResult (Left ss) = intercalate "\n  " ("Failure:" : ss)
-          showResult (Right x) = "Ok"
+          showResult (Right _) = "Ok"
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.

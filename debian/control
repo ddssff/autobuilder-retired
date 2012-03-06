@@ -1,6 +1,7 @@
 Source: autobuilder
 Priority: optional
 Maintainer: David Fox <david.fox@linspire.com>
+Build-Conflicts: libghc-monads-tf-dev
 Build-Depends: debhelper (>= 5.0),
                haskell-devscripts,
                ghc,
