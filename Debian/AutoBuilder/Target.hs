@@ -310,8 +310,8 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                    newVersion = computeNewVersion cache spkgs (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                    decision = buildDecision cache target oldFingerprint newFingerprint releaseStatus
                quieter (const 0) $ qPutStrLn ("Build decision: " ++ show decision)
-               quieter (const 0) $ qPutStrLn ("newVersion: " ++ show (fmap prettyDebianVersion newVersion))
-               quieter (const 0) $ qPutStrLn ("Release status: " ++ show releaseStatus)
+               -- quieter (const 0) $ qPutStrLn ("newVersion: " ++ show (fmap prettyDebianVersion newVersion))
+               -- quieter (const 0) $ qPutStrLn ("Release status: " ++ show releaseStatus)
                case newVersion of
                  Failure messages ->
                     return (Failure messages)
