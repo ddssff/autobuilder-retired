@@ -5,6 +5,7 @@ module Debian.AutoBuilder.Types.Download
 
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
+import Debian.AutoBuilder.Types.PackageFlag (PackageFlag)
 import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod(..))
 import System.Unix.Process
 
@@ -12,6 +13,8 @@ data Download
     = Download
       { method :: RetrieveMethod
       -- ^ The method used to retrieve this target.
+      , flags :: [PackageFlag]
+      -- ^ The flags assocated with the package
       , getTop :: FilePath
       -- ^ The directory containing the target's files.  For most target types, these
       --  files could be anything, not necessarily a Debian source directory.

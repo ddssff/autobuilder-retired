@@ -36,6 +36,9 @@ data CabalFlag
 -- any package because this autobuilder only builds debs.
 data PackageFlag
     = RelaxDep String		-- ^ Build dependencies which should be ignored when deciding whether to rebuild
+    | UDeb String               -- ^ Tell the autobuilder that a binary package name is a udeb.  This means that
+                                -- we can ignore the package when we are deciding whether we need to do an arch
+                                -- only build.
     | Patch B.ByteString        -- ^ Apply the patch
     | Maintainer String         -- ^ Use the given string as maintainer name and email
     | OmitLTDeps                -- ^ Don't add the << part when converting cabal wildcard dependencies

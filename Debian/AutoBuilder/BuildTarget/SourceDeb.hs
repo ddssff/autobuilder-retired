@@ -8,6 +8,7 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import qualified Debian.Control.String as S
 import qualified Debian.Version as V
@@ -26,8 +27,8 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepare :: P.CacheRec -> R.RetrieveMethod -> T.Download -> AptIOT IO T.Download
-prepare _cache m base =
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> T.Download -> AptIOT IO T.Download
+prepare _cache m flags base =
     do let top = T.getTop base
        dscFiles <- liftIO (getDirectoryContents top) >>=
                    return . filter (isSuffixOf ".dsc")
@@ -47,6 +48,7 @@ prepare _cache m base =
             (Just _package, Just _version) ->
                 return $ T.Download {
                              T.method = m
+                           , T.flags = flags
                            , T.getTop = top
                            , T.logText = "Source Deb: " ++ show m
                            , T.mVersion = Nothing

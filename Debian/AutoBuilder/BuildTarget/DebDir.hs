@@ -10,6 +10,7 @@ import Data.Digest.Pure.MD5 (md5)
 import Data.Version (showVersion)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download as T
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Changes (logVersion)
 import Debian.Version (version)
@@ -25,14 +26,15 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> T.Download -> T.Download -> AptIOT IO T.Download
-prepare cache m upstream debian = lift $
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> T.Download -> T.Download -> AptIOT IO T.Download
+prepare cache m flags upstream debian = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
     let tgt = T.Download {
                 T.method = m
+              , T.flags = flags
               , T.getTop = topdir tree
               , T.logText = "deb-dir revision: " ++ show m
               , T.mVersion = Nothing

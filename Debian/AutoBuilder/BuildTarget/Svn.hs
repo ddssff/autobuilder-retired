@@ -12,6 +12,7 @@ import Data.List
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 import Debian.URI
@@ -42,12 +43,13 @@ password userInfo =
     then []
     else ["--password",unEscapeString pw]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> String -> AptIOT IO T.Download
-prepare cache m uri = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepare cache m flags uri = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
        return $ T.Download { T.method = m
+                           , T.flags = flags
                            , T.getTop = topdir tree
                            , T.logText =  "SVN revision: " ++ show m
                            , T.mVersion = Nothing

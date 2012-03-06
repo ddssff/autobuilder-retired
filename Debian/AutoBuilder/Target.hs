@@ -24,12 +24,12 @@ import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Types.Buildable (Buildable(..))
+import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Fingerprint (Fingerprint, packageFingerprint, showFingerprint, dependencyChanges, targetFingerprint, showDependencies, BuildDecision(..), buildDecision)
-import Debian.AutoBuilder.Types.Buildable (Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName)
 import qualified Debian.AutoBuilder.Types.Packages as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),
@@ -298,7 +298,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
         Success ((_count, sourceDependencies) : _) ->
             do -- Get the newest available version of a source package,
                -- along with its status, either Indep or All
-               let (releaseControlInfo, releaseStatus, _message) = getReleaseControlInfo cleanOS (targetName target)
+               let (releaseControlInfo, releaseStatus, _message) = getReleaseControlInfo cleanOS target
                let repoVersion = fmap (packageVersion . sourcePackageID) releaseControlInfo
                    oldFingerprint = packageFingerprint releaseControlInfo
                -- Get the changelog entry from the clean source
@@ -310,6 +310,8 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                    newVersion = computeNewVersion cache spkgs (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                    decision = buildDecision cache target oldFingerprint newFingerprint releaseStatus
                quieter (const 0) $ qPutStrLn ("Build decision: " ++ show decision)
+               quieter (const 0) $ qPutStrLn ("newVersion: " ++ show (fmap prettyDebianVersion newVersion))
+               quieter (const 0) $ qPutStrLn ("Release status: " ++ show releaseStatus)
                case newVersion of
                  Failure messages ->
                     return (Failure messages)
@@ -484,13 +486,14 @@ prepareBuildImage cache cleanOS sourceFingerprint buildOS target =
 -- | Get the control info for the newest version of a source package
 -- available in a release.  Make sure that the files for this build
 -- architecture are available.
-getReleaseControlInfo :: OSImage -> String -> (Maybe SourcePackage, SourcePackageStatus, String)
-getReleaseControlInfo cleanOS packageName =
+getReleaseControlInfo :: OSImage -> Target -> (Maybe SourcePackage, SourcePackageStatus, String)
+getReleaseControlInfo cleanOS target =
     case zip sourcePackages (map (isComplete binaryPackages) sourcePackagesWithBinaryNames) of
       (info, status@Complete) : _ -> (Just info, All, message status)
       (info, status@(Missing missing)) : _ -> (Just info, Indep missing, message status)
       _ -> (Nothing, None, message Complete)
     where
+      packageName = targetName target
       message status =
           intercalate "\n"
                   (["  Source Package Versions: " ++ show (map (second prettyDebianVersion . sourcePackageVersion) sourcePackages),
@@ -522,7 +525,7 @@ getReleaseControlInfo cleanOS packageName =
       -- do that first and only check for udebs if some names are missing.
       isComplete :: [BinaryPackage] -> (SourcePackage, [String]) -> Status
       isComplete binaryPackages (sourcePackage, requiredBinaryNames) =
-          if missingDebs == Set.empty && (unableToCheckUDebs || missingUdebs == Set.empty)
+          if Set.difference missingDebs udebs == Set.empty {- && (unableToCheckUDebs || missingUdebs == Set.empty) -}
           then Complete
           else Missing (Set.toList missingDebs ++ Set.toList missingUdebs)
           where
@@ -535,6 +538,11 @@ getReleaseControlInfo cleanOS packageName =
             -- Which binary packages produced from this source package are available?
             availableDebs = Set.fromList (availableDebNames binaryPackages sourcePackage)
             availableUDebs = Set.fromList (availableUDebNames sourcePackage)
+      udebs :: Set.Set String
+      udebs = foldr collect Set.empty (T.flags (download (tgt target)))
+      collect :: P.PackageFlag -> Set.Set String -> Set.Set String
+      collect (P.UDeb name) udebs = Set.insert name udebs
+      collect _ udebs = udebs
       -- A binary package is available either if it appears in the
       -- package index, or if it is an available udeb.
       availableDebNames :: [BinaryPackage] -> SourcePackage -> [String]

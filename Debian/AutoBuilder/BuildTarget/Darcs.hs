@@ -35,14 +35,15 @@ darcsRev tree m =
       cmd = "cd " ++ path ++ " && darcs changes --xml-output"
       path = topdir tree
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> String -> [P.PackageFlag] -> IO T.Download
-prepare cache m theUri flags =
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> IO T.Download
+prepare cache m flags theUri =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       _output <- fixLink
       return $ T.Download { T.method = m
+                          , T.flags = flags
                           , T.getTop = topdir tree
                           , T.logText =  "Darcs revision: " ++ show m
                           , T.mVersion = Nothing

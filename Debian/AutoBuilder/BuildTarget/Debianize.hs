@@ -43,6 +43,7 @@ prepare cache m flags name = liftIO $
        downloadAndDebianize cache flags name version'
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
        return $ T.Download { T.method = m
+                           , T.flags = flags
                            , T.getTop = topdir tree
                            , T.logText =  "Built from hackage, revision: " ++ show m
                            , T.mVersion = Just version'
@@ -225,6 +226,7 @@ prepareHackage cache m flags name = liftIO $
        downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
        return $ T.Download { T.method = m
+                           , T.flags = flags
                            , T.getTop = topdir tree
                            , T.logText =  "Built from hackage, revision: " ++ show m
                            , T.mVersion = Just version'

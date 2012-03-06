@@ -3,6 +3,7 @@ module Debian.AutoBuilder.BuildTarget.Dir where
 import Control.Monad.Trans (lift)
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 
@@ -35,10 +36,11 @@ instance Download Build where
 -}
 
 -- |Prepare a Dir target
-prepare :: P.CacheRec -> R.RetrieveMethod -> FilePath -> AptIOT IO T.Download
-prepare _cache m path =
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> FilePath -> AptIOT IO T.Download
+prepare _cache m flags path =
     do tree <- lift (findSourceTree path)
        return $ T.Download { T.method = m
+                           , T.flags = flags
                            , T.getTop = topdir tree
                            , T.logText =  "Built from local directory " ++ show m
                            , T.mVersion = Nothing

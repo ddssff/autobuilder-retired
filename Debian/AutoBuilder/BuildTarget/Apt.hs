@@ -20,13 +20,14 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> RetrieveMethod -> String -> String -> [P.PackageFlag] -> AptIOT IO Download
-prepare cache method dist package flags =
+prepare :: P.CacheRec -> RetrieveMethod -> [P.PackageFlag] -> String -> String -> AptIOT IO Download
+prepare cache method flags dist package =
     do os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
        return $ Download {
                     method = method
+                  , flags = flags
                   , getTop = topdir tree
                   , logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ show method
                   , mVersion = Nothing

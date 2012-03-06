@@ -8,6 +8,7 @@ import Control.Monad.Trans
 import Data.ByteString.Lazy.Char8 (empty)
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
@@ -19,13 +20,14 @@ import System.Unix.Progress (lazyCommandF, timeTask)
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> String -> AptIOT IO T.Download
-prepare cache m archive = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepare cache m flags archive = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)
       exists <- liftIO $ doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       return $ T.Download { T.method = m
+                          , T.flags = flags
                           , T.getTop = topdir tree
                           , T.logText =  "Hg revision: " ++ show m
                           , T.mVersion = Nothing

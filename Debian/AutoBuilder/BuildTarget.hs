@@ -34,35 +34,35 @@ retrieve :: OSImage -> P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> AptI
 retrieve buildOS cache spec flags =
     q12 (" " ++ show spec) $     
      case spec of
-      R.Apt dist package -> Apt.prepare cache spec dist package flags
-      R.Bzr string -> Bzr.prepare cache spec string
+      R.Apt dist package -> Apt.prepare cache spec flags dist package
+      R.Bzr string -> Bzr.prepare cache spec flags string
       R.Cd dir spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
-          Cd.prepare cache spec dir t
-      R.Darcs uri -> lift (Darcs.prepare cache spec uri flags)
+          Cd.prepare cache spec flags dir t
+      R.Darcs uri -> lift (Darcs.prepare cache spec flags uri)
       R.DebDir upstream debian ->
           do upstream' <- retrieve buildOS cache upstream []
              debian' <- retrieve buildOS cache debian []
-             DebDir.prepare cache spec upstream' debian'
+             DebDir.prepare cache spec flags upstream' debian'
       R.Debianize package -> Debianize.prepare cache spec flags package
-      R.Dir path -> Dir.prepare cache spec path
+      R.Dir path -> Dir.prepare cache spec flags path
       R.Hackage package -> Debianize.prepareHackage cache spec flags package
-      R.Hg string -> Hg.prepare cache spec string
+      R.Hg string -> Hg.prepare cache spec flags string
       R.Proc spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
-          Proc.prepare cache spec buildOS t
+          Proc.prepare cache spec flags buildOS t
       R.Quilt base patches ->
           retrieve buildOS cache base [] >>= \ base' ->
           retrieve buildOS cache patches [] >>= \ patches' ->
-          Quilt.prepare cache spec base' patches'
+          Quilt.prepare cache spec flags base' patches'
       R.SourceDeb spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
-          SourceDeb.prepare cache spec t
-      R.Svn uri -> Svn.prepare cache spec uri
-      R.Tla string -> Tla.prepare cache spec string
+          SourceDeb.prepare cache spec flags t
+      R.Svn uri -> Svn.prepare cache spec flags uri
+      R.Tla string -> Tla.prepare cache spec flags string
       R.Twice base -> retrieve buildOS cache base [] >>= \ t ->
-                      Twice.prepare spec t
-      R.Uri uri sum -> Uri.prepare cache spec uri sum
+                      Twice.prepare spec flags t
+      R.Uri uri sum -> Uri.prepare cache spec flags uri sum
 
 targetDocumentation :: String
 targetDocumentation =

@@ -16,6 +16,7 @@ import Data.Digest.Pure.MD5 (md5)
 import Data.List (isPrefixOf)
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import qualified Debian.Repo as R
@@ -38,10 +39,11 @@ documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the f
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
 -- |Download the tarball using the URI in the target and unpack it.
-prepare :: P.CacheRec -> R.RetrieveMethod -> String -> String -> R.AptIOT IO T.Download
-prepare c m u s = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> String -> R.AptIOT IO T.Download
+prepare c m flags u s = liftIO $
     do (uri, sum, tree) <- checkTarget >>= downloadTarget >> validateTarget >>= unpackTarget
        return $ T.Download { T.method = m
+                           , T.flags = flags
                            , T.getTop = R.topdir tree
                            , T.logText = "Built from URI download " ++ (uriToString' uri)
                            , T.mVersion = Nothing

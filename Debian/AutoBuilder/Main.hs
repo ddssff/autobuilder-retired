@@ -8,7 +8,7 @@ module Debian.AutoBuilder.Main
     ) where
 
 import Control.Arrow (first)
-import Control.Applicative.Error (Failing(..))
+import Control.Applicative.Error (Failing(..), failing)
 import Control.Exception(SomeException, try, catch)
 import Control.Monad(foldM, when, unless)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
@@ -66,8 +66,8 @@ main paramSets =
     foldM (\ (xs, s) params ->
                try (quieter (const (- (P.verbosity params))) (doParameterSet s params)) >>=
                either (\ (e :: SomeException) ->
-                           ePutStrLn ("Failure running parameter set: " ++ show e) >> return (Left e : xs, initState))
-                      (\ (result, s') -> return (Right result : xs, s')))
+                           ePutStrLn ("Failure running parameter set: " ++ show e) >> return (Left [show e] : xs, initState))
+                      (\ (result, s') -> return (failing Left Right result : xs, s')))
           ([], initState)
           paramSets >>= \ (results, _) ->
     -- The result of processing a set of parameters is either an
@@ -78,8 +78,8 @@ main paramSets =
     case lefts results of
       [] -> exitWith ExitSuccess
       _ -> exitWith (ExitFailure 1)
-    where showResult (Left e) = show e
-          showResult (Right _) = "Ok"
+    where showResult (Left ss) = intercalate "\n  " ("Failure:" : ss)
+          showResult (Right x) = "Ok"
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.
@@ -213,12 +213,12 @@ runParameterSet cache =
                 Just uri -> qPutStrLn "Uploading from local repository to remote" >> uploadRemote repo uri
           | True = return []
       upload (_, failed) =
-          do
-            qPutStrLn ("Some targets failed to build:\n  " ++ intercalate "\n  " (map targetName failed))
-            case P.doUpload params of
-              True -> qPutStrLn "Skipping upload."
-              False -> return ()
-            liftIO $ exitWith (ExitFailure 1)
+          do let msg = ("Some targets failed to build:\n  " ++ intercalate "\n  " (map targetName failed))
+             qPutStrLn msg
+             case P.doUpload params of
+               True -> qPutStrLn "Skipping upload."
+               False -> return ()
+             error msg
       newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
       newDist _results
           | P.doNewDist params =
