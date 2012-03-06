@@ -57,7 +57,7 @@ data RetrieveMethod
     | Cd FilePath RetrieveMethod             -- ^ Get the source code from a subdirectory of another download
     | Darcs String                           -- ^ Download from a Darcs repository
     | DebDir RetrieveMethod RetrieveMethod   -- ^ Combine the upstream download with a download for a debian directory
-    | Debianize String                       -- ^ Retrieve a cabal package from Hackage and use cabal-debian to debianize it
+    | Debianize RetrieveMethod               -- ^ Retrieve a cabal package from Hackage and use cabal-debian to debianize it
     | Dir FilePath                           -- ^ Retrieve the source code from a directory on a local machine
     | Hackage String                         -- ^ Download a cabal package from hackage
     | Hg String                              -- ^ Download from a Mercurial repository

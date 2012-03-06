@@ -135,7 +135,7 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       qPutStrLn "\nAssembling source trees:\n"
       targets <- prepareTargets cache cleanOS globalBuildDeps targetSpecs
-      qPutStrLn "\nBuilding all targets:"
+      qPutStrLn "\nBuilding all targets:\n"
       failed <- buildLoop cache globalBuildDeps localRepo poolOS cleanOS targets
       return (localRepo, failed)
     where

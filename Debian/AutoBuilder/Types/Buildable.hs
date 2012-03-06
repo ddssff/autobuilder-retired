@@ -31,7 +31,7 @@ import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
 import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, subdir, debdir, findDebianBuildTrees, findDebianBuildTree, copyDebianBuildTree,
-                               DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree)
+                               DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree, SourceTree(dir'))
 import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
 import Prelude hiding (catch)
@@ -40,7 +40,7 @@ import System.FilePath (takeExtension, (</>))
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
-import System.Unix.QIO (quieter, ePutStrLn)
+import System.Unix.QIO (quieter, qPutStrLn, ePutStrLn)
 
 -- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.
@@ -58,7 +58,8 @@ data Buildable
 asBuildable :: Download -> IO Buildable
 asBuildable download =
     try (findDebianSourceTree (getTop download)) >>=
-            either (\ (_ :: SomeException) ->
+            either (\ (e :: SomeException) ->
+                        qPutStrLn ("No source tree found in " ++ getTop download ++ " (" ++ show e ++ ")") >>
                         findDebianBuildTrees (getTop download) >>= \ trees ->
                         case trees of
                           [tree] -> return (Buildable { download = download, debianSourceTree = debTree' tree})
@@ -131,13 +132,12 @@ prepareBuild _cache os target =
                 findDebianBuildTrees (T.getTop target) >>= \ trees ->
                     case trees of
                       [tree] ->
-                          qPutStrLn ("Found build tree in " ++ T.topdir tree) >>
+                          qPutStrLn ("Found build tree in " ++ topdir' tree) >>
                           copyBuild tree
                       [] -> error $ "No debian source tree found in " ++ T.getTop target
                       _ -> error $ "Multiple debian source trees found in " ++ T.getTop target)
            copySource
     where
-      checkName _ = True
 {-    checkName tree = source == Just name
           where source = fieldValue "Source" (head (unControl (control' (debTree' tree)))) -}
 
@@ -147,7 +147,7 @@ prepareBuild _cache os target =
                  dest = rootPath (rootDir os) ++ "/work/build/" ++ name
                  ver = Debian.Version.version . logVersion . entry $ debSource
                  newdir = escapeForBuild $ name ++ "-" ++ ver
-             --io $ System.IO.hPutStrLn System.IO.stderr $ "copySource " ++ show debSource
+             -- ePutStrLn ("copySource " ++ dir' (tree' debSource) ++ " -> " ++ dest ++ ", tarball=" ++ show (T.origTarball target))
              _copy <- copyDebianSourceTree debSource (dest </> newdir)
              -- Clean the revision control files for this target out of the copy of the source tree
              (_out, _time) <- T.cleanTarget target (dest </> newdir)
@@ -160,7 +160,7 @@ prepareBuild _cache os target =
                  dest = rootPath (rootDir os) ++ "/work/build/" ++ name
                  ver = Debian.Version.version . logVersion . entry $ debBuild
                  newdir = escapeForBuild $ name ++ "-" ++ ver
-             --io $ System.IO.hPutStrLn System.IO.stderr $ "copyBuild " ++ show debBuild
+             -- ePutStrLn ("copyBuild " ++ topdir' debBuild ++ " -> " ++ dest ++ ", tarball=" ++ show (T.origTarball target))
              _copy <- copyDebianBuildTree debBuild dest
              (_output, _time) <- T.cleanTarget target (dest </> newdir)
              when (newdir /= (subdir debBuild))

@@ -1,3 +1,10 @@
+autobuilder (6.21) unstable; urgency=low
+
+  * Split the debianization functionality out of the Hackage download
+    method, so we can, for example, debianize a darcs download.
+
+ -- David Fox <dsf@seereason.com>  Tue, 06 Mar 2012 10:56:06 -0800
+
 autobuilder (6.20) unstable; urgency=low
 
   * Moved target specific flags out of RetrieveMethod into PackageFlag.

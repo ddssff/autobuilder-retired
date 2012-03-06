@@ -12,6 +12,7 @@ import qualified Debian.AutoBuilder.BuildTarget.Darcs as Darcs
 import qualified Debian.AutoBuilder.BuildTarget.DebDir as DebDir
 import qualified Debian.AutoBuilder.BuildTarget.Debianize as Debianize
 import qualified Debian.AutoBuilder.BuildTarget.Dir as Dir
+import qualified Debian.AutoBuilder.BuildTarget.Hackage as Hackage
 import qualified Debian.AutoBuilder.BuildTarget.Hg as Hg
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.BuildTarget.Quilt as Quilt
@@ -43,9 +44,11 @@ retrieve buildOS cache spec flags =
           do upstream' <- retrieve buildOS cache upstream []
              debian' <- retrieve buildOS cache debian []
              DebDir.prepare cache spec flags upstream' debian'
-      P.Debianize package -> Debianize.prepare cache spec flags package
+      P.Debianize package ->
+          retrieve buildOS cache package [] >>= \ t ->
+          Debianize.prepare cache spec flags t
       P.Dir path -> Dir.prepare cache spec flags path
-      P.Hackage package -> Debianize.prepareHackage cache spec flags package
+      P.Hackage package -> Hackage.prepare cache spec flags package
       P.Hg string -> Hg.prepare cache spec flags string
       P.Proc spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
@@ -78,7 +81,7 @@ targetDocumentation =
             , Darcs.documentation
             , DebDir.documentation
             , Debianize.documentation
-            , Debianize.documentationHackage
+            , Hackage.documentation
             , Hg.documentation
             , Proc.documentation
             , Quilt.documentation
