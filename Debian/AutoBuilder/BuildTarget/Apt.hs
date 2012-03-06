@@ -8,9 +8,8 @@ import Data.Maybe (catMaybes)
 --import Debian.AutoBuilder.BuildTarget (Download(..))
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download (Download(..))
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
+import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod)
 import Debian.Repo
 import Debian.Sources
 import Debian.Version (parseDebianVersion, prettyDebianVersion)
@@ -20,7 +19,7 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> RetrieveMethod -> [P.PackageFlag] -> String -> String -> AptIOT IO Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> String -> AptIOT IO Download
 prepare cache method flags dist package =
     do os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
@@ -38,7 +37,7 @@ prepare cache method flags dist package =
       distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
       dist' = SliceName dist
       version' = case (nub (sort (catMaybes (map (\ flag -> case flag of
-                                                              P.AptFlag (P.AptPin s) -> Just (parseDebianVersion s)
+                                                              P.AptPin s -> Just (parseDebianVersion s)
                                                               _ -> Nothing) flags)))) of
                    [] -> Nothing
                    [v] -> Just v

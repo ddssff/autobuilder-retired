@@ -23,46 +23,45 @@ import qualified Debian.AutoBuilder.BuildTarget.Uri as Uri
 import qualified Debian.AutoBuilder.BuildTarget.Twice as Twice
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo (OSImage)
 import Debian.Repo.Monad (AptIOT)
 import System.Unix.QIO (q12)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: OSImage -> P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> AptIOT IO Download
+retrieve :: OSImage -> P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> AptIOT IO Download
 retrieve buildOS cache spec flags =
     q12 (" " ++ show spec) $     
      case spec of
-      R.Apt dist package -> Apt.prepare cache spec flags dist package
-      R.Bzr string -> Bzr.prepare cache spec flags string
-      R.Cd dir spec' ->
+      P.Apt dist package -> Apt.prepare cache spec flags dist package
+      P.Bzr string -> Bzr.prepare cache spec flags string
+      P.Cd dir spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
           Cd.prepare cache spec flags dir t
-      R.Darcs uri -> lift (Darcs.prepare cache spec flags uri)
-      R.DebDir upstream debian ->
+      P.Darcs uri -> lift (Darcs.prepare cache spec flags uri)
+      P.DebDir upstream debian ->
           do upstream' <- retrieve buildOS cache upstream []
              debian' <- retrieve buildOS cache debian []
              DebDir.prepare cache spec flags upstream' debian'
-      R.Debianize package -> Debianize.prepare cache spec flags package
-      R.Dir path -> Dir.prepare cache spec flags path
-      R.Hackage package -> Debianize.prepareHackage cache spec flags package
-      R.Hg string -> Hg.prepare cache spec flags string
-      R.Proc spec' ->
+      P.Debianize package -> Debianize.prepare cache spec flags package
+      P.Dir path -> Dir.prepare cache spec flags path
+      P.Hackage package -> Debianize.prepareHackage cache spec flags package
+      P.Hg string -> Hg.prepare cache spec flags string
+      P.Proc spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
           Proc.prepare cache spec flags buildOS t
-      R.Quilt base patches ->
+      P.Quilt base patches ->
           retrieve buildOS cache base [] >>= \ base' ->
           retrieve buildOS cache patches [] >>= \ patches' ->
           Quilt.prepare cache spec flags base' patches'
-      R.SourceDeb spec' ->
+      P.SourceDeb spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
           SourceDeb.prepare cache spec flags t
-      R.Svn uri -> Svn.prepare cache spec flags uri
-      R.Tla string -> Tla.prepare cache spec flags string
-      R.Twice base -> retrieve buildOS cache base [] >>= \ t ->
+      P.Svn uri -> Svn.prepare cache spec flags uri
+      P.Tla string -> Tla.prepare cache spec flags string
+      P.Twice base -> retrieve buildOS cache base [] >>= \ t ->
                       Twice.prepare spec flags t
-      R.Uri uri sum -> Uri.prepare cache spec flags uri sum
+      P.Uri uri sum -> Uri.prepare cache spec flags uri sum
 
 targetDocumentation :: String
 targetDocumentation =

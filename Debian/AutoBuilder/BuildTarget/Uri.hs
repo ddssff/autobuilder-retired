@@ -16,11 +16,9 @@ import Data.Digest.Pure.MD5 (md5)
 import Data.List (isPrefixOf)
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
+import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import qualified Debian.Repo as R
---import Debian.OldShell (runCommand, runCommandTimed)
 import Debian.URI
 import Magic
 import System.FilePath (splitFileName)
@@ -28,18 +26,15 @@ import System.Directory
 import System.Unix.Directory
 import System.Unix.Progress (lazyCommandF, timeTask)
 
--- | A URI that returns a tarball, with an optional md5sum which must
--- match if given.  The purpose of the md5sum is to be able to block
--- changes to the tarball on the remote host.
--- data Uri = Uri URI (Maybe String) R.SourceTree R.RetrieveMethod
-
 documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the file at the"
                 , "given URI, which is assumed to be a gzipped tarball.  The optional md5sum"
                 , "suffix causes the build to fail if the downloaded file does not match"
                 , "this checksum.  This prevents builds when the remote tarball has changed." ]
 
--- |Download the tarball using the URI in the target and unpack it.
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> String -> R.AptIOT IO T.Download
+-- | A URI that returns a tarball, with an optional md5sum which must
+-- match if given.  The purpose of the md5sum is to be able to block
+-- changes to the tarball on the remote host.
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> String -> R.AptIOT IO T.Download
 prepare c m flags u s = liftIO $
     do (uri, sum, tree) <- checkTarget >>= downloadTarget >> validateTarget >>= unpackTarget
        return $ T.Download { T.method = m

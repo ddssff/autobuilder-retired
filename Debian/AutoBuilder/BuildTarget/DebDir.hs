@@ -10,8 +10,7 @@ import Data.Digest.Pure.MD5 (md5)
 import Data.Version (showVersion)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download as T
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Changes (logVersion)
 import Debian.Version (version)
 import Prelude hiding (catch)
@@ -19,14 +18,11 @@ import Debian.Repo
 import System.Directory
 import System.Unix.Progress (lazyCommandF)
 
--- | Get the upstream source from one location, and the debian directory from another
--- data DebDir = forall a b. (Download a, Download b) => DebDir a b DebianSourceTree R.RetrieveMethod
-
 documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> T.Download -> T.Download -> AptIOT IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> T.Download -> AptIOT IO T.Download
 prepare cache m flags upstream debian = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>

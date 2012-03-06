@@ -17,8 +17,7 @@ import Data.Time
 import Data.Time.LocalTime ()
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
 import Debian.Repo (DebianSourceTreeC(debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findOneDebianBuildTree, copySourceTree, AptIOT)
 import Debian.Version
@@ -45,7 +44,7 @@ getEntry (Patch x) = x
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: P.CacheRec -> R.RetrieveMethod -> T.Download -> T.Download -> IO (SourceTree, FilePath)
+makeQuiltTree :: P.CacheRec -> P.RetrieveMethod -> T.Download -> T.Download -> IO (SourceTree, FilePath)
 makeQuiltTree cache m base patch =
     do qPutStrLn $ "Quilt base: " ++ T.getTop base
        qPutStrLn $ "Quilt patch: " ++ T.getTop patch
@@ -80,7 +79,7 @@ makeQuiltTree cache m base patch =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> T.Download -> T.Download -> AptIOT IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> T.Download -> AptIOT IO T.Download
 prepare cache m flags base patch = liftIO $
     q12 "Preparing quilt target" $
     makeQuiltTree cache m base patch >>= withUpstreamQuiltHidden make

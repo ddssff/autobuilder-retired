@@ -86,9 +86,7 @@ Library
     Debian.AutoBuilder.Types.CacheRec
     Debian.AutoBuilder.Types.Download
     Debian.AutoBuilder.Types.Fingerprint
-    Debian.AutoBuilder.Types.PackageFlag,
     Debian.AutoBuilder.Types.Packages,
     Debian.AutoBuilder.Types.ParamRec
-    Debian.AutoBuilder.Types.RetrieveMethod,
     Debian.AutoBuilder.Types.RetrieveMethodOld,
     Debian.AutoBuilder.Version

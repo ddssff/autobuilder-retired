@@ -15,9 +15,8 @@ import Data.Maybe (catMaybes)
 import Data.Version (Version, showVersion, parseVersion)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
+import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo hiding (getVersion)
 import System.Directory (doesFileExist, createDirectoryIfMissing, removeFile)
 import System.Exit
@@ -36,7 +35,7 @@ documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of 
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
 prepare cache m flags name = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball (P.topDir cache) name version'))
@@ -52,7 +51,7 @@ prepare cache m flags name = liftIO $
                            , T.buildWrapper = id }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
-                                                                  P.CabalFlag (P.CabalPin s) -> Just s
+                                                                  P.CabalPin s -> Just s
                                                                   _ -> Nothing) flags))) of
                         [] -> Nothing
                         [v] -> Just v
@@ -145,15 +144,13 @@ debianize cache pflags dir =
                                  "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
          ExitSuccess -> return ()
     where
-      cflag (P.ExtraDep s) = ["--build-dep", s]
-      cflag (P.ExtraDevDep s) = ["--dev-dep", s]
-      cflag (P.MapDep c d) = ["--map-dep", c ++ "=" ++ d]
-      cflag (P.DebVersion s) = ["--deb-version", s]
-      cflag (P.Revision s) = ["--revision", s]
-      cflag (P.Epoch name d) = ["--epoch-map", name ++ "=" ++ show d]
-      cflag _ = []
       pflag (P.Maintainer s) = ["--maintainer", s]
-      pflag (P.CabalFlag x) = cflag x
+      pflag (P.ExtraDep s) = ["--build-dep", s]
+      pflag (P.ExtraDevDep s) = ["--dev-dep", s]
+      pflag (P.MapDep c d) = ["--map-dep", c ++ "=" ++ d]
+      pflag (P.DebVersion s) = ["--deb-version", s]
+      pflag (P.Revision s) = ["--revision", s]
+      pflag (P.Epoch name d) = ["--epoch-map", name ++ "=" ++ show d]
       pflag _ = []
 
       ver = P.ghcVersion (P.params cache)
@@ -219,7 +216,7 @@ downloadCommand server name version = "curl -s '" ++ versionURL server name vers
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
 
-prepareHackage :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepareHackage :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
 prepareHackage cache m flags name = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [tarball (P.topDir cache) name version', unpacked (P.topDir cache) name version'])
@@ -235,7 +232,7 @@ prepareHackage cache m flags name = liftIO $
                            , T.buildWrapper = id }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
-                                                                  P.CabalFlag (P.CabalPin s) -> Just s
+                                                                  P.CabalPin s -> Just s
                                                                   _ -> Nothing) flags))) of
                         [] -> Nothing
                         [v] -> Just v

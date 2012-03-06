@@ -12,8 +12,7 @@ import Data.List
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import Debian.URI
 import System.FilePath (splitFileName)
@@ -21,9 +20,6 @@ import System.Unix.Directory
 import System.Unix.Process
 import System.Unix.Progress (timeTask, lazyCommandF, lazyProcessF, lazyProcessE)
 import System.Directory
-
--- | A Subversion archive
--- data Svn = Svn URI SourceTree R.RetrieveMethod
 
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
@@ -43,7 +39,7 @@ password userInfo =
     then []
     else ["--password",unEscapeString pw]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
 prepare cache m flags uri = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir

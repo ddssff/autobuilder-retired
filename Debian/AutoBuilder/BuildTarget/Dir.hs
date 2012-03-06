@@ -3,8 +3,7 @@ module Debian.AutoBuilder.BuildTarget.Dir where
 import Control.Monad.Trans (lift)
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 
 -- |Dir is a simple instance of BuildTarget representing building the
@@ -12,31 +11,7 @@ import Debian.Repo
 -- for testing, and is also returned by the clean method when the
 -- source control information has been stripped out of some other type
 -- of BuildTarget.
-{-
-data Dir = Dir SourceTree R.RetrieveMethod
-
-instance Download Dir where
-    method (Dir _ m) = m
-    getTop (Dir tree _) = topdir tree
-    revision (Dir _ _) = fail "Dir targets do not have revision strings"
-    logText (Dir tree _) = "Built from local directory " ++ topdir tree
--}
-
--- |Build is similar to Dir, except that it owns the parent directory
--- of the source directory.  This is required for building packages
--- because all of the debs, tarballs etc appear in the parent directory.
-{-
-data Build = Build DebianBuildTree R.RetrieveMethod
-
-instance Download Build where
-    method (Build _ m) = m
-    getTop (Build tree _) = topdir tree
-    revision (Build _ _) = fail "Build targets do not have revision strings"
-    logText (Build tree _) = "Built from local directory " ++ topdir tree
--}
-
--- |Prepare a Dir target
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> FilePath -> AptIOT IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> FilePath -> AptIOT IO T.Download
 prepare _cache m flags path =
     do tree <- lift (findSourceTree path)
        return $ T.Download { T.method = m

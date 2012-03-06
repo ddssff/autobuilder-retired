@@ -9,9 +9,8 @@ import Data.List (nub, sort)
 import Data.Maybe (catMaybes)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
+import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
 import Debian.Repo
 import Network.URI (URI(..), URIAuth(..), uriToString, parseURI)
 import System.Directory
@@ -26,7 +25,7 @@ documentation = [ "darcs:<string> - a target of this form obtains the source cod
                 , "repository, it is necessary to set up ssh keys to allow access without"
                 , "typing a password.  See the --ssh-export option for help doing this." ]
 
-darcsRev :: SourceTree -> R.RetrieveMethod -> IO (Either SomeException String)
+darcsRev :: SourceTree -> P.RetrieveMethod -> IO (Either SomeException String)
 darcsRev tree m =
     try (lazyCommandE cmd B.empty >>= return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout) >>= 
     return . either Left (maybe (fail $ "could not find hash field in output of '" ++ cmd ++ "'")
@@ -35,7 +34,7 @@ darcsRev tree m =
       cmd = "cd " ++ path ++ " && darcs changes --xml-output"
       path = topdir tree
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> IO T.Download
 prepare cache m flags theUri =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
@@ -88,7 +87,7 @@ prepare cache m flags theUri =
       sum = show (md5 (B.pack uriAndTag))
       uriAndTag = uriToString id theUri' "" ++ maybe "" (\ tag -> "=" ++ tag) theTag
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of
-                                                           P.DarcsFlag (P.DarcsTag s) -> Just s
+                                                           P.DarcsTag s -> Just s
                                                            _ -> Nothing) flags))) of
                  [] -> Nothing
                  [x] -> Just x

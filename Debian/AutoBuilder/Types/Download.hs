@@ -5,8 +5,7 @@ module Debian.AutoBuilder.Types.Download
 
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
-import Debian.AutoBuilder.Types.PackageFlag (PackageFlag)
-import Debian.AutoBuilder.Types.RetrieveMethod (RetrieveMethod(..))
+import Debian.AutoBuilder.Types.Packages (PackageFlag, RetrieveMethod(..))
 import System.Unix.Process
 
 data Download

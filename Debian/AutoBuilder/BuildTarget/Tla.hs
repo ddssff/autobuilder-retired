@@ -8,8 +8,7 @@ import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import System.FilePath (splitFileName)
 import System.Unix.Directory
@@ -17,13 +16,10 @@ import System.Unix.Progress (timeTask, lazyCommandF)
 import System.Unix.QIO (qPutStrLn)
 import System.Directory
 
--- | A TLA archive
--- data Tla = Tla String SourceTree R.RetrieveMethod
-
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
                 , "given revision name." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
 prepare cache m flags version = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))

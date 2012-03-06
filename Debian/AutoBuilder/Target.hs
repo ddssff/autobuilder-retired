@@ -29,7 +29,6 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Fingerprint (Fingerprint, packageFingerprint, showFingerprint, dependencyChanges, targetFingerprint, showDependencies, BuildDecision(..), buildDecision)
 import qualified Debian.AutoBuilder.Types.Packages as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, changeFiles, changeDir),

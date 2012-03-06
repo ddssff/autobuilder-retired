@@ -22,7 +22,7 @@ import qualified Data.Set as Set
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Download (Download(..))
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))
 import Debian.Changes (logVersion, ChangeLogEntry(..))

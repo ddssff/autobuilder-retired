@@ -20,7 +20,7 @@ import Debian.AutoBuilder.Types.Buildable (Target(tgt, cleanSource), Buildable(d
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.RetrieveMethodOld as O
 import Debian.Changes (logVersion)
 import Debian.Control (lookupP, unControl, stripWS)
@@ -40,7 +40,7 @@ import Extra.Misc(columns)
 -- package, and the names and version numbers of the build
 -- dependencies against which it was or is about to be built.
 data Fingerprint
-    = Fingerprint R.RetrieveMethod
+    = Fingerprint P.RetrieveMethod
                   -- The method which was used to retrieve the source code.
                   (Maybe DebianVersion)
                   -- The version number in the changelog of the freshly downloaded
@@ -53,9 +53,9 @@ data Fingerprint
                   -- the suffix that was added by the autobuilder.
     | NoFingerprint
 
-readMethod :: String -> Maybe R.RetrieveMethod
+readMethod :: String -> Maybe P.RetrieveMethod
 readMethod s =
-    case maybeRead s :: Maybe R.RetrieveMethod of
+    case maybeRead s :: Maybe P.RetrieveMethod of
       Just method -> Just method
       -- when this code is taken out it will trigger a rebuild of all
       -- packages that haven't been rebuild since 5 Mar 2012.
@@ -63,22 +63,22 @@ readMethod s =
                    Nothing -> Nothing
                    Just method -> Just (convert method)
     where
-      convert (O.Apt a b _) = R.Apt a b
-      convert (O.Bzr a) = R.Bzr a
-      convert (O.Cd a b) = R.Cd a (convert b)
-      convert (O.Darcs a _) = R.Darcs a
-      convert (O.DebDir a b) = R.DebDir (convert a) (convert b)
-      convert (O.Debianize a _) = R.Debianize a
-      convert (O.Dir a) = R.Dir a
-      convert (O.Hackage a _) = R.Hackage a
-      convert (O.Hg a) = R.Hg a
-      convert (O.Proc a) = R.Proc (convert a)
-      convert (O.Quilt a b) = R.Quilt (convert a) (convert b)
-      convert (O.SourceDeb a) = R.SourceDeb (convert a)
-      convert (O.Svn a) = R.Svn a
-      convert (O.Tla a) = R.Tla a
-      convert (O.Twice a) = R.Twice (convert a)
-      convert (O.Uri a b) = R.Uri a b
+      convert (O.Apt a b _) = P.Apt a b
+      convert (O.Bzr a) = P.Bzr a
+      convert (O.Cd a b) = P.Cd a (convert b)
+      convert (O.Darcs a _) = P.Darcs a
+      convert (O.DebDir a b) = P.DebDir (convert a) (convert b)
+      convert (O.Debianize a _) = P.Debianize a
+      convert (O.Dir a) = P.Dir a
+      convert (O.Hackage a _) = P.Hackage a
+      convert (O.Hg a) = P.Hg a
+      convert (O.Proc a) = P.Proc (convert a)
+      convert (O.Quilt a b) = P.Quilt (convert a) (convert b)
+      convert (O.SourceDeb a) = P.SourceDeb (convert a)
+      convert (O.Svn a) = P.Svn a
+      convert (O.Tla a) = P.Tla a
+      convert (O.Twice a) = P.Twice (convert a)
+      convert (O.Uri a b) = P.Uri a b
 
 packageFingerprint :: Maybe SourcePackage -> Fingerprint
 packageFingerprint Nothing = NoFingerprint

@@ -11,8 +11,7 @@ import Data.List
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import Debian.URI
 import System.FilePath (splitFileName)
@@ -25,7 +24,7 @@ import System.Directory
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO Download
 prepare cache method flags version = liftIO $
   do
     when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))

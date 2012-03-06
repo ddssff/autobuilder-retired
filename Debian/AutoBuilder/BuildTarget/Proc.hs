@@ -5,8 +5,7 @@ module Debian.AutoBuilder.BuildTarget.Proc where
 import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
-import qualified Debian.AutoBuilder.Types.PackageFlag as P
-import qualified Debian.AutoBuilder.Types.RetrieveMethod as R
+import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
 import System.Unix.Progress (lazyProcessEF)
@@ -18,7 +17,7 @@ documentation = [ "proc:<target> - A target of this form modifies another target
                 , "machine which might be different from the machine on which the package"
                 , "is ultimately installed." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> OSImage -> T.Download -> AptIOT IO T.Download
+prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> OSImage -> T.Download -> AptIOT IO T.Download
 prepare _cache m flags buildOS base =
     return $ T.Download {
                  T.method = m
