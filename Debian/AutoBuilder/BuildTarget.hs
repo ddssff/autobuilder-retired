@@ -34,19 +34,19 @@ retrieve :: OSImage -> P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> AptI
 retrieve buildOS cache spec flags =
     q12 (" " ++ show spec) $     
      case spec of
-      R.Apt dist package flags -> Apt.prepare cache spec dist package flags
+      R.Apt dist package -> Apt.prepare cache spec dist package flags
       R.Bzr string -> Bzr.prepare cache spec string
       R.Cd dir spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->
           Cd.prepare cache spec dir t
-      R.Darcs uri flags -> lift (Darcs.prepare cache spec uri flags)
+      R.Darcs uri -> lift (Darcs.prepare cache spec uri flags)
       R.DebDir upstream debian ->
           do upstream' <- retrieve buildOS cache upstream []
              debian' <- retrieve buildOS cache debian []
              DebDir.prepare cache spec upstream' debian'
-      R.Debianize package version -> Debianize.prepare cache spec flags package version
+      R.Debianize package -> Debianize.prepare cache spec flags package
       R.Dir path -> Dir.prepare cache spec path
-      R.Hackage package version -> Debianize.prepareHackage cache spec package version
+      R.Hackage package -> Debianize.prepareHackage cache spec flags package
       R.Hg string -> Hg.prepare cache spec string
       R.Proc spec' ->
           retrieve buildOS cache spec' [] >>= \ t ->

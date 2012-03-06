@@ -7,6 +7,7 @@ module Debian.AutoBuilder.Types.ParamRec
 
 import Control.Arrow (first)
 import qualified Data.Set as Set
+import Debian.AutoBuilder.Types.PackageFlag (AptFlag, CabalFlag, DarcsFlag)
 import Debian.AutoBuilder.Types.Packages (Packages)
 import Debian.Release ( Arch, ReleaseName )
 import Debian.Repo.Cache ( SourcesChangedAction )
@@ -89,6 +90,13 @@ data ParamRec =
     -- ^ Try to set up ssh keys if upload host asks for a password.
     , doHelp :: Bool
     -- ^ Print a usage message and exit.
+
+    , aptFlags :: [AptFlag]
+    -- ^ Flags specific to apt targets
+    , cabalFlags :: [CabalFlag]
+    -- ^ Flags specific to cabal targets
+    , darcsFlags :: [DarcsFlag]
+    -- ^ Flags specific to darcs targets
 
     -- THINGS THAT ARE OCCASIONALLY USEFUL
 

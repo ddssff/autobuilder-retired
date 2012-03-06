@@ -1,18 +1,20 @@
 -- |Data type representing a method for retrieving the source code of a package specification.
-module Debian.AutoBuilder.Types.RetrieveMethod
+module Debian.AutoBuilder.Types.RetrieveMethodOld
     ( RetrieveMethod(..)
     ) where
 
+import Debian.AutoBuilder.Types.PackageFlag (AptFlag, CabalFlag, DarcsFlag)
+
 -- |Represents only the data resulting from parsing the spec string (which is going away)
 data RetrieveMethod
-    = Apt String String
+    = Apt String String [AptFlag]
     | Bzr String
     | Cd FilePath RetrieveMethod
-    | Darcs String
+    | Darcs String [DarcsFlag]
     | DebDir RetrieveMethod RetrieveMethod
-    | Debianize String
+    | Debianize String [CabalFlag]
     | Dir FilePath
-    | Hackage String
+    | Hackage String [CabalFlag]
     | Hg String
     | Proc RetrieveMethod
     | Quilt RetrieveMethod RetrieveMethod

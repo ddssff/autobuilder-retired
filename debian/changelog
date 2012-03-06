@@ -1,3 +1,9 @@
+autobuilder (6.20) unstable; urgency=low
+
+  * Moved target specific flags out of RetrieveMethod into PackageFlag.
+
+ -- David Fox <dsf@seereason.com>  Mon, 05 Mar 2012 17:20:11 -0800
+
 autobuilder (6.19) unstable; urgency=low
 
   * Change revision string format so it begins with a RetrieveMethod.

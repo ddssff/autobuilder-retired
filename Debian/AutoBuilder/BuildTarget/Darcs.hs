@@ -35,7 +35,7 @@ darcsRev tree m =
       cmd = "cd " ++ path ++ " && darcs changes --xml-output"
       path = topdir tree
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> String -> [P.DarcsFlag] -> IO T.Download
+prepare :: P.CacheRec -> R.RetrieveMethod -> String -> [P.PackageFlag] -> IO T.Download
 prepare cache m theUri flags =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
@@ -87,8 +87,8 @@ prepare cache m theUri flags =
       sum = show (md5 (B.pack uriAndTag))
       uriAndTag = uriToString id theUri' "" ++ maybe "" (\ tag -> "=" ++ tag) theTag
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of
-                                                           P.DarcsTag s -> Just s
-                                                           {- _ -> Nothing -}) flags))) of
+                                                           P.DarcsFlag (P.DarcsTag s) -> Just s
+                                                           _ -> Nothing) flags))) of
                  [] -> Nothing
                  [x] -> Just x
                  xs -> error ("Conflicting tags for darcs get of " ++ theUri ++ ": " ++ show xs)

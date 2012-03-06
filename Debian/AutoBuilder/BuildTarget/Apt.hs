@@ -20,7 +20,7 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> RetrieveMethod -> String -> String -> [P.AptFlag] -> AptIOT IO Download
+prepare :: P.CacheRec -> RetrieveMethod -> String -> String -> [P.PackageFlag] -> AptIOT IO Download
 prepare cache method dist package flags =
     do os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
@@ -37,8 +37,8 @@ prepare cache method dist package flags =
       distro = maybe (error $ "Invalid dist: " ++ sliceName dist') id (findRelease (P.allSources cache) dist')
       dist' = SliceName dist
       version' = case (nub (sort (catMaybes (map (\ flag -> case flag of
-                                                   P.AptPin s -> Just (parseDebianVersion s)
-                                                   {- _ -> Nothing -}) flags)))) of
+                                                              P.AptFlag (P.AptPin s) -> Just (parseDebianVersion s)
+                                                              _ -> Nothing) flags)))) of
                    [] -> Nothing
                    [v] -> Just v
                    vs -> error ("Conflicting pin versions for apt-get: " ++ show (map prettyDebianVersion vs))

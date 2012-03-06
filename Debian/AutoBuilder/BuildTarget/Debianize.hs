@@ -36,11 +36,11 @@ documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of 
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
 
-prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> [P.CabalFlag] -> AptIOT IO T.Download
-prepare cache m flags name cabalFlags = liftIO $
+prepare :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepare cache m flags name = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball (P.topDir cache) name version'))
-       downloadAndDebianize cache cabalFlags flags name version'
+       downloadAndDebianize cache flags name version'
        tree <- findSourceTree (unpacked (P.topDir cache) name version')
        return $ T.Download { T.method = m
                            , T.getTop = topdir tree
@@ -51,8 +51,8 @@ prepare cache m flags name cabalFlags = liftIO $
                            , T.buildWrapper = id }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
-                                                                  P.CabalPin s -> Just s
-                                                                  _ -> Nothing) cabalFlags))) of
+                                                                  P.CabalFlag (P.CabalPin s) -> Just s
+                                                                  _ -> Nothing) flags))) of
                         [] -> Nothing
                         [v] -> Just v
                         vs -> error ("Conflicting cabal version numbers passed to Debianize: [" ++ intercalate ", " vs ++ "]")
@@ -66,13 +66,13 @@ parse cmd output =
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-downloadAndDebianize :: P.CacheRec -> [P.CabalFlag] -> [P.PackageFlag] -> String -> Version -> IO ()
-downloadAndDebianize cache cabalFlags flags name version =
+downloadAndDebianize :: P.CacheRec -> [P.PackageFlag] -> String -> Version -> IO ()
+downloadAndDebianize cache flags name version =
     removeRecursiveSafely (unpacked (P.topDir cache) name version) >>
     downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version >>=
     unpack (P.topDir cache) >>
     patch (P.topDir cache) flags name version >>
-    debianize cache cabalFlags flags (unpacked (P.topDir cache) name version)
+    debianize cache flags (unpacked (P.topDir cache) name version)
 
 -- |Scan the flag list for Patch flag, and apply the patches
 patch :: FilePath -> [P.PackageFlag] -> String -> Version -> IO ()
@@ -131,12 +131,12 @@ download' server top name version =
 -- debianization, then we could debianize cabal packages whatever their origin,
 -- and we wouldn't have to debianize *every* hackage target.  But I'm out of
 -- patience right now...
-debianize :: P.CacheRec -> [P.CabalFlag] -> [P.PackageFlag] -> FilePath -> IO ()
-debianize cache cflags pflags dir =
+debianize :: P.CacheRec -> [P.PackageFlag] -> FilePath -> IO ()
+debianize cache pflags dir =
     do let pflags' = if any isMaintainerFlag pflags then pflags else P.Maintainer "Unknown Maintainer <unknown@debian.org>" : pflags
            args = (["--debianize"] ++
                    maybe [] (\ x -> ["--ghc-version", x]) ver ++
-                   concatMap cflag cflags ++
+                   -- concatMap cflag cflags ++
                    concatMap pflag pflags')
        (out, err, code) <- lazyProcessE "cabal-debian" args (Just dir) Nothing B.empty >>= return . collectOutputUnpacked
        case code of
@@ -152,6 +152,7 @@ debianize cache cflags pflags dir =
       cflag (P.Epoch name d) = ["--epoch-map", name ++ "=" ++ show d]
       cflag _ = []
       pflag (P.Maintainer s) = ["--maintainer", s]
+      pflag (P.CabalFlag x) = cflag x
       pflag _ = []
 
       ver = P.ghcVersion (P.params cache)
@@ -217,8 +218,8 @@ downloadCommand server name version = "curl -s '" ++ versionURL server name vers
 documentationHackage = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"
                 , "retrieves source code from http://hackage.haskell.org." ]
 
-prepareHackage :: P.CacheRec -> R.RetrieveMethod -> String -> [P.CabalFlag] -> AptIOT IO T.Download
-prepareHackage cache m name cabalFlags = liftIO $
+prepareHackage :: P.CacheRec -> R.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
+prepareHackage cache m flags name = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (mapM_ removeRecursiveSafely [tarball (P.topDir cache) name version', unpacked (P.topDir cache) name version'])
        downloadCached (P.hackageServer (P.params cache)) (P.topDir cache) name version' >>= unpack (P.topDir cache)
@@ -232,8 +233,8 @@ prepareHackage cache m name cabalFlags = liftIO $
                            , T.buildWrapper = id }
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
-                                                                  P.CabalPin s -> Just s
-                                                                  _ -> Nothing) cabalFlags))) of
+                                                                  P.CabalFlag (P.CabalPin s) -> Just s
+                                                                  _ -> Nothing) flags))) of
                         [] -> Nothing
                         [v] -> Just v
                         vs -> error ("Conflicting cabal version numbers passed to Debianize: [" ++ intercalate ", " vs ++ "]")

@@ -39,6 +39,9 @@ data PackageFlag
     | Patch B.ByteString        -- ^ Apply the patch
     | Maintainer String         -- ^ Use the given string as maintainer name and email
     | OmitLTDeps                -- ^ Don't add the << part when converting cabal wildcard dependencies
+    | AptFlag AptFlag
+    | CabalFlag CabalFlag
+    | DarcsFlag DarcsFlag
     deriving (Show, Eq, Ord)
 
 {-

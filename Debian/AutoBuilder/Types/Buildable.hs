@@ -40,7 +40,7 @@ import System.FilePath (takeExtension, (</>))
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
-import System.Unix.QIO (qPutStrLn, quieter, ePutStrLn)
+import System.Unix.QIO (quieter, ePutStrLn)
 
 -- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.
