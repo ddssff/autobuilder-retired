@@ -1,6 +1,5 @@
--- | Types that specify how to obtain the source code for a package
--- and flags that describe other details of the conversion of the
--- download into a Debian source tree.
+-- | The Packages type specifies how to obtain the source code for one
+-- or more packages.
 module Debian.AutoBuilder.Types.Packages
     ( Packages(..)
     , foldPackages
@@ -18,10 +17,14 @@ data Packages
     = NoPackage
     | Package
       { name :: String
-      -- ^ This is only used as a reference for choosing packages to
-      -- build, it is neither Debian nor Cabal package name.
+      -- ^ This name is only used as a reference for choosing packages
+      -- to build, it is neither Debian nor Cabal package name.
       , spec :: RetrieveMethod
+      -- ^ This value describes the method used to download the
+      -- package's source code.
       , flags :: [PackageFlag]
+      -- ^ These flags provide additional details about how to obtain
+      -- the package.
       }
     | Packages (Set.Set Packages)
     deriving (Show, Eq, Ord)
@@ -47,24 +50,24 @@ foldPackages f r (Packages s) = Set.fold (flip (foldPackages f)) r s
 packageCount :: Packages -> Int
 packageCount = foldPackages (\ _ _ _ n -> n + 1) 0
 
--- |Represents only the data resulting from parsing the spec string (which is going away)
+-- | The methods we know for obtaining source code.
 data RetrieveMethod
-    = Apt String String
-    | Bzr String
-    | Cd FilePath RetrieveMethod
-    | Darcs String
-    | DebDir RetrieveMethod RetrieveMethod
-    | Debianize String
-    | Dir FilePath
-    | Hackage String
-    | Hg String
-    | Proc RetrieveMethod
-    | Quilt RetrieveMethod RetrieveMethod
-    | SourceDeb RetrieveMethod
-    | Svn String
-    | Tla String
-    | Twice RetrieveMethod
-    | Uri String String
+    = Apt String String                      -- ^ Apt dist name - download using apt-get
+    | Bzr String                             -- ^ Download from a Bazaar repository
+    | Cd FilePath RetrieveMethod             -- ^ Get the source code from a subdirectory of another download
+    | Darcs String                           -- ^ Download from a Darcs repository
+    | DebDir RetrieveMethod RetrieveMethod   -- ^ Combine the upstream download with a download for a debian directory
+    | Debianize String                       -- ^ Retrieve a cabal package from Hackage and use cabal-debian to debianize it
+    | Dir FilePath                           -- ^ Retrieve the source code from a directory on a local machine
+    | Hackage String                         -- ^ Download a cabal package from hackage
+    | Hg String                              -- ^ Download from a Mercurial repository
+    | Proc RetrieveMethod                    -- ^ Mount proc during the build (this should be a PackageFlag.)
+    | Quilt RetrieveMethod RetrieveMethod    -- ^ Combine a download with a download of a patch directory to be applied by quilt
+    | SourceDeb RetrieveMethod               -- ^ Download and unpack a source deb - a .dsc, a .tar.gz, and a .diff.gz file.
+    | Svn String                             -- ^ Download from a Subversion repository
+    | Tla String                             -- ^ Download from a TLA repository
+    | Twice RetrieveMethod                   -- ^ Perform the build twice (should be a package flag)
+    | Uri String String                      -- ^ Download a tarball from the URI.  The checksum is used to implement caching.
     deriving (Read, Show, Eq, Ord)
 
 -- | Flags that are applicable to any debianized package, which means
@@ -96,7 +99,8 @@ data PackageFlag
     | ExtraDevDep String
     -- ^ Install dependencies which should be added to the Depends
     -- entry for the dev package in the debian/control file via the
-    -- --dev-dep flag of cabal-debian
+    -- --dev-dep flag of cabal-debian.  Used, for example, to make
+    -- libssl-dev a dependency of libghc-hsopenssl-dev.
     | MapDep String String
     -- ^ Tell cabal-debian to map the first argument (a name that
     -- appears in Extra-Libraries field of the cabal file) to the

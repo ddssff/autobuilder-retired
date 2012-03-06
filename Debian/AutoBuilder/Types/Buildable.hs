@@ -127,10 +127,12 @@ prepareBuild :: P.CacheRec -> OSImage -> T.Download -> IO DebianBuildTree
 prepareBuild _cache os target =
     try (findDebianSourceTree (T.getTop target)) >>=
     either (\ (_ :: SomeException) ->
-                ePutStrLn ("Failed to find source tree in " ++ T.getTop target ++ ", trying build trees.") >>
+                qPutStrLn ("Failed to find source tree in " ++ T.getTop target ++ ", trying build trees.") >>
                 findDebianBuildTrees (T.getTop target) >>= \ trees ->
                     case trees of
-                      [tree] -> copyBuild tree
+                      [tree] ->
+                          qPutStrLn ("Found build tree in " ++ T.topdir tree) >>
+                          copyBuild tree
                       [] -> error $ "No debian source tree found in " ++ T.getTop target
                       _ -> error $ "Multiple debian source trees found in " ++ T.getTop target)
            copySource

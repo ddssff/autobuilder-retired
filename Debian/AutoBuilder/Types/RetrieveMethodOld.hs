@@ -1,4 +1,5 @@
 -- |Data type representing a method for retrieving the source code of a package specification.
+-- Used only for reading the Fingerprint string of packages built before 5 March 2012.
 module Debian.AutoBuilder.Types.RetrieveMethodOld
     ( RetrieveMethod(..)
     ) where
