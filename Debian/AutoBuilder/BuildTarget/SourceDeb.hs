@@ -25,20 +25,19 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 -- by unpacking the source deb.
 prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> AptIOT IO T.Download
 prepare _cache m flags base =
-    do let top = T.getTop base
-       dscFiles <- liftIO (getDirectoryContents top) >>=
-                   return . filter (isSuffixOf ".dsc")
+    do dscFiles <- liftIO (getDirectoryContents top) >>= return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> liftIO (readFile (top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
          [] -> return $  error ("Invalid sourcedeb base: no .dsc file in " ++ show (T.method base))
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
              do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
                 case exitCodeOnly out of
-                  ExitSuccess -> liftIO $ makeTarget top dscInfo dscName
+                  ExitSuccess -> liftIO $ makeTarget dscInfo dscName
                   _ -> error ("*** FAILURE: " ++ unpack top dscName)
          (dscName, _) : _ -> error ("Invalid .dsc file: " ++ dscName)
     where
-      makeTarget top dscInfo dscName =
+      top = T.getTop base
+      makeTarget dscInfo dscName =
           case (S.fieldValue "Source" dscInfo, maybe Nothing (Just . V.parseDebianVersion)
                      (S.fieldValue "Version" dscInfo)) of
             (Just _package, Just _version) ->

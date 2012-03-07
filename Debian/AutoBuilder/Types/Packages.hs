@@ -10,8 +10,8 @@ module Debian.AutoBuilder.Types.Packages
     ) where
 
 import qualified Data.ByteString.Lazy as B
-import Data.Monoid (Monoid(..))
-import qualified Data.Set as Set
+import Data.Monoid (Monoid(mempty, mappend))
+import Data.Set (Set, empty, union)
 
 data Packages
     = NoPackage
@@ -26,29 +26,30 @@ data Packages
       -- ^ These flags provide additional details about how to obtain
       -- the package.
       }
-    | Packages (Set.Set Packages)
+    | Packages
+      { group :: Set String
+      , packages :: [Packages]
+      }
     deriving (Show, Eq, Ord)
 
 instance Monoid Packages where
     mempty = NoPackage
     mappend NoPackage y = y
     mappend x NoPackage = x
-    mappend x@(Package {}) y = mappend (Packages (Set.singleton x)) y
-    mappend x y@(Package {}) = mappend x (Packages (Set.singleton y))
-    mappend (Packages xs) (Packages ys) =
-        let zs = Set.union xs ys in
-        case Set.size zs of
-          0 -> NoPackage
-          1 -> Set.findMin zs
-          _ -> Packages zs
+    mappend x@(Package {}) y@(Package {}) = Packages empty [x, y]
+    mappend x@(Package {}) y@(Packages {}) = y {packages = [x] ++ packages y}
+    mappend x@(Packages {}) y@(Package {}) = x {packages = packages x ++ [y]}
+    mappend x@(Packages {}) y@(Packages {}) =
+        Packages { group = union (group x) (group y)
+                 , packages = packages x ++ packages y }
 
-foldPackages :: (String -> RetrieveMethod -> [PackageFlag] -> r -> r) -> r -> Packages -> r
-foldPackages _ r NoPackage = r
-foldPackages f r x@(Package {}) = f (name x) (spec x) (flags x) r
-foldPackages f r (Packages s) = Set.fold (flip (foldPackages f)) r s
+foldPackages :: (String -> RetrieveMethod -> [PackageFlag] -> r -> r) -> Packages -> r -> r
+foldPackages _ NoPackage r = r
+foldPackages f x@(Package {}) r = f (name x) (spec x) (flags x) r
+foldPackages f x@(Packages {}) r = foldr (foldPackages f) r (packages x)
 
 packageCount :: Packages -> Int
-packageCount = foldPackages (\ _ _ _ n -> n + 1) 0
+packageCount ps = foldPackages (\ _ _ _ n -> n + 1) ps 0
 
 -- | The methods we know for obtaining source code.
 data RetrieveMethod
@@ -61,6 +62,7 @@ data RetrieveMethod
     | Dir FilePath                           -- ^ Retrieve the source code from a directory on a local machine
     | Hackage String                         -- ^ Download a cabal package from hackage
     | Hg String                              -- ^ Download from a Mercurial repository
+    | Patch RetrieveMethod String            -- ^ Apply the patch given in the string text to the target
     | Proc RetrieveMethod                    -- ^ Mount proc during the build (this should be a PackageFlag.)
     | Quilt RetrieveMethod RetrieveMethod    -- ^ Combine a download with a download of a patch directory to be applied by quilt
     | SourceDeb RetrieveMethod               -- ^ Download and unpack a source deb - a .dsc, a .tar.gz, and a .diff.gz file.
@@ -79,9 +81,6 @@ data PackageFlag
     -- ^ Tell the autobuilder that a binary package name is a udeb.  This means that
     -- we can ignore the package when we are deciding whether we need to do an arch
     -- only build.
-    | Patch B.ByteString
-    -- ^ Apply the patch (currently only works on targets downloaded
-    -- use RetrieveMethod Debianize.)
     | Maintainer String
     -- ^ Use the given string as maintainer name and email
     | OmitLTDeps

@@ -9,7 +9,7 @@ module Debian.AutoBuilder.Main
 
 import Control.Arrow (first)
 import Control.Applicative.Error (Failing(..), failing)
-import Control.Exception(SomeException, try, catch)
+import Control.Exception(SomeException, try, catch, AsyncException(UserInterrupt), fromException)
 import Control.Monad(foldM, when, unless)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
 import qualified Data.ByteString.Lazy as L
@@ -32,7 +32,7 @@ import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
-import Debian.Repo.Monad (AptIOT, AptState, initState, getRepoMap, tryAB)
+import Debian.Repo.Monad (AptIOT, AptState, initState, getRepoMap, tryAB, tryJustAB)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(OSImage, buildEssential, prepareEnv, chrootEnv)
 import Debian.Repo.Release(prepareRelease)
@@ -134,7 +134,7 @@ runParameterSet cache =
       buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS targets
       -- If all targets succeed they may be uploaded to a remote repo
       result <- tryAB (upload buildResult >>= lift . newDist) >>=
-                return . either (\ e -> Failure [show e]) id
+                return . either (\ (e :: SomeException) -> Failure [show e]) id
       updateRepoCache
       return result
     where
@@ -195,11 +195,16 @@ runParameterSet cache =
              qPutStrLn "Retrieving all source code:\n"
              countTasks' (map (\ (target :: P.Packages) ->
                                    (show (P.spec target),
-                                    tryAB (retrieve buildOS cache (P.spec target) (P.flags target)) >>=
-                                    either (\ e -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >>
-                                                   return (Left e))
+                                    tryJustAB (\ (e :: SomeException) ->
+                                                   case (fromException e :: Maybe AsyncException) of
+                                                     -- Exit on keyboard interrupt
+                                                     Just UserInterrupt -> Nothing
+                                                     -- Any other exception gets reported but we continue retrieving packages
+                                                     _ -> Just e)
+                                              (retrieve buildOS cache (P.spec target) (P.flags target)) >>=
+                                    either (\ (e :: SomeException) -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >> return (Left e))
                                            (return . Right)))
-                              (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) [] allTargets))
+                              (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) allTargets []))
           where
             buildOS = chrootEnv cleanOS (P.dirtyRoot cache)
             allTargets = case P.targets params of

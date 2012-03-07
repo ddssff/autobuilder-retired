@@ -25,7 +25,7 @@ import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Unix.Process (collectOutput, collectOutputUnpacked)
-import System.Unix.Progress (lazyCommandE, lazyProcessE)
+import System.Unix.Progress (lazyCommandE)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
@@ -41,7 +41,7 @@ prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT
 prepare cache m flags name = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball cache name version'))
-       download cache flags name version'
+       download cache name version'
        tree <- findSourceTree (unpacked cache name version')
        return $ T.Download { T.method = m
                            , T.flags = flags
@@ -63,12 +63,11 @@ prepare cache m flags name = liftIO $
 -- hackage temporary directory:
 -- > download \"/home/dsf/.autobuilder/hackage\" -> \"/home/dsf/.autobuilder/hackage/happstack-server-6.1.4.tar.gz\"
 -- After the download it tries to untar the file, and then it saves the compressed tarball.
-download :: P.CacheRec -> [P.PackageFlag] -> String -> Version -> IO ()
-download cache flags name version =
+download :: P.CacheRec -> String -> Version -> IO ()
+download cache name version =
     removeRecursiveSafely (unpacked cache name version) >>
     downloadCached (P.hackageServer (P.params cache)) cache name version >>=
-    unpack cache >>
-    patch cache flags name version
+    unpack cache
 
 {-
 -- |Download and unpack the given package version to the autobuilder's
@@ -82,6 +81,7 @@ downloadAndDebianize cache flags name version =
 -}
 
 -- |Scan the flag list for Patch flag, and apply the patches
+{-
 patch :: P.CacheRec -> [P.PackageFlag] -> String -> Version -> IO ()
 patch cache flags name version =
     mapM_ patch' flags
@@ -95,6 +95,7 @@ patch cache flags name version =
                                        show n ++ "\noutput: " ++ err ++ "\npatch:\n" ++ B.unpack text)
                ExitSuccess -> return ()
       patch' _ = return ()
+-}
 
 readVersion :: String -> Version
 readVersion s =

@@ -268,7 +268,7 @@ showTargets :: P.Packages -> String
 showTargets targets =
     unlines (heading :
              map (const '-') heading :
-             map concat (columns (reverse (snd (P.foldPackages (\ name spec _flags (count, rows) -> (count + 1, [printf "%4d. " count, name, " ", show spec] : rows)) (1 :: Int, []) targets)))))
+             map concat (columns (reverse (snd (P.foldPackages (\ name spec _flags (count, rows) -> (count + 1, [printf "%4d. " count, name, " ", show spec] : rows)) targets (1 :: Int, []))))))
     where
       heading = show (P.packageCount targets) ++ " Targets:"
 

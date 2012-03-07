@@ -31,7 +31,7 @@ import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
 import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, subdir, debdir, findDebianBuildTrees, findDebianBuildTree, copyDebianBuildTree,
-                               DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree, SourceTree(dir'))
+                               DebianSourceTree(..), findDebianSourceTree, copyDebianSourceTree {-, SourceTree(dir')-})
 import Debian.Repo.Types (AptCache(rootDir), EnvRoot(rootPath))
 import qualified Debian.Version
 import Prelude hiding (catch)
@@ -40,7 +40,7 @@ import System.FilePath (takeExtension, (</>))
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
-import System.Unix.QIO (quieter, qPutStrLn, ePutStrLn)
+import System.Unix.QIO (quieter, qPutStrLn {-, ePutStrLn-})
 
 -- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.
@@ -59,7 +59,7 @@ asBuildable :: Download -> IO Buildable
 asBuildable download =
     try (findDebianSourceTree (getTop download)) >>=
             either (\ (e :: SomeException) ->
-                        qPutStrLn ("No source tree found in " ++ getTop download ++ " (" ++ show e ++ ")") >>
+                        -- qPutStrLn ("No source tree found in " ++ getTop download ++ " (" ++ show e ++ ")") >>
                         findDebianBuildTrees (getTop download) >>= \ trees ->
                         case trees of
                           [tree] -> return (Buildable { download = download, debianSourceTree = debTree' tree})
@@ -78,7 +78,7 @@ relaxDepends :: ParamRec -> Buildable -> G.OldRelaxInfo
 relaxDepends params@(ParamRec {targets = TargetSet s}) tgt =
     G.RelaxInfo $
                   map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
-                  foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName tgt)))) (P.relaxInfo flags)) [] s
+                  foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName tgt)))) (P.relaxInfo flags)) s []
 relaxDepends _params _ = error "relaxDepends: invalid target set"
 
 srcPkgName :: Buildable -> String
