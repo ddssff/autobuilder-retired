@@ -84,17 +84,16 @@ prepare c m flags u s = liftIO $
             -- Create the unpack directory
             mkdir = liftIO (createDirectoryIfMissing True (sourceDir c s))
             untar =
-                do ch <- liftIO unpackChar
-                   timeTask (lazyCommandF ("tar xf" ++ ch ++ " " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty)
-            unpackChar =
                 do magic <- magicOpen []
                    magicLoadDefault magic
                    fileInfo <- magicFile magic (tarball c u s)
-                   return $ if isPrefixOf "gzip" fileInfo 
-                            then "z"
-                            else if isPrefixOf "bzip2" fileInfo
-                                 then "j"
-                                 else ""
+                   case () of
+                     _ | isPrefixOf "Zip archive data" fileInfo ->
+                           timeTask $ lazyCommandF ("unzip " ++ tarball c u s ++ " -d " ++ sourceDir c s) B.empty
+                       | isPrefixOf "gzip" fileInfo ->
+                           timeTask $ lazyCommandF ("tar xfz " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty
+                       | isPrefixOf "bzip2" fileInfo ->
+                           timeTask $ lazyCommandF ("tar xfj " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty
             read (_output, _elapsed) = liftIO (getDir (sourceDir c s))
             search files = checkContents (filter (not . flip elem [".", ".."]) files)
             verify tree = return (mustParseURI u, realSum, tree)
