@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        6.21
+Version:        6.22
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -73,6 +73,7 @@ Library
     Debian.AutoBuilder.BuildTarget.Dir,
     Debian.AutoBuilder.BuildTarget.Hackage,
     Debian.AutoBuilder.BuildTarget.Hg,
+    Debian.AutoBuilder.BuildTarget.Patch,
     Debian.AutoBuilder.BuildTarget.Proc,
     Debian.AutoBuilder.BuildTarget.Quilt,
     Debian.AutoBuilder.BuildTarget.SourceDeb,

@@ -1,3 +1,11 @@
+autobuilder (6.22) unstable; urgency=low
+
+  * Make Patch a retrieve method instead of a flag.
+  * Add a DataFiles method to add data files to a cabal package.
+  * Add support to the Uri method for zip files and plain files.
+
+ -- David Fox <dsf@seereason.com>  Thu, 08 Mar 2012 05:56:07 -0800
+
 autobuilder (6.21) unstable; urgency=low
 
   * Split the debianization functionality out of the Hackage download
