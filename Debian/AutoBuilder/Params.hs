@@ -69,10 +69,9 @@ loadRepoCache top =
 -- exists.  Then we can safely return it from topDir below.
 computeTopDir :: ParamRec -> IO FilePath
 computeTopDir params =
-    try (maybe homeDir return (topDirParam params) >>= \ top ->
-         createDirectoryIfMissing True top >>
-         getPermissions top >>= return . writable >>= finish top) >>=
-    either (\ (e :: SomeException) -> error (show e)) return
+    maybe homeDir return (topDirParam params) >>= \ top ->
+    createDirectoryIfMissing True top >>
+    getPermissions top >>= return . writable >>= finish top
     where
       finish _ False = error "Cache directory not writable (are you root?)"
       finish top True = return top

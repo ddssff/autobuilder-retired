@@ -57,6 +57,10 @@ data RetrieveMethod
     | Bzr String                             -- ^ Download from a Bazaar repository
     | Cd FilePath RetrieveMethod             -- ^ Get the source code from a subdirectory of another download
     | Darcs String                           -- ^ Download from a Darcs repository
+    | DataFiles RetrieveMethod RetrieveMethod FilePath
+                                             -- ^ The first tree is a cabal package, copy the files in the second tree into
+                                             -- the first at the location specified by FilePath.  Typically you would then patch
+                                             -- the cabal file to add entries to the Data-Files list.
     | DebDir RetrieveMethod RetrieveMethod   -- ^ Combine the upstream download with a download for a debian directory
     | Debianize RetrieveMethod               -- ^ Retrieve a cabal package from Hackage and use cabal-debian to debianize it
     | Dir FilePath                           -- ^ Retrieve the source code from a directory on a local machine

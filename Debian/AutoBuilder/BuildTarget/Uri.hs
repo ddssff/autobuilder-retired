@@ -82,7 +82,7 @@ prepare c m flags u s = liftIO $
           mkdir >> untar >>= read >>= search >>= verify
           where
             -- Create the unpack directory
-            mkdir = liftIO (createDirectoryIfMissing True (sourceDir c s))
+            mkdir = liftIO (removeDirectoryRecursive (sourceDir c s) >> createDirectoryIfMissing True (sourceDir c s))
             untar =
                 do magic <- magicOpen []
                    magicLoadDefault magic
@@ -94,14 +94,18 @@ prepare c m flags u s = liftIO $
                            timeTask $ lazyCommandF ("tar xfz " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty
                        | isPrefixOf "bzip2" fileInfo ->
                            timeTask $ lazyCommandF ("tar xfj " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty
+                       | True ->
+                           timeTask $ lazyCommandF ("cp " ++ tarball c u s ++ " " ++ sourceDir c s ++ "/") B.empty
             read (_output, _elapsed) = liftIO (getDir (sourceDir c s))
-            search files = checkContents (filter (not . flip elem [".", ".."]) files)
-            verify tree = return (mustParseURI u, realSum, tree)
             getDir dir = getDirectoryContents dir >>= return . filter (not . flip elem [".", ".."])
+            search files = checkContents (filter (not . flip elem [".", ".."]) files)
             checkContents :: [FilePath] -> IO R.SourceTree
             checkContents [] = error ("Empty tarball? " ++ show (mustParseURI u))
-            checkContents [subdir] = R.findSourceTree (sourceDir c s ++ "/" ++ subdir)
+            checkContents [subdir] =
+                try (R.findSourceTree (sourceDir c s ++ "/" ++ subdir)) >>=
+                either (\ (_ :: SomeException) -> R.findSourceTree (sourceDir c s)) return
             checkContents _ = R.findSourceTree (sourceDir c s)
+            verify tree = return (mustParseURI u, realSum, tree)
 
 sumDir c s = P.topDir c ++ "/tmp/" ++ s
 

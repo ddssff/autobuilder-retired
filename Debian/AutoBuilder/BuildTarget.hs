@@ -29,7 +29,7 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
-import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, topdir)
+import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, copySourceTree, SourceTree(dir'), topdir)
 import Debian.Repo.Monad (AptIOT)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
@@ -57,6 +57,15 @@ retrieve buildOS cache spec flags =
                             }
 
       P.Darcs uri -> lift (Darcs.prepare cache spec flags uri)
+
+      P.DataFiles base files loc ->
+          do base' <- retrieve buildOS cache base flags
+             files' <- retrieve buildOS cache files flags
+             baseTree <- liftIO $ findSourceTree (T.getTop base')
+             filesTree <- liftIO $ findSourceTree (T.getTop files')
+             liftIO $ copySourceTree filesTree (dir' baseTree </> loc)
+             return base'
+          
       P.DebDir upstream debian ->
           do upstream' <- retrieve buildOS cache upstream flags
              debian' <- retrieve buildOS cache debian flags
