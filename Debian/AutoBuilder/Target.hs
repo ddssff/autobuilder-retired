@@ -7,7 +7,7 @@
 module Debian.AutoBuilder.Target
     ( changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
     , buildTargets
-    , showTargets 
+    , showTargets
     ) where
 
 import Control.Arrow (second)
@@ -39,7 +39,7 @@ import Debian.Control
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation (prettyRelation)
 import Debian.Relation.ByteString(Relations, Relation(..))
-import Debian.Release (releaseName')
+import Debian.Release (Arch, releaseName')
 import Debian.Repo.SourceTree (buildDebs)
 import Debian.Sources (SliceName(..))
 import Debian.Repo (chrootEnv, syncEnv, syncPool, updateEnv)
@@ -149,12 +149,13 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
     where
       loop _ _ ([], failed) = return failed
       loop cleanOS' count (unbuilt, failed) =
-         do next <- lift $ chooseNextTarget cache (goals unbuilt) unbuilt
+         do let next = chooseNextTarget cache (goals unbuilt) unbuilt
             case next of
               Nothing -> return failed
-              Just (target, blocked, other) ->
-                  do quieter' (const 0) (qPutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                                               (count - length unbuilt + 1) count (targetName target) (show (T.method (download (tgt target))))))
+              Just (target, blocked, other, dependencyTable) ->
+                  do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
+                                (count - length unbuilt + 1) count (targetName target) (show (T.method (download (tgt target)))))
+                     quieter (\x->x-1) $ qPutStrLn dependencyTable
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
                                then return (Failure ["--discard option set"])
                                else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
@@ -200,18 +201,19 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: P.CacheRec -> [Target] -> [Target] -> IO (Maybe (Target, [Target], [Target]))
-chooseNextTarget _ [] _ = return Nothing
+chooseNextTarget :: P.CacheRec -> [Target] -> [Target] -> Maybe (Target, [Target], [Target], String)
+chooseNextTarget _ [] _ = Nothing
 chooseNextTarget cache goals targets =
-    q12 "Choosing next target" $
+    -- q12 "Choosing next target" $
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
     -- targets which are blocked by the first target.
     case G.buildable depends targets of
       (G.CycleInfo arcs) -> error (cycleMessage cache arcs)
       info ->
-          do quieter (\x->x-2) $ qPutStrLn (makeTable info)
-             return . listToMaybe . sortBy (compareReady goals) . G.readyTriples $ info
+          case sortBy (compareReady goals) . G.readyTriples $ info of
+            (ready, blocked, other) : _ -> Just (ready, blocked, other, makeTable info)
+            [] -> Nothing
     where
       makeTable (G.BuildableInfo ready _other) =
           unlines . map (intercalate " ") . columns $ goalsLine ++ readyLines
@@ -229,8 +231,8 @@ chooseNextTarget cache goals targets =
       -- in the goal list, or which block packages in the goal list.
       -- Among those, prefer the target which blocks the most
       -- packages.  If there are goal targets but none of them are
-      -- ready to build or directly block 
-      -- targets include a goal as readyamongoals none of the 
+      -- ready to build or directly block
+      -- targets include a goal as readyamongoals none of the
       compareReady :: [Target] -> (Target, [Target], [Target]) ->  (Target, [Target], [Target]) -> Ordering
       compareReady goals' (aReady, aBlocked, _) (bReady, bBlocked, _) =
           -- Prefer targets which include a goal
@@ -238,7 +240,7 @@ chooseNextTarget cache goals targets =
             -- Otherwise, prefer the target which blocks the most other targets
             EQ -> compare (length bBlocked) (length aBlocked)
             x -> x
-          where 
+          where
             aGoals = intersect goals' (aReady : aBlocked)
             bGoals = intersect goals' (bReady : bBlocked)
 
@@ -251,7 +253,7 @@ cycleMessage cache arcs =
     "\nAdd one or more of these lines (but as few as possible) to your configuration file:\n  " ++
     intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs))))
     where
-      arcTuple (pkg, dep) = 
+      arcTuple (pkg, dep) =
           let rels = targetRelaxed (relaxDepends (P.params cache) (tgt pkg)) pkg in
           [(show (intersect (binaryNames pkg dep) (binaryNamesOfRelations rels))), targetName dep, " -> ", targetName pkg]
       binaryNames pkg dep =
@@ -288,7 +290,8 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
-      solns <- liftIO $ buildDepSolutions' (P.preferred (P.params cache)) cleanOS globalBuildDeps debianControl
+      arch <- liftIO $ buildArchOfEnv (rootDir cleanOS)
+      let solns = buildDepSolutions' arch (P.preferred (P.params cache)) cleanOS globalBuildDeps debianControl
       case solns of
         Failure excuses -> do let excuses' = ("Couldn't satisfy build dependencies" : excuses)
                               qPutStrLn (intercalate "\n " excuses')
@@ -340,7 +343,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
                       (do qPutStrLn "Not proceeding due to -n option."
                           liftIO (exitWith ExitSuccess))
       prepareImage = prepareBuildImage cache cleanOS newFingerprint buildOS target
-      logEntry buildTree = 
+      logEntry buildTree =
           case P.noClean (P.params cache) of
             False -> liftIO $ maybeAddLogEntry buildTree newVersion >> return (Success buildTree)
             True -> return (Success buildTree)
@@ -390,7 +393,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
       -- get installed into the clean or the build environment.
       maybeAddLogEntry _ Nothing = return ()
       maybeAddLogEntry buildTree (Just newVersion) = getCurrentLocalRFC822Time >>= return . makeLogEntry newVersion >>= (flip addLogEntry) buildTree
-      makeLogEntry newVersion date = 
+      makeLogEntry newVersion date =
           sourceLog { logVersion = newVersion,
                       logDists = [P.buildRelease (P.params cache)],
                       logWho = P.autobuilderEmail (P.params cache),
@@ -603,26 +606,24 @@ computeNewVersion cache
                 currentVersion
 
 -- FIXME: Most of this code should move into Debian.Repo.Dependencies
-buildDepSolutions' :: [String] -> OSImage -> Relations -> Control -> IO (Failing [(Int, [BinaryPackage])])
-buildDepSolutions' preferred os globalBuildDeps debianControl =
-    q12 "Searching for build dependency solution" $
-    do
-      arch <- buildArchOfEnv (rootDir os)
-      -- We don't discard any dependencies here even if they are
-      -- mentioned in Relax-Depends, that only applies to deciding
-      -- whether to build, once we are building we need to install all
-      -- the dependencies.  Hence this empty list.
-      case G.buildDependencies debianControl of
-        Left s -> return (Failure [s])
-        Right (_, relations, _) ->
-            do let relations' = relations ++ globalBuildDeps
-                   relations'' = simplifyRelations packages relations' preferred arch
-               -- Do not stare directly into the solutions!  Your head will
-               -- explode (because there may be a lot of them.)  Also, this
-               -- will be slow if solutions is not compiled.
-               case Debian.Repo.Dependencies.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
-                 Left error -> return (Failure [error, message relations' relations''])
-                 Right solutions -> quieter (+ 1) $ qPutStrLn (message relations' relations'') >> return (Success solutions)
+buildDepSolutions' :: Arch -> [String] -> OSImage -> Relations -> Control -> Failing [(Int, [BinaryPackage])]
+buildDepSolutions' arch preferred os globalBuildDeps debianControl =
+    -- q12 "Searching for build dependency solution" $
+    -- We don't discard any dependencies here even if they are
+    -- mentioned in Relax-Depends, that only applies to deciding
+    -- whether to build, once we are building we need to install all
+    -- the dependencies.  Hence this empty list.
+    case G.buildDependencies debianControl of
+      Left s -> Failure [s]
+      Right (_, relations, _) ->
+          let relations' = relations ++ globalBuildDeps
+              relations'' = simplifyRelations packages relations' preferred arch in
+          -- Do not stare directly into the solutions!  Your head will
+          -- explode (because there may be a lot of them.)  Also, this
+          -- will be slow if solutions is not compiled.
+          case Debian.Repo.Dependencies.solutions packages (filter (not . alwaysSatisfied) relations'') 100000 of
+            Left error -> Failure [error, message relations' relations'']
+            Right solutions -> {- quieter (+ 1) $ qPutStrLn (message relations' relations'') >> return -} Success solutions
     where
       alwaysSatisfied xs = any isNothing xs && all isNothing xs
       packages = aptBinaryPackages os
