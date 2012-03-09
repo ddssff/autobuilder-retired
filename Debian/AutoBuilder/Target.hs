@@ -226,7 +226,7 @@ chooseNextTarget cache goals targets =
           error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (srcPkgName (tgt a), srcPkgName (tgt b))) pairs)
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
-      depends target1 target2 = G.compareSource (targetRelaxed (relaxDepends (P.params cache) (tgt target1)) target1) (targetRelaxed (relaxDepends (P.params cache) (tgt target2)) target2)
+      depends target1 target2 = G.compareSource (targetRelaxed (relaxDepends cache (tgt target1)) target1) (targetRelaxed (relaxDepends cache (tgt target2)) target2)
       -- Choose the next target to build.  Look for targets which are
       -- in the goal list, or which block packages in the goal list.
       -- Among those, prefer the target which blocks the most
@@ -254,15 +254,15 @@ cycleMessage cache arcs =
     intercalate "\n  " (map relaxLine (nub (concat (map pairs arcs))))
     where
       arcTuple (pkg, dep) =
-          let rels = targetRelaxed (relaxDepends (P.params cache) (tgt pkg)) pkg in
+          let rels = targetRelaxed (relaxDepends cache (tgt pkg)) pkg in
           [(show (intersect (binaryNames pkg dep) (binaryNamesOfRelations rels))), targetName dep, " -> ", targetName pkg]
       binaryNames pkg dep =
           map (\ (G.BinPkgName name) -> name) xs
-          where (_, _, xs) = (targetRelaxed (relaxDepends (P.params cache) (tgt pkg)) dep)
+          where (_, _, xs) = (targetRelaxed (relaxDepends cache (tgt pkg)) dep)
       relaxLine (bin, src) = "Relax-Depends: " ++ bin ++ " " ++ src
       pairs (pkg, dep) =
           map (\ bin -> (bin, targetName pkg)) binaryDependencies
-              where binaryDependencies = intersect (binaryNames pkg dep) (binaryNamesOfRelations (targetRelaxed (relaxDepends (P.params cache) (tgt pkg)) pkg))
+              where binaryDependencies = intersect (binaryNames pkg dep) (binaryNamesOfRelations (targetRelaxed (relaxDepends cache (tgt pkg)) pkg))
       binaryNamesOfRelations (_, rels, _) =
           concat (map (map (\ (Rel name _ _) -> name)) rels)
 

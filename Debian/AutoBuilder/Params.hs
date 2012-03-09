@@ -19,6 +19,7 @@ import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust )
 import Data.Map ( fromList )
 import Debian.AutoBuilder.Types.CacheRec (CacheRec(..))
+import Debian.AutoBuilder.Types.Packages (Packages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..))
 import Debian.Release ( ReleaseName(relName), releaseName' )
 import Debian.Sources ( SliceName(..) )
@@ -31,8 +32,8 @@ import System.Environment ( getEnv )
 import System.Unix.QIO (qPutStrLn)
 
 -- |Create a Cache object from a parameter set.
-buildCache :: ParamRec -> FilePath -> AptIOT IO CacheRec
-buildCache params top =
+buildCache :: ParamRec -> FilePath -> Packages -> AptIOT IO CacheRec
+buildCache params top packages =
     do qPutStrLn ("Preparing autobuilder cache in " ++ top ++ "...")
        liftIO $ mapM_ (createDirectoryIfMissing True . ((top ++ "/") ++))
                   [".", "darcs", "deb-dir", "dists", "hackage", "localpools", "quilt", "tmp"]
@@ -40,7 +41,7 @@ buildCache params top =
        all <- mapM parseNamedSliceList (sources params)
        let uri = maybe (uploadURI params) Just (buildURI params)
        build <- maybe (return $ SliceList { slices = [] }) (repoSources Nothing) uri
-       return $ CacheRec {params = params, topDir = top, allSources = all, buildRepoSources = build}
+       return $ CacheRec {params = params, topDir = top, allSources = all, buildRepoSources = build, packages = packages}
     where
       parseNamedSliceList (name, text) = 
           do sources <- (verifySourcesList Nothing . parseSourcesList) text

@@ -22,7 +22,7 @@ import Debian.AutoBuilder.BuildTarget (retrieve)
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Target(buildTargets, showTargets)
 import Debian.AutoBuilder.Types.Buildable (Target, targetName, asBuildable)
-import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.CacheRec as C
 import Debian.AutoBuilder.Types.Download (Download)
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -60,11 +60,11 @@ import Text.Printf ( printf )
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
-main :: [P.ParamRec] -> IO ()
+main :: [(P.ParamRec, P.Packages)] -> IO ()
 main [] = error "No parameter sets"
 main paramSets =
-    foldM (\ (xs, s) params ->
-               try (quieter (const (- (P.verbosity params))) (doParameterSet s params)) >>=
+    foldM (\ (xs, s) (params, packages) ->
+               try (quieter (const (- (P.verbosity params))) (doParameterSet s params packages)) >>=
                either (\ (e :: SomeException) ->
                            ePutStrLn ("Failure running parameter set: " ++ show e) >> return (Left [show e] : xs, initState))
                       (\ (result, s') -> return (failing Left Right result : xs, s')))
@@ -83,12 +83,12 @@ main paramSets =
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.
-doParameterSet :: AptState -> P.ParamRec -> IO (Failing ([Output], NominalDiffTime), AptState)
-doParameterSet state params =
+doParameterSet :: AptState -> P.ParamRec -> P.Packages -> IO (Failing ([Output], NominalDiffTime), AptState)
+doParameterSet state params packages =
     do top <- P.computeTopDir params
-       withLock (top ++ "/lockfile") (runStateT (quieter (+ 2) (P.buildCache params top) >>= runParameterSet) state)
+       withLock (top ++ "/lockfile") (runStateT (quieter (+ 2) (P.buildCache params top packages) >>= runParameterSet) state)
 
-runParameterSet :: P.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
+runParameterSet :: C.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet cache =
     do
       lift doRequiredVersion
@@ -125,7 +125,7 @@ runParameterSet cache =
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      poolOS <-prepareAptEnv (P.topDir cache) (P.ifSourcesChanged params) poolSources
+      poolOS <-prepareAptEnv (C.topDir cache) (P.ifSourcesChanged params) poolSources
       (failures, targets) <- retrieveTargetList cleanOS >>= mapM (either (return . Left) (liftIO . try . asBuildable)) >>= return . partitionEithers
       when (not (null failures))
            (do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
@@ -138,10 +138,10 @@ runParameterSet cache =
       updateRepoCache
       return result
     where
-      top = P.topDir cache
-      params = P.params cache
+      top = C.topDir cache
+      params = C.params cache
       baseRelease =  either (error . show) id (P.findSlice cache (P.baseRelease params))
-      buildRepoSources = P.buildRepoSources cache
+      buildRepoSources = C.buildRepoSources cache
       buildReleaseSources = releaseSlices (P.buildRelease params) (inexactPathSlices buildRepoSources)
       buildRelease = NamedSliceList { sliceListName = SliceName (releaseName' (P.buildRelease params))
                                     , sliceList = appendSliceLists [sliceList baseRelease, buildReleaseSources] }
@@ -169,8 +169,8 @@ runParameterSet cache =
                    exitWith ExitSuccess
       doFlush =
           do qPutStrLn "Flushing cache"
-             removeRecursiveSafely (P.topDir cache)
-             createDirectoryIfMissing True (P.topDir cache)
+             removeRecursiveSafely (C.topDir cache)
+             createDirectoryIfMissing True (C.topDir cache)
       checkPermissions =
           do isRoot <- liftIO $ checkSuperUser
              case isRoot of
@@ -207,9 +207,7 @@ runParameterSet cache =
                               (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) allTargets []))
           where
             buildOS = chrootEnv cleanOS (P.dirtyRoot cache)
-            allTargets = case P.targets params of
-                           P.TargetSet s -> s
-                           _ -> error "retrieveTargetList: invalid target set"
+            allTargets = C.packages cache
       upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =
@@ -244,7 +242,7 @@ runParameterSet cache =
           | True = return (Success ([], (fromInteger 0)))
       updateRepoCache :: AptIOT IO ()
       updateRepoCache =
-          do let path = P.topDir cache  ++ "/repoCache"
+          do let path = C.topDir cache  ++ "/repoCache"
              live <- get >>= return . getRepoMap
              repoCache <- liftIO $ loadCache path
              let merged = show . map (\ (uri, x) -> (show uri, x)) . Map.toList $ Map.union live repoCache

@@ -281,7 +281,7 @@ buildDecision cache target (Fingerprint _ oldSrcVersion builtDependencies repoVe
       builtDeps = Map.fromList (map (\ p -> (getName p, Just (getVersion p))) builtDependencies)
       -- Remove any package not mentioned in the relaxed dependency list
       -- from the list of build dependencies which can trigger a rebuild.
-      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed (relaxDepends (P.params cache) (tgt target)) target))) sourceDependencies
+      sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed (relaxDepends cache (tgt target)) target))) sourceDependencies
       -- All the package names mentioned in a dependency list
       packageNames :: G.DepInfo -> [String]
       packageNames (_, deps, _) = nub (map (\ (Rel name _ _) -> name) (concat deps))

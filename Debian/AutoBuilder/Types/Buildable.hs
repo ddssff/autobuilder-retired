@@ -19,7 +19,7 @@ import Control.Monad.Trans (liftIO)
 import Data.List (intercalate)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Debian.AutoBuilder.Types.CacheRec as P
+import qualified Debian.AutoBuilder.Types.CacheRec as C
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.Packages as P
@@ -74,12 +74,10 @@ asBuildable download =
 -- example, @Relax-Depends: ghc6 hscolour@ means \"even if ghc6
 -- is rebuilt, don't rebuild hscolour even though ghc6 is one of
 -- its build dependencies.\"
-relaxDepends :: ParamRec -> Buildable -> G.OldRelaxInfo
-relaxDepends params@(ParamRec {targets = TargetSet s}) tgt =
-    G.RelaxInfo $
-                  map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo params) ++
+relaxDepends :: C.CacheRec -> Buildable -> G.OldRelaxInfo
+relaxDepends cache@(C.CacheRec {C.packages = s}) tgt =
+    G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo (C.params cache)) ++
                   foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName tgt)))) (P.relaxInfo flags)) s []
-relaxDepends _params _ = error "relaxDepends: invalid target set"
 
 srcPkgName :: Buildable -> String
 srcPkgName tgt =
@@ -108,7 +106,7 @@ instance Eq Target where
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
 -- DebianBuildTree. 
-prepareTarget :: P.CacheRec -> Relations -> OSImage -> Buildable -> IO Target
+prepareTarget :: C.CacheRec -> Relations -> OSImage -> Buildable -> IO Target
 prepareTarget cache globalBuildDeps os source =
     quieter (+ 2) $ prepareBuild cache os (download source) >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=
@@ -124,7 +122,7 @@ targetControl = control . cleanSource
 -- revision control files.  This ensures that the tarball and\/or the
 -- .diff.gz file in the deb don't contain extra junk.  It also makes
 -- sure that debian\/rules is executable.
-prepareBuild :: P.CacheRec -> OSImage -> T.Download -> IO DebianBuildTree
+prepareBuild :: C.CacheRec -> OSImage -> T.Download -> IO DebianBuildTree
 prepareBuild _cache os target =
     try (findDebianSourceTree (T.getTop target)) >>=
     either (\ (_ :: SomeException) ->

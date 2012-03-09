@@ -263,7 +263,6 @@ instance Show Strictness where
 data TargetSpec
     = AllTargets
     | TargetNames (Set.Set String)
-    | TargetSet Packages
     deriving Show
 
 -- |Output a (somewhat) readable representation of the parameter set.
