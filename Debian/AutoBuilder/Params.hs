@@ -16,7 +16,7 @@ import Control.Exception ( SomeException, try, evaluate )
 import Control.Monad.State ( get, put )
 import Control.Monad.Trans ( liftIO )
 import Data.List ( isSuffixOf )
-import Data.Maybe ( catMaybes, fromJust )
+import Data.Maybe ( catMaybes, fromJust, fromMaybe )
 import Data.Map ( fromList )
 import Debian.AutoBuilder.Types.CacheRec (CacheRec(..))
 import Debian.AutoBuilder.Types.Packages (Packages)
@@ -70,13 +70,13 @@ loadRepoCache top =
 -- exists.  Then we can safely return it from topDir below.
 computeTopDir :: ParamRec -> IO FilePath
 computeTopDir params =
-    maybe homeDir return (topDirParam params) >>= \ top ->
-    createDirectoryIfMissing True top >>
-    getPermissions top >>= return . writable >>= finish top
-    where
-      finish _ False = error "Cache directory not writable (are you root?)"
-      finish top True = return top
-      homeDir = getEnv "HOME" >>= return . (++ "/.autobuilder")
+    do home <- getEnv "HOME"
+       let top = fromMaybe (home ++ "/.autobuilder") (topDirParam params)
+       createDirectoryIfMissing True top
+       canWrite <- getPermissions top >>= return . writable
+       case canWrite of
+         False -> error "Cache directory not writable (are you root?)"
+         True -> return top
 
 -- |Find a release by name, among all the "Sources" entries given in the configuration.
 findSlice :: CacheRec -> SliceName -> Either String NamedSliceList
