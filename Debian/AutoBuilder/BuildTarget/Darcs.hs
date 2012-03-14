@@ -34,17 +34,16 @@ darcsRev tree m =
       cmd = "cd " ++ path ++ " && darcs changes --xml-output"
       path = topdir tree
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> IO T.Download
-prepare cache m flags theUri =
+prepare :: P.CacheRec -> P.Packages -> String -> IO T.Download
+prepare cache package theUri =
     do
       when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
       exists <- doesDirectoryExist dir
       tree <- if exists then verifySource dir else createSource dir
       _output <- fixLink
-      return $ T.Download { T.method = m
-                          , T.flags = flags
+      return $ T.Download { T.package = package
                           , T.getTop = topdir tree
-                          , T.logText =  "Darcs revision: " ++ show m
+                          , T.logText =  "Darcs revision: " ++ show (P.spec package)
                           , T.mVersion = Nothing
                           , T.origTarball = Nothing
                           , T.cleanTarget =
@@ -88,7 +87,7 @@ prepare cache m flags theUri =
       uriAndTag = uriToString id theUri' "" ++ maybe "" (\ tag -> "=" ++ tag) theTag
       theTag = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                            P.DarcsTag s -> Just s
-                                                           _ -> Nothing) flags))) of
+                                                           _ -> Nothing) (P.flags package)))) of
                  [] -> Nothing
                  [x] -> Just x
                  xs -> error ("Conflicting tags for darcs get of " ++ theUri ++ ": " ++ show xs)

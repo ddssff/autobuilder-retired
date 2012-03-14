@@ -16,7 +16,7 @@ import Data.List (intercalate, intersperse, find, partition, nub)
 import qualified Data.Map as Map
 import Data.Maybe(fromJust, isJust, isNothing)
 import qualified Data.Set as Set
-import Debian.AutoBuilder.Types.Buildable (Target(tgt, cleanSource), Buildable(download), targetName, targetRelaxed, targetControl, relaxDepends)
+import Debian.AutoBuilder.Types.Buildable (Target(tgt, cleanSource), Buildable(download), targetRelaxed, targetControl, relaxDepends)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.ParamRec as P
@@ -174,7 +174,7 @@ buildDecision :: P.CacheRec
                                         -- to the architecture we are building - either all binary packages
                                         -- are available, or none, or only the architecture independent.
               -> BuildDecision
-buildDecision cache target _ _ _ | elem (targetName target) (P.forceBuild (P.params cache)) = Yes "--force-build option is set"
+buildDecision cache target _ _ _ | elem (T.handle (download (tgt target))) (P.forceBuild (P.params cache)) = Yes "--force-build option is set"
 buildDecision _ _ NoFingerprint (Fingerprint _ (Just sourceVersion) _ _) _ =
     Yes ("Initial build of version " ++ show (prettyDebianVersion sourceVersion))
 buildDecision _ _ (Fingerprint oldMethod _ _ _) (Fingerprint newMethod _ _ _) _

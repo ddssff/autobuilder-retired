@@ -23,8 +23,8 @@ documentation = [ "sourcedeb:<target> - A target of this form unpacks the source
 
 -- |Given the BuildTarget for the base target, prepare a SourceDeb BuildTarget
 -- by unpacking the source deb.
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> AptIOT IO T.Download
-prepare _cache m flags base =
+prepare :: P.CacheRec -> P.Packages -> T.Download -> AptIOT IO T.Download
+prepare _cache package base =
     do dscFiles <- liftIO (getDirectoryContents top) >>= return . filter (isSuffixOf ".dsc")
        dscInfo <- mapM (\ name -> liftIO (readFile (top ++ "/" ++ name) >>= return . S.parseControl name)) dscFiles
        case sortBy compareVersions (zip dscFiles dscInfo) of
@@ -42,10 +42,9 @@ prepare _cache m flags base =
                      (S.fieldValue "Version" dscInfo)) of
             (Just _package, Just _version) ->
                 return $ T.Download {
-                             T.method = m
-                           , T.flags = flags
+                             T.package = package
                            , T.getTop = top
-                           , T.logText = "Source Deb: " ++ show m
+                           , T.logText = "Source Deb: " ++ show (P.spec package)
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)

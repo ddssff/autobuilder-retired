@@ -17,11 +17,10 @@ documentation = [ "proc:<target> - A target of this form modifies another target
                 , "machine which might be different from the machine on which the package"
                 , "is ultimately installed." ]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> OSImage -> T.Download -> AptIOT IO T.Download
-prepare _cache m flags buildOS base =
+prepare :: P.CacheRec -> P.Packages -> OSImage -> T.Download -> AptIOT IO T.Download
+prepare _cache package buildOS base =
     return $ T.Download {
-                 T.method = m
-               , T.flags = flags
+                 T.package = package
                , T.getTop = T.getTop base
                , T.logText = T.logText base ++ " (with /proc mounted)"
                , T.mVersion = Nothing

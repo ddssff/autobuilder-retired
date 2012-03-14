@@ -11,13 +11,12 @@ import Debian.Repo
 -- for testing, and is also returned by the clean method when the
 -- source control information has been stripped out of some other type
 -- of BuildTarget.
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> FilePath -> AptIOT IO T.Download
-prepare _cache m flags path =
+prepare :: P.CacheRec -> P.Packages -> FilePath -> AptIOT IO T.Download
+prepare _cache package path =
     do tree <- lift (findSourceTree path)
-       return $ T.Download { T.method = m
-                           , T.flags = flags
+       return $ T.Download { T.package = package
                            , T.getTop = topdir tree
-                           , T.logText =  "Built from local directory " ++ show m
+                           , T.logText =  "Built from local directory " ++ show (P.spec package)
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget = \ _ -> return ([], 0)

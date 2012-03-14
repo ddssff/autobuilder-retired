@@ -1,3 +1,11 @@
+autobuilder (6.23) unstable; urgency=low
+
+  * Resolve some confusion between the name in the Packages type and
+    the debian source package name.  Turned out to involve extensive
+    changes to the signatures of the prepare and retrieve functions.
+
+ -- David Fox <dsf@seereason.com>  Wed, 14 Mar 2012 10:00:29 -0700
+
 autobuilder (6.22) unstable; urgency=low
 
   * Make Patch a retrieve method instead of a flag.

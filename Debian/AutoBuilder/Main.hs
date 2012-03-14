@@ -201,7 +201,7 @@ runParameterSet cache =
                                                      Just UserInterrupt -> Nothing
                                                      -- Any other exception gets reported but we continue retrieving packages
                                                      _ -> Just e)
-                                              (retrieve buildOS cache (P.spec target) (P.flags target)) >>=
+                                              (retrieve buildOS cache target) >>=
                                     either (\ (e :: SomeException) -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >> return (Left e))
                                            (return . Right)))
                               (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) allTargets []))

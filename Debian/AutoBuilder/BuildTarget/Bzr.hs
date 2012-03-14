@@ -24,17 +24,16 @@ import System.Directory
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
                 , "given revision name." ]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO Download
-prepare cache method flags version = liftIO $
+prepare :: P.CacheRec -> P.Packages -> String -> AptIOT IO Download
+prepare cache package version = liftIO $
   do
     when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
     exists <- liftIO $ doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
     return $ Download
-               { method = method
-               , flags = flags
+               { package = package
                , getTop = topdir tree
-               , logText = "Bazaar revision: " ++ show method
+               , logText = "Bazaar revision: " ++ show (P.spec package)
                , mVersion = Nothing
                , origTarball = Nothing
                , cleanTarget = \ top ->

@@ -7,7 +7,6 @@ module Debian.AutoBuilder.Types.ParamRec
 
 import Control.Arrow (first)
 import qualified Data.Set as Set
-import Debian.AutoBuilder.Types.Packages (Packages)
 import Debian.Release ( Arch, ReleaseName )
 import Debian.Repo.Cache ( SourcesChangedAction )
 import Debian.Version ( DebianVersion, prettyDebianVersion )

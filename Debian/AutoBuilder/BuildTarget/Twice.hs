@@ -10,11 +10,10 @@ documentation = [ "twice:<target> - A target of this form modifies another targe
                 , "the first time.  For some reason, certain packages are designed"
                 , "to fail the first time to prevent fully automated builds."]
 
-prepare :: P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> AptIOT IO T.Download
-prepare m flags base =
+prepare :: P.Packages -> T.Download -> AptIOT IO T.Download
+prepare package base =
     do return $ T.Download {
-                    T.method = m
-                  , T.flags = flags
+                    T.package = package
                   , T.getTop = T.getTop base
                   , T.logText = T.logText base ++ " (twice if necessary)"
                   , T.mVersion = Nothing

@@ -32,8 +32,8 @@ documentation = [ "hackage:<name> or hackage:<name>=<version> - a target of this
                 , "retrieves source code from http://hackage.haskell.org." ]
 
 -- | Debianize the download, which is assumed to be a cabal package.
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> AptIOT IO T.Download
-prepare cache m flags cabal = liftIO $
+prepare :: P.CacheRec -> P.Packages -> T.Download -> AptIOT IO T.Download
+prepare cache package' cabal = liftIO $
     getDirectoryContents (T.getTop cabal) >>= return . filter (isSuffixOf ".cabal") >>= \ cabfiles ->
     case cabfiles of
       [cabfile] ->
@@ -42,11 +42,10 @@ prepare cache m flags cabal = liftIO $
              let version = pkgVersion . package . packageDescription $ desc
              removeRecursiveSafely (T.getTop cabal </> "debian")
              -- tree <- findSourceTree (T.getTop cabal)
-             debianize cache flags (T.getTop cabal)
-             return $ T.Download { T.method = m
-                                 , T.flags = flags
+             debianize cache (P.flags package') (T.getTop cabal)
+             return $ T.Download { T.package = package'
                                  , T.getTop = T.getTop cabal
-                                 , T.logText =  "Built from hackage, revision: " ++ show m
+                                 , T.logText =  "Built from hackage, revision: " ++ show (P.spec package')
                                  , T.mVersion = Just version
                                  , T.origTarball = T.origTarball cabal
                                  , T.cleanTarget = \ top -> T.cleanTarget cabal top

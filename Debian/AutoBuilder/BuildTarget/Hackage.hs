@@ -37,16 +37,15 @@ documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of 
                 , "(currently) retrieves source code from http://hackage.haskell.org and runs"
                 , "cabal-debian to create the debianization." ]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
-prepare cache m flags name = liftIO $
+prepare :: P.CacheRec -> P.Packages -> String -> AptIOT IO T.Download
+prepare cache package name = liftIO $
     do (version' :: Version) <- maybe (getVersion (P.hackageServer (P.params cache)) name) (return . readVersion) versionString
        when (P.flushSource (P.params cache)) (removeRecursiveSafely (tarball cache name version'))
        download cache name version'
        tree <- findSourceTree (unpacked cache name version')
-       return $ T.Download { T.method = m
-                           , T.flags = flags
+       return $ T.Download { T.package = package
                            , T.getTop = topdir tree
-                           , T.logText =  "Built from hackage, revision: " ++ show m
+                           , T.logText =  "Built from hackage, revision: " ++ show (P.spec package)
                            , T.mVersion = Just version'
                            , T.origTarball = Just (tarball cache name version')
                            , T.cleanTarget = \ _ -> return ([], 0)
@@ -54,7 +53,7 @@ prepare cache m flags name = liftIO $
     where
       versionString = case nub (sort (catMaybes (map (\ flag -> case flag of
                                                                   P.CabalPin s -> Just s
-                                                                  _ -> Nothing) flags))) of
+                                                                  _ -> Nothing) (P.flags package)))) of
                         [] -> Nothing
                         [v] -> Just v
                         vs -> error ("Conflicting cabal version numbers passed to Debianize: [" ++ intercalate ", " vs ++ "]")

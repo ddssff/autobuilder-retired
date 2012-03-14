@@ -1,19 +1,21 @@
 {-# LANGUAGE RankNTypes #-}
 module Debian.AutoBuilder.Types.Download
     ( Download(..)
+    , handle
+    , method
+    , flags
     ) where
 
 import Data.Time (NominalDiffTime)
 import Data.Version (Version)
-import Debian.AutoBuilder.Types.Packages (PackageFlag, RetrieveMethod(..))
+import Debian.AutoBuilder.Types.Packages (Packages, PackageFlag, RetrieveMethod(..))
+import qualified Debian.AutoBuilder.Types.Packages as P
 import System.Unix.Process
 
 data Download
     = Download
-      { method :: RetrieveMethod
-      -- ^ The method used to retrieve this target.
-      , flags :: [PackageFlag]
-      -- ^ The flags assocated with the package
+      { package :: Packages
+      -- ^ the data provided about the package in the target list
       , getTop :: FilePath
       -- ^ The directory containing the target's files.  For most target types, these
       --  files could be anything, not necessarily a Debian source directory.
@@ -30,3 +32,13 @@ data Download
       -- ^ Modify the build process in some way - currently only the
       -- proc target modifies this by mounting and then unmounting /proc.
       }
+
+-- | The name used to identify the package in the target list.
+handle :: Download -> String
+handle = P.name . package
+-- | The method used to retrieve this target.
+method :: Download -> RetrieveMethod
+method = P.spec . package
+-- | The flags assocated with the package
+flags :: Download -> [PackageFlag]
+flags  = P.flags . package

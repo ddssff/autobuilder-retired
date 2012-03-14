@@ -2,9 +2,7 @@
 {-# LANGUAGE Rank2Types, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Patch where
 
-import Control.Exception (try)
 import Control.Monad.Trans (liftIO)
-import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.Digest.Pure.MD5 (md5)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
@@ -13,7 +11,6 @@ import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo (OSImage, findSourceTree, copySourceTree, SourceTree(dir'))
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
-import System.FilePath ((</>))
 import System.Unix.Progress (lazyProcessE)
 import System.Unix.Process (collectOutputUnpacked)
 
@@ -39,8 +36,8 @@ instance Show Patch where
 
 documentation = [ "Patch <target> <patchtext> - Apply the patch to the target." ]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> OSImage -> String -> T.Download -> IO T.Download
-prepare cache m flags buildOS patch base =
+prepare :: P.CacheRec -> P.Packages -> OSImage -> String -> T.Download -> IO T.Download
+prepare cache package _buildOS patch base =
     do baseTree <- findSourceTree (T.getTop base)
        liftIO (createDirectoryIfMissing True copyDir)
        tree <- copySourceTree baseTree copyDir
@@ -51,8 +48,7 @@ prepare cache m flags buildOS patch base =
                                  show n ++ "\noutput: " ++ err ++ "\npatch:\n" ++ indent patch)
          ExitSuccess ->
              return $ T.Download {
-                          T.method = m
-                        , T.flags = flags
+                          T.package = package
                         , T.getTop = dir' tree
                         , T.logText = T.logText base ++ " (with patch applied)"
                         , T.mVersion = Nothing
@@ -61,7 +57,7 @@ prepare cache m flags buildOS patch base =
                         , T.buildWrapper = id
                         }
     where
-      copyDir = P.topDir cache ++ "/quilt/" ++ show (md5 (B.pack (show m)))
+      copyDir = P.topDir cache ++ "/quilt/" ++ show (md5 (B.pack (show (P.spec package))))
 
 indent = unlines . map ("  " ++) . lines
 

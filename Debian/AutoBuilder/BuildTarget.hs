@@ -37,66 +37,63 @@ import System.Unix.Progress (lazyProcessEF)
 import System.Unix.QIO (q12, quieter)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: OSImage -> P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> AptIOT IO Download
-retrieve buildOS cache spec flags =
-    q12 (" " ++ show spec) $     
-     case spec of
-      P.Apt dist package -> Apt.prepare cache spec flags dist package
-      P.Bzr string -> Bzr.prepare cache spec flags string
+retrieve :: OSImage -> P.CacheRec -> P.Packages -> AptIOT IO Download
+retrieve buildOS cache target =
+    q12 (" " ++ show (P.spec target)) $     
+     case P.spec target of
+      P.Apt dist package -> Apt.prepare cache target dist package
+      P.Bzr string -> Bzr.prepare cache target string
 
       P.Cd dir spec' ->
-          retrieve buildOS cache spec' flags >>= \ target ->
-          return $ Download { method = spec
-                            , flags = flags
-                            , getTop = getTop target </> dir
-                            , logText = logText target ++ " (in subdirectory " ++ dir ++ ")"
-                            , mVersion = Nothing
-                            , origTarball = Nothing
-                            , cleanTarget = cleanTarget target
-                            , buildWrapper = id
+          retrieve buildOS cache (target {P.spec = spec'}) >>= \ target' ->
+          return $ Download { T.package = target
+                            , T.getTop = getTop target' </> dir
+                            , T.logText = logText target' ++ " (in subdirectory " ++ dir ++ ")"
+                            , T.mVersion = Nothing
+                            , T.origTarball = Nothing
+                            , T.cleanTarget = cleanTarget target'
+                            , T.buildWrapper = id
                             }
 
-      P.Darcs uri -> lift (Darcs.prepare cache spec flags uri)
+      P.Darcs uri -> lift (Darcs.prepare cache target uri)
 
       P.DataFiles base files loc ->
-          do base' <- retrieve buildOS cache base flags
-             files' <- retrieve buildOS cache files flags
+          do base' <- retrieve buildOS cache (target {P.spec = base})
+             files' <- retrieve buildOS cache (target {P.spec = files})
              baseTree <- liftIO $ findSourceTree (T.getTop base')
              filesTree <- liftIO $ findSourceTree (T.getTop files')
-             liftIO $ copySourceTree filesTree (dir' baseTree </> loc)
+             _ <- liftIO $ copySourceTree filesTree (dir' baseTree </> loc)
              return base'
           
       P.DebDir upstream debian ->
-          do upstream' <- retrieve buildOS cache upstream flags
-             debian' <- retrieve buildOS cache debian flags
-             DebDir.prepare cache spec flags upstream' debian'
+          do upstream' <- retrieve buildOS cache (target {P.spec = upstream})
+             debian' <- retrieve buildOS cache (target {P.spec = debian})
+             DebDir.prepare cache target upstream' debian'
       P.Debianize package ->
-          retrieve buildOS cache package flags >>=
-          Debianize.prepare cache spec flags
+          retrieve buildOS cache (target {P.spec = package}) >>=
+          Debianize.prepare cache target
 
       P.Dir path ->
           do tree <- lift (findSourceTree path)
-             return $ T.Download { T.method = spec
-                                 , T.flags = flags
+             return $ T.Download { T.package = target
                                  , T.getTop = topdir tree
-                                 , T.logText =  "Built from local directory " ++ show spec
+                                 , T.logText =  "Built from local directory " ++ show (P.spec target)
                                  , T.mVersion = Nothing
                                  , T.origTarball = Nothing
                                  , T.cleanTarget = \ _ -> return ([], 0)
                                  , T.buildWrapper = id
                                  }
 
-      P.Hackage package -> Hackage.prepare cache spec flags package
-      P.Hg string -> Hg.prepare cache spec flags string
+      P.Hackage package -> Hackage.prepare cache target package
+      P.Hg string -> Hg.prepare cache target string
       P.Patch base patch ->
-          retrieve buildOS cache base flags >>=
-          liftIO . Patch.prepare cache spec flags buildOS patch
+          retrieve buildOS cache (target {P.spec = base}) >>=
+          liftIO . Patch.prepare cache target buildOS patch
 
       P.Proc spec' ->
-          retrieve buildOS cache spec' flags >>= \ base ->
+          retrieve buildOS cache (target {P.spec = spec'}) >>= \ base ->
           return $ T.Download {
-                       T.method = spec
-                     , T.flags = flags
+                       T.package = target
                      , T.getTop = T.getTop base
                      , T.logText = T.logText base ++ " (with /proc mounted)"
                      , T.mVersion = Nothing
@@ -105,17 +102,17 @@ retrieve buildOS cache spec flags =
                      , T.buildWrapper = withProc buildOS
                      }
       P.Quilt base patches ->
-          do base' <- retrieve buildOS cache base flags
-             patches' <- retrieve buildOS cache patches flags
-             Quilt.prepare cache spec flags base' patches'
+          do base' <- retrieve buildOS cache (target {P.spec = base})
+             patches' <- retrieve buildOS cache (target {P.spec = patches})
+             Quilt.prepare cache target base' patches'
       P.SourceDeb spec' ->
-          retrieve buildOS cache spec' flags >>=
-          SourceDeb.prepare cache spec flags
-      P.Svn uri -> Svn.prepare cache spec flags uri
-      P.Tla string -> Tla.prepare cache spec flags string
-      P.Twice base -> retrieve buildOS cache base flags >>=
-                      Twice.prepare spec flags
-      P.Uri uri sum -> Uri.prepare cache spec flags uri sum
+          retrieve buildOS cache (target {P.spec = spec'}) >>=
+          SourceDeb.prepare cache target
+      P.Svn uri -> Svn.prepare cache target uri
+      P.Tla string -> Tla.prepare cache target string
+      P.Twice base -> retrieve buildOS cache (target {P.spec = base}) >>=
+                      Twice.prepare target
+      P.Uri uri sum -> Uri.prepare cache target uri sum
 
 -- | Perform an IO operation with /proc mounted
 withProc :: forall a. OSImage -> IO a -> IO a

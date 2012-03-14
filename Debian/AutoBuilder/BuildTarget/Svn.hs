@@ -39,15 +39,14 @@ password userInfo =
     then []
     else ["--password",unEscapeString pw]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> AptIOT IO T.Download
-prepare cache m flags uri = liftIO $
+prepare :: P.CacheRec -> P.Packages -> String -> AptIOT IO T.Download
+prepare cache package uri = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
-       return $ T.Download { T.method = m
-                           , T.flags = flags
+       return $ T.Download { T.package = package
                            , T.getTop = topdir tree
-                           , T.logText =  "SVN revision: " ++ show m
+                           , T.logText =  "SVN revision: " ++ show (P.spec package)
                            , T.mVersion = Nothing
                            , T.origTarball = Nothing
                            , T.cleanTarget =

@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        6.22
+Version:        6.23
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -50,6 +50,7 @@ Library
       , parsec
       , pretty
       , process
+      , progress
       , pureMD5
       , regex-compat
       , regex-posix

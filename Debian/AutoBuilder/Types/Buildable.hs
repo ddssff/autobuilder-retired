@@ -5,8 +5,9 @@ module Debian.AutoBuilder.Types.Buildable
     , relaxDepends
     , srcPkgName
     , Target(Target, tgt, cleanSource)
-    , prepareTarget
     , targetName
+    , prepareTarget
+    , debianSourcePackageName
     , targetRelaxed
     , targetControl
     , getRelaxedDependencyInfo
@@ -24,7 +25,7 @@ import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
-import Debian.AutoBuilder.Types.ParamRec (ParamRec(..), TargetSpec(..))
+import Debian.AutoBuilder.Types.ParamRec (ParamRec(..))
 import Debian.Changes (logVersion, ChangeLogEntry(..))
 import Debian.Control (Control, Control'(Control, unControl), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G
@@ -58,7 +59,7 @@ data Buildable
 asBuildable :: Download -> IO Buildable
 asBuildable download =
     try (findDebianSourceTree (getTop download)) >>=
-            either (\ (e :: SomeException) ->
+            either (\ (_ :: SomeException) ->
                         -- qPutStrLn ("No source tree found in " ++ getTop download ++ " (" ++ show e ++ ")") >>
                         findDebianBuildTrees (getTop download) >>= \ trees ->
                         case trees of
@@ -101,7 +102,10 @@ data Target
              }
 
 instance Eq Target where
-    a == b = targetName a == targetName b
+    a == b = debianSourcePackageName a == debianSourcePackageName b
+
+targetName :: Target -> String
+targetName = T.handle . download . tgt
 
 -- |Prepare a target for building in the given environment.  At this
 -- point, the target needs to be a DebianSourceTree or a
@@ -193,8 +197,8 @@ escapeForBuild =
       escape c = c
 
 -- | The /Source:/ attribute of debian\/control.
-targetName :: Target -> String
-targetName target =
+debianSourcePackageName :: Target -> String
+debianSourcePackageName target =
     case removeCommentParagraphs (targetControl target) of
       (Control (paragraph : _)) ->
           maybe (error "Missing Source field") id $ fieldValue "Source" paragraph

@@ -12,11 +12,10 @@ documentation = [ "cd:<relpath>:<target> - A target of this form modifies anothe
                 , "changing directories into a subdirectory before doing the build.  It is"
                 , "used for repositories where the debian directory is in a subdirectory."]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> FilePath -> Download -> AptIOT IO Download
-prepare _cache m flags subdir target =
+prepare :: P.CacheRec -> P.Packages -> FilePath -> Download -> AptIOT IO Download
+prepare _cache package subdir target =
     do     
-    return $ Download { method = m
-                      , flags = flags
+    return $ Download { package = package
                         , getTop = getTop target </> subdir
                         , logText = logText target ++ " (in subdirectory " ++ subdir ++ ")"
                         , mVersion = Nothing

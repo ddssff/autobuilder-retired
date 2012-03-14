@@ -29,7 +29,7 @@ import Debian.Repo.Types ( SliceList(..) )
 import Debian.URI ( parseURI )
 import System.Directory ( createDirectoryIfMissing, getPermissions, writable )
 import System.Environment ( getEnv )
-import System.Unix.QIO (qPutStrLn)
+import "progress" System.Unix.QIO (qPutStrLn)
 
 -- |Create a Cache object from a parameter set.
 buildCache :: ParamRec -> FilePath -> Packages -> AptIOT IO CacheRec

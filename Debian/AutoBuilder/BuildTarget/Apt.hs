@@ -19,16 +19,15 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> String -> String -> AptIOT IO Download
-prepare cache method flags dist package =
+prepare :: P.CacheRec -> P.Packages -> String -> String -> AptIOT IO Download
+prepare cache target dist package =
     do os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)
        tree <- lift $ Debian.Repo.aptGetSource (aptDir os package) os package version'
        return $ Download {
-                    method = method
-                  , flags = flags
+                    package = target
                   , getTop = topdir tree
-                  , logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ show method
+                  , logText = "Built from " ++ sliceName (sliceListName distro) ++ " apt pool, apt-revision: " ++ show (P.spec target)
                   , mVersion = Nothing
                   , origTarball = Nothing
                   , cleanTarget = \ _ -> return ([], 0)
@@ -38,7 +37,7 @@ prepare cache method flags dist package =
       dist' = SliceName dist
       version' = case (nub (sort (catMaybes (map (\ flag -> case flag of
                                                               P.AptPin s -> Just (parseDebianVersion s)
-                                                              _ -> Nothing) flags)))) of
+                                                              _ -> Nothing) (P.flags target))))) of
                    [] -> Nothing
                    [v] -> Just v
                    vs -> error ("Conflicting pin versions for apt-get: " ++ show (map prettyDebianVersion vs))

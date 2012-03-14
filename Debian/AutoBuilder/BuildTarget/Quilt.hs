@@ -79,10 +79,10 @@ makeQuiltTree cache m base patch =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> T.Download -> AptIOT IO T.Download
-prepare cache m flags base patch = liftIO $
+prepare :: P.CacheRec -> P.Packages -> T.Download -> T.Download -> AptIOT IO T.Download
+prepare cache package base patch = liftIO $
     q12 "Preparing quilt target" $
-    makeQuiltTree cache m base patch >>= withUpstreamQuiltHidden make
+    makeQuiltTree cache (P.spec package) base patch >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =
           hide >> make (quiltTree, quiltDir) >>= unhide
@@ -125,10 +125,9 @@ prepare cache m flags base patch = liftIO $
                                          do tree <- findSourceTree (topdir quiltTree)
                                             -- return $ Quilt base patch tree m
                                             return $ T.Download {
-                                                         T.method = m
-                                                       , T.flags = flags
+                                                         T.package = package
                                                        , T.getTop = topdir tree
-                                                       , T.logText = "Quilt revision " ++ show m
+                                                       , T.logText = "Quilt revision " ++ show (P.spec package)
                                                        , T.mVersion = Nothing
                                                        , T.origTarball = Nothing
                                                        , T.cleanTarget = \ top -> T.cleanTarget base top

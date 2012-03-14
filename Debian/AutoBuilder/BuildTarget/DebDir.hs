@@ -22,17 +22,16 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
-prepare :: P.CacheRec -> P.RetrieveMethod -> [P.PackageFlag] -> T.Download -> T.Download -> AptIOT IO T.Download
-prepare cache m flags upstream debian = lift $
+prepare :: P.CacheRec -> P.Packages -> T.Download -> T.Download -> AptIOT IO T.Download
+prepare cache package upstream debian = lift $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>
     findDebianSourceTree dest >>= \ tree ->
     let tgt = T.Download {
-                T.method = m
-              , T.flags = flags
+                T.package = package
               , T.getTop = topdir tree
-              , T.logText = "deb-dir revision: " ++ show m
+              , T.logText = "deb-dir revision: " ++ show (P.spec package)
               , T.mVersion = Nothing
               , T.origTarball = T.origTarball upstream
               , T.cleanTarget = \ _ -> return ([], 0)
@@ -46,13 +45,13 @@ prepare cache m flags upstream debian = lift $
           case compare (version debianV) (showVersion upstreamV) of
             -- If the debian version is too old it needs to be bumped, this ensures we notice
             -- when a new upstream appears.  We should just modify the changelog directly.
-            LT -> error $ show m ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ showVersion upstreamV ++ ")"
+            LT -> error $ show (P.spec package) ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ showVersion upstreamV ++ ")"
             _ -> return tgt
     where
       copyUpstream = lazyCommandF cmd1 empty
       copyDebian = lazyCommandF cmd2 empty
       upstreamDir = T.getTop upstream
       debianDir = T.getTop debian
-      dest = P.topDir cache ++ "/deb-dir/" ++ show (md5 (pack (show m)))
+      dest = P.topDir cache ++ "/deb-dir/" ++ show (md5 (pack (show (P.spec package))))
       cmd1 = ("set -x && rsync -aHxSpDt --delete '" ++ upstreamDir ++ "/' '" ++ dest ++ "'")
       cmd2 = ("set -x && rsync -aHxSpDt --delete '" ++ debianDir ++ "/debian' '" ++ dest ++ "/'")
