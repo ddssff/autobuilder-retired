@@ -12,7 +12,7 @@ module Debian.AutoBuilder.Target
 
 import Control.Arrow (second)
 import Control.Applicative.Error (Failing(..), failing)
-import Control.Exception (SomeException, try)
+import Control.Exception (SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -68,7 +68,7 @@ import System.Directory (doesFileExist, doesDirectoryExist, removeDirectory, cre
 import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.FilePath ((</>))
 import System.Posix.Files(fileSize, getFileStatus)
-import System.Unix.Chroot (useEnv, forceList)
+import System.Unix.Chroot (useEnv)
 import System.Unix.Process (collectResult, exitCodeOnly)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, lazyProcessF)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, ePutStr, ePutStrLn, q12 {-, q02-})
@@ -718,7 +718,7 @@ sinkFields f (Paragraph fields) =
 -- |Download the package's build dependencies into /var/cache
 downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> Fingerprint -> IO (Failing String)
 downloadDependencies os source extra sourceFingerprint =
-    
+
     do -- qPutStrLn "Downloading build dependencies"
        quieter (+ 1) $ qPutStrLn $ "Dependency package versions:\n " ++ intercalate "\n  " (showDependencies sourceFingerprint)
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
@@ -826,3 +826,6 @@ toEither x = Left x
 doError :: Show a => String -> (t, a, ExitCode) -> Failing a
 doError cmd (_, s, ExitSuccess) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]
 doError cmd (_, _, ExitFailure n) = Failure ["Error " ++ show n ++ " running '" ++ cmd ++ "'"]
+
+forceList :: [a] -> IO [a]
+forceList output = evaluate (length output) >> return output
