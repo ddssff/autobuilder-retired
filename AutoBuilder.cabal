@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        6.23
+Version:        6.24
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -20,11 +20,11 @@ Build-type:     Simple
 
 flag local-debian-repo
   Description: Link directly to the source of the debian-repo library
-  Default: True
+  Default: False
 
 flag local-debian
   Description: Link directly to the source of the debian library
-  Default: True
+  Default: False
 
 Library
 
