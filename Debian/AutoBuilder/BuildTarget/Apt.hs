@@ -10,6 +10,7 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import Debian.Relation (SrcPkgName)
 import Debian.Repo
 import Debian.Sources
 import Debian.Version (parseDebianVersion, prettyDebianVersion)
@@ -19,7 +20,7 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: P.CacheRec -> P.Packages -> String -> String -> AptIOT IO Download
+prepare :: P.CacheRec -> P.Packages -> String -> SrcPkgName -> AptIOT IO Download
 prepare cache target dist package =
     do os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)

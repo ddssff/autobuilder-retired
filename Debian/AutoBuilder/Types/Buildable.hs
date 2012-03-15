@@ -4,10 +4,9 @@ module Debian.AutoBuilder.Types.Buildable
     , asBuildable
     , relaxDepends
     , srcPkgName
-    , Target(Target, tgt, cleanSource)
+    , Target(Target, tgt, cleanSource, targetDepends)
     , targetName
     , prepareTarget
-    , DSPName(DSPName, unDSPName)
     , debianSourcePackageName
     , targetRelaxed
     , targetControl
@@ -30,6 +29,7 @@ import Debian.AutoBuilder.Types.ParamRec (ParamRec(..))
 import Debian.Changes (logVersion, ChangeLogEntry(..))
 import Debian.Control (Control, Control'(Control), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G
+import Debian.Relation (SrcPkgName(..), BinPkgName(..), PkgName(..))
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
 import Debian.Repo.SourceTree (DebianBuildTree(..), control, entry, subdir, debdir, findDebianBuildTrees, findDebianBuildTree, copyDebianBuildTree,
@@ -78,14 +78,14 @@ asBuildable download =
 -- its build dependencies.\"
 relaxDepends :: C.CacheRec -> Buildable -> G.OldRelaxInfo
 relaxDepends cache@(C.CacheRec {C.packages = s}) tgt =
-    G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo (C.params cache)) ++
-                  foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (unDSPName (srcPkgName tgt))))) (P.relaxInfo flags)) s []
+    G.RelaxInfo $ map (\ target -> (BinPkgName (PkgName target), Nothing)) (globalRelaxInfo (C.params cache)) ++
+                  foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (BinPkgName (PkgName binPkg), Just (srcPkgName tgt))) (P.relaxInfo flags)) s []
 
 _makeRelaxInfo :: G.OldRelaxInfo -> G.RelaxInfo
 _makeRelaxInfo (G.RelaxInfo xs) srcPkgName binPkgName =
     Set.member binPkgName global || maybe False (Set.member binPkgName) (Map.lookup srcPkgName mp)
     where
-      (global :: Set.Set G.BinPkgName, mp :: Map.Map G.SrcPkgName (Set.Set G.BinPkgName)) =
+      (global :: Set.Set BinPkgName, mp :: Map.Map SrcPkgName (Set.Set BinPkgName)) =
           foldr (\ entry (global', mp') ->
                      case entry of
                        (b, Just s) -> (global', Map.insertWith Set.union s (Set.singleton b) mp')
@@ -193,22 +193,20 @@ escapeForBuild =
       escape '+' = '_'
       escape c = c
 
-newtype DSPName = DSPName {unDSPName :: String} deriving (Eq, Ord, Show)
-
 -- | The /Source:/ attribute of debian\/control.
-debianSourcePackageName :: Target -> DSPName
+debianSourcePackageName :: Target -> SrcPkgName
 debianSourcePackageName target =
     case removeCommentParagraphs (targetControl target) of
       (Control (paragraph : _)) ->
-          maybe (error "Missing Source field") DSPName $ fieldValue "Source" paragraph
+          maybe (error "Missing Source field") (SrcPkgName . PkgName) $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
 
 -- | The /Source:/ attribute of debian\/control.
-srcPkgName :: Buildable -> DSPName
+srcPkgName :: Buildable -> SrcPkgName
 srcPkgName tgt =
     case removeCommentParagraphs (control' (debianSourceTree tgt)) of
       (Control (paragraph : _)) ->
-          maybe (error "Missing Source field") DSPName $ fieldValue "Source" paragraph
+          maybe (error "Missing Source field") (SrcPkgName . PkgName) $ fieldValue "Source" paragraph
       _ -> error "Buildable control information missing"
 
 {-
@@ -283,7 +281,7 @@ getTargetDependencyInfo globalBuildDeps buildTree =
     where
       controlPath = debdir buildTree ++ "/debian/control"
       addRelations :: Relations -> G.DepInfo -> G.DepInfo
-      addRelations moreRels (name, relations, bins) = (name, relations ++ moreRels, bins)
+      addRelations moreRels info = info {G.relations = G.relations info ++ moreRels}
 
 {-
 zipEithers :: [a] -> [Either b c] -> [Either (a, b) (a, c)]

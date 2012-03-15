@@ -26,10 +26,10 @@ import Debian.Changes (logVersion)
 import Debian.Control (lookupP, unControl, stripWS)
 import qualified Debian.Control.String as S
 import qualified Debian.GenBuildDeps as G
-import Debian.Relation (Relation(Rel))
+import Debian.Relation (Relation(Rel), BinPkgName(..), PkgName(..))
 import Debian.Repo.Repository (readPkgVersion, showPkgVersion)
 import Debian.Repo.SourceTree (DebianSourceTreeC(entry), SourcePackageStatus(..))
-import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID), PkgVersion(PkgVersion, getName, getVersion), BinaryPackage(packageID), PackageID(packageName, packageVersion), prettyPkgVersion)
+import Debian.Repo.Types (SourcePackage(sourceParagraph, sourcePackageID), PkgVersion(PkgVersion, getName, getVersion), BinaryPackage(packageID), PackageID(packageVersion), binaryPackageName, prettyPkgVersion)
 import Debian.Version (DebianVersion, parseDebianVersion, prettyDebianVersion)
 import Debian.VersionPolicy(dropTag, parseTag)
 import Extra.Misc(columns)
@@ -117,8 +117,8 @@ dependencyChanges old new =
       changedDeps = Set.toList (Set.difference (Set.fromList (deps new)) (Set.fromList (deps new)))
       showDepChange newDep =
           case filter (hasName (getName newDep)) (deps old) of
-            [] -> [" " ++ getName newDep ++ ": ", "(none)", " -> ", show (prettyDebianVersion (getVersion newDep))]
-            (oldDep : _) -> [" " ++ getName newDep ++ ": ", show (prettyDebianVersion (getVersion oldDep)), " -> ", show (prettyDebianVersion (getVersion newDep))]
+            [] -> [" " ++ unPkgName (unBinPkgName (getName newDep)) ++ ": ", "(none)", " -> ", show (prettyDebianVersion (getVersion newDep))]
+            (oldDep : _) -> [" " ++ unPkgName (unBinPkgName (getName newDep)) ++ ": ", show (prettyDebianVersion (getVersion oldDep)), " -> ", show (prettyDebianVersion (getVersion newDep))]
       hasName name = ((== name) . getName)
       prefix = "\n    "
       deps (Fingerprint _ _ x _) = x
@@ -144,7 +144,7 @@ targetFingerprint target buildDependencySolution =
 
 makeVersion :: BinaryPackage -> PkgVersion
 makeVersion package =
-    PkgVersion { getName = packageName (packageID package)
+    PkgVersion { getName = binaryPackageName package
                , getVersion = packageVersion (packageID package) }
 
 -- |Represents a decision whether to build a package, with a text juststification.
@@ -283,5 +283,5 @@ buildDecision cache target (Fingerprint _ oldSrcVersion builtDependencies repoVe
       -- from the list of build dependencies which can trigger a rebuild.
       sourceDependencies' = filter (\ x -> elem (getName x) (packageNames (targetRelaxed (relaxDepends cache (tgt target)) target))) sourceDependencies
       -- All the package names mentioned in a dependency list
-      packageNames :: G.DepInfo -> [String]
-      packageNames (_, deps, _) = nub (map (\ (Rel name _ _) -> name) (concat deps))
+      packageNames :: G.DepInfo -> [BinPkgName]
+      packageNames info {-(_, deps, _)-} = nub (map (\ (Rel name _ _) -> name) (concat (G.relations info)))

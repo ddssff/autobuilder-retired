@@ -24,7 +24,7 @@ import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName)
+import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Fingerprint (Fingerprint, packageFingerprint, showFingerprint, dependencyChanges, targetFingerprint, showDependencies, BuildDecision(..), buildDecision)
@@ -37,7 +37,7 @@ import Debian.Changes (prettyChanges, ChangesFile(changeRelease, changeInfo, cha
 import Debian.Control
 -- import Debian.Control
 import qualified Debian.GenBuildDeps as G
-import Debian.Relation (prettyRelation)
+import Debian.Relation (BinPkgName(..), SrcPkgName(..), PkgName(..), prettyRelation, prettyBinPkgName)
 import Debian.Relation.ByteString(Relations, Relation(..))
 import Debian.Release (Arch, releaseName')
 import Debian.Repo.SourceTree (buildDebs)
@@ -72,12 +72,12 @@ import System.Unix.Chroot (useEnv)
 import System.Unix.Process (collectResult, exitCodeOnly)
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, lazyProcessF)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, ePutStr, ePutStrLn, q12 {-, q02-})
-import Text.PrettyPrint (Doc, text, cat)
+import Text.PrettyPrint (Doc, text, (<>))
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
 prettySimpleRelation :: Maybe PkgVersion -> Doc
-prettySimpleRelation rel = maybe (text "Nothing") (\ v -> cat [text (getName v ++ "="), prettyDebianVersion (getVersion v)]) rel
+prettySimpleRelation rel = maybe (text "Nothing") (\ v -> prettyBinPkgName (getName v) <> text "=" <> prettyDebianVersion (getVersion v)) rel
 
 -- |Generate the details section of the package's new changelog entry
 -- based on the target type and version info.  This includes the
@@ -256,15 +256,17 @@ cycleMessage cache arcs =
       arcTuple (pkg, dep) =
           let rels = targetRelaxed (relaxDepends cache (tgt pkg)) pkg in
           [(show (intersect (binaryNames pkg dep) (binaryNamesOfRelations rels))), targetName dep, " -> ", targetName pkg]
-      binaryNames pkg dep =
-          map (\ (G.BinPkgName name) -> name) xs
-          where (_, _, xs) = (targetRelaxed (relaxDepends cache (tgt pkg)) dep)
-      relaxLine (bin, src) = "Relax-Depends: " ++ bin ++ " " ++ src
+      relaxLine :: (BinPkgName, SrcPkgName) -> String
+      relaxLine (bin, src) = "Relax-Depends: " ++ unPkgName (unBinPkgName bin) ++ " " ++ unPkgName (unSrcPkgName src)
+      pairs :: (Target, Target) -> [(BinPkgName, SrcPkgName)]
       pairs (pkg, dep) =
-          map (\ bin -> (bin, targetName pkg)) binaryDependencies
+          map (\ bin -> (bin, G.sourceName (targetDepends pkg))) binaryDependencies
               where binaryDependencies = intersect (binaryNames pkg dep) (binaryNamesOfRelations (targetRelaxed (relaxDepends cache (tgt pkg)) pkg))
-      binaryNamesOfRelations (_, rels, _) =
-          concat (map (map (\ (Rel name _ _) -> name)) rels)
+      binaryNamesOfRelations :: G.DepInfo -> [BinPkgName]
+      binaryNamesOfRelations info =
+          concat (map (map (\ (Rel name _ _) -> name)) (G.relations info))
+      binaryNames :: Target -> Target -> [BinPkgName]
+      binaryNames pkg dep = G.binaryNames (targetRelaxed (relaxDepends cache (tgt pkg)) dep)
 
 showTargets :: P.Packages -> String
 showTargets targets =
@@ -291,7 +293,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
       -- build dependencies
       let debianControl = targetControl target
       arch <- liftIO $ buildArchOfEnv (rootDir cleanOS)
-      let solns = buildDepSolutions' arch (P.preferred (P.params cache)) cleanOS globalBuildDeps debianControl
+      let solns = buildDepSolutions' arch (map (BinPkgName . PkgName) (P.preferred (P.params cache))) cleanOS globalBuildDeps debianControl
       case solns of
         Failure excuses -> do let excuses' = ("Couldn't satisfy build dependencies" : excuses)
                               qPutStrLn (intercalate "\n " excuses')
@@ -307,7 +309,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                let sourceLog = entry . cleanSource $ target
                let sourceVersion = logVersion sourceLog
                    newFingerprint = targetFingerprint target sourceDependencies
-               let spkgs = aptSourcePackagesSorted poolOS [targetName target]
+               let spkgs = aptSourcePackagesSorted poolOS [G.sourceName (targetDepends target)]
                    buildTrumped = elem (targetName target) (P.buildTrumped (P.params cache))
                    newVersion = computeNewVersion cache spkgs (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                    decision = buildDecision cache target oldFingerprint newFingerprint releaseStatus
@@ -484,7 +486,7 @@ prepareBuildImage cache cleanOS sourceFingerprint buildOS target =
       buildDepends = P.buildDepends (P.params cache)
       noClean = P.noClean (P.params cache)
       newPath = rootPath (rootDir buildOS) ++ fromJust (dropPrefix (rootPath (rootDir cleanOS)) (topdir (cleanSource target)))
-            
+
 -- | Get the control info for the newest version of a source package
 -- available in a release.  Make sure that the files for this build
 -- architecture are available.
@@ -495,7 +497,7 @@ getReleaseControlInfo cleanOS target =
       (info, status@(Missing missing)) : _ -> (Just info, Indep missing, message status)
       _ -> (Nothing, None, message Complete)
     where
-      packageName = targetName target
+      packageName = G.sourceName (targetDepends target)
       message status =
           intercalate "\n"
                   (["  Source Package Versions: " ++ show (map (second prettyDebianVersion . sourcePackageVersion) sourcePackages),
@@ -506,7 +508,7 @@ getReleaseControlInfo cleanOS target =
                     "  Available Binary Packages of Source Package:"] ++
                    map (("   " ++) . show) (zip (map (second prettyDebianVersion . sourcePackageVersion) sourcePackages) (map (availableDebNames binaryPackages) sourcePackages)))
       missingMessage Complete = []
-      missingMessage (Missing missing) = ["  Missing Binary Package Names: "] ++ map ("   " ++) missing
+      missingMessage (Missing missing) = ["  Missing Binary Package Names: "] ++ map (\ p -> "   " ++ unPkgName (unBinPkgName p)) missing
       sourcePackagesWithBinaryNames = zip sourcePackages (map sourcePackageBinaryNames sourcePackages)
       binaryPackages = Debian.Repo.Cache.binaryPackages cleanOS (nub . concat . map sourcePackageBinaryNames $ sourcePackages)
       sourcePackages = sortBy compareVersion . Debian.Repo.Cache.sourcePackages cleanOS $ [packageName]
@@ -516,7 +518,7 @@ getReleaseControlInfo cleanOS target =
             _ -> error "Missing Package or Version field"
       binaryPackageVersion package =
           case ((fieldValue "Package" . packageInfo $ package), (fieldValue "Version" . packageInfo $ package)) of
-            (Just name, Just version) -> (B.unpack name, parseDebianVersion (B.unpack version))
+            (Just name, Just version) -> (BinPkgName (PkgName (B.unpack name)), parseDebianVersion (B.unpack version))
             _ -> error "Missing Package or Version field"
       compareVersion a b = case ((fieldValue "Version" . sourceParagraph $ a), (fieldValue "Version" . sourceParagraph $ b)) of
                              (Just a', Just b') -> compare (parseDebianVersion . B.unpack $ b') (parseDebianVersion . B.unpack $ a')
@@ -525,7 +527,7 @@ getReleaseControlInfo cleanOS target =
       -- required binary packages are all available, either as debs or
       -- udebs.  Because it is easier to check for available debs, we
       -- do that first and only check for udebs if some names are missing.
-      isComplete :: [BinaryPackage] -> (SourcePackage, [String]) -> Status
+      isComplete :: [BinaryPackage] -> (SourcePackage, [BinPkgName]) -> Status
       isComplete binaryPackages (sourcePackage, requiredBinaryNames) =
           if Set.difference missingDebs udebs == Set.empty {- && (unableToCheckUDebs || missingUdebs == Set.empty) -}
           then Complete
@@ -540,14 +542,14 @@ getReleaseControlInfo cleanOS target =
             -- Which binary packages produced from this source package are available?
             availableDebs = Set.fromList (availableDebNames binaryPackages sourcePackage)
             availableUDebs = Set.fromList (availableUDebNames sourcePackage)
-      udebs :: Set.Set String
+      udebs :: Set.Set BinPkgName
       udebs = foldr collect Set.empty (T.flags (download (tgt target)))
-      collect :: P.PackageFlag -> Set.Set String -> Set.Set String
-      collect (P.UDeb name) udebs = Set.insert name udebs
+      collect :: P.PackageFlag -> Set.Set BinPkgName -> Set.Set BinPkgName
+      collect (P.UDeb name) udebs = Set.insert (BinPkgName (PkgName name)) udebs
       collect _ udebs = udebs
       -- A binary package is available either if it appears in the
       -- package index, or if it is an available udeb.
-      availableDebNames :: [BinaryPackage] -> SourcePackage -> [String]
+      availableDebNames :: [BinaryPackage] -> SourcePackage -> [BinPkgName]
       availableDebNames binaryPackages sourcePackage =
           map fst . map binaryPackageVersion . filter checkSourceVersion $ binaryPackages
           where checkSourceVersion binaryPackage = maybe False ((==) sourceVersion) (binaryPackageSourceVersion binaryPackage)
@@ -556,10 +558,10 @@ getReleaseControlInfo cleanOS target =
       -- server and has the correct filename.  There is no way to
       -- decide whether a package is a udeb from the package indexes.
       unableToCheckUDebs = True
-      availableUDebNames :: SourcePackage -> [String]
+      availableUDebNames :: SourcePackage -> [BinPkgName]
       availableUDebNames _sourcePackage = (error "availableUDebNames")
 
-data Status = Complete | Missing [String]
+data Status = Complete | Missing [BinPkgName]
 
 -- |Compute a new version number for a package by adding a vendor tag
 -- with a number sufficiently high to trump the newest version in the
@@ -606,7 +608,7 @@ computeNewVersion cache
                 currentVersion
 
 -- FIXME: Most of this code should move into Debian.Repo.Dependencies
-buildDepSolutions' :: Arch -> [String] -> OSImage -> Relations -> Control -> Failing [(Int, [BinaryPackage])]
+buildDepSolutions' :: Arch -> [BinPkgName] -> OSImage -> Relations -> Control -> Failing [(Int, [BinaryPackage])]
 buildDepSolutions' arch preferred os globalBuildDeps debianControl =
     -- q12 "Searching for build dependency solution" $
     -- We don't discard any dependencies here even if they are
@@ -615,8 +617,8 @@ buildDepSolutions' arch preferred os globalBuildDeps debianControl =
     -- the dependencies.  Hence this empty list.
     case G.buildDependencies debianControl of
       Left s -> Failure [s]
-      Right (_, relations, _) ->
-          let relations' = relations ++ globalBuildDeps
+      Right info ->
+          let relations' = G.relations info ++ globalBuildDeps
               relations'' = simplifyRelations packages relations' preferred arch in
           -- Do not stare directly into the solutions!  Your head will
           -- explode (because there may be a lot of them.)  Also, this

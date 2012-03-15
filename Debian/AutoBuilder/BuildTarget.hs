@@ -29,6 +29,7 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
+import Debian.Relation (SrcPkgName(..), PkgName(..))
 import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, copySourceTree, SourceTree(dir'), topdir)
 import Debian.Repo.Monad (AptIOT)
 import System.Directory (createDirectoryIfMissing)
@@ -39,9 +40,9 @@ import System.Unix.QIO (q12, quieter)
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
 retrieve :: OSImage -> P.CacheRec -> P.Packages -> AptIOT IO Download
 retrieve buildOS cache target =
-    q12 (" " ++ show (P.spec target)) $     
+    q12 (" " ++ show (P.spec target)) $
      case P.spec target of
-      P.Apt dist package -> Apt.prepare cache target dist package
+      P.Apt dist package -> Apt.prepare cache target dist (SrcPkgName (PkgName package))
       P.Bzr string -> Bzr.prepare cache target string
 
       P.Cd dir spec' ->
@@ -64,7 +65,7 @@ retrieve buildOS cache target =
              filesTree <- liftIO $ findSourceTree (T.getTop files')
              _ <- liftIO $ copySourceTree filesTree (dir' baseTree </> loc)
              return base'
-          
+
       P.DebDir upstream debian ->
           do upstream' <- retrieve buildOS cache (target {P.spec = upstream})
              debian' <- retrieve buildOS cache (target {P.spec = debian})
