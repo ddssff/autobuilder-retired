@@ -7,6 +7,7 @@ module Debian.AutoBuilder.Types.Buildable
     , Target(Target, tgt, cleanSource)
     , targetName
     , prepareTarget
+    , DSPName(DSPName, unDSPName)
     , debianSourcePackageName
     , targetRelaxed
     , targetControl
@@ -27,7 +28,7 @@ import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.AutoBuilder.Types.Packages (foldPackages)
 import Debian.AutoBuilder.Types.ParamRec (ParamRec(..))
 import Debian.Changes (logVersion, ChangeLogEntry(..))
-import Debian.Control (Control, Control'(Control, unControl), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
+import Debian.Control (Control, Control'(Control), fieldValue,  Paragraph'(Paragraph), Field'(Comment), parseControlFromFile)
 import qualified Debian.GenBuildDeps as G
 import Debian.Relation.ByteString(Relations)
 import Debian.Repo.OSImage (OSImage)
@@ -78,11 +79,7 @@ asBuildable download =
 relaxDepends :: C.CacheRec -> Buildable -> G.OldRelaxInfo
 relaxDepends cache@(C.CacheRec {C.packages = s}) tgt =
     G.RelaxInfo $ map (\ target -> (G.BinPkgName target, Nothing)) (globalRelaxInfo (C.params cache)) ++
-                  foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (srcPkgName tgt)))) (P.relaxInfo flags)) s []
-
-srcPkgName :: Buildable -> String
-srcPkgName tgt =
-    maybe (error "No Source field in control file") id (fieldValue "Source" (head (unControl (control' (debianSourceTree tgt)))))
+                  foldPackages (\ _ _spec flags xs -> xs ++ map (\ binPkg -> (G.BinPkgName binPkg, Just (G.SrcPkgName (unDSPName (srcPkgName tgt))))) (P.relaxInfo flags)) s []
 
 _makeRelaxInfo :: G.OldRelaxInfo -> G.RelaxInfo
 _makeRelaxInfo (G.RelaxInfo xs) srcPkgName binPkgName =
@@ -196,13 +193,29 @@ escapeForBuild =
       escape '+' = '_'
       escape c = c
 
+newtype DSPName = DSPName {unDSPName :: String} deriving (Eq, Ord, Show)
+
 -- | The /Source:/ attribute of debian\/control.
-debianSourcePackageName :: Target -> String
+debianSourcePackageName :: Target -> DSPName
 debianSourcePackageName target =
     case removeCommentParagraphs (targetControl target) of
       (Control (paragraph : _)) ->
-          maybe (error "Missing Source field") id $ fieldValue "Source" paragraph
+          maybe (error "Missing Source field") DSPName $ fieldValue "Source" paragraph
       _ -> error "Target control information missing"
+
+-- | The /Source:/ attribute of debian\/control.
+srcPkgName :: Buildable -> DSPName
+srcPkgName tgt =
+    case removeCommentParagraphs (control' (debianSourceTree tgt)) of
+      (Control (paragraph : _)) ->
+          maybe (error "Missing Source field") DSPName $ fieldValue "Source" paragraph
+      _ -> error "Buildable control information missing"
+
+{-
+srcPkgName :: Buildable -> String
+srcPkgName tgt =
+    maybe (error "No Source field in control file") DSPName (fieldValue "Source" (head (unControl (control' (debianSourceTree tgt)))))
+-}
 
 removeCommentParagraphs (Control paragraphs) =
     Control (filter (not . isCommentParagraph) paragraphs)

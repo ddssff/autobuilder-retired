@@ -9,7 +9,6 @@ module Debian.AutoBuilder.Types.Packages
     , relaxInfo
     ) where
 
-import qualified Data.ByteString.Lazy as B
 import Data.Monoid (Monoid(mempty, mappend))
 import Data.Set (Set, empty, union)
 
