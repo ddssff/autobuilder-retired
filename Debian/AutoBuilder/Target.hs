@@ -153,9 +153,9 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
             case next of
               Nothing -> return failed
               Just (target, blocked, other, dependencyTable) ->
-                  do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
+                  do quieter (\x->x-1) $ qPutStrLn dependencyTable
+                     ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
                                 (count - length unbuilt + 1) count (targetName target) (show (T.method (download (tgt target)))))
-                     quieter (\x->x-1) $ qPutStrLn dependencyTable
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
                                then return (Failure ["--discard option set"])
                                else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
