@@ -5,7 +5,6 @@ module Debian.AutoBuilder.BuildTarget.Patch where
 import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.Digest.Pure.MD5 (md5)
-import Debian.AutoBuilder.BuildTarget.Hackage (readProcessWithExitCode')
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
@@ -13,8 +12,7 @@ import Debian.Repo (OSImage, findSourceTree, copySourceTree, SourceTree(dir'))
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Process (CreateProcess(cwd), showCommandForUser)
-import System.Unix.Progress (lazyProcessE)
-import System.Unix.Process (collectOutputUnpacked)
+import System.Unix.Process (readProcessWithExitCode)
 
 {-
 -- |Scan the flag list for Patch flag, and apply the patches
@@ -36,6 +34,7 @@ instance Show Patch where
     show (Patch t) = "patch:" ++ show t
 -}
 
+documentation :: [String]
 documentation = [ "Patch <target> <patchtext> - Apply the patch to the target." ]
 
 prepare :: P.CacheRec -> P.Packages -> OSImage -> String -> T.Download -> IO T.Download
@@ -43,12 +42,12 @@ prepare cache package _buildOS patch base =
     do baseTree <- findSourceTree (T.getTop base)
        liftIO (createDirectoryIfMissing True copyDir)
        tree <- copySourceTree baseTree copyDir
-       (res, out, err) <- readProcessWithExitCode' cmd args (\ p -> p {cwd = Just copyDir}) (B.pack patch)
+       (res, out, err) <- readProcessWithExitCode cmd args (\ p -> p {cwd = Just copyDir}) (B.pack patch)
 {-
        (_out, err, res) <- lazyProcessE "/usr/bin/patch" ["-p1"] (Just copyDir) Nothing (B.pack patch) >>= return . collectOutputUnpacked
 -}
        case res of
-         ExitFailure n -> error (showCommandForUser cmd args ++ " < " ++ copyDir ++ " -> " ++ show res ++
+         ExitFailure _ -> error (showCommandForUser cmd args ++ " < " ++ copyDir ++ " -> " ++ show res ++
                                  "\nstdout:\n" ++ indent (B.unpack out) ++
                                  "\nstderr:\n" ++ indent (B.unpack err) ++
                                  "\npatch:\n" ++ indent patch)
@@ -67,6 +66,7 @@ prepare cache package _buildOS patch base =
       args = ["-p1"]
       copyDir = P.topDir cache ++ "/quilt/" ++ show (md5 (B.pack (show (P.spec package))))
 
+indent :: String -> String
 indent = unlines . map (" > " ++) . lines
 
 {-

@@ -3,7 +3,6 @@
 module Debian.AutoBuilder.BuildTarget.Hackage
     ( prepare
     , documentation
-    , readProcessWithExitCode'
     ) where
 
 import qualified Codec.Archive.Tar as Tar
@@ -24,19 +23,16 @@ import System.Exit
 import System.Directory (doesFileExist, createDirectoryIfMissing, removeFile)
 import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
+import System.Process (showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Process (collectOutput)
+import System.Unix.LazyProcess (collectOutput)
+import System.Unix.Process (readProcessWithExitCode)
 import System.Unix.Progress (lazyCommandE)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
 import Text.ParserCombinators.ReadP (readP_to_S)
-
-import qualified Control.Exception as C
-import Control.Concurrent (newEmptyMVar, forkIO, putMVar, takeMVar)
-import System.IO (hFlush, hClose)
-import System.Process
 
 documentation :: [String]
 documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
@@ -132,7 +128,7 @@ downloadCached server cache name version =
 -- > getVersion \"binary\" -> \"0.5.0.2\"
 getVersion :: String -> String -> IO Version
 getVersion server name =
-    do result@(code, out, _) <- readProcessWithExitCode' cmd args id B.empty
+    do result@(code, out, _) <- readProcessWithExitCode cmd args id B.empty
        case code of
          ExitSuccess -> return $ readVersion $ findVersion name $ htmlParse (showCommandForUser cmd args) (B.unpack out)
          _ -> error ("Could not get version for " ++ name ++ "\n " ++ cmd ++ " -> " ++ show result)
@@ -206,40 +202,3 @@ tarball cache name version  = tmpDir cache </> name ++ "-" ++ showVersion versio
 
 tmpDir :: P.CacheRec -> FilePath
 tmpDir cache = P.topDir cache </> "hackage"
-
-readProcessWithExitCode'
-    :: FilePath                         -- ^ command to run
-    -> [String]                         -- ^ any arguments
-    -> (CreateProcess -> CreateProcess) -- ^ Modify process with this
-    -> B.ByteString                     -- ^ standard input
-    -> IO (ExitCode, B.ByteString, B.ByteString) -- ^ exitcode, stdout, stderr
-readProcessWithExitCode' cmd args modify input = do
-    let modify' p = modify (p {std_in  = CreatePipe, std_out = CreatePipe, std_err = CreatePipe })
-
-    (Just inh, Just outh, Just errh, pid) <-
-        createProcess (modify' (proc cmd args))
-
-    outMVar <- newEmptyMVar
-
-    -- fork off a thread to start consuming stdout
-    out  <- B.hGetContents outh
-    _ <- forkIO $ C.evaluate (B.length out) >> putMVar outMVar ()
-
-    -- fork off a thread to start consuming stderr
-    err  <- B.hGetContents errh
-    _ <- forkIO $ C.evaluate (B.length err) >> putMVar outMVar ()
-
-    -- now write and flush any input
-    when (not (B.null input)) $ do B.hPutStr inh input; hFlush inh
-    hClose inh -- done with stdin
-
-    -- wait on the output
-    takeMVar outMVar
-    takeMVar outMVar
-    hClose outh
-    hClose errh
-
-    -- wait on the process
-    ex <- waitForProcess pid
-
-    return (ex, out, err)

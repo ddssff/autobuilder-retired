@@ -17,7 +17,7 @@ import Debian.Repo
 import Debian.URI
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Unix.Process
+import System.Unix.LazyProcess
 import System.Unix.Progress (timeTask, lazyCommandF, lazyProcessF, lazyProcessE)
 import System.Directory
 

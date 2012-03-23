@@ -23,7 +23,7 @@ import System.Directory (getDirectoryContents)
 import System.Exit
 import System.FilePath ((</>))
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Process (collectOutputUnpacked)
+import System.Unix.LazyProcess (collectOutputUnpacked)
 import System.Unix.Progress (lazyProcessE)
 import System.Unix.QIO (qPutStrLn)
 
