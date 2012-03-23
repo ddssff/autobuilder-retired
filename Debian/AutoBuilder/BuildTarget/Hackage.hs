@@ -24,13 +24,18 @@ import System.Directory (doesFileExist, createDirectoryIfMissing, removeFile)
 import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Process (collectOutput, collectOutputUnpacked)
+import System.Unix.Process (collectOutput)
 import System.Unix.Progress (lazyCommandE)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
 import Text.XML.HaXml.Posn
 import Text.ParserCombinators.ReadP (readP_to_S)
+
+import qualified Control.Exception as C
+import Control.Concurrent (newEmptyMVar, forkIO, putMVar, takeMVar)
+import System.IO (hPutStr, hFlush, hClose)
+import System.Process hiding (readProcessWithExitCode)
 
 documentation :: [String]
 documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
@@ -126,14 +131,14 @@ downloadCached server cache name version =
 -- > getVersion \"binary\" -> \"0.5.0.2\"
 getVersion :: String -> String -> IO Version
 getVersion server name =
-    lazyCommandE cmd B.empty >>= return . readVersion . findVersion name . parse cmd
-    where cmd = "curl -s '" ++ url ++ "'"
-          url = packageURL server name
-
-parse cmd output =
-    case collectOutputUnpacked output of
-      (out, _, ExitSuccess) -> htmlParse cmd out
-      (_, _, _) -> error (cmd ++ " -> " ++ show output)
+    do result@(code, out, _) <- readProcessWithExitCode cmd args ""
+       case code of
+         ExitSuccess -> return $ readVersion $ findVersion name $ htmlParse (showCommandForUser cmd args) (B.unpack out)
+         _ -> error ("Could not get version for " ++ name ++ "\n " ++ cmd ++ " -> " ++ show result)
+    where
+      cmd = "curl"
+      args = ["-s", url]
+      url = packageURL server name
 
 -- |Unpack and save the files of a tarball.
 unpack :: P.CacheRec -> B.ByteString -> IO ()
@@ -173,6 +178,7 @@ findVersion package (Document _ _ (Elem _name _attrs content) _) =
 download' :: String -> P.CacheRec -> String -> Version -> IO B.ByteString
 download' server cache name version =
     do (out, err, res) <- lazyCommandE (downloadCommand server name version) B.empty >>= return . collectOutput
+       -- (res, out, err) <- runProcessWith
        case res of
          ExitFailure _ ->
              let msg = downloadCommand server name version ++ " ->\n" ++ show (err, res) in
@@ -199,3 +205,39 @@ tarball cache name version  = tmpDir cache </> name ++ "-" ++ showVersion versio
 
 tmpDir :: P.CacheRec -> FilePath
 tmpDir cache = P.topDir cache </> "hackage"
+
+readProcessWithExitCode
+    :: FilePath                 -- ^ command to run
+    -> [String]                 -- ^ any arguments
+    -> String                   -- ^ standard input
+    -> IO (ExitCode, B.ByteString, B.ByteString) -- ^ exitcode, stdout, stderr
+readProcessWithExitCode cmd args input = do
+    (Just inh, Just outh, Just errh, pid) <-
+        createProcess (proc cmd args){ std_in  = CreatePipe,
+                                       std_out = CreatePipe,
+                                       std_err = CreatePipe }
+
+    outMVar <- newEmptyMVar
+
+    -- fork off a thread to start consuming stdout
+    out  <- B.hGetContents outh
+    _ <- forkIO $ C.evaluate (B.length out) >> putMVar outMVar ()
+
+    -- fork off a thread to start consuming stderr
+    err  <- B.hGetContents errh
+    _ <- forkIO $ C.evaluate (B.length err) >> putMVar outMVar ()
+
+    -- now write and flush any input
+    when (not (null input)) $ do hPutStr inh input; hFlush inh
+    hClose inh -- done with stdin
+
+    -- wait on the output
+    takeMVar outMVar
+    takeMVar outMVar
+    hClose outh
+    hClose errh
+
+    -- wait on the process
+    ex <- waitForProcess pid
+
+    return (ex, out, err)
