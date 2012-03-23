@@ -3,6 +3,7 @@
 module Debian.AutoBuilder.BuildTarget.Hackage
     ( prepare
     , documentation
+    , readProcessWithExitCode'
     ) where
 
 import qualified Codec.Archive.Tar as Tar
@@ -34,8 +35,8 @@ import Text.ParserCombinators.ReadP (readP_to_S)
 
 import qualified Control.Exception as C
 import Control.Concurrent (newEmptyMVar, forkIO, putMVar, takeMVar)
-import System.IO (hPutStr, hFlush, hClose)
-import System.Process hiding (readProcessWithExitCode)
+import System.IO (hFlush, hClose)
+import System.Process
 
 documentation :: [String]
 documentation = [ "debianize:<name> or debianize:<name>=<version> - a target of this form"
@@ -131,7 +132,7 @@ downloadCached server cache name version =
 -- > getVersion \"binary\" -> \"0.5.0.2\"
 getVersion :: String -> String -> IO Version
 getVersion server name =
-    do result@(code, out, _) <- readProcessWithExitCode cmd args ""
+    do result@(code, out, _) <- readProcessWithExitCode' cmd args id B.empty
        case code of
          ExitSuccess -> return $ readVersion $ findVersion name $ htmlParse (showCommandForUser cmd args) (B.unpack out)
          _ -> error ("Could not get version for " ++ name ++ "\n " ++ cmd ++ " -> " ++ show result)
@@ -206,16 +207,17 @@ tarball cache name version  = tmpDir cache </> name ++ "-" ++ showVersion versio
 tmpDir :: P.CacheRec -> FilePath
 tmpDir cache = P.topDir cache </> "hackage"
 
-readProcessWithExitCode
-    :: FilePath                 -- ^ command to run
-    -> [String]                 -- ^ any arguments
-    -> String                   -- ^ standard input
+readProcessWithExitCode'
+    :: FilePath                         -- ^ command to run
+    -> [String]                         -- ^ any arguments
+    -> (CreateProcess -> CreateProcess) -- ^ Modify process with this
+    -> B.ByteString                     -- ^ standard input
     -> IO (ExitCode, B.ByteString, B.ByteString) -- ^ exitcode, stdout, stderr
-readProcessWithExitCode cmd args input = do
+readProcessWithExitCode' cmd args modify input = do
+    let modify' p = modify (p {std_in  = CreatePipe, std_out = CreatePipe, std_err = CreatePipe })
+
     (Just inh, Just outh, Just errh, pid) <-
-        createProcess (proc cmd args){ std_in  = CreatePipe,
-                                       std_out = CreatePipe,
-                                       std_err = CreatePipe }
+        createProcess (modify' (proc cmd args))
 
     outMVar <- newEmptyMVar
 
@@ -228,7 +230,7 @@ readProcessWithExitCode cmd args input = do
     _ <- forkIO $ C.evaluate (B.length err) >> putMVar outMVar ()
 
     -- now write and flush any input
-    when (not (null input)) $ do hPutStr inh input; hFlush inh
+    when (not (B.null input)) $ do B.hPutStr inh input; hFlush inh
     hClose inh -- done with stdin
 
     -- wait on the output
