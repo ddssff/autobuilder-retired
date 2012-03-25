@@ -90,5 +90,5 @@ Depends: ${shlibs:Depends},
          build-essential,
          quilt,
          curl,
-         cabal-debian (>= 1.11)
+         cabal-debian (>= 1.20)
 Description: Build and upload debian packages in clean enviroments

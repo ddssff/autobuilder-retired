@@ -9,11 +9,12 @@ module Debian.AutoBuilder.BuildTarget.Debianize
 
 import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy.Char8 as B
-import Data.List (isSuffixOf, intercalate)
+import Data.List (isSuffixOf)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
+import Debian.Relation (PkgName(unPkgName), BinPkgName(unBinPkgName))
 import Debian.Repo hiding (getVersion, pkgName, pkgVersion)
 import Distribution.Verbosity (normal)
 import Distribution.Package (PackageIdentifier(..) {-, PackageName(..)-})
@@ -22,9 +23,9 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import System.Directory (getDirectoryContents)
 import System.Exit
 import System.FilePath ((</>))
+import System.Process (CreateProcess(cwd), showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.LazyProcess (collectOutputUnpacked)
-import System.Unix.Progress (lazyProcessE)
+import System.Unix.Process (readProcessWithExitCode)
 import System.Unix.QIO (qPutStrLn)
 
 documentation :: [String]
@@ -61,16 +62,17 @@ debianize cache pflags dir =
                    maybe [] (\ x -> ["--ghc-version", x]) ver ++
                    -- concatMap cflag cflags ++
                    concatMap pflag pflags')
-       (out, err, code) <- lazyProcessE "cabal-debian" args (Just dir) Nothing B.empty >>= return . collectOutputUnpacked
+       (code, out, err) <- readProcessWithExitCode "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
        case code of
-         ExitFailure n -> error ("cd " ++ show dir ++ " && cabal-debian " ++ intercalate " " args ++ "\n -> " ++ show n ++
-                                 "\nStdout:\n" ++ out ++ "\nStderr:\n" ++ err)
+         ExitFailure _ -> error (showCommandForUser "cabal-debian" args ++ "(in " ++ show dir ++ ") -> " ++ show code ++
+                                 "\nStdout:\n" ++ indent " 1> " out ++ "\nStderr:\n" ++ indent " 2> " err)
          ExitSuccess -> return ()
     where
+      indent pre s = unlines $ map (pre ++) $ lines $ B.unpack $ s
       pflag (P.Maintainer s) = ["--maintainer", s]
       pflag (P.ExtraDep s) = ["--build-dep", s]
       pflag (P.ExtraDevDep s) = ["--dev-dep", s]
-      pflag (P.MapDep c d) = ["--map-dep", c ++ "=" ++ d]
+      pflag (P.MapDep c d) = ["--map-dep", c ++ "=" ++ unPkgName (unBinPkgName d)]
       pflag (P.DebVersion s) = ["--deb-version", s]
       pflag (P.Revision s) = ["--revision", s]
       pflag (P.Epoch name d) = ["--epoch-map", name ++ "=" ++ show d]

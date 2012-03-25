@@ -11,6 +11,7 @@ module Debian.AutoBuilder.Types.Packages
 
 import Data.Monoid (Monoid(mempty, mappend))
 import Data.Set (Set, empty, union)
+import Debian.Relation (BinPkgName)
 
 data Packages
     = NoPackage
@@ -103,7 +104,7 @@ data PackageFlag
     -- entry for the dev package in the debian/control file via the
     -- --dev-dep flag of cabal-debian.  Used, for example, to make
     -- libssl-dev a dependency of libghc-hsopenssl-dev.
-    | MapDep String String
+    | MapDep String BinPkgName
     -- ^ Tell cabal-debian to map the first argument (a name that
     -- appears in Extra-Libraries field of the cabal file) to the
     -- second argument (a debian binary package name) using the
