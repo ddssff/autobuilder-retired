@@ -8,12 +8,12 @@ module Debian.AutoBuilder.Main
     ) where
 
 import Control.Arrow (first)
-import Control.Applicative.Error (Failing(..), failing)
+import Control.Applicative.Error (Failing(..))
 import Control.Exception(SomeException, try, catch, AsyncException(UserInterrupt), fromException)
 import Control.Monad(foldM, when, unless)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
 import qualified Data.ByteString.Lazy as L
-import Data.Either (partitionEithers, lefts)
+import Data.Either (partitionEithers)
 import qualified Data.Map as Map
 import Data.List(intercalate)
 import Data.Maybe(catMaybes)
@@ -62,31 +62,45 @@ import Text.Printf ( printf )
 -- parameter sets.
 main :: [(P.ParamRec, P.Packages)] -> IO ()
 main [] = error "No parameter sets"
-main paramSets =
-    foldM (\ (xs, s) (params, packages) ->
-               try (quieter (const (- (P.verbosity params))) (doParameterSet s params packages)) >>=
-               either (\ (e :: SomeException) ->
-                           ePutStrLn ("Failure running parameter set: " ++ show e) >> return (Left [show e] : xs, initState))
-                      (\ (result, s') -> return (failing Left Right result : xs, s')))
-          ([], initState)
-          paramSets >>= \ (results, _) ->
-    -- The result of processing a set of parameters is either an
-    -- exception or a completion code.  Here we print a summary and
-    -- exit with a suitable result code.
-    ePutStrLn (intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] results))) >>
-    IO.hFlush IO.stderr >>
-    case lefts results of
-      [] -> exitWith ExitSuccess
-      _ -> exitWith (ExitFailure 1)
-    where showResult (Left ss) = intercalate "\n  " ("Failure:" : ss)
-          showResult (Right _) = "Ok"
+main paramSets = do
+  -- Do parameter sets until there is a failure.
+  (results, _) <- foldM doParameterSet ([], initState) paramSets
+  IO.hFlush IO.stdout
+  IO.hFlush IO.stderr
+  -- The result of processing a set of parameters is either an
+  -- exception or a completion code.  Here we print a summary and
+  -- exit with a suitable result code.
+  -- ePutStrLn (intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] results)))
+  case partitionFailing results of
+    ([], _) -> return ()
+    _ ->
+        ePutStrLn (intercalate "\n  " (map (\ (num, result) -> "Parameter set " ++ show num ++ ": " ++ showResult result) (zip [(1 :: Int)..] results))) >>
+        exitWith (ExitFailure 1)
+    where showResult (Failure ss) = intercalate "\n  " ("Failure:" : ss)
+          showResult (Success _) = "Ok"
+          partitionFailing :: [Failing a] -> ([[String]], [a])
+          partitionFailing xs = p ([], []) xs
+              where p result [] = result
+                    p (fs, ss) (Failure f : more) = p (f : fs, ss) more
+                    p (fs, ss) (Success s : more) = p (fs, s : ss) more
 
 -- |Process one set of parameters.  Usually there is only one, but there
--- can be several which are run sequentially.
-doParameterSet :: AptState -> P.ParamRec -> P.Packages -> IO (Failing ([Output], NominalDiffTime), AptState)
-doParameterSet state params packages =
-    do top <- P.computeTopDir params
-       withLock (top ++ "/lockfile") (runStateT (quieter (+ 2) (P.buildCache params top packages) >>= runParameterSet) state)
+-- can be several which are run sequentially.  Stop on first failure.
+doParameterSet :: ([Failing ([Output], NominalDiffTime)], AptState) -> (P.ParamRec, P.Packages) -> IO ([Failing ([Output], NominalDiffTime)], AptState)
+doParameterSet (results, state) (params, packages) =
+    if any isFailure results
+    then return (results, state)
+    else
+        try (quieter (const (- (P.verbosity params)))
+               (do top <- P.computeTopDir params
+                   withLock (top ++ "/lockfile")
+                     (runStateT (quieter (+ 2) (P.buildCache params top packages) >>= runParameterSet) state))) >>=
+        either (\ (e :: SomeException) -> let msg = ("Failure running parameter set: " ++ show e) in
+                                          ePutStrLn msg >> return (Failure [msg] : results, initState))
+               (\ (result, state') -> return (result : results, state'))
+    where
+      isFailure (Failure _) = True
+      isFailure _ = False
 
 runParameterSet :: C.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
 runParameterSet cache =
