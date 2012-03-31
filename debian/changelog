@@ -1,3 +1,9 @@
+autobuilder (6.26) unstable; urgency=low
+
+  * Add a --report option to print report of pinned and patched packages.
+
+ -- David Fox <dsf@seereason.com>  Sat, 31 Mar 2012 08:34:49 -0700
+
 autobuilder (6.25) unstable; urgency=low
 
   * Fix some type safety issues when mapping cabal to debian library

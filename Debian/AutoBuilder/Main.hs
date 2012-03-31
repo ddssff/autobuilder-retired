@@ -206,6 +206,7 @@ runParameterSet cache =
       retrieveTargetList :: OSImage -> AptIOT IO [Either SomeException Download]
       retrieveTargetList cleanOS =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
+             when (P.report params) (ePutStrLn . doReport $ allTargets)
              qPutStrLn "Retrieving all source code:\n"
              countTasks' (map (\ (target :: P.Packages) ->
                                    (show (P.spec target),
@@ -284,3 +285,29 @@ countTasks' tasks =
           liftIO (IO.hPutStrLn IO.stderr (printf "[%2d of %2d] %s:" index count message)) >>
           task >>= \ a ->
           return a
+
+doReport :: P.Packages -> String
+doReport =
+    intercalate "\n" . doReport'
+    where
+      doReport' :: P.Packages -> [String]
+      doReport' P.NoPackage = []
+      doReport' p@(P.Packages {}) = concatMap doReport' (P.packages p)
+      doReport' p@(P.Package {}) =
+          patched (P.spec p) ++ pinned (P.flags p)
+          where
+            patched :: P.RetrieveMethod -> [String]
+            patched (P.Patch _ _) = [P.name p ++ " is patched"]
+            patched (P.Cd _ x) = patched x
+            patched (P.DataFiles x y _) = patched x ++ patched y
+            patched (P.DebDir x y) = patched x ++ patched y
+            patched (P.Debianize x) = patched x
+            patched (P.Proc x) = patched x
+            patched (P.Quilt x y) = patched x ++ patched y
+            patched (P.SourceDeb x) = patched x
+            patched (P.Twice x) = patched x
+            patched _ = []
+            pinned :: [P.PackageFlag] -> [String]
+            pinned [] = []
+            pinned (P.CabalPin v : more) = [P.name p ++ " is pinned at version " ++ v] ++ pinned more
+            pinned (_ : more) = pinned more

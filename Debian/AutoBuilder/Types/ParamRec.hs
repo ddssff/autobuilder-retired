@@ -86,6 +86,8 @@ data ParamRec =
     -- to be older than the version already in the repository.
     , doSSHExport :: Bool
     -- ^ Try to set up ssh keys if upload host asks for a password.
+    , report :: Bool
+    -- ^ Print a report of packages that are pinned or patched.
     , doHelp :: Bool
     -- ^ Print a usage message and exit.
 
