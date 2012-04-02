@@ -78,10 +78,12 @@ prepare c package u s = liftIO $
             Right realSum -> error ("Checksum mismatch for " ++ tarball c u s ++ ": expected " ++ s ++ ", saw " ++ realSum ++ ".")
             Left msg -> error ("Checksum failure for " ++ tarball c u s ++ ": " ++ show msg)
       unpackTarget realSum =
-          mkdir >> untar >>= read >>= search >>= verify
+          rmdir >> mkdir >> untar >>= read >>= search >>= verify
           where
+            rmdir = liftIO (try (removeDirectoryRecursive (sourceDir c s)) >>= either (\ (_ :: SomeException) -> return ()) return)
             -- Create the unpack directory
-            mkdir = liftIO (removeDirectoryRecursive (sourceDir c s) >> createDirectoryIfMissing True (sourceDir c s))
+            mkdir = liftIO (try (createDirectoryIfMissing True (sourceDir c s)) >>=
+                            either (\ (e :: SomeException) -> error ("Could not create " ++ sourceDir c s ++ ": " ++ show e)) return)
             untar =
                 do magic <- magicOpen []
                    magicLoadDefault magic
