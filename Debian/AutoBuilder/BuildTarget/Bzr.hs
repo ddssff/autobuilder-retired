@@ -17,6 +17,7 @@ import Debian.URI
 import System.FilePath (splitFileName)
 import System.Unix.Directory
 import qualified System.Unix.LazyProcess as P
+import qualified System.Unix.Outputs as P
 import System.Unix.Progress (timeTask, lazyCommandF)
 import System.Unix.QIO (qPutStrLn)
 import System.Directory

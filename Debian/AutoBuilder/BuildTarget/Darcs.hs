@@ -16,7 +16,7 @@ import Network.URI (URI(..), URIAuth(..), uriToString, parseURI)
 import System.Directory
 import System.FilePath
 import System.Unix.Directory
-import System.Unix.LazyProcess
+import System.Unix.Outputs
 import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, timeTask)
 import Text.Regex
 
