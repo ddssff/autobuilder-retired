@@ -14,6 +14,7 @@ import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Repo
 import Network.URI (URI(..), URIAuth(..), uriToString, parseURI)
 import System.Directory
+import System.Exit (ExitCode(..))
 import System.FilePath
 import System.Unix.Directory
 import System.Unix.Outputs
