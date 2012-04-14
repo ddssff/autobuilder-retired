@@ -76,7 +76,7 @@ prepare cache package theUri =
              _output <- lazyCommandF cmd B.empty
              findSourceTree dir
           where
-            cmd = unwords $ ["darcs", "get", "--partial", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
+            cmd = unwords $ ["darcs", "get", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
       -- Maybe we should include the "darcs:" in the string we checksum?
       fixLink = let link = base ++ "/" ++ name
                     cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
