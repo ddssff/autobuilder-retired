@@ -1,6 +1,7 @@
 {-# Language ScopedTypeVariables #-}
 module Debian.AutoBuilder.Types.Buildable
-    ( Buildable(..)
+    ( failing
+    , Buildable(..)
     , asBuildable
     , relaxDepends
     , srcPkgName
@@ -13,7 +14,7 @@ module Debian.AutoBuilder.Types.Buildable
     , getRelaxedDependencyInfo
     ) where
 
-import Control.Applicative.Error (Failing(Success, Failure), failing)
+import Control.Applicative.Error (Failing(Success, Failure), ErrorMsg)
 import Control.Exception (SomeException, try, catch, throw)
 import Control.Monad(when)
 import Control.Monad.Trans (liftIO)
@@ -43,6 +44,21 @@ import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
 import System.Unix.QIO (quieter, qPutStrLn {-, ePutStrLn-})
+
+-- | Case analysis for the 'Failing' type.
+-- If the value is @'Failure'@, apply the first function to @[ErrorMsg]@;
+-- if it is @'Success' a@, apply the second function to @a@.
+failing :: ([ErrorMsg] -> b) -> (a -> b) -> Failing a -> b
+failing f _ (Failure errs) = f errs
+failing _ f (Success a)    = f a
+
+instance Monad Failing where
+  return = Success
+  m >>= f =
+      case m of
+        (Failure errs) -> (Failure errs)
+        (Success a) -> f a
+  fail errMsg = Failure [errMsg]
 
 -- | A replacement for the BuildTarget class and the BuildTarget.* types.  The method code
 -- moves into the function that turns a RetrieveMethod into a BuildTarget.

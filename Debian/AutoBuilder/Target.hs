@@ -11,7 +11,7 @@ module Debian.AutoBuilder.Target
     ) where
 
 import Control.Arrow (second)
-import Control.Applicative.Error (Failing(..), failing)
+import Control.Applicative.Error (Failing(..))
 import Control.Exception (SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
@@ -24,7 +24,7 @@ import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName)
+import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName, failing)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Fingerprint (Fingerprint, packageFingerprint, showFingerprint, dependencyChanges, targetFingerprint, showDependencies, BuildDecision(..), buildDecision)
