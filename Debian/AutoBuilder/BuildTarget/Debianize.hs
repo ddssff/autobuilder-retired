@@ -23,6 +23,7 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import System.Directory (getDirectoryContents)
 import System.Exit
 import System.FilePath ((</>))
+import System.IO (hPutStrLn, stderr)
 import System.Process (CreateProcess(cwd), showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Unix.Process (readProcessWithExitCode)
@@ -62,7 +63,7 @@ debianize cache pflags dir =
                    maybe [] (\ x -> ["--ghc-version", x]) ver ++
                    -- concatMap cflag cflags ++
                    concatMap pflag pflags')
-       (code, out, err) <- readProcessWithExitCode "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
+       (code, out, err) <- run "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
        case code of
          ExitFailure _ -> error (showCommandForUser "cabal-debian" args ++ "(in " ++ show dir ++ ") -> " ++ show code ++
                                  "\nStdout:\n" ++ indent " 1> " out ++ "\nStderr:\n" ++ indent " 2> " err)
@@ -81,3 +82,7 @@ debianize cache pflags dir =
       ver = P.ghcVersion (P.params cache)
       isMaintainerFlag (P.Maintainer _) = True
       isMaintainerFlag _ = False
+
+      run cmd args cwd input =
+          hPutStrLn stderr ("-> " ++ showCommandForUser cmd args) >>
+          readProcessWithExitCode cmd args cwd input
