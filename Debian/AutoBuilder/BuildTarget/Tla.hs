@@ -12,7 +12,8 @@ import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Unix.Progress (timeTask, lazyCommandF)
+import System.Unix.Progress.Progress (timeTask)
+import System.Unix.Progress.QIO (lazyCommandF)
 import System.Unix.QIO (qPutStrLn)
 import System.Directory
 

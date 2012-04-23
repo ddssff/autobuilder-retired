@@ -10,7 +10,7 @@ import Data.Time (NominalDiffTime)
 import Data.Version (Version)
 import Debian.AutoBuilder.Types.Packages (Packages, PackageFlag, RetrieveMethod(..))
 import qualified Debian.AutoBuilder.Types.Packages as P
-import System.Unix.LazyProcess (Output)
+import System.Unix.Progress (Output)
 
 data Download
     = Download

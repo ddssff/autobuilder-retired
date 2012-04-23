@@ -14,7 +14,8 @@ import Debian.Repo
 import System.Directory
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Unix.Progress (lazyCommandF, timeTask)
+import System.Unix.Progress.Progress (timeTask)
+import System.Unix.Progress.QIO (lazyCommandF)
 
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]

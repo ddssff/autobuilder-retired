@@ -24,7 +24,8 @@ import Magic
 import System.FilePath (splitFileName)
 import System.Directory
 import System.Unix.Directory
-import System.Unix.Progress (lazyCommandF, timeTask)
+import System.Unix.Progress.Progress (timeTask)
+import System.Unix.Progress.QIO (lazyCommandF)
 
 documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the file at the"
                 , "given URI, which is assumed to be a gzipped tarball.  The optional md5sum"

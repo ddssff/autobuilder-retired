@@ -58,7 +58,7 @@ Library
       , parsec
       , pretty
       , process
-      , progress >= 1.51
+      , progress >= 1.52
       , pureMD5
       , regex-compat
       , regex-posix
@@ -67,7 +67,7 @@ Library
       , template-haskell
       , time
       , unix
-      , Unixutils >= 1.50
+      , Unixutils >= 1.51
       , xhtml
       , zlib
   GHC-Options: -O2 -threaded -Wall -Wwarn -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-type-defaults

@@ -19,9 +19,10 @@ import System.Directory
 import System.Exit
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Unix.LazyProcess
-import System.Unix.Outputs
-import System.Unix.Progress (timeTask, lazyCommandF, lazyProcessF, lazyProcessE)
+import System.Unix.Progress
+import System.Unix.Progress.Outputs (stdoutOnly, stderrOnly, exitCodeOnly)
+import System.Unix.Progress.Progress (timeTask)
+import System.Unix.Progress.QIO (lazyCommandF, lazyProcessF, lazyProcessE)
 
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]

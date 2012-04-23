@@ -16,9 +16,9 @@ import Debian.Repo
 import Debian.URI
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import qualified System.Unix.LazyProcess as P
-import qualified System.Unix.Outputs as P
-import System.Unix.Progress (timeTask, lazyCommandF)
+import System.Unix.Progress.Outputs (outputOnly)
+import System.Unix.Progress.Progress (timeTask)
+import System.Unix.Progress.QIO (lazyCommandF)
 import System.Unix.QIO (qPutStrLn)
 import System.Directory
 
@@ -58,7 +58,7 @@ prepare cache package version = liftIO $
         -- computes a diff between this archive and some other parent archive and tries to merge the changes
         mergeSource dir =
             lazyCommandF cmd L.empty >>= \ b ->
-            if isInfixOf "Nothing to do." (L.unpack (P.outputOnly b))
+            if isInfixOf "Nothing to do." (L.unpack (outputOnly b))
             then findSourceTree dir
             else commitSource dir
             where

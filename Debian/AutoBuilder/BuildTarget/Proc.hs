@@ -8,7 +8,7 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
-import System.Unix.Progress (lazyProcessEF)
+import System.Unix.Progress.QIO (lazyProcessEF)
 import System.Unix.QIO (quieter)
 
 documentation = [ "proc:<target> - A target of this form modifies another target by ensuring"

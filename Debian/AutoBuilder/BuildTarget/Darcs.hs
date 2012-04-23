@@ -17,8 +17,9 @@ import System.Directory
 import System.Exit (ExitCode(..))
 import System.FilePath
 import System.Unix.Directory
-import System.Unix.Outputs
-import System.Unix.Progress (lazyCommandF, lazyCommandE, lazyCommandV, timeTask)
+import System.Unix.Progress.Outputs (collectStdout, exitCodeOnly)
+import System.Unix.Progress.Progress (timeTask)
+import System.Unix.Progress.QIO (lazyCommandF, lazyCommandE, lazyCommandV)
 import Text.Regex
 
 documentation = [ "darcs:<string> - a target of this form obtains the source code by running"

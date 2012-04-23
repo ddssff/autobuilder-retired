@@ -14,8 +14,8 @@ import qualified Debian.Version as V
 import Debian.Repo (AptIOT)
 import System.Directory
 import System.Exit (ExitCode(..))
-import System.Unix.LazyProcess
-import System.Unix.Outputs
+import System.Unix.Progress
+import System.Unix.Progress.Outputs (exitCodeOnly)
 
 documentation = [ "sourcedeb:<target> - A target of this form unpacks the source deb"
                 , "retrieved by the original target and presents an unpacked source"

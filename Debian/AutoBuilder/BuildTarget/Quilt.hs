@@ -25,8 +25,8 @@ import Extra.Files (replaceFile)
 import "Extra" Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
-import System.Unix.Outputs (collectOutputUnpacked, collectOutput, mergeToStderr)
-import System.Unix.Progress (lazyCommandF, lazyCommandV)
+import System.Unix.Progress.Outputs (collectOutputUnpacked, collectOutput, mergeToStderr)
+import System.Unix.Progress.QIO (lazyCommandF, lazyCommandV)
 import System.Unix.QIO (qPutStrLn, qMessage, q12)
 import Text.Regex
 

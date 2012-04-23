@@ -34,7 +34,7 @@ import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, copySourceTree, 
 import Debian.Repo.Monad (AptIOT)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
-import System.Unix.Progress (lazyProcessEF)
+import System.Unix.Progress.QIO (lazyProcessEF)
 import System.Unix.QIO (q12, quieter)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.

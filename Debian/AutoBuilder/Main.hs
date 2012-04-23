@@ -53,8 +53,10 @@ import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
-import System.Unix.LazyProcess(Output)
-import System.Unix.Progress (timeTask, lazyCommandF)
+-- import System.Unix.LazyProcess(Output)
+import System.Unix.Progress (Output)
+import System.Unix.Progress.Progress (timeTask)
+import System.Unix.Progress.QIO (lazyCommandF)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
 import Text.Printf ( printf )
 
