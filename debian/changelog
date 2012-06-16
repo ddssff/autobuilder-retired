@@ -1,3 +1,9 @@
+autobuilder (6.27) unstable; urgency=low
+
+  * Add a --no-doc option to send --disable-haddock to cabal-debian.
+
+ -- David Fox <dsf@seereason.com>  Sat, 16 Jun 2012 14:12:54 -0700
+
 autobuilder (6.26) unstable; urgency=low
 
   * Add a --report option to print report of pinned and patched packages.
