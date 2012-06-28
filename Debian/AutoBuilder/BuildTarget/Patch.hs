@@ -2,15 +2,20 @@
 {-# LANGUAGE Rank2Types, ScopedTypeVariables #-}
 module Debian.AutoBuilder.BuildTarget.Patch where
 
+import qualified Debug.Trace as D
+
+import Control.Applicative ((<$>))
+import Control.Exception (SomeException, try)
 import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.Digest.Pure.MD5 (md5)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
-import Debian.Repo (OSImage, findSourceTree, copySourceTree, SourceTree(dir'))
+import Debian.Repo (OSImage, findSourceTree, copySourceTree, SourceTree(dir'), findDebianSourceTrees, DebianSourceTree(tree'))
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
+import System.FilePath ((</>))
 import System.Process (CreateProcess(cwd), showCommandForUser)
 import System.Unix.Process (readProcessWithExitCode)
 
@@ -42,12 +47,11 @@ prepare cache package _buildOS patch base =
     do baseTree <- findSourceTree (T.getTop base)
        liftIO (createDirectoryIfMissing True copyDir)
        tree <- copySourceTree baseTree copyDir
-       (res, out, err) <- readProcessWithExitCode cmd args (\ p -> p {cwd = Just copyDir}) (B.pack patch)
-{-
-       (_out, err, res) <- lazyProcessE "/usr/bin/patch" ["-p1"] (Just copyDir) Nothing (B.pack patch) >>= return . collectOutputUnpacked
--}
+       subDir <- findSource (P.spec package) copyDir
+       (res, out, err) <- readProcessWithExitCode cmd args (\ p -> p {cwd = Just subDir}) (B.pack patch)
        case res of
-         ExitFailure _ -> error (showCommandForUser cmd args ++ " < " ++ copyDir ++ " -> " ++ show res ++
+         ExitFailure _ -> error (showCommandForUser cmd args ++ " -> " ++ show res ++
+                                 "\ncwd:" ++ subDir ++
                                  "\nstdout:\n" ++ indent (B.unpack out) ++
                                  "\nstderr:\n" ++ indent (B.unpack err) ++
                                  "\npatch:\n" ++ indent patch)
@@ -68,6 +72,18 @@ prepare cache package _buildOS patch base =
 
 indent :: String -> String
 indent = unlines . map (" > " ++) . lines
+
+-- | For the Apt target, the real source tree is in a subdirctory.
+findSource :: P.RetrieveMethod -> FilePath -> IO FilePath
+findSource (P.Patch (P.Apt _dist _name) _) copyDir =
+  try (findDebianSourceTrees (D.trace ("findDebianSourceTree " ++ show copyDir) copyDir)) >>=
+  return . either (\ (e :: SomeException) -> D.trace (" -> " ++ show e) copyDir)
+           (\ ts ->
+             case ts of
+               [(subdir, _)] -> D.trace (" -> " ++ show (copyDir </> subdir)) (copyDir </> subdir)
+               [] -> error "findSource: Internal error"
+               _ -> error $ "Multiple debian source trees in " ++ copyDir ++ ": " ++ show (map fst ts))
+findSource _ copyDir = return copyDir
 
 {-
 instance BuildTarget Patch where
