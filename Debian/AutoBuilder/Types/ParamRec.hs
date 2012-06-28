@@ -261,10 +261,15 @@ instance Show Strictness where
 -- value of this type.  Once all the command line arguments have been
 -- analyzed, this is transformed into a set of targets, which can be
 -- used to implement the ParamClass "targets" method.
+-- 
+-- We allow some redundancy here by keeping a set of names even while
+-- the allTargets flag is set so we can verify that the user never
+-- supplies bogus target names.
 data TargetSpec
-    = AllTargets
-    | TargetNames (Set.Set String)
-    deriving Show
+     = TargetSpec
+       { allTargets :: Bool
+       , targetNames :: Set.Set String }
+     deriving Show
 
 -- |Output a (somewhat) readable representation of the parameter set.
 prettyPrint :: ParamRec -> String

@@ -1,3 +1,9 @@
+autobuilder (6.28) unstable; urgency=low
+
+  * Make the TargetSpec type more flexible.
+
+ -- David Fox <dsf@seereason.com>  Thu, 28 Jun 2012 09:47:56 -0700
+
 autobuilder (6.27) unstable; urgency=low
 
   * Add a --no-doc option to send --disable-haddock to cabal-debian.
