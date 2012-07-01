@@ -85,5 +85,5 @@ debianize cache pflags dir =
       isMaintainerFlag _ = False
 
       run cmd args cwd input =
-          hPutStrLn stderr ("-> " ++ showCommandForUser cmd args) >>
+          hPutStrLn stderr ("-> " ++ showCommandForUser cmd args ++ " (in " ++ show dir ++ ")") >>
           readProcessWithExitCode cmd args cwd input
