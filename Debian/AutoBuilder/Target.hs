@@ -24,7 +24,7 @@ import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, srcPkgName, failing)
+import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, failing)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Fingerprint (Fingerprint, packageFingerprint, showFingerprint, dependencyChanges, targetFingerprint, showDependencies, BuildDecision(..), buildDecision)
@@ -135,7 +135,7 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
       qPutStrLn "\nAssembling source trees:\n"
       targets <- prepareTargets cache cleanOS globalBuildDeps targetSpecs
-      qPutStrLn "\nBuilding all targets:\n"
+      qPutStrLn "\nBuilding all targets:"
       failed <- buildLoop cache globalBuildDeps localRepo poolOS cleanOS targets
       return (localRepo, failed)
     where
@@ -212,18 +212,19 @@ chooseNextTarget cache goals targets =
       (G.CycleInfo arcs) -> error (cycleMessage cache arcs)
       info ->
           case sortBy (compareReady goals) . G.readyTriples $ info of
-            (ready, blocked, other) : _ -> Just (ready, blocked, other, makeTable info)
             [] -> Nothing
+            triples@((ready, blocked, other) : _) -> Just (ready, blocked, other, makeTable triples)
     where
-      makeTable (G.BuildableInfo ready _other) =
-          unlines . map (intercalate " ") . columns $ goalsLine ++ readyLines
+      makeTable triples =
+          unlines . map (intercalate " ") . columns $ goalsLine ++ [[""]] ++ readyLines
           where
             goalsLine = []
-            readyLines = map readyLine ready
-            readyLine (ready', blocked, _other) = 
-                [" Ready:", targetName ready', "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"]
-      makeTable (G.CycleInfo pairs) =
-          error $ "Cycle detected by Debian.GenBuildDeps.buildable: " ++ show (map (\ (a, b) -> (srcPkgName (tgt a), srcPkgName (tgt b))) pairs)
+            readyLines = take 16 (map readyLine triples) ++
+                         (if length triples > 16 then [[" ..."]] else [])
+            readyLine (ready, blocked, _other) =
+                [" Ready:", targetName ready, if length blocked < 8
+                                               then "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"
+                                               else "Blocking " ++ show (length blocked) ++ " packages"]
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed (relaxDepends cache (tgt target1)) target1) (targetRelaxed (relaxDepends cache (tgt target2)) target2)

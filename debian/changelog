@@ -1,3 +1,9 @@
+autobuilder (6.29) unstable; urgency=low
+
+  * Improve format of ready target message.
+
+ -- David Fox <dsf@seereason.com>  Wed, 18 Jul 2012 17:09:09 -0700
+
 autobuilder (6.28) unstable; urgency=low
 
   * Make the TargetSpec type more flexible.
