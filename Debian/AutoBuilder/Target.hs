@@ -219,12 +219,9 @@ chooseNextTarget cache goals targets =
           unlines . map (intercalate " ") . columns $ goalsLine ++ [[""]] ++ readyLines
           where
             goalsLine = []
-            readyLines = take 16 (map readyLine triples) ++
-                         (if length triples > 16 then [[" ..."]] else [])
+            readyLines = map readyLine triples
             readyLine (ready, blocked, _other) =
-                [" Ready:", targetName ready, if length blocked < 8
-                                               then "Blocking: [" ++ intercalate ", " (map targetName blocked) ++ "]"
-                                               else "Blocking " ++ show (length blocked) ++ " packages"]
+                [" Ready:", targetName ready, "Blocking " ++ show (length blocked) ++ ": [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed (relaxDepends cache (tgt target1)) target1) (targetRelaxed (relaxDepends cache (tgt target2)) target2)
