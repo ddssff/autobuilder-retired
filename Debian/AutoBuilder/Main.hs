@@ -270,7 +270,7 @@ runParameterSet cache =
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
             loadCache path =
                 do pairs <- try (readFile path >>= return . read) >>=
-                            either (\ (e :: SomeException) -> qPutStrLn ("Couldn't load cache: " ++ show e) >> return []) return
+                            either (\ (e :: SomeException) -> return []) return
                    let (pairs' :: [(URI, Maybe Repository)]) =
                            catMaybes (map (\ (s, x) -> case parseURI s of
                                                          Nothing -> Nothing
