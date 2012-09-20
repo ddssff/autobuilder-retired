@@ -1,3 +1,11 @@
+autobuilder (6.30) unstable; urgency=low
+
+  * Fix support for applying a patch to an apt target
+  * Remove a confusing error message
+  * Show cwd when running cabal-debian
+
+ -- David Fox <dsf@seereason.com>  Thu, 20 Sep 2012 08:03:08 -0700
+
 autobuilder (6.29) unstable; urgency=low
 
   * Improve format of ready target message.
