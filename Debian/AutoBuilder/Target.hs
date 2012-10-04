@@ -152,6 +152,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
       loop :: OSImage -> [Target] -> [Target] -> AptIOT IO [Target]
       loop _ [] failed = return failed
       loop cleanOS' unbuilt failed =
+          ePutStrLn "Computing ready targets..." >>
           case readyTargets cache (goals unbuilt) unbuilt of
             [] -> return failed
             ready -> do quieter (\x->x-1) $ qPutStrLn (makeTable ready)
