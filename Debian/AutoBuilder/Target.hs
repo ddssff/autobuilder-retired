@@ -149,11 +149,11 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
     where
       loop _ _ ([], failed) = return failed
       loop cleanOS' count (unbuilt, failed) =
-         do let next = chooseNextTarget cache (goals unbuilt) unbuilt
-            case next of
-              Nothing -> return failed
-              Just (target, blocked, other, dependencyTable) ->
-                  do quieter (\x->x-1) $ qPutStrLn dependencyTable
+         do let ready = readyTargets cache (goals unbuilt) unbuilt
+            case ready of
+              [] -> return failed
+              ((target, blocked, other) : _) ->
+                  do quieter (\x->x-1) $ qPutStrLn (makeTable ready)
                      ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
                                 (count - length unbuilt + 1) count (targetName target) (show (T.method (download (tgt target)))))
                      result <- if Set.member (targetName target) (P.discard (P.params cache))
@@ -183,6 +183,15 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
       --indent s = setStyle (addPrefix stderr s)
       --debugStyle = setStyle (cond Debian.IO.dryRun Debian.IO.realRun (P.debug params))
 
+makeTable :: [(Target, [Target], [Target])] -> String
+makeTable triples =
+    unlines . map (intercalate " ") . columns $ goalsLine ++ [[""]] ++ readyLines
+    where
+      goalsLine = []
+      readyLines = map readyLine triples
+      readyLine (ready, blocked, _other) =
+          [" Ready:", targetName ready, "Blocking " ++ show (length blocked) ++ ": [" ++ intercalate ", " (map targetName blocked) ++ "]"]
+
 -- |Compute the list of targets that are ready to build from the build
 -- dependency relations.  The return value is a list of target lists,
 -- where the first element of each list is ready to build, and the
@@ -201,9 +210,9 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
 -- from the target set, and repeat until all targets are built.  We
 -- can build a graph of the "has build dependency" relation and find
 -- any node that has no inbound arcs and (maybe) build that.
-chooseNextTarget :: P.CacheRec -> [Target] -> [Target] -> Maybe (Target, [Target], [Target], String)
-chooseNextTarget _ [] _ = Nothing
-chooseNextTarget cache goals targets =
+readyTargets :: P.CacheRec -> [Target] -> [Target] -> [(Target, [Target], [Target])]
+readyTargets _ [] _ = []
+readyTargets cache goals targets =
     -- q12 "Choosing next target" $
     -- Compute the list of build dependency groups, each of which
     -- starts with a target that is ready to build followed by
@@ -212,16 +221,9 @@ chooseNextTarget cache goals targets =
       (G.CycleInfo arcs) -> error (cycleMessage cache arcs)
       info ->
           case sortBy (compareReady goals) . G.readyTriples $ info of
-            [] -> Nothing
-            triples@((ready, blocked, other) : _) -> Just (ready, blocked, other, makeTable triples)
+            [] -> []
+            triples -> triples
     where
-      makeTable triples =
-          unlines . map (intercalate " ") . columns $ goalsLine ++ [[""]] ++ readyLines
-          where
-            goalsLine = []
-            readyLines = map readyLine triples
-            readyLine (ready, blocked, _other) =
-                [" Ready:", targetName ready, "Blocking " ++ show (length blocked) ++ ": [" ++ intercalate ", " (map targetName blocked) ++ "]"]
       -- We choose the next target using the relaxed dependency set
       depends :: Target -> Target -> Ordering
       depends target1 target2 = G.compareSource (targetRelaxed (relaxDepends cache (tgt target1)) target1) (targetRelaxed (relaxDepends cache (tgt target2)) target2)
