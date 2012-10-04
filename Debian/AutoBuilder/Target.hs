@@ -180,7 +180,8 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
                                qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
                                           "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                           concat (intersperse "\n  " (map targetName blocked)))
-                             loop2 cleanOS' unbuilt (nub ((target : blocked) ++ failed)) ready')
+                             let unbuilt' = diff unbuilt blocked
+                             loop2 cleanOS' unbuilt' (nub ((target : blocked) ++ failed)) ready')
                      -- On success the target is discarded and its
                      -- dependencies are added to unbuilt.
                      (\ mRepo ->
@@ -195,6 +196,8 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
           case P.goals (P.params cache) of
             [] -> targets
             goalNames -> filter (\ target -> elem (targetName target) goalNames) targets
+      eq a b = targetName a == targetName b
+      diff xs ys = filter (\ y -> not (any (eq y) xs)) ys
 
       -- Find the sources.list for the distribution we will be building in.
       --indent s = setStyle (addPrefix stderr s)
