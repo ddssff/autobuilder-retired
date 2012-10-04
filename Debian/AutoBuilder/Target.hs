@@ -143,35 +143,51 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
       --buildAll cleanOS targetList globalBuildDeps
 
 -- Execute the target build loop until all the goals (or everything) is built
+-- FIXME: Use sets instead of lists
 buildLoop :: (AptCache t) => P.CacheRec -> Relations -> LocalRepository -> t -> OSImage -> [Target] -> AptIOT IO [Target]
 buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
-    loop cleanOS' (length targets) (targets, [])
+    loop cleanOS' targets []
     where
-      loop _ _ ([], failed) = return failed
-      loop cleanOS' count (unbuilt, failed) =
-         do let ready = readyTargets cache (goals unbuilt) unbuilt
-            case ready of
-              [] -> return failed
-              ((target, blocked, other) : _) ->
-                  do quieter (\x->x-1) $ qPutStrLn (makeTable ready)
-                     ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                                (count - length unbuilt + 1) count (targetName target) (show (T.method (download (tgt target)))))
-                     result <- if Set.member (targetName target) (P.discard (P.params cache))
-                               then return (Failure ["--discard option set"])
-                               else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
-                     failing (\ errs ->
-                                  do quieter (const 0) $
-                                       qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
-                                                  "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
-                                                  concat (intersperse "\n  " (map targetName blocked)))
-                                     loop cleanOS' count (other, (target : blocked) ++ failed))
-                             (\ mRepo ->
-                                  do cleanOS'' <- maybe (return cleanOS')
-                                                       (\ _ -> updateEnv cleanOS' >>= either (\ e -> error ("Failed to update clean OS:\n " ++ show e)) return)
-                                                       mRepo
-                                     loop cleanOS'' count (blocked ++ other, failed))
-                             result
-
+      -- This loop computes the ready targets and builds one.
+      loop :: OSImage -> [Target] -> [Target] -> AptIOT IO [Target]
+      loop _ [] failed = return failed
+      loop cleanOS' unbuilt failed =
+          case readyTargets cache (goals unbuilt) unbuilt of
+            [] -> return failed
+            ready -> do quieter (\x->x-1) $ qPutStrLn (makeTable ready)
+                        let notReady x = not (Set.member (targetName x) (Set.fromList (map (\ (x, _, _) -> targetName x) ready)))
+                        loop2 cleanOS' (filter notReady unbuilt) [] ready
+      -- Out of ready targets, re-do the dependency computation
+      loop2 :: OSImage
+            -> [Target] -- unbuilt: targets which have not been built and are not ready to build
+            -> [Target] -- failed: Targets which either failed to build or were blocked by a target that failed to build
+            -> [(Target, [Target], [Target])] -- ready: the list of known buildable targets
+            -> AptIOT IO [Target]
+      loop2 cleanOS' unbuilt failed [] =
+          loop cleanOS' unbuilt failed
+      loop2 cleanOS' unbuilt failed ((target, blocked, _) : ready') =
+          do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
+                        (length targets - length unbuilt - length failed + 1) (length targets) (targetName target) (show (T.method (download (tgt target)))))
+             -- Build one target.
+             result <- if Set.member (targetName target) (P.discard (P.params cache))
+                       then return (Failure ["--discard option set"])
+                       else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
+             failing -- On failure the target and its dependencies get
+                     -- added to failed.
+                     (\ errs ->
+                          do quieter (const 0) $
+                               qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
+                                          "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
+                                          concat (intersperse "\n  " (map targetName blocked)))
+                             loop2 cleanOS' unbuilt (nub ((target : blocked) ++ failed)) ready')
+                     -- On success the target is discarded and its
+                     -- dependencies are added to unbuilt.
+                     (\ mRepo ->
+                          do cleanOS'' <- maybe (return cleanOS')
+                                               (\ _ -> updateEnv cleanOS' >>= either (\ e -> error ("Failed to update clean OS:\n " ++ show e)) return)
+                                               mRepo
+                             loop2 cleanOS'' (nub (unbuilt ++ blocked)) failed ready')
+                     result
       -- If no goals are given in the build parameters, assume all
       -- known targets are goals.
       goals targets =
