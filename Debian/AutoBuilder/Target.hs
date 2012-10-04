@@ -162,7 +162,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
             [] -> return failed
             triples -> do quieter (\x->x-1) $ qPutStrLn (makeTable triples)
                           let ready = Set.fromList $ map (\ (x, _, _) -> x) triples
-                          loop2 cleanOS' (Set.difference unbuilt ready) Set.empty triples
+                          loop2 cleanOS' (Set.difference unbuilt ready) failed triples
       -- Out of ready targets, re-do the dependency computation
       loop2 :: OSImage
             -> Set.Set Target -- unbuilt: targets which have not been built and are not ready to build
