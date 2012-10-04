@@ -11,12 +11,14 @@ module Debian.AutoBuilder.Target
     ) where
 
 import Control.Arrow (second)
+import Control.Applicative ((<$>))
 import Control.Applicative.Error (Failing(..))
 import Control.Exception (SomeException, try, evaluate)
 import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Either (partitionEithers)
+import Data.Function (on)
 import Data.List(intersperse, intercalate, intersect, isSuffixOf,
                  nub, partition, sortBy)
 import Data.Maybe(catMaybes, fromJust, isNothing, listToMaybe)
@@ -24,7 +26,7 @@ import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
 import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
-import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, failing)
+import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, failing, debianSourcePackageName)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import Debian.AutoBuilder.Types.Fingerprint (Fingerprint, packageFingerprint, showFingerprint, dependencyChanges, targetFingerprint, showDependencies, BuildDecision(..), buildDecision)
@@ -75,6 +77,9 @@ import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, ePutStr, ePutStr
 import Text.PrettyPrint (Doc, text, (<>))
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
+
+instance Ord Target where
+    compare = compare `on` debianSourcePackageName
 
 prettySimpleRelation :: Maybe PkgVersion -> Doc
 prettySimpleRelation rel = maybe (text "Nothing") (\ v -> prettyBinPkgName (getName v) <> text "=" <> prettyDebianVersion (getVersion v)) rel
@@ -146,29 +151,29 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 -- FIXME: Use sets instead of lists
 buildLoop :: (AptCache t) => P.CacheRec -> Relations -> LocalRepository -> t -> OSImage -> [Target] -> AptIOT IO [Target]
 buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
-    loop cleanOS' targets []
+    Set.toList <$> loop cleanOS' (Set.fromList targets) Set.empty
     where
       -- This loop computes the ready targets and builds one.
-      loop :: OSImage -> [Target] -> [Target] -> AptIOT IO [Target]
-      loop _ [] failed = return failed
+      loop :: OSImage -> Set.Set Target -> Set.Set Target -> AptIOT IO (Set.Set Target)
+      loop _ unbuilt failed | Set.null unbuilt = return failed
       loop cleanOS' unbuilt failed =
           ePutStrLn "Computing ready targets..." >>
-          case readyTargets cache (goals unbuilt) unbuilt of
+          case readyTargets cache (goals (Set.toList unbuilt)) (Set.toList unbuilt) of
             [] -> return failed
-            ready -> do quieter (\x->x-1) $ qPutStrLn (makeTable ready)
-                        let notReady x = not (Set.member (targetName x) (Set.fromList (map (\ (x, _, _) -> targetName x) ready)))
-                        loop2 cleanOS' (filter notReady unbuilt) [] ready
+            triples -> do quieter (\x->x-1) $ qPutStrLn (makeTable triples)
+                          let ready = Set.fromList $ map (\ (x, _, _) -> x) triples
+                          loop2 cleanOS' (Set.difference unbuilt ready) Set.empty triples
       -- Out of ready targets, re-do the dependency computation
       loop2 :: OSImage
-            -> [Target] -- unbuilt: targets which have not been built and are not ready to build
-            -> [Target] -- failed: Targets which either failed to build or were blocked by a target that failed to build
+            -> Set.Set Target -- unbuilt: targets which have not been built and are not ready to build
+            -> Set.Set Target -- failed: Targets which either failed to build or were blocked by a target that failed to build
             -> [(Target, [Target], [Target])] -- ready: the list of known buildable targets
-            -> AptIOT IO [Target]
+            -> AptIOT IO (Set.Set Target)
       loop2 cleanOS' unbuilt failed [] =
           loop cleanOS' unbuilt failed
       loop2 cleanOS' unbuilt failed ((target, blocked, _) : ready') =
           do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                        (length targets - (length unbuilt + length failed + length ready')) (length targets) (targetName target) (show (T.method (download (tgt target)))))
+                        (length targets - (Set.size unbuilt + Set.size failed + length ready')) (length targets) (targetName target) (show (T.method (download (tgt target)))))
              -- Build one target.
              result <- if Set.member (targetName target) (P.discard (P.params cache))
                        then return (Failure ["--discard option set"])
@@ -180,15 +185,14 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
                                qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
                                           "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                           concat (intersperse "\n  " (map targetName blocked)))
-                             let unbuilt' = diff unbuilt blocked
-                             loop2 cleanOS' unbuilt' (nub ((target : blocked) ++ failed)) ready')
+                             loop2 cleanOS' (Set.difference unbuilt (Set.fromList blocked)) (Set.insert target  . Set.union (Set.fromList blocked) $ failed) ready')
                      -- On success the target is discarded and its
                      -- dependencies are added to unbuilt.
                      (\ mRepo ->
                           do cleanOS'' <- maybe (return cleanOS')
                                                (\ _ -> updateEnv cleanOS' >>= either (\ e -> error ("Failed to update clean OS:\n " ++ show e)) return)
                                                mRepo
-                             loop2 cleanOS'' (nub (unbuilt ++ blocked)) failed ready')
+                             loop2 cleanOS'' (Set.union unbuilt (Set.fromList blocked)) failed ready')
                      result
       -- If no goals are given in the build parameters, assume all
       -- known targets are goals.
@@ -196,8 +200,6 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
           case P.goals (P.params cache) of
             [] -> targets
             goalNames -> filter (\ target -> elem (targetName target) goalNames) targets
-      eq a b = targetName a == targetName b
-      diff xs ys = filter (\ y -> not (any (eq y) xs)) ys
 
       -- Find the sources.list for the distribution we will be building in.
       --indent s = setStyle (addPrefix stderr s)
