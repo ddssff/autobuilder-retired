@@ -167,7 +167,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
           loop cleanOS' unbuilt failed
       loop2 cleanOS' unbuilt failed ((target, blocked, _) : ready') =
           do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                        (length targets - length unbuilt - length failed + 1) (length targets) (targetName target) (show (T.method (download (tgt target)))))
+                        (length targets - length unbuilt - length failed + length ready) (length targets) (targetName target) (show (T.method (download (tgt target)))))
              -- Build one target.
              result <- if Set.member (targetName target) (P.discard (P.params cache))
                        then return (Failure ["--discard option set"])
