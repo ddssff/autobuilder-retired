@@ -1,3 +1,9 @@
+autobuilder (6.32) unstable; urgency=low
+
+  * Fix the algorithm for processing targets.
+
+ -- David Fox <dsf@seereason.com>  Thu, 04 Oct 2012 21:37:07 -0700
+
 autobuilder (6.31) unstable; urgency=low
 
   * Build *all* the ready targets we know about before going back
