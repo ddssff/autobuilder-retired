@@ -173,7 +173,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
           loop cleanOS' unbuilt failed
       loop2 cleanOS' unbuilt failed ((target, blocked, _) : ready') =
           do ePutStrLn (printf "[%2d of %2d] TARGET: %s - %s"
-                        (length targets - (Set.size unbuilt + Set.size failed + length ready')) (length targets) (targetName target) (show (T.method (download (tgt target)))))
+                        (length targets - (Set.size unbuilt + length ready')) (length targets) (targetName target) (show (T.method (download (tgt target)))))
              -- Build one target.
              result <- if Set.member (targetName target) (P.discard (P.params cache))
                        then return (Failure ["--discard option set"])
@@ -185,14 +185,21 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
                                qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
                                           "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                           concat (intersperse "\n  " (map targetName blocked)))
-                             loop2 cleanOS' (Set.difference unbuilt (Set.fromList blocked)) (Set.insert target  . Set.union (Set.fromList blocked) $ failed) ready')
+                             let -- Remove the dependencies of the failed packages from unbuilt
+                                 unbuilt' = Set.difference unbuilt (Set.fromList blocked)
+                                 -- Add the target and its dependencies to failed
+                                 failed' = Set.insert target  . Set.union (Set.fromList blocked) $ failed
+                             loop2 cleanOS' unbuilt' failed' ready')
                      -- On success the target is discarded and its
                      -- dependencies are added to unbuilt.
                      (\ mRepo ->
                           do cleanOS'' <- maybe (return cleanOS')
                                                (\ _ -> updateEnv cleanOS' >>= either (\ e -> error ("Failed to update clean OS:\n " ++ show e)) return)
                                                mRepo
-                             loop2 cleanOS'' (Set.union unbuilt (Set.fromList blocked)) failed ready')
+                             -- Add to unbuilt any blocked packages that weren't already failed by
+                             -- some other build
+                             let unbuilt' = Set.union unbuilt (Set.difference (Set.fromList blocked) failed)
+                             loop2 cleanOS'' unbuilt' failed ready')
                      result
       -- If no goals are given in the build parameters, assume all
       -- known targets are goals.
