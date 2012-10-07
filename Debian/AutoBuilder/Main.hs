@@ -97,8 +97,7 @@ doParameterSet (results, state) (params, packages) =
                (do top <- P.computeTopDir params
                    withLock (top ++ "/lockfile")
                      (runStateT (quieter (+ 2) (P.buildCache params top packages) >>= runParameterSet) state))) >>=
-        either (\ (e :: SomeException) -> let msg = ("Failure running parameter set: " ++ show e) in
-                                          ePutStrLn msg >> return (Failure [msg] : results, initState))
+        either (\ (e :: SomeException) -> return (Failure [msg] : results, initState))
                (\ (result, state') -> return (result : results, state'))
     where
       isFailure (Failure _) = True
@@ -143,10 +142,7 @@ runParameterSet cache =
       -- Build an apt-get environment which we can use to retrieve all the package lists
       poolOS <-prepareAptEnv (C.topDir cache) (P.ifSourcesChanged params) poolSources
       (failures, targets) <- retrieveTargetList cleanOS >>= mapM (either (return . Left) (liftIO . try . asBuildable)) >>= return . partitionEithers
-      when (not (null failures))
-           (do let msg = intercalate "\n " ("Some targets could not be retrieved:" : map show failures)
-               liftIO $ IO.hPutStrLn IO.stderr msg
-               error msg)
+      when (not $ null $ failures) (error $ intercalate "\n " $ "Some targets could not be retrieved:" : map show failures)
       buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS targets
       -- If all targets succeed they may be uploaded to a remote repo
       result <- tryAB (upload buildResult >>= lift . newDist) >>=
@@ -170,7 +166,7 @@ runParameterSet cache =
             reasons -> quieter (const 0) $
                 do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
-                   liftIO $ exitWith (ExitFailure 1)                    
+                   liftIO $ exitWith (ExitFailure 1)
           where
             printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
