@@ -97,7 +97,7 @@ doParameterSet (results, state) (params, packages) =
                (do top <- P.computeTopDir params
                    withLock (top ++ "/lockfile")
                      (runStateT (quieter (+ 2) (P.buildCache params top packages) >>= runParameterSet) state))) >>=
-        either (\ (e :: SomeException) -> return (Failure [msg] : results, initState))
+        either (\ (e :: SomeException) -> return (Failure [show e] : results, initState))
                (\ (result, state') -> return (result : results, state'))
     where
       isFailure (Failure _) = True

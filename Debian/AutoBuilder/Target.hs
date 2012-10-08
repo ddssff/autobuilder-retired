@@ -49,6 +49,7 @@ import Debian.Repo.Cache (binaryPackages, buildArchOfEnv, sourcePackages, aptSou
 import Debian.Repo.Dependencies (simplifyRelations, solutions)
 import Debian.Repo.Changes (save, uploadLocal)
 import Debian.Repo.Insert (scanIncoming, showErrors)
+import Debian.Repo.Monad (tryAB)
 import Debian.Repo.OSImage (OSImage, updateLists)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
 import Debian.Repo.SourceTree (SourceTreeC(..), DebianSourceTreeC(..),
@@ -177,7 +178,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
              -- Build one target.
              result <- if Set.member (targetName target) (P.discard (P.params cache))
                        then return (Failure ["--discard option set"])
-                       else buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target
+                       else tryAB (buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target) >>= return . either (\ (e :: SomeException) -> Failure [show e]) id
              failing -- On failure the target and its dependencies get
                      -- added to failed.
                      (\ errs ->
