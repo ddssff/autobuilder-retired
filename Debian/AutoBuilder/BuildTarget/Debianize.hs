@@ -26,7 +26,7 @@ import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
 import System.Process (CreateProcess(cwd), showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Process (readProcessWithExitCode)
+import System.Process.ByteString.Lazy (readModifiedProcessWithExitCode)
 import System.Unix.QIO (qPutStrLn)
 
 documentation :: [String]
@@ -86,4 +86,4 @@ debianize cache pflags dir =
 
       run cmd args cwd input =
           hPutStrLn stderr ("-> " ++ showCommandForUser cmd args ++ " (in " ++ show dir ++ ")") >>
-          readProcessWithExitCode cmd args cwd input
+          readModifiedProcessWithExitCode cwd cmd args input
