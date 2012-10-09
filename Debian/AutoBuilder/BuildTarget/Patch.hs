@@ -48,7 +48,7 @@ prepare cache package _buildOS patch base =
        liftIO (createDirectoryIfMissing True copyDir)
        tree <- copySourceTree baseTree copyDir
        subDir <- findSource (P.spec package) copyDir
-       (res, out, err) <- readModifiedProcessWithExitCode cmd args (\ p -> p {cwd = Just subDir}) (B.pack patch)
+       (res, out, err) <- readModifiedProcessWithExitCode (\ p -> p {cwd = Just subDir}) cmd args (B.pack patch)
        case res of
          ExitFailure _ -> error (showCommandForUser cmd args ++ " -> " ++ show res ++
                                  "\ncwd:" ++ subDir ++
