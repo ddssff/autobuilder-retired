@@ -26,7 +26,7 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Unix.Progress.Outputs (collectOutput)
-import System.Unix.Process (readProcessWithExitCode)
+import System.Process.ByteString.Lazy (readProcessWithExitCode)
 import System.Unix.Progress.QIO (lazyCommandE)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
@@ -128,7 +128,7 @@ downloadCached server cache name version =
 -- > getVersion \"binary\" -> \"0.5.0.2\"
 getVersion :: String -> String -> IO Version
 getVersion server name =
-    do result@(code, out, _) <- readProcessWithExitCode cmd args id B.empty
+    do result@(code, out, _) <- readProcessWithExitCode cmd args B.empty
        case code of
          ExitSuccess -> return $ readVersion $ findVersion name $ htmlParse (showCommandForUser cmd args) (B.unpack out)
          _ -> error ("Could not get version for " ++ name ++ "\n " ++ cmd ++ " -> " ++ show result)
