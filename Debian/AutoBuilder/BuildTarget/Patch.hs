@@ -17,7 +17,7 @@ import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.FilePath ((</>))
 import System.Process (CreateProcess(cwd), showCommandForUser)
-import System.Unix.Process (readProcessWithExitCode)
+import System.Process.ByteString.Lazy (readProcessWithExitCode)
 
 {-
 -- |Scan the flag list for Patch flag, and apply the patches
