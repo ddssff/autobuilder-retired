@@ -24,7 +24,7 @@ import System.Directory (getDirectoryContents)
 import System.Exit
 import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
-import System.Process (CreateProcess(cwd), showCommandForUser)
+import System.Process (CreateProcess(cwd), CmdSpec(RawCommand), showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Process.ByteString.Lazy (readModifiedProcessWithExitCode)
 import System.Unix.QIO (qPutStrLn)
@@ -63,7 +63,7 @@ debianize cache pflags dir =
                    maybe [] (\ x -> ["--ghc-version", x]) ver ++
                    -- concatMap cflag cflags ++
                    concatMap pflag pflags')
-       (code, out, err) <- run "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
+       (code, out, err, _exn) <- run "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
        case code of
          ExitFailure _ -> error (showCommandForUser "cabal-debian" args ++ "(in " ++ show dir ++ ") -> " ++ show code ++
                                  "\nStdout:\n" ++ indent " 1> " out ++ "\nStderr:\n" ++ indent " 2> " err)
@@ -86,4 +86,4 @@ debianize cache pflags dir =
 
       run cmd args cwd input =
           hPutStrLn stderr ("-> " ++ showCommandForUser cmd args ++ " (in " ++ show dir ++ ")") >>
-          readModifiedProcessWithExitCode cwd cmd args input
+          readModifiedProcessWithExitCode cwd (RawCommand cmd args) input

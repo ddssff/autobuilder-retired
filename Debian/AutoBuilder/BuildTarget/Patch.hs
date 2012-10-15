@@ -16,7 +16,7 @@ import Debian.Repo (OSImage, findSourceTree, copySourceTree, SourceTree(dir'), f
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.FilePath ((</>))
-import System.Process (CreateProcess(cwd), showCommandForUser)
+import System.Process (CreateProcess(cwd), CmdSpec(RawCommand), showCommandForUser)
 import System.Process.ByteString.Lazy (readModifiedProcessWithExitCode)
 
 {-
@@ -48,7 +48,7 @@ prepare cache package _buildOS patch base =
        liftIO (createDirectoryIfMissing True copyDir)
        tree <- copySourceTree baseTree copyDir
        subDir <- findSource (P.spec package) copyDir
-       (res, out, err) <- readModifiedProcessWithExitCode (\ p -> p {cwd = Just subDir}) cmd args (B.pack patch)
+       (res, out, err, _exn) <- readModifiedProcessWithExitCode (\ p -> p {cwd = Just subDir}) (RawCommand cmd args) (B.pack patch)
        case res of
          ExitFailure _ -> error (showCommandForUser cmd args ++ " -> " ++ show res ++
                                  "\ncwd:" ++ subDir ++

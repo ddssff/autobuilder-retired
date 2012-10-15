@@ -58,7 +58,7 @@ Library
       , parsec
       , pretty
       , process
-      , process-extras >= 0.3
+      , process-extras >= 0.3.4
       , progress >= 1.52
       , pureMD5
       , regex-compat
