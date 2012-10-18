@@ -26,7 +26,7 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Unix.Progress.Outputs (collectOutput)
-import System.Process.ByteString.Lazy (readProcessWithExitCode)
+import System.Process.Read (readProcessWithExitCode)
 import System.Unix.Progress.QIO (lazyCommandE)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types

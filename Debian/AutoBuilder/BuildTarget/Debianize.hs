@@ -26,7 +26,7 @@ import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
 import System.Process (CreateProcess(cwd), CmdSpec(RawCommand), showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Process.ByteString.Lazy (readModifiedProcessWithExitCode)
+import System.Process.Read (readModifiedProcessWithExitCode)
 import System.Unix.QIO (qPutStrLn)
 
 documentation :: [String]
