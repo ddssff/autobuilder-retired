@@ -76,6 +76,7 @@ import System.Unix.Progress.Outputs (collectOutputUnpacked, mergeToStdout, stdou
 import System.Unix.Progress.QIO (lazyCommandF, lazyCommandE, lazyCommandV, lazyProcessF)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, ePutStr, ePutStrLn, q12 {-, q02-})
 import Text.PrettyPrint (Doc, text, (<>))
+import Text.PrettyPrint.Class (pretty)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
 
@@ -816,7 +817,7 @@ setRevisionInfo fingerprint changes {- @(Changes dir name version arch fields fi
           do
             let dscFilePath = changeDir changes ++ "/" ++ changedFileName file
             newDscFile <- parseControlFromFile dscFilePath >>= return . either (error . show) addField
-            replaceFile dscFilePath (show newDscFile)
+            replaceFile dscFilePath (show (pretty newDscFile))
             md5 <- md5sum dscFilePath
             sha1 <- sha1sum dscFilePath
             sha256 <- sha256sum dscFilePath

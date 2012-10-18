@@ -59,6 +59,7 @@ import System.Unix.Progress.Progress (timeTask)
 import System.Unix.Progress.QIO (lazyCommandF)
 import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
 import Text.Printf ( printf )
+import Text.PrettyPrint.Class (pretty)
 
 -- | Called from the configuration script, this processes a list of
 -- parameter sets.
@@ -177,7 +178,7 @@ runParameterSet cache =
           where
             doShow sources =
                 do qPutStrLn $ (sliceName . sliceListName $ sources) ++ ":"
-                   qPutStrLn . show . sliceList $ sources
+                   qPutStrLn . show . pretty . sliceList $ sources
                    exitWith ExitSuccess
       doFlush =
           do qPutStrLn "Flushing cache"

@@ -35,7 +35,7 @@ Library
       Build-Depends: debian >= 3.60
       Hs-Source-Dirs: ., ../haskell-debian-repo
   else
-    Build-Depends: debian-repo >= 5.24, debian >= 3.60
+    Build-Depends: debian-repo >= 5.24, debian >= 3.65
 
   Build-Depends:
         applicative-extras >= 0.1.8
@@ -57,6 +57,7 @@ Library
       , old-time
       , parsec
       , pretty
+      , pretty-class
       , process
       , process-extras >= 0.4
       , progress >= 1.52
