@@ -63,7 +63,7 @@ debianize cache pflags dir =
                    maybe [] (\ x -> ["--ghc-version", x]) ver ++
                    -- concatMap cflag cflags ++
                    concatMap pflag pflags')
-       (code, out, err, _exn) <- run "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
+       (code, out, err) <- run "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
        case code of
          ExitFailure _ -> error (showCommandForUser "cabal-debian" args ++ "(in " ++ show dir ++ ") -> " ++ show code ++
                                  "\nStdout:\n" ++ indent " 1> " out ++ "\nStderr:\n" ++ indent " 2> " err)
