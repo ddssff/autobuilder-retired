@@ -191,7 +191,7 @@ mergeChangelogs baseText patchText =
             True ->
                 let baseEntries' = map Base baseEntries in
                 let mergedEntries = third . appendVersionNumbers . sortBy compareDate $ baseEntries' ++ patchEntries' in
-                Right $ (intercalate "\n\n" (map (show . prettyEntry) mergedEntries)) ++ baseText'
+                Right $ (intercalate "\n" (map (show . prettyEntry) mergedEntries)) ++ baseText'
             False ->
                 Left $ "Package name mismatch between base and patch changelogs: " ++
                        maybe "?" id basePackage ++ " /= " ++ maybe "?" id patchPackage
