@@ -32,9 +32,9 @@ prepare _cache package buildOS base =
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =
     do createDirectoryIfMissing True dir
-       _ <- quieter (+ 1) $ runProcessF id (RawCommand "mount" ["--bind", "/proc", dir]) L.empty
+       _ <- quieter 1 $ runProcessF id (RawCommand "mount" ["--bind", "/proc", dir]) L.empty
        result <- task
-       _ <- quieter (+ 1) $ runProcessF id (RawCommand "umount" [dir]) L.empty
+       _ <- quieter 1 $ runProcessF id (RawCommand "umount" [dir]) L.empty
        return result
     where
       dir = rootPath (rootDir buildOS) ++ "/proc"

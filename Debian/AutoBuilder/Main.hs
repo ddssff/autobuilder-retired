@@ -53,7 +53,7 @@ import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Process (CmdSpec(..))
-import System.Process.Read (Output, timeTask, runProcessF, quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
+import System.Process.Read (Output, timeTask, runProcessF, withModifiedVerbosity, quieter, qPutStrLn, qPutStr, ePutStrLn)
 import System.Unix.Directory(removeRecursiveSafely)
 import Text.Printf ( printf )
 import Text.PrettyPrint.Class (pretty)
@@ -91,10 +91,10 @@ doParameterSet (results, state) (params, packages) =
     if any isFailure results
     then return (results, state)
     else
-        try (quieter (const (- (P.verbosity params)))
+        try (quieter (- (P.verbosity params))
                (do top <- P.computeTopDir params
                    withLock (top ++ "/lockfile")
-                     (runStateT (quieter (+ 2) (P.buildCache params top packages) >>= runParameterSet) state))) >>=
+                     (runStateT (quieter 2 (P.buildCache params top packages) >>= runParameterSet) state))) >>=
         either (\ (e :: SomeException) -> return (Failure [show e] : results, initState))
                (\ (result, state') -> return (result : results, state'))
     where
@@ -105,8 +105,8 @@ runParameterSet :: C.CacheRec -> AptIOT IO (Failing ([Output L.ByteString], Nomi
 runParameterSet cache =
     do
       lift doRequiredVersion
-      when (P.showParams params) (quieter (const 0) (liftIO doShowParams))
-      when (P.showSources params) (quieter (const 0) (liftIO doShowSources))
+      when (P.showParams params) (withModifiedVerbosity (const 0) (liftIO doShowParams))
+      when (P.showSources params) (withModifiedVerbosity (const 0) (liftIO doShowSources))
       when (P.flushAll params) (liftIO doFlush)
       liftIO checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
@@ -126,7 +126,7 @@ runParameterSet cache =
       -- be implicit build dependencies.
       globalBuildDeps <- liftIO $ buildEssential cleanOS
       -- Get a list of all sources for the local repository.
-      localSources <- q12 "Getting local sources" $
+      localSources <- (\ x -> qPutStrLn "Getting local sources" >> quieter 1 x) $
           case localRepo of
             LocalRepository path _ _ ->
                 case parseURI ("file://" ++ envPath path) of
@@ -160,8 +160,8 @@ runParameterSet cache =
           let abv = parseDebianVersion V.autoBuilderVersion
               rqvs = P.requiredVersion params in
           case filter (\ (v, _) -> v > abv) rqvs of
-            [] -> quieter' (+ 1) $ qPutStrLn $ "Installed autobuilder version " ++ show (prettyDebianVersion abv) ++ " newer than required: " ++ show (map (first prettyDebianVersion) rqvs)
-            reasons -> quieter (const 0) $
+            [] -> quieter 1 $ qPutStrLn $ "Installed autobuilder version " ++ show (prettyDebianVersion abv) ++ " newer than required: " ++ show (map (first prettyDebianVersion) rqvs)
+            reasons -> withModifiedVerbosity (const 0) $
                 do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)
@@ -187,7 +187,7 @@ runParameterSet cache =
                True -> return ()
                False -> do qPutStr "You must be superuser to run the autobuilder (to use chroot environments.)"
                            liftIO $ exitWith (ExitFailure 1)
-      prepareLocalRepo = q12 ("Preparing local repository " ++ P.localPoolDir cache) $
+      prepareLocalRepo = (\ x -> qPutStrLn ("Preparing local repository " ++ P.localPoolDir cache) >> quieter 1 x) $
           do let path = EnvPath (EnvRoot "") (P.localPoolDir cache)
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if P.flushPool params then flushLocalRepository else return)

@@ -26,7 +26,7 @@ import "Extra" Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Process (CmdSpec(..))
-import System.Process.Read (unpackOutputs, mergeToStderr, runProcessF, runProcess, qPutStrLn, q12)
+import System.Process.Read (unpackOutputs, mergeToStderr, runProcessF, runProcess, qPutStrLn, quieter)
 import Text.Regex
 
 qMessage s x = qPutStrLn s >> return x
@@ -82,7 +82,7 @@ failing _ s (Success x) = s x
 
 prepare :: P.CacheRec -> P.Packages -> T.Download -> T.Download -> AptIOT IO T.Download
 prepare cache package base patch = liftIO $
-    q12 "Preparing quilt target" $
+    (\ x -> qPutStrLn "Preparing quilt target" >> quieter 1 x) $
     makeQuiltTree cache (P.spec package) base patch >>= withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =

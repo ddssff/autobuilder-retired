@@ -125,7 +125,7 @@ targetName = T.handle . download . tgt
 -- DebianBuildTree. 
 prepareTarget :: C.CacheRec -> Relations -> OSImage -> Buildable -> IO Target
 prepareTarget cache globalBuildDeps os source =
-    quieter (+ 2) $ prepareBuild cache os (download source) >>= \ tree ->
+    quieter 2 $ prepareBuild cache os (download source) >>= \ tree ->
     getTargetDependencyInfo globalBuildDeps tree >>=
     failing (\ msgs -> error (intercalate "\n  " ("Failure obtaining dependency information:" : msgs)))
             (\ deps -> return $ Target { tgt = source, cleanSource = tree, targetDepends = deps })

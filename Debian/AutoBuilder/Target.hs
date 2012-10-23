@@ -74,7 +74,7 @@ import System.Unix.Chroot (useEnv)
 import System.Process (CmdSpec(ShellCommand, RawCommand), CreateProcess(cwd))
 import System.Process.Read (Chars(toString), readModifiedProcess, unpackOutputs, mergeToStdout, keepStdout, keepResult,
                             collectOutputs, keepResult, runProcessF, runProcess,
-                            quieter, quieter', qPutStrLn, ePutStr, ePutStrLn, q12 {-, q02-})
+                            quieter, withModifiedVerbosity, qPutStrLn, ePutStr, ePutStrLn)
 import Text.PrettyPrint (Doc, text, (<>))
 import Text.PrettyPrint.Class (pretty)
 import Text.Printf(printf)
@@ -119,7 +119,7 @@ prepareTargets cache cleanOS globalBuildDeps targetSpecs =
       prepare :: Int -> (Int, Buildable) -> IO (Either SomeException Target)
       prepare count (index, tgt) =
           do qPutStrLn (printf "[%2d of %2d] %s" index count (show (T.method (download tgt))))
-             quieter' (+ 2) (try (prepareTarget cache globalBuildDeps cleanOS tgt) >>=
+             quieter 2 (try (prepareTarget cache globalBuildDeps cleanOS tgt) >>=
                              either (\ (e :: SomeException) ->
                                          ePutStrLn (printf "[%2d of %2d] - could not prepare %s: %s"
                                                            index count (show (T.method (download tgt))) (show e)) >>
@@ -165,7 +165,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
           ePutStrLn "Computing ready targets..." >>
           case readyTargets cache (goals (Set.toList unbuilt)) (Set.toList unbuilt) of
             [] -> return failed
-            triples -> do quieter (\x->x-1) $ qPutStrLn (makeTable triples)
+            triples -> do quieter (-1) $ qPutStrLn (makeTable triples)
                           let ready = Set.fromList $ map (\ (x, _, _) -> x) triples
                           loop2 cleanOS' (Set.difference unbuilt ready) failed triples
       -- Out of ready targets, re-do the dependency computation
@@ -186,7 +186,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
              failing -- On failure the target and its dependencies get
                      -- added to failed.
                      (\ errs ->
-                          do quieter (const 0) $
+                          do withModifiedVerbosity (const 0) $
                                qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
                                           "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
                                           concat (intersperse "\n  " (map targetName blocked)))
@@ -322,7 +322,7 @@ buildTarget ::
     AptIOT IO (Failing (Maybe LocalRepository))	-- The local repository after the upload (if it changed), or an error message
 buildTarget cache cleanOS globalBuildDeps repo poolOS target =
     do
-      _cleanOS' <- lift (quieter (+ 2) $ syncPool cleanOS)
+      _cleanOS' <- lift (quieter 2 $ syncPool cleanOS)
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
@@ -347,7 +347,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                    buildTrumped = elem (targetName target) (P.buildTrumped (P.params cache))
                    newVersion = computeNewVersion cache spkgs (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                    decision = buildDecision cache target oldFingerprint newFingerprint releaseStatus
-               quieter (const 0) $ qPutStrLn ("Build decision: " ++ show decision)
+               withModifiedVerbosity (const 0) $ qPutStrLn ("Build decision: " ++ show decision)
                -- quieter (const 0) $ qPutStrLn ("newVersion: " ++ show (fmap prettyDebianVersion newVersion))
                -- quieter (const 0) $ qPutStrLn ("Release status: " ++ show releaseStatus)
                case newVersion of
@@ -371,7 +371,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
     checkDryRun >>
     lift prepareImage >>=
     failing (return . Failure) logEntry >>=
-    failing (return . Failure) (quieter (\x->x-1) . build) >>=
+    failing (return . Failure) (quieter (-1) . build) >>=
     failing (return . Failure) find >>=
     failing (return . Failure) upload
     where
@@ -478,11 +478,11 @@ prepareBuildImage cache cleanOS sourceFingerprint buildOS target | P.strictness 
     failing (return . Failure) (prepareTree noClean)
     where
       prepareTree True _ =
-          q12 "Finding build tree" $
+          (\ x -> qPutStrLn "Finding build tree" >> quieter 1 x) $
           findOneDebianBuildTree newPath >>=
           return . maybe (Failure ["No build tree at " ++ show newPath]) Success
       prepareTree False _ =
-          q12 "Copying build tree..." $
+          (\ x -> qPutStrLn "Copying build tree..." >> quieter 1 x) $
           Debian.Repo.syncEnv cleanOS buildOS >>=
           const (try (copyDebianBuildTree (cleanSource target) newPath)) >>=
           return . either (\ (e :: SomeException) -> Failure [show e]) Success
@@ -499,7 +499,7 @@ prepareBuildImage cache cleanOS sourceFingerprint buildOS target =
     where
       -- findTree :: Bool -> IO (Failing DebianBuildTree)
       findTree False =
-          q12 "Finding build tree" $
+          (\ x -> qPutStrLn "Finding build tree" >> quieter 1 x) $
               try (copyDebianBuildTree (cleanSource target) newPath) >>=
               return . either (\ (e :: SomeException) -> Failure [show e]) Success
       findTree True =
@@ -510,7 +510,7 @@ prepareBuildImage cache cleanOS sourceFingerprint buildOS target =
                                failing (return . Failure) (const (return (Success buildTree)))
 
       syncEnv False buildTree =
-          q12 "Syncing buildOS" $
+          (\ x -> qPutStrLn "Syncing buildOS" >> quieter 1 x) $
               Debian.Repo.syncEnv cleanOS buildOS >>= (\ os -> return (Success (os, buildTree)))
       syncEnv True buildTree =
           return (Success (buildOS, buildTree))
@@ -717,7 +717,7 @@ lookupAll a (_ : pairs) = lookupAll a pairs
 -- |Add Build-Info field to the .changes file
 updateChangesFile :: NominalDiffTime -> ChangesFile -> IO ChangesFile
 updateChangesFile elapsed changes =
-    q12 "Updating changes file" $
+    (\ x -> qPutStrLn "Updating changes file" >> quieter 1 x) $
     do
       let (Paragraph fields) = changeInfo changes
 {-    autobuilderVersion <- processOutput "dpkg -s autobuilder | sed -n 's/^Version: //p'" >>=
@@ -756,7 +756,7 @@ downloadDependencies :: OSImage -> DebianBuildTree -> [String] -> Fingerprint ->
 downloadDependencies os source extra sourceFingerprint =
 
     do -- qPutStrLn "Downloading build dependencies"
-       quieter (+ 1) $ qPutStrLn $ "Dependency package versions:\n " ++ intercalate "\n  " (showDependencies sourceFingerprint)
+       quieter 1 $ qPutStrLn $ "Dependency package versions:\n " ++ intercalate "\n  " (showDependencies sourceFingerprint)
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
        (code, out, _, _) <- useEnv' (rootPath root) forceList (runProcess id (ShellCommand command) L.empty) >>=
                             return . unpackOutputs . mergeToStdout
@@ -784,7 +784,7 @@ installDependencies os source extra sourceFingerprint =
        (code, out, _, _) <- Proc.withProc os (useEnv' (rootPath root) forceList $ runProcess id (ShellCommand command) L.empty) >>= return . collectOutputs . mergeToStdout
        case code of
          [ExitSuccess] -> return (Success out)
-         code -> quieter (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ toString out) >>
+         code -> withModifiedVerbosity (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ toString out) >>
                  return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
@@ -797,7 +797,7 @@ installDependencies os source extra sourceFingerprint =
 
 -- | This should probably be what the real useEnv does.
 useEnv' :: FilePath -> (a -> IO a) -> IO a -> IO a
-useEnv' rootPath force action = quieter (+ 1) $ useEnv rootPath force $ quieter (+ (-1)) action
+useEnv' rootPath force action = quieter 1 $ useEnv rootPath force $ quieter (-1) action
 
 -- |Set a "Revision" line in the .dsc file, and update the .changes
 -- file to reflect the .dsc file's new md5sum.  By using our newdist
@@ -807,7 +807,7 @@ useEnv' rootPath force action = quieter (+ 1) $ useEnv rootPath force $ quieter 
 -- TLA revision to decide whether to build.
 setRevisionInfo :: Fingerprint -> ChangesFile -> IO ChangesFile
 setRevisionInfo fingerprint changes {- @(Changes dir name version arch fields files) -} =
-    q12 "Setting revision info" $
+    (\ x -> qPutStrLn "Setting revision info" >> quieter 1 x) $
     case partition (isSuffixOf ".dsc" . changedFileName) (changeFiles changes) of
       ([file], otherFiles) ->
           do
