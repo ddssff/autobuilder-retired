@@ -13,8 +13,9 @@ import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Repo
 import System.Directory
 import System.FilePath (splitFileName)
+import System.Process (CmdSpec(..))
+import System.Process.Read (timeTask, runProcessF)
 import System.Unix.Directory
-import System.Process.Read (timeTask, lazyCommandF)
 
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
@@ -33,26 +34,25 @@ prepare cache package archive = liftIO $
                           , T.cleanTarget =
                               \ path -> 
                                   let cmd = "rm -rf " ++ path ++ "/.hg" in
-                                  timeTask (lazyCommandF cmd empty)
+                                  timeTask (runProcessF id (ShellCommand cmd) empty)
                           , T.buildWrapper = id
                           }
     where
       verifySource dir =
-          try (lazyCommandF ("cd " ++ dir ++ " && hg status | grep -q .") empty) >>=
+          try (runProcessF id (ShellCommand ("cd " ++ dir ++ " && hg status | grep -q .")) empty) >>=
           either (\ (_ :: SomeException) -> updateSource dir)	-- failure means there were no changes
                  (\ _ -> removeSource dir >> createSource dir)	-- success means there was a change
 
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
-          lazyCommandF ("cd " ++ dir ++ " && hg pull -u") empty >>
+          runProcessF id (ShellCommand ("cd " ++ dir ++ " && hg pull -u")) empty >>
           findSourceTree dir
-            
 
       createSource dir =
           let (parent, _) = splitFileName dir in
           liftIO (createDirectoryIfMissing True parent) >>
-          lazyCommandF ("hg clone " ++ archive ++ " " ++ dir) empty >>
+          runProcessF id (ShellCommand ("hg clone " ++ archive ++ " " ++ dir)) empty >>
           findSourceTree dir
 
       dir = P.topDir cache ++ "/hg/" ++ archive

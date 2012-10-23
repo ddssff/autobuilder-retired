@@ -16,7 +16,8 @@ import Debian.Version (version)
 import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory
-import System.Process.Read (lazyCommandF)
+import System.Process (CmdSpec(..))
+import System.Process.Read (runProcessF)
 
 documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"
@@ -48,8 +49,8 @@ prepare cache package upstream debian = lift $
             LT -> error $ show (P.spec package) ++ ": version in Debian changelog (" ++ version debianV ++ ") is too old for the upstream (" ++ showVersion upstreamV ++ ")"
             _ -> return tgt
     where
-      copyUpstream = lazyCommandF cmd1 empty
-      copyDebian = lazyCommandF cmd2 empty
+      copyUpstream = runProcessF id (ShellCommand cmd1) empty
+      copyDebian = runProcessF id (ShellCommand cmd2) empty
       upstreamDir = T.getTop upstream
       debianDir = T.getTop debian
       dest = P.topDir cache ++ "/deb-dir/" ++ show (md5 (pack (show (P.spec package))))

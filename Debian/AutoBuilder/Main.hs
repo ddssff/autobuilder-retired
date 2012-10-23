@@ -52,8 +52,9 @@ import System.Posix.Files(removeLink)
 import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
+import System.Process (CmdSpec(..))
+import System.Process.Read (Output, timeTask, runProcessF, quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
 import System.Unix.Directory(removeRecursiveSafely)
-import System.Process.Read (Output, timeTask, lazyCommandF, quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
 import Text.Printf ( printf )
 import Text.PrettyPrint.Class (pretty)
 
@@ -243,11 +244,11 @@ runParameterSet cache =
                                         " " ++ P.newDistProgram params ++ " --root " ++ uriPath uri ++
                                         (concat . map (" --create " ++) . P.createRelease $ params)) in
                              qPutStrLn "Running newdist on remote repository" >>
-                             try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
+                             try (timeTask (runProcessF id (ShellCommand cmd) L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                          Nothing ->
                              let cmd = "newdist --root " ++ uriPath uri in
                              qPutStr "Running newdist on a local repository" >>
-                             try (timeTask (lazyCommandF cmd L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
+                             try (timeTask (runProcessF id (ShellCommand cmd) L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Success ([], (fromInteger 0)))
       updateRepoCache :: AptIOT IO ()

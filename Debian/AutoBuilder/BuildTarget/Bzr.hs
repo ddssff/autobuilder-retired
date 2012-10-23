@@ -16,7 +16,8 @@ import Debian.Repo
 import Debian.URI
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Process.Read (keepOutput, timeTask, lazyCommandF, qPutStrLn)
+import System.Process (CmdSpec(..))
+import System.Process.Read (keepOutput, timeTask, runProcessF, qPutStrLn)
 import System.Directory
 
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
@@ -37,13 +38,13 @@ prepare cache package version = liftIO $
                , cleanTarget = \ top ->
                    do qPutStrLn ("Clean Bazaar target in " ++ top)
                       let cmd = "find '" ++ top ++ "' -name '.bzr' -prune | xargs rm -rf"
-                      timeTask (lazyCommandF cmd L.empty)
+                      timeTask (runProcessF id (ShellCommand cmd) L.empty)
                , buildWrapper = id }
     where
         -- Tries to update a pre-existant bazaar source tree
         updateSource dir =
             qPutStrLn ("Verifying Bazaar source archive '" ++ dir ++ "'") >>
-            try (lazyCommandF cmd L.empty) >>= \ result ->
+            try (runProcessF id (ShellCommand cmd) L.empty) >>= \ result ->
             case result of
               -- if we fail then the source tree is corrupted, so get a new one
               Left (e :: SomeException) -> qPutStrLn (show e) >> removeSource dir >> createSource dir >> throw e
@@ -54,7 +55,7 @@ prepare cache package version = liftIO $
         
         -- computes a diff between this archive and some other parent archive and tries to merge the changes
         mergeSource dir =
-            lazyCommandF cmd L.empty >>= \ b ->
+            runProcessF id (ShellCommand cmd) L.empty >>= \ b ->
             if isInfixOf "Nothing to do." (L.unpack (L.concat (keepOutput b)))
             then findSourceTree dir
             else commitSource dir
@@ -66,7 +67,7 @@ prepare cache package version = liftIO $
         -- Bazaar is a distributed revision control system so you must commit to the local source
         -- tree after you merge from some other source tree
         commitSource dir =
-            lazyCommandF cmd L.empty >> findSourceTree dir
+            runProcessF id (ShellCommand cmd) L.empty >> findSourceTree dir
             where
                 cmd   = "cd " ++ dir ++ " && bzr commit -m 'Merged Upstream'"
                 -- style = (setStart (Just ("Commiting merge to local Bazaar source archive '" ++ dir ++ "'")) .
@@ -78,7 +79,7 @@ prepare cache package version = liftIO $
             -- Create parent dir and let bzr create dir
             let (parent, _) = splitFileName dir
             createDirectoryIfMissing True parent
-            _output <- lazyCommandF cmd L.empty
+            _output <- runProcessF id (ShellCommand cmd) L.empty
             findSourceTree dir
             where
                 cmd   = "bzr branch " ++ version ++ " " ++ dir

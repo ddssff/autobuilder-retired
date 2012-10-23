@@ -23,9 +23,9 @@ import System.Exit
 import System.Directory (doesFileExist, createDirectoryIfMissing, removeFile)
 import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
-import System.Process (showCommandForUser)
+import System.Process (showCommandForUser, CmdSpec(..))
+import System.Process.Read (readProcessWithExitCode, runProcess, collectOutputs)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Process.Read (readProcessWithExitCode, lazyCommandE, collectOutputs)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
@@ -172,7 +172,7 @@ findVersion package (Document _ _ (Elem _name _attrs content) _) =
 -- |Download and save the tarball, return its contents.
 download' :: String -> P.CacheRec -> String -> Version -> IO B.ByteString
 download' server cache name version =
-    do (res, out, err, _) <- lazyCommandE (downloadCommand server name version) B.empty >>= return . collectOutputs
+    do (res, out, err, _) <- runProcess id (ShellCommand (downloadCommand server name version)) B.empty >>= return . collectOutputs
        -- (res, out, err) <- runProcessWith
        case res of
          (ExitSuccess : _) ->

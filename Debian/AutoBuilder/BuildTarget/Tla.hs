@@ -12,7 +12,8 @@ import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Process.Read (timeTask, lazyCommandF, qPutStrLn)
+import System.Process (CmdSpec(..))
+import System.Process.Read (timeTask, runProcessF, qPutStrLn)
 import System.Directory
 
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"
@@ -32,12 +33,12 @@ prepare cache package version = liftIO $
                           , T.cleanTarget =
                               \ path -> 
                                   let cmd = "find '" ++ path ++ "' -name '.arch-ids' -o -name '{arch}' -prune | xargs rm -rf" in
-                                  timeTask (lazyCommandF cmd L.empty)
+                                  timeTask (runProcessF id (ShellCommand cmd) L.empty)
                           , T.buildWrapper = id
                           }
     where
       verifySource dir =
-          do result <- try (lazyCommandF ("cd " ++ dir ++ " && tla changes") L.empty)
+          do result <- try (runProcessF id (ShellCommand ("cd " ++ dir ++ " && tla changes")) L.empty)
              case result of
                Left (e :: SomeException) -> qPutStrLn (show e) >> removeSource dir >> createSource dir -- Failure means there is corruption
                Right _output -> updateSource dir						         -- Success means no changes
@@ -45,7 +46,7 @@ prepare cache package version = liftIO $
       removeSource dir = liftIO $ removeRecursiveSafely dir
 
       updateSource dir =
-          lazyCommandF ("cd " ++ dir ++ " && tla update " ++ version) L.empty >>
+          runProcessF id (ShellCommand ("cd " ++ dir ++ " && tla update " ++ version)) L.empty >>
              -- At one point we did a tla undo here.  However, we are
              -- going to assume that the "clean" copies in the cache
              -- directory are clean, since some of the other target
@@ -57,7 +58,7 @@ prepare cache package version = liftIO $
             -- Create parent dir and let tla create dir
             let (parent, _) = splitFileName dir
             liftIO $ createDirectoryIfMissing True parent
-            _output <- lazyCommandF ("tla get " ++ version ++ " " ++ dir) L.empty
+            _output <- runProcessF id (ShellCommand ("tla get " ++ version ++ " " ++ dir)) L.empty
             findSourceTree dir
 
       dir = P.topDir cache ++ "/tla/" ++ version

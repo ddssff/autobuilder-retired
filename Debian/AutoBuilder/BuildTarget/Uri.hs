@@ -23,8 +23,9 @@ import Debian.URI
 import Magic
 import System.FilePath (splitFileName)
 import System.Directory
+import System.Process (CmdSpec(..))
+import System.Process.Read (timeTask, runProcessF)
 import System.Unix.Directory
-import System.Process.Read (timeTask, lazyCommandF)
 
 documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the file at the"
                 , "given URI, which is assumed to be a gzipped tarball.  The optional md5sum"
@@ -66,7 +67,7 @@ prepare c package u s = liftIO $
              _output <-
                  case exists of
                    True -> return []
-                   False -> lazyCommandF ("curl -s '" ++ uriToString' (mustParseURI u) ++ "' > '" ++ tarball c u s ++ "'") B.empty
+                   False -> runProcessF id (ShellCommand ("curl -s '" ++ uriToString' (mustParseURI u) ++ "' > '" ++ tarball c u s ++ "'")) B.empty
              -- We should do something with the output
              return ()
       -- Make sure what we just downloaded has the correct checksum
@@ -90,13 +91,13 @@ prepare c package u s = liftIO $
                    fileInfo <- magicFile magic (tarball c u s)
                    case () of
                      _ | isPrefixOf "Zip archive data" fileInfo ->
-                           timeTask $ lazyCommandF ("unzip " ++ tarball c u s ++ " -d " ++ sourceDir c s) B.empty
+                           timeTask $ runProcessF id (ShellCommand ("unzip " ++ tarball c u s ++ " -d " ++ sourceDir c s)) B.empty
                        | isPrefixOf "gzip" fileInfo ->
-                           timeTask $ lazyCommandF ("tar xfz " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty
+                           timeTask $ runProcessF id (ShellCommand ("tar xfz " ++ tarball c u s ++ " -C " ++ sourceDir c s)) B.empty
                        | isPrefixOf "bzip2" fileInfo ->
-                           timeTask $ lazyCommandF ("tar xfj " ++ tarball c u s ++ " -C " ++ sourceDir c s) B.empty
+                           timeTask $ runProcessF id (ShellCommand ("tar xfj " ++ tarball c u s ++ " -C " ++ sourceDir c s)) B.empty
                        | True ->
-                           timeTask $ lazyCommandF ("cp " ++ tarball c u s ++ " " ++ sourceDir c s ++ "/") B.empty
+                           timeTask $ runProcessF id (ShellCommand ("cp " ++ tarball c u s ++ " " ++ sourceDir c s ++ "/")) B.empty
             read (_output, _elapsed) = liftIO (getDir (sourceDir c s))
             getDir dir = getDirectoryContents dir >>= return . filter (not . flip elem [".", ".."])
             search files = checkContents (filter (not . flip elem [".", ".."]) files)

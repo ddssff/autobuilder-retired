@@ -14,7 +14,8 @@ import qualified Debian.Version as V
 import Debian.Repo (AptIOT)
 import System.Directory
 import System.Exit (ExitCode(..))
-import System.Process.Read (lazyCommand, keepResult)
+import System.Process (CmdSpec(..))
+import System.Process.Read (runProcess, keepResult)
 --import System.Unix.Progress.Outputs (exitCodeOnly)
 
 documentation = [ "sourcedeb:<target> - A target of this form unpacks the source deb"
@@ -32,7 +33,7 @@ prepare _cache package base =
        case sortBy compareVersions (zip dscFiles dscInfo) of
          [] -> return $  error ("Invalid sourcedeb base: no .dsc file in " ++ show (T.method base))
          (dscName, Right (S.Control (dscInfo : _))) : _ ->
-             do out <- liftIO (lazyCommand (unpack top dscName) L.empty)
+             do out <- liftIO (runProcess id (ShellCommand (unpack top dscName)) L.empty)
                 case keepResult out of
                   [ExitSuccess] -> liftIO $ makeTarget dscInfo dscName
                   _ -> error ("*** FAILURE: " ++ unpack top dscName)
