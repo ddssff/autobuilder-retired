@@ -123,8 +123,10 @@ data ParamRec =
     -- ^ Discard and re-download all source code before building.
     , flushRoot :: Bool
     -- ^ Discard and recreate the clean build environment.
+{-
     , verbosity :: Int
     -- ^ Higher numbers increase the amount of progress reporting.
+-}
     , topDirParam :: Maybe FilePath
     -- ^ Normally the autobuilder uses @$HOME\/.autobuilder@ for semi-permanent
     -- storage, use this flag to specify a different location.
@@ -274,9 +276,9 @@ data TargetSpec
 -- |Output a (somewhat) readable representation of the parameter set.
 prettyPrint :: ParamRec -> String
 prettyPrint x =
-    unlines [ "verbosity=" ++ take 120 (show (verbosity x))
-            , "topDirParam=" ++ take 120 (show (topDirParam x))
+    unlines [ "topDirParam=" ++ take 120 (show (topDirParam x))
             , "debug=" ++ take 120 (show (debug x))
+            -- , "verbosity=" ++ take 120 (show (verbosity x))
             , "dryRun=" ++ take 120 (show (dryRun x))
             , "requiredVersion=" ++ take 120 (show (map (first prettyDebianVersion) (requiredVersion x)))
             , "showSources=" ++ take 120 (show (showSources x))

@@ -17,9 +17,7 @@ import System.Directory
 import System.Exit (ExitCode(..))
 import System.FilePath
 import System.Unix.Directory
-import System.Unix.Progress.Outputs (collectStdout, exitCodeOnly)
-import System.Unix.Progress.Progress (timeTask)
-import System.Unix.Progress.QIO (lazyCommandF, lazyCommandE, lazyCommandV)
+import System.Process.Read (keepStdout, keepResult, timeTask, lazyCommandF, lazyCommandE, lazyCommandV)
 import Text.Regex
 
 documentation = [ "darcs:<string> - a target of this form obtains the source code by running"
@@ -29,7 +27,7 @@ documentation = [ "darcs:<string> - a target of this form obtains the source cod
 
 darcsRev :: SourceTree -> P.RetrieveMethod -> IO (Either SomeException String)
 darcsRev tree m =
-    try (lazyCommandE cmd B.empty >>= return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . fst . collectStdout) >>= 
+    try (lazyCommandE cmd B.empty >>= return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . B.concat . keepStdout) >>= 
     return . either Left (maybe (fail $ "could not find hash field in output of '" ++ cmd ++ "'")
                                 (\ rev -> Right (show m ++ "=" ++ head rev)))
     where
@@ -57,10 +55,10 @@ prepare cache package theUri =
       verifySource :: FilePath -> IO SourceTree
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
-          do result <- lazyCommandV ("cd " ++ dir ++ " && darcs whatsnew") B.empty >>= return . exitCodeOnly
+          do result <- lazyCommandV ("cd " ++ dir ++ " && darcs whatsnew") B.empty >>= return . keepResult
              case result of
-               ExitFailure _ -> updateSource dir				-- No Changes!
-               ExitSuccess -> removeSource dir >> createSource dir		-- Yes changes
+               (ExitSuccess : _) -> removeSource dir >> createSource dir		-- Yes changes
+               _ -> updateSource dir				-- No Changes!
       removeSource :: FilePath -> IO ()
       removeSource dir = removeRecursiveSafely dir
 

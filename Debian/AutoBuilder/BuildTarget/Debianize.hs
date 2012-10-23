@@ -24,10 +24,11 @@ import System.Directory (getDirectoryContents)
 import System.Exit
 import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
-import System.Process (CreateProcess(cwd), CmdSpec(RawCommand), showCommandForUser)
+import System.Process (CreateProcess(cwd), showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Process.Read (readModifiedProcessWithExitCode)
-import System.Unix.QIO (qPutStrLn)
+import System.Process (CmdSpec(RawCommand))
+import System.Process.Read (readModifiedProcessWithExitCode, qPutStrLn)
+--import System.Unix.QIO (qPutStrLn)
 
 documentation :: [String]
 documentation = [ "hackage:<name> or hackage:<name>=<version> - a target of this form"

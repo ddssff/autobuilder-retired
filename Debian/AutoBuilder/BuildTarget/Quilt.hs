@@ -25,10 +25,10 @@ import Extra.Files (replaceFile)
 import "Extra" Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
-import System.Unix.Progress.Outputs (collectOutputUnpacked, collectOutput, mergeToStderr)
-import System.Unix.Progress.QIO (lazyCommandF, lazyCommandV)
-import System.Unix.QIO (qPutStrLn, qMessage, q12)
+import System.Process.Read (unpackOutputs, mergeToStderr, lazyCommandF, lazyCommandV, qPutStrLn, q12)
 import Text.Regex
+
+qMessage s x = qPutStrLn s >> return x
 
 documentation = [ "quilt:(<target1>):(<target2>) - In a target of this form, target1 is"
                 , "any source tree, and target2 is a quilt directory which contains"
@@ -93,21 +93,21 @@ prepare cache package base patch = liftIO $
                 rmrf d = lazyCommandV ("rm -rf '"  ++ d ++ "'") L.empty
       make :: (SourceTree, FilePath) -> IO T.Download
       make (quiltTree, quiltDir) =
-          do applied <- lazyCommandV cmd1a L.empty >>= qMessage "Checking for applied patches" >>= return . collectOutputUnpacked
+          do applied <- lazyCommandV cmd1a L.empty >>= qMessage "Checking for applied patches" >>= return . unpackOutputs
              case applied of
-               (_, err, ExitFailure 1)
+               (ExitFailure 1 : _, _, err, _)
                    | err == "No patches applied\n" ->
                           findUnapplied >>= apply >> buildLog >> cleanSource
                           where
-                            findUnapplied = do unapplied <- liftIO (lazyCommandV cmd1b L.empty) >>= qMessage "Checking for unapplied patches" . collectOutputUnpacked
+                            findUnapplied = do unapplied <- liftIO (lazyCommandV cmd1b L.empty) >>= qMessage "Checking for unapplied patches" . unpackOutputs
                                                case unapplied of
-                                                 (text, _, ExitSuccess) -> return (lines text)
+                                                 ([ExitSuccess], text, _, _) -> return (lines text)
                                                  _ -> fail $ target ++ " - No patches to apply"
                             apply patches =
-                                do result2 <- liftIO (lazyCommandV (cmd2 patches) L.empty) >>= qMessage "Patching Quilt target" . collectOutput . mergeToStderr
+                                do result2 <- liftIO (lazyCommandV (cmd2 patches) L.empty) >>= qMessage "Patching Quilt target" . unpackOutputs . mergeToStderr
                                    case result2 of
-                                     (_, _, ExitSuccess) -> return ()
-                                     (_, err, _) -> fail $ target ++ " - Failed to apply quilt patches: " ++ L.unpack err
+                                     ([ExitSuccess], _, _, _) -> return ()
+                                     (_, _, err, _) -> fail $ target ++ " - Failed to apply quilt patches: " ++ err
                                          -- fail $ target ++ " - Failed to apply quilt patches: " ++ (cmd2 patches) ++ " ->\n" ++ L.unpack err
                             buildLog =
                                 -- If there is a changelog file in the quilt directory,
@@ -119,9 +119,9 @@ prepare cache package base patch = liftIO $
                                      False -> fail (target ++ "- Missing changelog file: " ++ show (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog"))
                                      True -> mergeChangelogs' (quiltDir ++ "/debian/changelog") (quiltDir ++ "/" ++ quiltPatchesDir ++ "/changelog")
                             cleanSource =
-                                do result3 <- liftIO (lazyCommandV cmd3 L.empty) >>= qMessage "Cleaning Quilt target" . collectOutput
+                                do result3 <- liftIO (lazyCommandV cmd3 L.empty) >>= qMessage "Cleaning Quilt target" . unpackOutputs
                                    case result3 of
-                                     (_, _, ExitSuccess) ->
+                                     ([ExitSuccess], _, _, _) ->
                                          do tree <- findSourceTree (topdir quiltTree)
                                             -- return $ Quilt base patch tree m
                                             return $ T.Download {
@@ -134,8 +134,8 @@ prepare cache package base patch = liftIO $
                                                        , T.buildWrapper = id
                                                        }
                                      _ -> fail $ target ++ " - Failure removing quilt directory: " ++ cmd3
-               (_, err, ExitFailure _) -> fail $ target ++ " - Unexpected output from quilt applied: " ++ err
-               (_, _, ExitSuccess) -> fail $ target ++ " - Unexpected result code (ExitSuccess) from " ++ show cmd1a
+               (ExitFailure _ : _, _, err, _) -> fail $ target ++ " - Unexpected output from quilt applied: " ++ err
+               (_, _, _, _) -> fail $ target ++ " - Unexpected result code (ExitSuccess) from " ++ show cmd1a
           where
             cmd1a = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ quiltDir ++ "' && quilt applied")
             cmd1b = ("export QUILT_PATCHES=" ++ quiltPatchesDir ++ " && cd '" ++ quiltDir ++ "' && quilt unapplied")

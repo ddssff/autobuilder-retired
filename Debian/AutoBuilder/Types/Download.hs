@@ -7,10 +7,11 @@ module Debian.AutoBuilder.Types.Download
     ) where
 
 import Data.Time (NominalDiffTime)
+import qualified Data.ByteString.Lazy as L
 import Data.Version (Version)
 import Debian.AutoBuilder.Types.Packages (Packages, PackageFlag, RetrieveMethod(..))
 import qualified Debian.AutoBuilder.Types.Packages as P
-import System.Unix.Progress (Output)
+import System.Process.Read (Output)
 
 data Download
     = Download
@@ -25,7 +26,7 @@ data Download
       -- ^ If we have access to an original tarball, this returns its path.
       , logText :: String
       -- ^ Text to include in changelog entry.
-      , cleanTarget :: FilePath -> IO ([Output], NominalDiffTime)
+      , cleanTarget :: FilePath -> IO ([Output L.ByteString], NominalDiffTime)
       -- ^ Clean version control info out of a target after it has
       -- been moved to the given location.
       , buildWrapper :: forall a. IO a -> IO a

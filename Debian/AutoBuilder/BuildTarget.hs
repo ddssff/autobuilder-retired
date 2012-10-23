@@ -34,8 +34,7 @@ import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, copySourceTree, 
 import Debian.Repo.Monad (AptIOT)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
-import System.Unix.Progress.QIO (lazyProcessEF)
-import System.Unix.QIO (q12, quieter)
+import System.Process.Read (lazyProcessEF, q12, quieter)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
 retrieve :: OSImage -> P.CacheRec -> P.Packages -> AptIOT IO Download
@@ -119,9 +118,9 @@ retrieve buildOS cache target =
 withProc :: forall a. OSImage -> IO a -> IO a
 withProc buildOS task =
     do createDirectoryIfMissing True dir
-       _ <- quieter (+ 1) $ lazyProcessEF "mount" ["--bind", "/proc", dir] Nothing Nothing L.empty
+       _ <- quieter (+ 1) $ lazyProcessEF "mount" ["--bind", "/proc", dir] L.empty
        result <- try task :: IO (Either SomeException a)
-       _ <- quieter (+ 1) $ lazyProcessEF "umount" [dir] Nothing Nothing L.empty
+       _ <- quieter (+ 1) $ lazyProcessEF "umount" [dir] L.empty
        either throw return result
     where
       dir = rootPath (rootDir buildOS) ++ "/proc"

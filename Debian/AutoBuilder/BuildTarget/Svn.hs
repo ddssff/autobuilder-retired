@@ -19,16 +19,13 @@ import System.Directory
 import System.Exit
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Unix.Progress
-import System.Unix.Progress.Outputs (stdoutOnly, stderrOnly, exitCodeOnly)
-import System.Unix.Progress.Progress (timeTask)
-import System.Unix.Progress.QIO (lazyCommandF, lazyProcessF, lazyProcessE)
+import System.Process.Read (Output, keepStdout, keepStderr, keepResult, timeTask, lazyCommandF, lazyProcessF, lazyProcessE)
 
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"
                 , "a subversion repository." ]
 
-svn :: [String] -> IO [Output]
-svn args = lazyProcessF "svn" args Nothing Nothing L.empty
+svn :: [String] -> IO [Output L.ByteString]
+svn args = lazyProcessF "svn" args L.empty
 
 username userInfo = 
     let un = takeWhile (/= ':') userInfo in
@@ -62,7 +59,7 @@ prepare cache package uri = liftIO $
       uri' = mustParseURI uri
       verifySource dir =
           svn (["status","--no-auth-cache","--non-interactive"] ++ (username userInfo) ++ (password userInfo)) >>= \ out ->
-          case L.append (stdoutOnly out) (stderrOnly out) == L.empty of
+          case L.concat (keepStdout out ++ keepStderr out) == L.empty of
             -- no output == nothing changed
             True -> updateSource dir
             -- Failure - error code or output from status means changes have occured
@@ -81,15 +78,15 @@ prepare cache package uri = liftIO $
           liftIO (createDirectoryIfMissing True parent) >>
           checkout >>
           findSourceTree dir
-      checkout :: IO (Either String [Output])
+      checkout :: IO (Either String [Output L.ByteString])
       --checkout = svn createStyle args 
-      checkout = lazyProcessE "svn" args Nothing Nothing L.empty >>= return . finish
+      checkout = lazyProcessE "svn" args L.empty >>= return . finish
           where
             args = ([ "co","--no-auth-cache","--non-interactive"] ++ 
                     (username userInfo) ++ (password userInfo) ++ 
                     [ uri, dir ])
-            finish output = case exitCodeOnly output of
-                              ExitSuccess -> Right output
+            finish output = case keepResult output of
+                              [ExitSuccess] -> Right output
                               _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
       userInfo = maybe "" uriUserInfo (uriAuthority uri')
       dir = P.topDir cache ++ "/svn/" ++ show (md5 (L.pack (maybe "" uriRegName (uriAuthority uri') ++ (uriPath uri'))))

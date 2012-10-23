@@ -21,10 +21,12 @@ Build-type:     Simple
 flag local-debian-repo
   Description: Link directly to the source of the debian-repo library
   Default: False
+  Manual: True
 
 flag local-debian
   Description: Link directly to the source of the debian library
   Default: False
+  Manual: True
 
 Library
 
@@ -59,8 +61,7 @@ Library
       , pretty
       , pretty-class
       , process
-      , process-extras >= 0.4
-      , progress >= 1.52
+      , process-extras >= 0.4.1
       , pureMD5
       , regex-compat
       , regex-posix

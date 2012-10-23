@@ -8,8 +8,7 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
-import System.Unix.Progress.QIO (lazyProcessEF)
-import System.Unix.QIO (quieter)
+import System.Process.Read (lazyProcessEF, quieter)
 
 documentation = [ "proc:<target> - A target of this form modifies another target by ensuring"
                 , "that /proc is mounted during the build.  This target should only be"
@@ -32,9 +31,9 @@ prepare _cache package buildOS base =
 withProc :: OSImage -> IO a -> IO a
 withProc buildOS task =
     do createDirectoryIfMissing True dir
-       _ <- quieter (+ 1) $ lazyProcessEF "mount" ["--bind", "/proc", dir] Nothing Nothing L.empty
+       _ <- quieter (+ 1) $ lazyProcessEF "mount" ["--bind", "/proc", dir] L.empty
        result <- task
-       _ <- quieter (+ 1) $ lazyProcessEF "umount" [dir] Nothing Nothing L.empty
+       _ <- quieter (+ 1) $ lazyProcessEF "umount" [dir] L.empty
        return result
     where
       dir = rootPath (rootDir buildOS) ++ "/proc"

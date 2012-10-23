@@ -16,10 +16,7 @@ import Debian.Repo
 import Debian.URI
 import System.FilePath (splitFileName)
 import System.Unix.Directory
-import System.Unix.Progress.Outputs (outputOnly)
-import System.Unix.Progress.Progress (timeTask)
-import System.Unix.Progress.QIO (lazyCommandF)
-import System.Unix.QIO (qPutStrLn)
+import System.Process.Read (keepOutput, timeTask, lazyCommandF, qPutStrLn)
 import System.Directory
 
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"
@@ -58,7 +55,7 @@ prepare cache package version = liftIO $
         -- computes a diff between this archive and some other parent archive and tries to merge the changes
         mergeSource dir =
             lazyCommandF cmd L.empty >>= \ b ->
-            if isInfixOf "Nothing to do." (L.unpack (outputOnly b))
+            if isInfixOf "Nothing to do." (L.unpack (L.concat (keepOutput b)))
             then findSourceTree dir
             else commitSource dir
             where

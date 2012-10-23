@@ -16,7 +16,7 @@ import Debian.Version (version)
 import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory
-import System.Unix.Progress.QIO (lazyCommandF)
+import System.Process.Read (lazyCommandF)
 
 documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"

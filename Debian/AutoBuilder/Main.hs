@@ -53,11 +53,7 @@ import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Unix.Directory(removeRecursiveSafely)
--- import System.Unix.LazyProcess(Output)
-import System.Unix.Progress (Output)
-import System.Unix.Progress.Progress (timeTask)
-import System.Unix.Progress.QIO (lazyCommandF)
-import System.Unix.QIO (quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
+import System.Process.Read (Output, timeTask, lazyCommandF, quieter, quieter', qPutStrLn, qPutStr, ePutStrLn, q12)
 import Text.Printf ( printf )
 import Text.PrettyPrint.Class (pretty)
 
@@ -89,22 +85,21 @@ main paramSets = do
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.  Stop on first failure.
-doParameterSet :: ([Failing ([Output], NominalDiffTime)], AptState) -> (P.ParamRec, P.Packages) -> IO ([Failing ([Output], NominalDiffTime)], AptState)
+doParameterSet :: ([Failing ([Output L.ByteString], NominalDiffTime)], AptState) -> (P.ParamRec, P.Packages) -> IO ([Failing ([Output L.ByteString], NominalDiffTime)], AptState)
 doParameterSet (results, state) (params, packages) =
     if any isFailure results
     then return (results, state)
     else
-        try (quieter (const (- (P.verbosity params)))
-               (do top <- P.computeTopDir params
-                   withLock (top ++ "/lockfile")
-                     (runStateT (quieter (+ 2) (P.buildCache params top packages) >>= runParameterSet) state))) >>=
+        try (do top <- P.computeTopDir params
+                withLock (top ++ "/lockfile")
+                     (runStateT (P.buildCache params top packages >>= runParameterSet) state)) >>=
         either (\ (e :: SomeException) -> return (Failure [show e] : results, initState))
                (\ (result, state') -> return (result : results, state'))
     where
       isFailure (Failure _) = True
       isFailure _ = False
 
-runParameterSet :: C.CacheRec -> AptIOT IO (Failing ([Output], NominalDiffTime))
+runParameterSet :: C.CacheRec -> AptIOT IO (Failing ([Output L.ByteString], NominalDiffTime))
 runParameterSet cache =
     do
       lift doRequiredVersion
@@ -222,7 +217,7 @@ runParameterSet cache =
           where
             buildOS = chrootEnv cleanOS (P.dirtyRoot cache)
             allTargets = C.packages cache
-      upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output], NominalDiffTime)]
+      upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output L.ByteString], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =
               case P.uploadURI params of
@@ -236,7 +231,7 @@ runParameterSet cache =
                True -> qPutStrLn "Skipping upload."
                False -> return ()
              error msg
-      newDist :: [Failing ([Output], NominalDiffTime)] -> IO (Failing ([Output], NominalDiffTime))
+      newDist :: [Failing ([Output L.ByteString], NominalDiffTime)] -> IO (Failing ([Output L.ByteString], NominalDiffTime))
       newDist _results
           | P.doNewDist params =
               case P.uploadURI params of
@@ -267,7 +262,7 @@ runParameterSet cache =
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
             loadCache path =
                 do pairs <- try (readFile path >>= return . read) >>=
-                            either (\ (e :: SomeException) -> return []) return
+                            either (\ (_ :: SomeException) -> return []) return
                    let (pairs' :: [(URI, Maybe Repository)]) =
                            catMaybes (map (\ (s, x) -> case parseURI s of
                                                          Nothing -> Nothing

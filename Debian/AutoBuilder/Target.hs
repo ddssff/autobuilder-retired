@@ -71,14 +71,17 @@ import System.Exit(ExitCode(ExitSuccess, ExitFailure), exitWith)
 import System.FilePath ((</>))
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Chroot (useEnv)
-import System.Unix.Progress (Output(..), lazyProcess)
-import System.Unix.Progress.Outputs (collectOutputUnpacked, mergeToStdout, stdoutOnly, collectResult, exitCodeOnly)
-import System.Unix.Progress.QIO (lazyCommandF, lazyCommandE, lazyCommandV, lazyProcessF)
-import System.Unix.QIO (quieter, quieter', qPutStrLn, qMessage, ePutStr, ePutStrLn, q12 {-, q02-})
+import System.Process (CmdSpec(RawCommand), CreateProcess(cwd))
+import System.Process.Read (Chars(toString), readModifiedProcess, lazyProcess, unpackOutputs, mergeToStdout, keepStdout, keepResult,
+                            collectOutputs, keepResult, lazyCommandF, lazyCommandE, lazyCommandV,
+                            quieter, quieter', qPutStrLn, ePutStr, ePutStrLn, q12 {-, q02-})
 import Text.PrettyPrint (Doc, text, (<>))
 import Text.PrettyPrint.Class (pretty)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
+
+qMessage :: MonadIO m => String -> b -> m b
+qMessage s x = qPutStrLn s >> return x
 
 instance Ord Target where
     compare = compare `on` debianSourcePackageName
@@ -388,9 +391,9 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
              -- unless we actually created a patch.
              _ <- liftIO $ useEnv' root (\ _ -> return ())
                              (-- Get the version number of dpkg-dev in the build environment
-                              lazyCommandF ("dpkg -s dpkg-dev | sed -n 's/^Version: //p'") L.empty >>= return . head . words . L.unpack . stdoutOnly >>= \ installed ->
+                              lazyCommandF ("dpkg -s dpkg-dev | sed -n 's/^Version: //p'") L.empty >>= return . head . words . L.unpack . L.concat . keepStdout >>= \ installed ->
                               -- If it is >= 1.16.1 we may need to run dpkg-source --commit.
-                              lazyCommandV ("dpkg --compare-versions '" ++ installed ++ "' ge 1.16.1") L.empty >>= return . (== ExitSuccess) . exitCodeOnly >>= \ newer ->
+                              lazyCommandV ("dpkg --compare-versions '" ++ installed ++ "' ge 1.16.1") L.empty >>= return . (== [ExitSuccess]) . keepResult >>= \ newer ->
                               when newer (doesDirectoryExist (path' </> "debian/patches") >>= doDpkgSource)
                               {- when newer (do createDirectoryIfMissing True (path' </> "debian/patches")
                                              -- Create the patch if there are any changes
@@ -413,7 +416,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
             doDpkgSource True =
                 doDpkgSource' >>
                 return ()
-            doDpkgSource' = lazyProcessF "dpkg-source" ["--commit", ".", "autobuilder.diff"] (Just path') Nothing L.empty
+            doDpkgSource' = readModifiedProcess (\ p -> p {cwd = Just path'}) (RawCommand "dpkg-source" ["--commit", ".", "autobuilder.diff"]) L.empty
             path' = fromJust (dropPrefix root path)
             path = debdir buildTree
             root = rootPath (rootDir buildOS)
@@ -720,10 +723,10 @@ updateChangesFile elapsed changes =
 {-    autobuilderVersion <- processOutput "dpkg -s autobuilder | sed -n 's/^Version: //p'" >>=
                             return . either (const Nothing) Just >>=
                             return . maybe Nothing (listToMaybe . lines) -}
-      hostname <- lazyCommandF "hostname" L.empty >>= return . listToMaybe . lines . L.unpack . stdoutOnly
+      hostname <- lazyCommandF "hostname" L.empty >>= return . listToMaybe . lines . L.unpack . L.concat . keepStdout
       cpuInfo <- parseProcCpuinfo
       memInfo <- parseProcMeminfo
-      machine <- lazyCommandF "uname -m" L.empty >>= return . listToMaybe . lines . L.unpack . stdoutOnly
+      machine <- lazyCommandF "uname -m" L.empty >>= return . listToMaybe . lines . L.unpack . L.concat . keepStdout
       let buildInfo = ["Autobuilder-Version: " ++ V.autoBuilderVersion] ++
                       ["Time: " ++ show elapsed] ++
                       maybeField "Memory: " (lookup "MemTotal" memInfo) ++
@@ -755,10 +758,10 @@ downloadDependencies os source extra sourceFingerprint =
     do -- qPutStrLn "Downloading build dependencies"
        quieter (+ 1) $ qPutStrLn $ "Dependency package versions:\n " ++ intercalate "\n  " (showDependencies sourceFingerprint)
        qPutStrLn ("Downloading build dependencies into " ++ rootPath (rootDir os))
-       (out, _, code) <- useEnv' (rootPath root) forceList (lazyCommandE command L.empty) >>=
-                         return . collectOutputUnpacked . mergeToStdout
+       (code, out, _, _) <- useEnv' (rootPath root) forceList (lazyCommandE command L.empty) >>=
+                            return . unpackOutputs . mergeToStdout
        case code of
-         ExitSuccess -> return (Success out)
+         [ExitSuccess] -> return (Success out)
          code -> qMessage ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ out) () >>
                  return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code ++ "\nOutput:\n" ++ out])
     where
@@ -775,13 +778,13 @@ pathBelow root path =
     where message = "Expected a path below " ++ root ++ ", saw " ++ path
 
 -- |Install the package's build dependencies.
-installDependencies :: OSImage -> DebianBuildTree -> [String] -> Fingerprint -> IO (Failing [Output])
+installDependencies :: OSImage -> DebianBuildTree -> [String] -> Fingerprint -> IO (Failing L.ByteString)
 installDependencies os source extra sourceFingerprint =
     do qPutStrLn $ "Installing build dependencies into " ++ rootPath (rootDir os)
-       (code, out) <- Proc.withProc os (useEnv' (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectResult
+       (code, out, _, _) <- Proc.withProc os (useEnv' (rootPath root) forceList $ lazyCommandV command L.empty) >>= return . collectOutputs . mergeToStdout
        case code of
-         ExitSuccess -> return (Success out)
-         code -> quieter (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ outputToString out) >>
+         [ExitSuccess] -> return (Success out)
+         code -> quieter (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ toString out) >>
                  return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
@@ -795,13 +798,6 @@ installDependencies os source extra sourceFingerprint =
 -- | This should probably be what the real useEnv does.
 useEnv' :: FilePath -> (a -> IO a) -> IO a -> IO a
 useEnv' rootPath force action = quieter (+ 1) $ useEnv rootPath force $ quieter (+ (-1)) action
-
--- | Move to System.Unix.Process?
-outputToString :: [Output] -> String
-outputToString [] = ""
-outputToString (Stdout s : out) = B.unpack s ++ outputToString out
-outputToString (Stderr s : out) = B.unpack s ++ outputToString out
-outputToString (Result r : out) = show r ++ outputToString out
 
 -- |Set a "Revision" line in the .dsc file, and update the .changes
 -- file to reflect the .dsc file's new md5sum.  By using our newdist
@@ -841,8 +837,8 @@ setRevisionInfo fingerprint changes {- @(Changes dir name version arch fields fi
 -- | Run a checksum command on a file, return the resulting checksum as text.
 doChecksum :: String -> (String -> String) -> FilePath -> IO (Failing String)
 doChecksum cmd f path =
-    lazyProcess cmd' [path] Nothing Nothing L.empty >>=
-    return . either (doError (cmd' ++ " " ++ path)) (Success . f) . toEither . collectOutputUnpacked
+    lazyProcess cmd' [path] L.empty >>=
+    return . either (doError (cmd' ++ " " ++ path)) (Success . f) . toEither . unpackOutputs
     where cmd' = "/usr/bin/" ++ cmd
 
 md5sum :: FilePath -> IO (Failing String)
@@ -852,13 +848,13 @@ sha1sum = doChecksum "sha1sum" (take 40)
 sha256sum :: FilePath -> IO (Failing String)
 sha256sum = doChecksum "sha256sum" (take 64)
 
-toEither :: (a, String, ExitCode) -> Either (a, String, ExitCode) a
-toEither (text, "", ExitSuccess) = Right text
+toEither :: ([ExitCode], a, String, [IOError]) -> Either ([ExitCode], a, String, [IOError]) a
+toEither ([ExitSuccess], text, "", _) = Right text
 toEither x = Left x
 
-doError :: Show a => String -> (t, a, ExitCode) -> Failing a
-doError cmd (_, s, ExitSuccess) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]
-doError cmd (_, _, ExitFailure n) = Failure ["Error " ++ show n ++ " running '" ++ cmd ++ "'"]
+doError :: Show a => String -> ([ExitCode], t, a, [IOError]) -> Failing a
+doError cmd ([ExitFailure n], _, _, _) = Failure ["Error " ++ show n ++ " running '" ++ cmd ++ "'"]
+doError cmd (_, _, s, _) = Failure ["Unexpected error output from " ++ cmd ++ ": " ++ show s]
 
 forceList :: [a] -> IO [a]
 forceList output = evaluate (length output) >> return output

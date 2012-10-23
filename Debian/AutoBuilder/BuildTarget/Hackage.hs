@@ -25,9 +25,7 @@ import System.FilePath ((</>))
 import System.IO (hPutStrLn, stderr)
 import System.Process (showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
-import System.Unix.Progress.Outputs (collectOutput)
-import System.Process.Read (readProcessWithExitCode)
-import System.Unix.Progress.QIO (lazyCommandE)
+import System.Process.Read (readProcessWithExitCode, lazyCommandE, collectOutputs)
 import Text.XML.HaXml (htmlprint)
 import Text.XML.HaXml.Types
 import Text.XML.HaXml.Html.Parse (htmlParse)
@@ -174,17 +172,17 @@ findVersion package (Document _ _ (Elem _name _attrs content) _) =
 -- |Download and save the tarball, return its contents.
 download' :: String -> P.CacheRec -> String -> Version -> IO B.ByteString
 download' server cache name version =
-    do (out, err, res) <- lazyCommandE (downloadCommand server name version) B.empty >>= return . collectOutput
+    do (res, out, err, _) <- lazyCommandE (downloadCommand server name version) B.empty >>= return . collectOutputs
        -- (res, out, err) <- runProcessWith
        case res of
-         ExitFailure _ ->
-             let msg = downloadCommand server name version ++ " ->\n" ++ show (err, res) in
-             hPutStrLn stderr msg >>
-             error msg
-         ExitSuccess ->
+         (ExitSuccess : _) ->
              do createDirectoryIfMissing True (tmpDir cache)
                 B.writeFile (tarball cache name version) out
                 return out
+         _ ->
+             let msg = downloadCommand server name version ++ " ->\n" ++ show (err, res) in
+             hPutStrLn stderr msg >>
+             error msg
 
 -- |Hackage paths
 packageURL server name = "http://" ++ server ++ "/package/" ++ name
