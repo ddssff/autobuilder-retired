@@ -8,7 +8,7 @@ module Debian.AutoBuilder.Main
     ) where
 
 import Control.Arrow (first)
-import Control.Applicative.Error (Failing(..))
+import Control.Applicative.Error (Failing(..), maybeRead)
 import Control.Exception(SomeException, try, catch, AsyncException(UserInterrupt), fromException)
 import Control.Monad(foldM, when, unless)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
@@ -16,7 +16,7 @@ import qualified Data.ByteString.Lazy as L
 import Data.Either (partitionEithers)
 import qualified Data.Map as Map
 import Data.List(intercalate)
-import Data.Maybe(catMaybes)
+import Data.Maybe(catMaybes, fromMaybe)
 import Data.Time(NominalDiffTime)
 import Debian.AutoBuilder.BuildTarget (retrieve)
 import qualified Debian.AutoBuilder.Params as P
@@ -263,8 +263,8 @@ runParameterSet cache =
             isRemote (uri, _) = uriScheme uri /= "file:"
             loadCache :: FilePath -> IO (Map.Map URI (Maybe Repository))
             loadCache path =
-                do pairs <- try (readFile path >>= return . read) >>=
-                            either (\ (_ :: SomeException) -> return []) return
+                do pairs <- readFile path `catch` (\ (_ :: SomeException) -> return "[]") >>= 
+                            return . fromMaybe [] . maybeRead :: IO [(String, Maybe Repository)]
                    let (pairs' :: [(URI, Maybe Repository)]) =
                            catMaybes (map (\ (s, x) -> case parseURI s of
                                                          Nothing -> Nothing

@@ -1,3 +1,9 @@
+autobuilder (6.34) unstable; urgency=low
+
+  * Fix code to cache repository info.
+
+ -- David Fox <dsf@seereason.com>  Wed, 24 Oct 2012 16:11:53 -0700
+
 autobuilder (6.33) unstable; urgency=low
 
   * Eliminate duplicate error messages.
