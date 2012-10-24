@@ -74,14 +74,11 @@ import System.Unix.Chroot (useEnv)
 import System.Process (CmdSpec(ShellCommand, RawCommand), CreateProcess(cwd))
 import System.Process.Read (Chars(toString), readModifiedProcess, unpackOutputs, mergeToStdout, keepStdout, keepResult,
                             collectOutputs, keepResult, runProcessF, runProcess,
-                            quieter, withModifiedVerbosity, qPutStrLn, ePutStr, ePutStrLn)
+                            quieter, qPutStrLn, ePutStr, ePutStrLn)
 import Text.PrettyPrint (Doc, text, (<>))
 import Text.PrettyPrint.Class (pretty)
 import Text.Printf(printf)
 import Text.Regex(matchRegex, mkRegex)
-
-qMessage :: MonadIO m => String -> b -> m b
-qMessage s x = qPutStrLn s >> return x
 
 instance Ord Target where
     compare = compare `on` debianSourcePackageName
@@ -186,10 +183,9 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
              failing -- On failure the target and its dependencies get
                      -- added to failed.
                      (\ errs ->
-                          do withModifiedVerbosity (const 0) $
-                               qPutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
-                                          "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
-                                          concat (intersperse "\n  " (map targetName blocked)))
+                          do ePutStrLn ("Package build failed:\n " ++ intercalate "\n " errs ++ "\n" ++
+                                        "Discarding " ++ targetName target ++ " and its dependencies:\n  " ++
+                                        concat (intersperse "\n  " (map targetName blocked)))
                              let -- Remove the dependencies of the failed packages from unbuilt
                                  unbuilt' = Set.difference unbuilt (Set.fromList blocked)
                                  -- Add the target and its dependencies to failed
@@ -347,7 +343,7 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                    buildTrumped = elem (targetName target) (P.buildTrumped (P.params cache))
                    newVersion = computeNewVersion cache spkgs (if buildTrumped then Nothing else releaseControlInfo) sourceVersion
                    decision = buildDecision cache target oldFingerprint newFingerprint releaseStatus
-               withModifiedVerbosity (const 0) $ qPutStrLn ("Build decision: " ++ show decision)
+               ePutStrLn ("Build decision: " ++ show decision)
                -- quieter (const 0) $ qPutStrLn ("newVersion: " ++ show (fmap prettyDebianVersion newVersion))
                -- quieter (const 0) $ qPutStrLn ("Release status: " ++ show releaseStatus)
                case newVersion of
@@ -762,8 +758,7 @@ downloadDependencies os source extra sourceFingerprint =
                             return . unpackOutputs . mergeToStdout
        case code of
          [ExitSuccess] -> return (Success out)
-         code -> qMessage ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ out) () >>
-                 return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code ++ "\nOutput:\n" ++ out])
+         code -> return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code ++ "\nOutput:\n" ++ out])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++
                  (if True then aptGetCommand else pbuilderCommand))
@@ -784,7 +779,7 @@ installDependencies os source extra sourceFingerprint =
        (code, out, _, _) <- Proc.withProc os (useEnv' (rootPath root) forceList $ runProcess id (ShellCommand command) L.empty) >>= return . collectOutputs . mergeToStdout
        case code of
          [ExitSuccess] -> return (Success out)
-         code -> withModifiedVerbosity (const 0) $ qPutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ toString out) >>
+         code -> ePutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ toString out) >>
                  return (Failure ["FAILURE: " ++ command ++ " -> " ++ show code])
     where
       command = ("export DEBIAN_FRONTEND=noninteractive; " ++

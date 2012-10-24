@@ -105,8 +105,8 @@ runParameterSet :: C.CacheRec -> AptIOT IO (Failing ([Output L.ByteString], Nomi
 runParameterSet cache =
     do
       lift doRequiredVersion
-      when (P.showParams params) (withModifiedVerbosity (const 0) (liftIO doShowParams))
-      when (P.showSources params) (withModifiedVerbosity (const 0) (liftIO doShowSources))
+      when (P.showParams params) (withModifiedVerbosity (const 1) (liftIO doShowParams))
+      when (P.showSources params) (withModifiedVerbosity (const 1) (liftIO doShowSources))
       when (P.flushAll params) (liftIO doFlush)
       liftIO checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
@@ -161,15 +161,15 @@ runParameterSet cache =
               rqvs = P.requiredVersion params in
           case filter (\ (v, _) -> v > abv) rqvs of
             [] -> quieter 1 $ qPutStrLn $ "Installed autobuilder version " ++ show (prettyDebianVersion abv) ++ " newer than required: " ++ show (map (first prettyDebianVersion) rqvs)
-            reasons -> withModifiedVerbosity (const 0) $
-                do qPutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
+            reasons ->
+                do ePutStrLn ("Installed autobuilder library version " ++ V.autoBuilderVersion ++ " is too old:")
                    mapM_ printReason reasons
                    liftIO $ exitWith (ExitFailure 1)
           where
             printReason :: (DebianVersion, Maybe String) -> IO ()
             printReason (v, s) =
-                qPutStr (" Version >= " ++ show (prettyDebianVersion v) ++ " is required" ++ maybe "" ((++) ":") s)
-      doShowParams = qPutStr $ "Configuration parameters:\n" ++ P.prettyPrint params
+                ePutStr (" Version >= " ++ show (prettyDebianVersion v) ++ " is required" ++ maybe "" ((++) ":") s)
+      doShowParams = ePutStr $ "Configuration parameters:\n" ++ P.prettyPrint params
       doShowSources =
           either (error . show) doShow (P.findSlice cache (SliceName (releaseName' (P.buildRelease params))))
           where
