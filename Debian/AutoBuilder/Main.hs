@@ -53,7 +53,7 @@ import System.Exit(ExitCode(..), exitWith)
 import qualified System.IO as IO
 import System.IO.Error(isDoesNotExistError)
 import System.Process (CmdSpec(..))
-import System.Process.Read (Output, timeTask, runProcessF, withModifiedVerbosity, quieter, qPutStrLn, qPutStr, ePutStrLn)
+import System.Process.Read (Output, timeTask, runProcessF, withModifiedVerbosity, quieter, qPutStrLn, qPutStr, ePutStrLn, ePutStr)
 import System.Unix.Directory(removeRecursiveSafely)
 import Text.Printf ( printf )
 import Text.PrettyPrint.Class (pretty)
