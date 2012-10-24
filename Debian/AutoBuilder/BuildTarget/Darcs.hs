@@ -17,7 +17,7 @@ import System.Directory
 import System.Exit (ExitCode(..))
 import System.FilePath
 import System.Process (CmdSpec(..))
-import System.Process.Read (keepStdout, keepResult, timeTask, runProcessF, runProcess)
+import System.Process.Progress (keepStdout, keepResult, timeTask, runProcessF, runProcess)
 import System.Unix.Directory
 import Text.Regex
 

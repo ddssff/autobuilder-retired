@@ -19,7 +19,7 @@ import System.Directory
 import System.Exit
 import System.FilePath (splitFileName)
 import System.Process (CmdSpec(..))
-import System.Process.Read (Output, keepStdout, keepStderr, keepResult, timeTask, runProcessF, runProcess)
+import System.Process.Progress (Output, keepStdout, keepStderr, keepResult, timeTask, runProcessF, runProcess)
 import System.Unix.Directory
 
 documentation = [ "svn:<uri> - A target of this form retrieves the source code from"

@@ -14,7 +14,7 @@ import Debian.Repo
 import System.Directory
 import System.FilePath (splitFileName)
 import System.Process (CmdSpec(..))
-import System.Process.Read (timeTask, runProcessF)
+import System.Process.Progress (timeTask, runProcessF)
 import System.Unix.Directory
 
 documentation = [ "hg:<string> - A target of this form target obtains the source"

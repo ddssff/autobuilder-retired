@@ -13,7 +13,7 @@ import Debian.Repo
 import System.FilePath (splitFileName)
 import System.Unix.Directory
 import System.Process (CmdSpec(..))
-import System.Process.Read (timeTask, runProcessF, qPutStrLn)
+import System.Process.Progress (timeTask, runProcessF, qPutStrLn)
 import System.Directory
 
 documentation = [ "tla:<revision> - A target of this form retrieves the a TLA archive with the"

@@ -17,7 +17,7 @@ import Prelude hiding (catch)
 import Debian.Repo
 import System.Directory
 import System.Process (CmdSpec(..))
-import System.Process.Read (runProcessF)
+import System.Process.Progress (runProcessF)
 
 documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combines two targets,"
                 , "where one points to an un-debianized source tree and the other contains"

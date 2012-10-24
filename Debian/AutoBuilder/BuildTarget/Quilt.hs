@@ -26,7 +26,7 @@ import "Extra" Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.Process (CmdSpec(..))
-import System.Process.Read (unpackOutputs, mergeToStderr, runProcessF, runProcess, qPutStrLn, quieter)
+import System.Process.Progress (unpackOutputs, mergeToStderr, runProcessF, runProcess, qPutStrLn, quieter)
 import Text.Regex
 
 qMessage s x = qPutStrLn s >> return x

@@ -43,7 +43,7 @@ import System.FilePath (takeExtension, (</>))
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (isAlreadyExistsError)
 import System.Posix.Files (createLink, removeLink)
-import System.Process.Read (quieter, qPutStrLn {-, ePutStrLn-})
+import System.Process.Progress (quieter, qPutStrLn {-, ePutStrLn-})
 
 -- | Case analysis for the 'Failing' type.
 -- If the value is @'Failure'@, apply the first function to @[ErrorMsg]@;

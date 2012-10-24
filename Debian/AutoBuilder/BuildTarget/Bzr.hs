@@ -17,7 +17,7 @@ import Debian.URI
 import System.FilePath (splitFileName)
 import System.Unix.Directory
 import System.Process (CmdSpec(..))
-import System.Process.Read (keepOutput, timeTask, runProcessF, qPutStrLn)
+import System.Process.Progress (keepOutput, timeTask, runProcessF, qPutStrLn)
 import System.Directory
 
 documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar archive with the"

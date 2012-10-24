@@ -35,7 +35,7 @@ import Debian.Repo.Monad (AptIOT)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import System.Process (CmdSpec(..))
-import System.Process.Read (runProcessF, qPutStrLn, quieter)
+import System.Process.Progress (runProcessF, qPutStrLn, quieter)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
 retrieve :: OSImage -> P.CacheRec -> P.Packages -> AptIOT IO Download

@@ -24,7 +24,7 @@ import Magic
 import System.FilePath (splitFileName)
 import System.Directory
 import System.Process (CmdSpec(..))
-import System.Process.Read (timeTask, runProcessF)
+import System.Process.Progress (timeTask, runProcessF)
 import System.Unix.Directory
 
 documentation = [ "uri:<string>:<md5sum> - A target of this form retrieves the file at the"

@@ -27,7 +27,8 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (CreateProcess(cwd), showCommandForUser)
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Process (CmdSpec(RawCommand))
-import System.Process.Read (readModifiedProcessWithExitCode, qPutStrLn)
+import System.Process.Read (readModifiedProcessWithExitCode)
+import System.Process.Progress (qPutStrLn)
 --import System.Unix.QIO (qPutStrLn)
 
 documentation :: [String]

@@ -61,7 +61,8 @@ Library
       , pretty
       , pretty-class
       , process
-      , process-extras >= 0.4.1
+      , process-extras
+      , process-progress
       , pureMD5
       , regex-compat
       , regex-posix

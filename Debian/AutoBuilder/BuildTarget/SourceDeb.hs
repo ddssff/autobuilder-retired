@@ -15,7 +15,7 @@ import Debian.Repo (AptIOT)
 import System.Directory
 import System.Exit (ExitCode(..))
 import System.Process (CmdSpec(..))
-import System.Process.Read (runProcess, keepResult)
+import System.Process.Progress (runProcess, keepResult)
 --import System.Unix.Progress.Outputs (exitCodeOnly)
 
 documentation = [ "sourcedeb:<target> - A target of this form unpacks the source deb"

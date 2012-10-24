@@ -72,9 +72,9 @@ import System.FilePath ((</>))
 import System.Posix.Files(fileSize, getFileStatus)
 import System.Unix.Chroot (useEnv)
 import System.Process (CmdSpec(ShellCommand, RawCommand), CreateProcess(cwd))
-import System.Process.Read (Chars(toString), readModifiedProcess, unpackOutputs, mergeToStdout, keepStdout, keepResult,
-                            collectOutputs, keepResult, runProcessF, runProcess,
-                            quieter, qPutStrLn, ePutStr, ePutStrLn)
+import System.Process.Progress (unpackOutputs, mergeToStdout, keepStdout, keepResult, collectOutputs,
+                                keepResult, runProcessF, runProcess, quieter, qPutStrLn, ePutStr, ePutStrLn)
+import System.Process.Read (Chars(toString), readModifiedProcess)
 import Text.PrettyPrint (Doc, text, (<>))
 import Text.PrettyPrint.Class (pretty)
 import Text.Printf(printf)

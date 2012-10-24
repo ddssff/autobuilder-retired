@@ -9,7 +9,7 @@ import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
 import System.Directory (createDirectoryIfMissing)
 import System.Process (CmdSpec(..))
-import System.Process.Read (runProcessF, quieter)
+import System.Process.Progress (runProcessF, quieter)
 
 documentation = [ "proc:<target> - A target of this form modifies another target by ensuring"
                 , "that /proc is mounted during the build.  This target should only be"
