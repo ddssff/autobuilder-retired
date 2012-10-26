@@ -108,6 +108,10 @@ data PackageFlag
     -- ^ Omit the -doc section from the control file so that no
     -- documentation files are generated.  Used to work around haddock
     -- bugs.
+    | CabalDebian String
+    -- ^ Pass arbitrary options to cabal-debian - the is intended to
+    -- replace Maintainer, ExtraDep, ExtraDevDep, MapDep, DebVersion,
+    -- Revision, Epoch, and NoDoc.
     | MapDep String BinPkgName
     -- ^ Tell cabal-debian to map the first argument (a name that
     -- appears in Extra-Libraries field of the cabal file) to the

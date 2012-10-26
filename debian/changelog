@@ -1,3 +1,10 @@
+autobuilder (6.35) unstable; urgency=low
+
+  * Add a CabalDebian constructor to PackageFlag to pass options
+    directly to cabal-debian.
+
+ -- David Fox <dsf@seereason.com>  Fri, 26 Oct 2012 06:37:02 -0700
+
 autobuilder (6.34) unstable; urgency=low
 
   * Fix code to cache repository info.
