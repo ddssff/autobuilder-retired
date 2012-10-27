@@ -50,7 +50,7 @@ import Debian.Repo.Dependencies (simplifyRelations, solutions)
 import Debian.Repo.Changes (save, uploadLocal)
 import Debian.Repo.Insert (scanIncoming, showErrors)
 import Debian.Repo.Monad (tryAB)
-import Debian.Repo.OSImage (OSImage, updateLists)
+import Debian.Repo.OSImage (OSImage, updateLists, withProc)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
 import Debian.Repo.SourceTree (SourceTreeC(..), DebianSourceTreeC(..),
                                DebianBuildTree, addLogEntry, copyDebianBuildTree,
@@ -776,7 +776,7 @@ pathBelow root path =
 installDependencies :: OSImage -> DebianBuildTree -> [String] -> Fingerprint -> IO (Failing L.ByteString)
 installDependencies os source extra sourceFingerprint =
     do qPutStrLn $ "Installing build dependencies into " ++ rootPath (rootDir os)
-       (code, out, _, _) <- Proc.withProc os (useEnv' (rootPath root) forceList $ runProcess id (ShellCommand command) L.empty) >>= return . collectOutputs . mergeToStdout
+       (code, out, _, _) <- withProc os (useEnv' (rootPath root) forceList $ runProcess id (ShellCommand command) L.empty) >>= return . collectOutputs . mergeToStdout
        case code of
          [ExitSuccess] -> return (Success out)
          code -> ePutStrLn ("FAILURE: " ++ command ++ " -> " ++ show code ++ "\n" ++ toString out) >>
