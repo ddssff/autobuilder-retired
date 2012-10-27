@@ -3,7 +3,7 @@
 -- 
 -- Author: David Fox <ddssff@gmail.com>
 {-# LANGUAGE PackageImports, ScopedTypeVariables, StandaloneDeriving #-}
-{-# OPTIONS -Wall -Werror -fwarn-unused-imports -fno-warn-name-shadowing -fno-warn-orphans #-}
+{-# OPTIONS -Wall -fwarn-unused-imports -fno-warn-name-shadowing -fno-warn-orphans #-}
 module Debian.AutoBuilder.Target
     ( changelogText	-- Tgt -> Maybe String -> [PkgVersion] -> String
     , buildTargets
@@ -24,7 +24,6 @@ import Data.List(intersperse, intercalate, intersect, isSuffixOf,
 import Data.Maybe(catMaybes, fromJust, isNothing, listToMaybe)
 import qualified Data.Set as Set
 import Data.Time(NominalDiffTime)
-import qualified Debian.AutoBuilder.BuildTarget.Proc as Proc
 import qualified Debian.AutoBuilder.Params as P
 import Debian.AutoBuilder.Types.Buildable (Buildable(..), Target(tgt, cleanSource, targetDepends), targetName, prepareTarget, targetRelaxed, targetControl, relaxDepends, failing, debianSourcePackageName)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
