@@ -7,6 +7,7 @@ import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
+import Debian.Repo.OSImage (withProc)
 import System.Directory (createDirectoryIfMissing)
 import System.Process (CmdSpec(..))
 import System.Process.Progress (runProcessF, quieter)
@@ -28,13 +29,3 @@ prepare _cache package buildOS base =
                , T.cleanTarget = T.cleanTarget base
                , T.buildWrapper = withProc buildOS
                }
-
-withProc :: OSImage -> IO a -> IO a
-withProc buildOS task =
-    do createDirectoryIfMissing True dir
-       _ <- quieter 1 $ runProcessF id (RawCommand "mount" ["--bind", "/proc", dir]) L.empty
-       result <- task
-       _ <- quieter 1 $ runProcessF id (RawCommand "umount" [dir]) L.empty
-       return result
-    where
-      dir = rootPath (rootDir buildOS) ++ "/proc"
