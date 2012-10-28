@@ -14,7 +14,6 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
-import Debian.Relation (PkgName(unPkgName), BinPkgName(unBinPkgName))
 import Debian.Repo hiding (getVersion, pkgName, pkgVersion)
 import Distribution.Verbosity (normal)
 import Distribution.Package (PackageIdentifier(..) {-, PackageName(..)-})
@@ -60,7 +59,7 @@ prepare cache package' cabal = liftIO $
 debianize :: P.CacheRec -> [P.PackageFlag] -> FilePath -> IO ()
 debianize cache pflags dir =
     do qPutStrLn ("debianizing " ++ dir)
-       let pflags' = if any isMaintainerFlag pflags then pflags else P.Maintainer "Unknown Maintainer <unknown@debian.org>" : pflags
+       let pflags' = if any isMaintainerFlag pflags then pflags else P.CabalDebian ["--maintainer", "Unknown Maintainer <unknown@debian.org>"] : pflags
            args = (["--debianize"] ++
                    maybe [] (\ x -> ["--ghc-version", x]) ver ++
                    -- concatMap cflag cflags ++
@@ -72,19 +71,19 @@ debianize cache pflags dir =
          ExitSuccess -> return ()
     where
       indent pre s = unlines $ map (pre ++) $ lines $ B.unpack $ s
-      pflag (P.Maintainer s) = ["--maintainer", s]
+{-    pflag (P.Maintainer s) = ["--maintainer", s]
       pflag (P.ExtraDep s) = ["--build-dep", s]
       pflag (P.ExtraDevDep s) = ["--dev-dep", s]
       pflag (P.MapDep c d) = ["--map-dep", c ++ "=" ++ unPkgName (unBinPkgName d)]
       pflag (P.DebVersion s) = ["--deb-version", s]
       pflag (P.Revision s) = ["--revision", s]
       pflag (P.Epoch name d) = ["--epoch-map", name ++ "=" ++ show d]
-      pflag P.NoDoc = ["--disable-haddock"]
+      pflag P.NoDoc = ["--disable-haddock"] -}
       pflag (P.CabalDebian ss) = ss
       pflag _ = []
 
       ver = P.ghcVersion (P.params cache)
-      isMaintainerFlag (P.Maintainer _) = True
+      isMaintainerFlag (P.CabalDebian xs) | elem "--maintainer" xs = True
       isMaintainerFlag _ = False
 
       run cmd args cwd input =

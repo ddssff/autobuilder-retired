@@ -1,5 +1,5 @@
 Name:           AutoBuilder
-Version:        6.35
+Version:        6.36
 License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
@@ -37,7 +37,7 @@ Library
       Build-Depends: debian >= 3.60
       Hs-Source-Dirs: ., ../haskell-debian-repo
   else
-    Build-Depends: debian-repo >= 5.24, debian >= 3.65
+    Build-Depends: debian-repo >= 5.30, debian >= 3.65
 
   Build-Depends:
         applicative-extras >= 0.1.8

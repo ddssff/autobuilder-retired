@@ -1,3 +1,11 @@
+autobuilder (6.36) unstable; urgency=low
+
+  * Remove constructors from PackageFlag type in
+    Debian.AutoBuilder.Types.Packages that are obsoleted by the new
+    CabalDebian constructor.
+
+ -- David Fox <dsf@seereason.com>  Sun, 28 Oct 2012 07:30:59 -0700
+
 autobuilder (6.35) unstable; urgency=low
 
   * Add a CabalDebian constructor to PackageFlag to pass options
