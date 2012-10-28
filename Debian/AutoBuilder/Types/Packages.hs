@@ -85,8 +85,8 @@ data PackageFlag
     -- ^ Tell the autobuilder that a binary package name is a udeb.  This means that
     -- we can ignore the package when we are deciding whether we need to do an arch
     -- only build.
-    | Maintainer String
-    -- ^ Use the given string as maintainer name and email
+{-  | Maintainer String
+    -- ^ Use the given string as maintainer name and email -}
     | OmitLTDeps
     -- ^ Ignore the << (less than) part of a version dependency when
     -- converting cabal wildcard dependencies.  These can lead to
@@ -96,7 +96,7 @@ data PackageFlag
     -- ^ Specify the exact debian version of a package to retrieve via apt-get
     | CabalPin String
     -- ^ Specify the exact version of the Cabal package to download from Hackage.
-    | ExtraDep String
+{-  | ExtraDep String
     -- ^ Build dependencies which should be added to the
     -- debian/control file via the --build-dep flag of cabal-debian.
     | ExtraDevDep String
@@ -107,12 +107,12 @@ data PackageFlag
     | NoDoc
     -- ^ Omit the -doc section from the control file so that no
     -- documentation files are generated.  Used to work around haddock
-    -- bugs.
+    -- bugs. -}
     | CabalDebian [String]
     -- ^ Pass arbitrary options to cabal-debian - the is intended to
     -- replace Maintainer, ExtraDep, ExtraDevDep, MapDep, DebVersion,
     -- Revision, Epoch, and NoDoc.
-    | MapDep String BinPkgName
+{-  | MapDep String BinPkgName
     -- ^ Tell cabal-debian to map the first argument (a name that
     -- appears in Extra-Libraries field of the cabal file) to the
     -- second argument (a debian binary package name) using the
@@ -129,7 +129,7 @@ data PackageFlag
     -- either be empty or begin with a dash.
     | Epoch String Int
     -- ^ Set the epoch number in the debian version number generated
-    -- for the given cabal package
+    -- for the given cabal package -}
     | DarcsTag String
     -- ^ When doing a darcs get pass this string to darcs via the --tag flag.
     deriving (Show, Eq, Ord)
