@@ -16,7 +16,7 @@ import Network.URI (URI(..), URIAuth(..), uriToString, parseURI)
 import System.Directory
 import System.Exit (ExitCode(..))
 import System.FilePath
-import System.Process (CmdSpec(..))
+import System.Process (CmdSpec(..), CreateProcess(cwd), showCommandForUser)
 import System.Process.Progress (keepStdout, keepResult, timeTask, runProcessF, runProcess)
 import System.Unix.Directory
 import Text.Regex
@@ -28,12 +28,16 @@ documentation = [ "darcs:<string> - a target of this form obtains the source cod
 
 darcsRev :: SourceTree -> P.RetrieveMethod -> IO (Either SomeException String)
 darcsRev tree m =
-    try (runProcess id (ShellCommand cmd) B.empty >>= return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . B.concat . keepStdout) >>= 
-    return . either Left (maybe (fail $ "could not find hash field in output of '" ++ cmd ++ "'")
+    try (runProcess (\ p -> p {cwd = Just path}) cmd B.empty >>=
+         return . matchRegex (mkRegex "hash='([^']*)'") . B.unpack . B.concat . keepStdout) >>= 
+    return . either Left (maybe (fail $ "could not find hash field in output of '" ++ showCmd cmd ++ "'")
                                 (\ rev -> Right (show m ++ "=" ++ head rev)))
     where
-      cmd = "cd " ++ path ++ " && darcs changes --xml-output"
+      cmd = RawCommand "darcs" ["changes", "--xml-output"]
       path = topdir tree
+
+showCmd (RawCommand cmd args) = showCommandForUser cmd args
+showCmd (ShellCommand cmd) = cmd
 
 prepare :: P.CacheRec -> P.Packages -> String -> IO T.Download
 prepare cache package theUri =
@@ -56,7 +60,7 @@ prepare cache package theUri =
       verifySource :: FilePath -> IO SourceTree
       verifySource dir =
           -- Note that this logic is the opposite of 'tla changes'
-          do result <- runProcess id (ShellCommand ("cd " ++ dir ++ " && darcs whatsnew")) B.empty >>= return . keepResult
+          do result <- runProcess (\ p -> p {cwd = Just dir}) (RawCommand "darcs" ["whatsnew"]) B.empty >>= return . keepResult
              case result of
                (ExitSuccess : _) -> removeSource dir >> createSource dir		-- Yes changes
                _ -> updateSource dir				-- No Changes!
@@ -65,7 +69,7 @@ prepare cache package theUri =
 
       updateSource :: FilePath -> IO SourceTree
       updateSource dir =
-          runProcessF id (ShellCommand ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri')) B.empty >>
+          runProcessF (\ p -> p {cwd = Just dir}) (RawCommand "darcs" ["pull", "--all", renderForDarcs theUri']) B.empty >>
           -- runTaskAndTest (updateStyle (commandTask ("cd " ++ dir ++ " && darcs pull --all " ++ renderForDarcs theUri))) >>
           findSourceTree dir
 
@@ -73,14 +77,14 @@ prepare cache package theUri =
       createSource dir =
           let (parent, _) = splitFileName dir in
           do createDirectoryIfMissing True parent
-             _output <- runProcessF id (ShellCommand cmd) B.empty
+             _output <- runProcessF id cmd B.empty
              findSourceTree dir
           where
-            cmd = unwords $ ["darcs", "get", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir]
+            cmd = RawCommand "darcs" (["get", renderForDarcs theUri'] ++ maybe [] (\ tag -> [" --tag", "'" ++ tag ++ "'"]) theTag ++ [dir])
       -- Maybe we should include the "darcs:" in the string we checksum?
-      fixLink = let link = base ++ "/" ++ name
-                    cmd = "rm -rf " ++ link ++ " && ln -s " ++ sum ++ " " ++ link in
-                runProcessF id (ShellCommand cmd) B.empty
+      fixLink = let link = base </> name in
+                runProcessF id (RawCommand "rm" ["-rf", link]) B.empty >>
+                runProcessF id (RawCommand "ln" ["-s", sum, link]) B.empty
       base = P.topDir cache ++ "/darcs"
       name = snd . splitFileName $ (uriPath theUri')
       dir = base ++ "/" ++ sum
