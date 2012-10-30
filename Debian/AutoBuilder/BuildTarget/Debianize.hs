@@ -11,6 +11,7 @@ import Control.Exception (SomeException, catch)
 import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List (isSuffixOf)
+import Data.Maybe (mapMaybe)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
@@ -22,12 +23,12 @@ import Distribution.PackageDescription (GenericPackageDescription(..), PackageDe
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Prelude hiding (catch)
 import System.Directory (getDirectoryContents, doesFileExist)
+import System.Environment (getEnvironment)
 import System.FilePath ((</>))
-import System.Process (CreateProcess(cwd))
-import System.Unix.Directory (removeRecursiveSafely)
-import System.Process (CmdSpec(RawCommand))
+import System.Process (CreateProcess(cwd, env), CmdSpec(RawCommand))
 import System.Process.Read.Monad (runProcessF)
 import System.Process.Progress (qPutStrLn)
+import System.Unix.Directory (removeRecursiveSafely)
 --import System.Unix.QIO (qPutStrLn)
 
 documentation :: [String]
