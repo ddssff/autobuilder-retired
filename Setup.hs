@@ -10,8 +10,10 @@ import System.Exit
 
 main = defaultMainWithHooks simpleUserHooks {
          postConf = \ _ _ _ lbi -> case buildDir lbi of
-                                     "dist-debianize/build" -> debianize (flags lbi)
+                                     "debian/build" -> debianize (flags lbi)
                                      "dist/build" -> debianize ((flags lbi) {dryRun = True})
+                                     "dist-ghc/build" -> debianize ((flags lbi) {validate = True})
+                                     x -> error ("Unexpected buildDir: " ++ show x)
        , postBuild = \ _ _ _ _ -> runTestScript
        , runTests = \ _ _ _ _ -> runTestScript
        }

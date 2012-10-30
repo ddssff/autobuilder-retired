@@ -65,7 +65,7 @@ debianize cache pflags dir =
       runSetupConfigure :: IO Bool
       runSetupConfigure =
           (do removeRecursiveSafely (dir </> "debian/compat")
-              _ <- runProcessF (\ p -> p {cwd = Just dir}) (RawCommand "runhaskell" ["Setup", "configure", "--builddir=dist-debianize"]) B.empty
+              _ <- runProcessF (\ p -> p {cwd = Just dir}) (RawCommand "runhaskell" ["Setup", "configure", "--builddir=debian"]) B.empty
               doesFileExist (dir </> "debian/compat")) `catch` (\ (_ :: SomeException) -> return False)
 
       runCabalDebian True = return ()
