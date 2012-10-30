@@ -7,6 +7,7 @@ module Debian.AutoBuilder.BuildTarget.Debianize
     , documentation
     ) where
 
+import Control.Exception (SomeException, catch)
 import Control.Monad.Trans (liftIO)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List (isSuffixOf)
@@ -19,14 +20,13 @@ import Distribution.Verbosity (normal)
 import Distribution.Package (PackageIdentifier(..) {-, PackageName(..)-})
 import Distribution.PackageDescription (GenericPackageDescription(..), PackageDescription(..))
 import Distribution.PackageDescription.Parse (readPackageDescription)
-import System.Directory (getDirectoryContents)
-import System.Exit
+import Prelude hiding (catch)
+import System.Directory (getDirectoryContents, doesFileExist)
 import System.FilePath ((</>))
-import System.IO (hPutStrLn, stderr)
-import System.Process (CreateProcess(cwd), showCommandForUser)
+import System.Process (CreateProcess(cwd))
 import System.Unix.Directory (removeRecursiveSafely)
 import System.Process (CmdSpec(RawCommand))
-import System.Process.Read (readModifiedProcessWithExitCode)
+import System.Process.Read.Monad (runProcessF)
 import System.Process.Progress (qPutStrLn)
 --import System.Unix.QIO (qPutStrLn)
 
@@ -41,10 +41,8 @@ prepare cache package' cabal = liftIO $
     case cabfiles of
       [cabfile] ->
           do desc <- readPackageDescription normal (T.getTop cabal </> cabfile)
-             -- let (PackageName name) = pkgName . package . packageDescription $ desc
              let version = pkgVersion . package . packageDescription $ desc
-             removeRecursiveSafely (T.getTop cabal </> "debian")
-             -- tree <- findSourceTree (T.getTop cabal)
+             -- removeRecursiveSafely (T.getTop cabal </> "debian")
              debianize cache (P.flags package') (T.getTop cabal)
              return $ T.Download { T.package = package'
                                  , T.getTop = T.getTop cabal
@@ -55,37 +53,37 @@ prepare cache package' cabal = liftIO $
                                  , T.buildWrapper = id }
       _ -> error $ "Download at " ++ T.getTop cabal ++ " missing or multiple cabal files"
 
--- | Run cabal-debian on the given directory, creating a debian subdirectory.
+-- | There are two ways to debianize a package.  The old way is to run
+-- cabal-debian.  The new way is to run Setup configure
+-- --builddir=dist-debianize.  This second only works if support has
+-- been added to the setup to run the debianize function of the
+-- cabal-debian library, so if it doesn't work the old method is used.
 debianize :: P.CacheRec -> [P.PackageFlag] -> FilePath -> IO ()
 debianize cache pflags dir =
-    do qPutStrLn ("debianizing " ++ dir)
-       let pflags' = if any isMaintainerFlag pflags then pflags else P.CabalDebian ["--maintainer", "Unknown Maintainer <unknown@debian.org>"] : pflags
-           args = (["--debianize"] ++
-                   maybe [] (\ x -> ["--ghc-version", x]) ver ++
-                   -- concatMap cflag cflags ++
-                   concatMap pflag pflags')
-       (code, out, err) <- run "cabal-debian" args (\ p -> p {cwd = Just dir}) B.empty
-       case code of
-         ExitFailure _ -> error (showCommandForUser "cabal-debian" args ++ "(in " ++ show dir ++ ") -> " ++ show code ++
-                                 "\nStdout:\n" ++ indent " 1> " out ++ "\nStderr:\n" ++ indent " 2> " err)
-         ExitSuccess -> return ()
+    qPutStrLn ("debianizing " ++ dir) >> runSetupConfigure >>= runCabalDebian
     where
-      indent pre s = unlines $ map (pre ++) $ lines $ B.unpack $ s
-{-    pflag (P.Maintainer s) = ["--maintainer", s]
-      pflag (P.ExtraDep s) = ["--build-dep", s]
-      pflag (P.ExtraDevDep s) = ["--dev-dep", s]
-      pflag (P.MapDep c d) = ["--map-dep", c ++ "=" ++ unPkgName (unBinPkgName d)]
-      pflag (P.DebVersion s) = ["--deb-version", s]
-      pflag (P.Revision s) = ["--revision", s]
-      pflag (P.Epoch name d) = ["--epoch-map", name ++ "=" ++ show d]
-      pflag P.NoDoc = ["--disable-haddock"] -}
-      pflag (P.CabalDebian ss) = ss
-      pflag _ = []
+      runSetupConfigure :: IO Bool
+      runSetupConfigure =
+          (do removeRecursiveSafely (dir </> "debian/compat")
+              _ <- runProcessF (\ p -> p {cwd = Just dir}) (RawCommand "runhaskell" ["Setup", "configure", "--builddir=dist-debianize"]) B.empty
+              doesFileExist (dir </> "debian/compat")) `catch` (\ (_ :: SomeException) -> return False)
 
-      ver = P.ghcVersion (P.params cache)
-      isMaintainerFlag (P.CabalDebian xs) | elem "--maintainer" xs = True
-      isMaintainerFlag _ = False
+      runCabalDebian True = return ()
+      runCabalDebian False =
+          (do _ <- runProcessF (\ p -> p {cwd = Just dir}) (RawCommand "cabal-debian" args) B.empty
+              return ()) `catch` (\ (e :: SomeException) -> error (show e))
+          where
+            args = (["--debianize"] ++ maybe [] (\ x -> ["--ghc-version", x]) ver ++ concatMap pflag pflags)
+            pflag (P.CabalDebian ss) = ss
+            pflag _ = []
 
-      run cmd args cwd input =
-          hPutStrLn stderr ("-> " ++ showCommandForUser cmd args ++ " (in " ++ show dir ++ ")") >>
-          readModifiedProcessWithExitCode cwd (RawCommand cmd args) input
+            ver = P.ghcVersion (P.params cache)
+{-
+            indent pre s = unlines $ map (pre ++) $ lines $ B.unpack $ s
+            isMaintainerFlag (P.CabalDebian xs) | elem "--maintainer" xs = True
+            isMaintainerFlag _ = False
+
+            run cmd args cwd input =
+                hPutStrLn stderr ("-> " ++ showCommandForUser cmd args ++ " (in " ++ show dir ++ ")") >>
+                readModifiedProcessWithExitCode cwd (RawCommand cmd args) input
+-}
