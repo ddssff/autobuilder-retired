@@ -1,3 +1,10 @@
+autobuilder (6.37) unstable; urgency=low
+
+  * Modify the Debianize target so it first tries to run Setup configure,
+    and if that doesn't debianize it then runs cabal-debian.
+
+ -- David Fox <dsf@seereason.com>  Tue, 30 Oct 2012 05:04:03 -0700
+
 autobuilder (6.36) unstable; urgency=low
 
   * Remove constructors from PackageFlag type in
