@@ -4,17 +4,21 @@ License:        BSD3
 Author:         David Fox
 Synopsis:       Build Debian source packages in suitable environments.
 Description:
-  The autobuilder program is now shipped as a haskell source file
-  which uses the autobuilder library.  To configure it make a copy of
-  @\/usr\/bin\/AutoBuilder.hs@ to somewhere such as @~\/AutoBuilder.hs@, edit
-  the parameters in that file, and then use the command 
-  @
-    sudo runhaskell ~\/AutoBuilder.hs
-  @
-  Documentation for the parameters is found in the
-  'ParamClass' type class in the "Debian.AutoBuilder.ParamClass"
-  module, and for the different build target types in the description
-  of "Debian.AutoBuilder.BuildTarget".
+  This autobuilder has a variety of methods for retrieving and
+  modifying program source and putting it into a form suitable for the
+  generation of debian packages.  It does this for a collection of
+  packages, then it computes the build dependencies and chooses a
+  suitable build order.  After each package is built it is uploaded to
+  a local repository so that it can be used as a build dependency for
+  the remaining packages.  When all packages have built successfully
+  it can upload them to a remote repository.
+  .
+  It supports retrieval of source code from darcs, tla, svn, bzr, and
+  hg repositories, with support for git soon to come.  It can also
+  pull a tarball from an arbitrary URL, or get a package using apt-get
+  source.  It can then modify the source by applying patches or by
+  running the cabal-debian program to generate a debianization from
+  the cabal file.
 Cabal-Version:  >= 1.2
 Build-type:     Simple
 
