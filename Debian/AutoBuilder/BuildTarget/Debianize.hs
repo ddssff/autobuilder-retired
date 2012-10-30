@@ -66,9 +66,10 @@ debianize cache pflags dir =
       runSetupConfigure :: IO Bool
       runSetupConfigure =
           (do removeRecursiveSafely (dir </> "debian/compat")
-              let flags = mapMaybe (\ x -> case x of
-                                             P.CabalDebian s -> Just s
-                                             _ -> Nothing) pflags
+              let flags :: [String]
+                  flags = concat (mapMaybe cdflags pflags)
+                  cdflags (P.CabalDebian s) = Just s
+                  cdflags _ = Nothing
               oldEnv <- getEnvironment >>= return . filter (not . (== "CABALDEBIAN") . fst)
               let newEnv = ("CABALDEBIAN", show flags) : oldEnv
               _ <- runProcessF (\ p -> p {cwd = Just dir, env = Just newEnv}) (RawCommand "runhaskell" ["Setup", "configure", "--builddir=debian"]) B.empty
