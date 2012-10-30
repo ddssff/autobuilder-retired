@@ -1456,7 +1456,7 @@ autobuilder (2.1) unstable; urgency=low
  -- David Fox <david.fox@linspire.com>  Tue, 15 Aug 2006 06:02:26 -0700
 
 autobuilder (2.0) unstable; urgency=low
-  
+
   * Initial release of version 2
-  
+
  -- David Fox <david.fox@linspire.com>  Mon, 14 Aug 2006 11:45:38 -0700
