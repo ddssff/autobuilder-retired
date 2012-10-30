@@ -2,6 +2,7 @@ Name:           AutoBuilder
 Version:        6.37
 License:        BSD3
 Author:         David Fox
+Maintainer:     David Fox <dsf@seereason.com>
 Synopsis:       Build Debian source packages in suitable environments.
 Description:
   This autobuilder has a variety of methods for retrieving and
