@@ -11,7 +11,6 @@ module Debian.AutoBuilder.Types.Packages
 
 import Data.Monoid (Monoid(mempty, mappend))
 import Data.Set (Set, empty, union)
-import Debian.Relation (BinPkgName)
 
 data Packages
     = NoPackage

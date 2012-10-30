@@ -1,4 +1,5 @@
 {-# Language ScopedTypeVariables #-}
+{-# OPTIONS -fno-warn-orphans #-}
 module Debian.AutoBuilder.Types.Buildable
     ( failing
     , Buildable(..)
