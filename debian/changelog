@@ -1,4 +1,4 @@
-autobuilder (6.37) unstable; urgency=low
+haskell-autobuilder (6.37) unstable; urgency=low
 
   * Modify the Debianize target so it first tries to run Setup configure,
     and if that doesn't debianize it then runs cabal-debian.
