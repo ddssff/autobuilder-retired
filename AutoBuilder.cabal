@@ -50,7 +50,7 @@ Library
       , bytestring
       , bzlib
       , Cabal
-      , cabal-debian >= 2.0.1
+      , cabal-debian >= 2.0.5
       , containers
       , directory
       , Extra

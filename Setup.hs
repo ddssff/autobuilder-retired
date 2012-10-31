@@ -2,18 +2,14 @@
 
 import Control.Monad (when)
 import Debian.Relation (BinPkgName(..), PkgName(..))
-import Distribution.Debian (debianize, Flags(..), Executable(..), defaultFlags)
+import Distribution.Debian (autobuilderDebianize, Flags(..), Executable(..), defaultFlags)
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(buildDir))
 import System.Cmd
 import System.Exit
 
 main = defaultMainWithHooks simpleUserHooks {
-         postConf = \ _ _ _ lbi -> case buildDir lbi of
-                                     "debian/build" -> debianize (flags lbi)
-                                     "dist/build" -> debianize ((flags lbi) {dryRun = True})
-                                     "dist-ghc/build" -> debianize ((flags lbi) {validate = True})
-                                     x -> error ("Unexpected buildDir: " ++ show x)
+         postConf = \ _ _ _ lbi -> autobuilderDebianize lbi (flags lbi)
        , postBuild = \ _ _ _ _ -> runTestScript
        , runTests = \ _ _ _ _ -> runTestScript
        }
