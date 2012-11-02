@@ -4,7 +4,7 @@ module Debian.AutoBuilder.BuildTarget.DebDir
     , prepare
     ) where
 
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (liftIO)
 import Data.ByteString.Lazy.Char8 (empty, pack)
 import Data.Digest.Pure.MD5 (md5)
 import Data.Version (showVersion)
@@ -23,8 +23,8 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
-prepare :: P.CacheRec -> P.Packages -> T.Download -> T.Download -> AptIOT IO T.Download
-prepare cache package upstream debian = lift $
+prepare :: MonadApt m => P.CacheRec -> P.Packages -> T.Download -> T.Download -> m T.Download
+prepare cache package upstream debian = liftIO $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>
     copyDebian >>

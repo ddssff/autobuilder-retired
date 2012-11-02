@@ -1,6 +1,6 @@
 module Debian.AutoBuilder.BuildTarget.Dir where
 
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (liftIO)
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
@@ -11,9 +11,9 @@ import Debian.Repo
 -- for testing, and is also returned by the clean method when the
 -- source control information has been stripped out of some other type
 -- of BuildTarget.
-prepare :: P.CacheRec -> P.Packages -> FilePath -> AptIOT IO T.Download
+prepare :: MonadApt m => P.CacheRec -> P.Packages -> FilePath -> m T.Download
 prepare _cache package path =
-    do tree <- lift (findSourceTree path)
+    do tree <- liftIO (findSourceTree path)
        return $ T.Download { T.package = package
                            , T.getTop = topdir tree
                            , T.logText =  "Built from local directory " ++ show (P.spec package)

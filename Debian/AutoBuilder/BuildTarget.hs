@@ -31,7 +31,7 @@ import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Relation (SrcPkgName(..), PkgName(..))
 import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, copySourceTree, SourceTree(dir'), topdir)
-import Debian.Repo.Monad (AptIOT)
+import Debian.Repo.Monads.AptState (AptIOT)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import System.Process (CmdSpec(..))
