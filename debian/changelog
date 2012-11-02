@@ -1,3 +1,9 @@
+haskell-autobuilder (6.38) unstable; urgency=low
+
+  * Monad classes from debian-repo 5.31.
+
+ -- David Fox <dsf@seereason.com>  Fri, 02 Nov 2012 12:31:10 -0700
+
 haskell-autobuilder (6.37) unstable; urgency=low
 
   * Modify the Debianize target so it first tries to run Setup configure,
