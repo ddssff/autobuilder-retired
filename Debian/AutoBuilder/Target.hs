@@ -13,8 +13,10 @@ module Debian.AutoBuilder.Target
 import Control.Arrow (second)
 import Control.Applicative ((<$>))
 import Control.Applicative.Error (Failing(..))
-import Control.Exception (SomeException, try, evaluate)
-import Control.Monad.RWS(MonadIO(..), MonadTrans(..), when)
+import Control.Exception (Exception, SomeException, try, evaluate)
+import Control.Monad (when)
+import Control.Monad.Error (MonadError, throwError, catchError)
+import Control.Monad.Trans (MonadIO, liftIO)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Either (partitionEithers)
@@ -48,7 +50,7 @@ import Debian.Repo.Cache (binaryPackages, buildArchOfEnv, sourcePackages, aptSou
 import Debian.Repo.Dependencies (simplifyRelations, solutions)
 import Debian.Repo.Changes (save, uploadLocal)
 import Debian.Repo.Insert (scanIncoming, showErrors)
-import Debian.Repo.Monads.AptState (tryAB, AptIOT)
+import Debian.Repo.Monads.MonadApt (MonadApt)
 import Debian.Repo.OSImage (OSImage, updateLists, withProc)
 import Debian.Repo.Package (binaryPackageSourceVersion, sourcePackageBinaryNames)
 import Debian.Repo.SourceTree (SourceTreeC(..), DebianSourceTreeC(..),
@@ -101,9 +103,9 @@ _formatVersions buildDeps =
     "\n"
     where prefix = "\n    "
 
-prepareTargets :: P.CacheRec -> OSImage -> Relations -> [Buildable] -> AptIOT IO [Target]
+prepareTargets :: MonadApt e m => P.CacheRec -> OSImage -> Relations -> [Buildable] -> m [Target]
 prepareTargets cache cleanOS globalBuildDeps targetSpecs =
-    do results <- lift $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
+    do results <- liftIO $ mapM (prepare (length targetSpecs)) (zip [1..] targetSpecs)
        let (failures, targets) = partitionEithers results
        let msg = "Could not prepare " ++ show (length failures) ++ " targets:\n" ++
                  concatMap (\ (n, e) -> printf "%4d. " n ++ show e ++ "\n") (zip [(1::Int)..] failures)
@@ -134,7 +136,7 @@ partitionFailing xs =
 -- | Build a set of targets.  When a target build is successful it
 -- is uploaded to the incoming directory of the local repository,
 -- and then the function to process the incoming queue is called.
-buildTargets :: (AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [Buildable] -> AptIOT IO (LocalRepository, [Target])
+buildTargets :: (MonadApt e m, AptCache t) => P.CacheRec -> OSImage -> Relations -> LocalRepository -> t -> [Buildable] -> m (LocalRepository, [Target])
 buildTargets _ _ _ localRepo _ [] = return (localRepo, [])
 buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
     do
@@ -149,12 +151,12 @@ buildTargets cache cleanOS globalBuildDeps localRepo poolOS targetSpecs =
 
 -- Execute the target build loop until all the goals (or everything) is built
 -- FIXME: Use sets instead of lists
-buildLoop :: (AptCache t) => P.CacheRec -> Relations -> LocalRepository -> t -> OSImage -> [Target] -> AptIOT IO [Target]
+buildLoop :: (MonadApt e m, AptCache t) => P.CacheRec -> Relations -> LocalRepository -> t -> OSImage -> [Target] -> m [Target]
 buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
     Set.toList <$> loop cleanOS' (Set.fromList targets) Set.empty
     where
       -- This loop computes the ready targets and builds one.
-      loop :: OSImage -> Set.Set Target -> Set.Set Target -> AptIOT IO (Set.Set Target)
+      loop :: MonadApt e m => OSImage -> Set.Set Target -> Set.Set Target -> m (Set.Set Target)
       loop _ unbuilt failed | Set.null unbuilt = return failed
       loop cleanOS' unbuilt failed =
           ePutStrLn "Computing ready targets..." >>
@@ -164,11 +166,12 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
                           let ready = Set.fromList $ map (\ (x, _, _) -> x) triples
                           loop2 cleanOS' (Set.difference unbuilt ready) failed triples
       -- Out of ready targets, re-do the dependency computation
-      loop2 :: OSImage
+      loop2 :: MonadApt e m => 
+               OSImage
             -> Set.Set Target -- unbuilt: targets which have not been built and are not ready to build
             -> Set.Set Target -- failed: Targets which either failed to build or were blocked by a target that failed to build
             -> [(Target, [Target], [Target])] -- ready: the list of known buildable targets
-            -> AptIOT IO (Set.Set Target)
+            -> m (Set.Set Target)
       loop2 cleanOS' unbuilt failed [] =
           loop cleanOS' unbuilt failed
       loop2 cleanOS' unbuilt failed ((target, blocked, _) : ready') =
@@ -177,7 +180,7 @@ buildLoop cache globalBuildDeps localRepo poolOS cleanOS' targets =
              -- Build one target.
              result <- if Set.member (targetName target) (P.discard (P.params cache))
                        then return (Failure ["--discard option set"])
-                       else tryAB (buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target) >>= return . either (\ (e :: SomeException) -> Failure [show e]) id
+                       else {-tryAB-} (buildTarget cache cleanOS' globalBuildDeps localRepo poolOS target) `catchError` (\ e -> return (Failure [show e]))
              failing -- On failure the target and its dependencies get
                      -- added to failed.
                      (\ errs ->
@@ -304,23 +307,27 @@ showTargets targets =
     where
       heading = show (P.packageCount targets) ++ " Targets:"
 
+tryIO :: forall m a e. (Exception e, MonadIO m, MonadError e m) =>
+         IO a -> m a
+tryIO action = liftIO (try action) >>= either throwError return
+
 -- Decide whether a target needs to be built and, if so, build it.
 buildTarget ::
-    (AptCache t) =>
+    (MonadApt e m, AptCache t) =>
     P.CacheRec ->			-- configuration info
     OSImage ->				-- cleanOS
     Relations ->			-- The build-essential relations
     LocalRepository ->			-- The local repository the packages will be uploaded to
     t ->
     Target ->
-    AptIOT IO (Failing (Maybe LocalRepository))	-- The local repository after the upload (if it changed), or an error message
+    m (Failing (Maybe LocalRepository))	-- The local repository after the upload (if it changed), or an error message
 buildTarget cache cleanOS globalBuildDeps repo poolOS target =
     do
-      _cleanOS' <- lift (quieter 2 $ syncPool cleanOS)
+      _cleanOS' <- tryIO (quieter 2 $ syncPool cleanOS)
       -- Get the control file from the clean source and compute the
       -- build dependencies
       let debianControl = targetControl target
-      arch <- liftIO $ buildArchOfEnv (rootDir cleanOS)
+      arch <- tryIO $ buildArchOfEnv (rootDir cleanOS)
       let solns = buildDepSolutions' arch (map (BinPkgName . PkgName) (P.preferred (P.params cache))) cleanOS globalBuildDeps debianControl
       case solns of
         Failure excuses -> do let excuses' = ("Couldn't satisfy build dependencies" : excuses)
@@ -360,10 +367,10 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
                              return . failing Failure (Success . Just)
 
 -- | Build a package and upload it to the local repository.
-buildPackage :: P.CacheRec -> OSImage -> Maybe DebianVersion -> Fingerprint -> Fingerprint -> ChangeLogEntry -> Target -> SourcePackageStatus -> LocalRepository -> AptIOT IO (Failing LocalRepository)
+buildPackage :: MonadApt e m => P.CacheRec -> OSImage -> Maybe DebianVersion -> Fingerprint -> Fingerprint -> ChangeLogEntry -> Target -> SourcePackageStatus -> LocalRepository -> m (Failing LocalRepository)
 buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog target status repo =
     checkDryRun >>
-    lift prepareImage >>=
+    liftIO prepareImage >>=
     failing (return . Failure) logEntry >>=
     failing (return . Failure) (quieter (-1) . build) >>=
     failing (return . Failure) find >>=
@@ -377,7 +384,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
           case P.noClean (P.params cache) of
             False -> liftIO $ maybeAddLogEntry buildTree newVersion >> return (Success buildTree)
             True -> return (Success buildTree)
-      build :: DebianBuildTree -> AptIOT IO (Failing (DebianBuildTree, NominalDiffTime))
+      build :: MonadApt e m => DebianBuildTree -> m (Failing (DebianBuildTree, NominalDiffTime))
       build buildTree =
           do -- The --commit flag does not appear until dpkg-dev-1.16.1,
              -- so we need to check this version number.  We also
@@ -417,7 +424,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
       find (buildTree, elapsed) =
           liftIO $ try (findChanges buildTree) >>=
                    return . either (\ (e :: SomeException) -> Failure [show e]) (\ changesFile -> Success (changesFile, elapsed))
-      upload :: (ChangesFile, NominalDiffTime) -> AptIOT IO (Failing LocalRepository)
+      upload :: MonadApt e m => (ChangesFile, NominalDiffTime) -> m (Failing LocalRepository)
       upload (changesFile, elapsed) = doLocalUpload elapsed changesFile
       -- Depending on the strictness, build dependencies either
       -- get installed into the clean or the build environment.
@@ -436,7 +443,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
                   , changeRelease = name }
           where setDist name (Field ("Distribution", _)) = Field ("Distribution", ' ' : releaseName' name)
                 setDist _ other = other
-      doLocalUpload :: NominalDiffTime -> ChangesFile -> AptIOT IO (Failing LocalRepository)
+      doLocalUpload :: MonadApt e m => NominalDiffTime -> ChangesFile -> m (Failing LocalRepository)
       doLocalUpload elapsed changesFile =
           do
             (changesFile' :: ChangesFile) <-
@@ -449,7 +456,7 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
                 -- the md5sum of the .dsc file in the .changes file.
                 liftIO . setRevisionInfo newFingerprint
             -- Upload to the local apt repository
-            lift $ uploadLocal repo changesFile'
+            liftIO $ uploadLocal repo changesFile'
             -- The upload to the local repository is done even when
             -- the --dry-run flag is given.  Or it would be if we
             -- didn't exit when the first buildworthy target is found.

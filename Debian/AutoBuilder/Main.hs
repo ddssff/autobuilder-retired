@@ -8,9 +8,11 @@ module Debian.AutoBuilder.Main
     ) where
 
 import Control.Arrow (first)
+import Control.Applicative ((<$>))
 import Control.Applicative.Error (Failing(..), maybeRead)
-import Control.Exception(SomeException, try, catch, AsyncException(UserInterrupt), fromException)
+import Control.Exception(Exception, SomeException, try, catch, AsyncException(UserInterrupt), fromException)
 import Control.Monad(foldM, when, unless)
+import Control.Monad.Error (catchError)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
 import qualified Data.ByteString.Lazy as L
 import Data.Either (partitionEithers)
@@ -33,6 +35,7 @@ import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
 import Debian.Repo.Monads.AptState (AptIOT, AptState, initState, getRepoMap, tryAB, tryJustAB)
+import Debian.Repo.Monads.MonadApt (MonadApt(getApt))
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(OSImage, buildEssential, prepareEnv, chrootEnv)
 import Debian.Repo.Release(prepareRelease)
@@ -64,7 +67,7 @@ main :: [(P.ParamRec, P.Packages)] -> IO ()
 main [] = error "No parameter sets"
 main paramSets = do
   -- Do parameter sets until there is a failure.
-  (results, _) <- foldM doParameterSet ([], initState) paramSets
+  (results, _) <- runStateT (foldM doParameterSet [] paramSets) initState
   IO.hFlush IO.stdout
   IO.hFlush IO.stderr
   -- The result of processing a set of parameters is either an
@@ -86,25 +89,24 @@ main paramSets = do
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.  Stop on first failure.
-doParameterSet :: ([Failing ([Output L.ByteString], NominalDiffTime)], AptState) -> (P.ParamRec, P.Packages) -> IO ([Failing ([Output L.ByteString], NominalDiffTime)], AptState)
-doParameterSet (results, state) (params, packages) =
-    if any isFailure results
-    then return (results, state)
-    else
-        try (quieter (- (P.verbosity params))
-               (do top <- P.computeTopDir params
-                   withLock (top ++ "/lockfile")
-                     (runStateT (quieter 2 (P.buildCache params top packages) >>= runParameterSet) state))) >>=
-        either (\ (e :: SomeException) -> return (Failure [show e] : results, initState))
-               (\ (result, state') -> return (result : results, state'))
+doParameterSet :: MonadApt e m => [Failing ([Output L.ByteString], NominalDiffTime)] -> (P.ParamRec, P.Packages) -> m [Failing ([Output L.ByteString], NominalDiffTime)]
+doParameterSet results (params, packages)
+    | any isFailure results = return results
     where
       isFailure (Failure _) = True
       isFailure _ = False
+doParameterSet results (params, packages) =
+    (do top <- liftIO $ P.computeTopDir params
+        quieter (- (P.verbosity params)) $
+          withLock (top ++ "/lockfile") $
+            do cacheRec <- quieter 2 (P.buildCache params top packages)
+               result <- runParameterSet cacheRec
+               return (result : results)) `catchError` (\ e -> return (Failure [show e] : results))
 
-runParameterSet :: C.CacheRec -> AptIOT IO (Failing ([Output L.ByteString], NominalDiffTime))
+runParameterSet :: MonadApt e m => C.CacheRec -> m (Failing ([Output L.ByteString], NominalDiffTime))
 runParameterSet cache =
     do
-      lift doRequiredVersion
+      liftIO doRequiredVersion
       when (P.showParams params) (withModifiedVerbosity (const 1) (liftIO doShowParams))
       when (P.showSources params) (withModifiedVerbosity (const 1) (liftIO doShowSources))
       when (P.flushAll params) (liftIO doFlush)
@@ -143,7 +145,7 @@ runParameterSet cache =
       when (not $ null $ failures) (error $ intercalate "\n " $ "Some targets could not be retrieved:" : map show failures)
       buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS targets
       -- If all targets succeed they may be uploaded to a remote repo
-      result <- tryAB (upload buildResult >>= lift . newDist) >>=
+      result <- liftIO (try (upload buildResult >>= newDist)) >>=
                 return . either (\ (e :: SomeException) -> Failure [show e]) id
       updateRepoCache
       return result
@@ -199,27 +201,31 @@ runParameterSet cache =
                      True -> deleteGarbage repo'
                      False -> return repo'
                _ -> error "Expected local repo"
-      retrieveTargetList :: OSImage -> AptIOT IO [Either SomeException Download]
+      retrieveTargetList :: MonadApt e m => OSImage -> m [Either e Download]
       retrieveTargetList cleanOS =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              when (P.report params) (ePutStrLn . doReport $ allTargets)
              qPutStrLn "Retrieving all source code:\n"
-             countTasks' (map (\ (target :: P.Packages) ->
-                                   (show (P.spec target),
-                                    tryJustAB (\ (e :: SomeException) ->
-                                                   case (fromException e :: Maybe AsyncException) of
-                                                     -- Exit on keyboard interrupt
-                                                     Just UserInterrupt -> Nothing
-                                                     -- Any other exception gets reported but we continue retrieving packages
-                                                     _ -> Just e)
-                                              (retrieve buildOS cache target) >>=
-                                    either (\ (e :: SomeException) -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >> return (Left e))
-                                           (return . Right)))
-                              (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) allTargets []))
+             countTasks' (map (retrieveTarget buildOS) (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) allTargets []))
           where
             buildOS = chrootEnv cleanOS (P.dirtyRoot cache)
             allTargets = C.packages cache
-      upload :: (LocalRepository, [Target]) -> AptIOT IO [Failing ([Output L.ByteString], NominalDiffTime)]
+      retrieveTarget :: MonadApt e m => OSImage -> P.Packages -> (String, m (Either e Download))
+      retrieveTarget buildOS (target :: P.Packages) =
+          (show (P.spec target),
+           (retrieve buildOS cache target >>= return . Right)
+           `catchError` retrieveError target)
+      retrieveError :: (MonadIO m, Exception e) => P.Packages -> e -> m (Either e Download)
+      retrieveError target e =
+          liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >> return (Left e)
+{-
+          case (fromException e :: Maybe AsyncException) of
+            -- Exit on keyboard interrupt
+            Just UserInterrupt -> exitWith (ExitFailure 1)
+            -- Any other exception gets reported but we continue retrieving packages
+            _ -> liftIO (IO.hPutStrLn IO.stderr ("Failure retrieving " ++ show (P.spec target) ++ ":\n " ++ show e)) >> return (Left e)
+-}
+      upload :: (LocalRepository, [Target]) -> IO [Failing ([Output L.ByteString], NominalDiffTime)]
       upload (repo, [])
           | P.doUpload params =
               case P.uploadURI params of
@@ -251,10 +257,10 @@ runParameterSet cache =
                              try (timeTask (runProcessF id (ShellCommand cmd) L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Success ([], (fromInteger 0)))
-      updateRepoCache :: AptIOT IO ()
+      updateRepoCache :: MonadApt e m => m ()
       updateRepoCache =
           do let path = C.topDir cache  ++ "/repoCache"
-             live <- get >>= return . getRepoMap
+             live <- getApt >>= return . getRepoMap
              repoCache <- liftIO $ loadCache path
              let merged = show . map (\ (uri, x) -> (show uri, x)) . Map.toList $ Map.union live repoCache
              liftIO (removeLink path `catch` (\e -> unless (isDoesNotExistError e) (ioError e))) >> liftIO (writeFile path merged)

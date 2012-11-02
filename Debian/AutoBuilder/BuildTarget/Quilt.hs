@@ -80,7 +80,7 @@ makeQuiltTree cache m base patch =
 failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
-prepare :: MonadApt m => P.CacheRec -> P.Packages -> T.Download -> T.Download -> m T.Download
+prepare :: MonadApt e m => P.CacheRec -> P.Packages -> T.Download -> T.Download -> m T.Download
 prepare cache package base patch = liftIO $
     (\ x -> qPutStrLn "Preparing quilt target" >> quieter 1 x) $
     makeQuiltTree cache (P.spec package) base patch >>= withUpstreamQuiltHidden make

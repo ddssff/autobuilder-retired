@@ -13,8 +13,7 @@ module Debian.AutoBuilder.Params
     ) where
 
 import Control.Exception ( SomeException, try, evaluate )
-import Control.Monad.State ( get, put )
-import Control.Monad.Trans ( liftIO )
+import Control.Monad.Trans ( MonadIO, liftIO )
 import Data.List ( isSuffixOf )
 import Data.Maybe ( catMaybes, fromJust, fromMaybe )
 import Data.Map ( fromList )
@@ -24,7 +23,9 @@ import Debian.AutoBuilder.Types.ParamRec (ParamRec(..))
 import Debian.Release ( ReleaseName(relName), releaseName' )
 import Debian.Sources ( SliceName(..) )
 import Debian.Repo ( EnvRoot(EnvRoot), NamedSliceList(..), parseSourcesList, verifySourcesList, repoSources )
-import Debian.Repo.Monads.AptState ( AptIOT, setRepoMap )
+import Debian.Repo.Monads.AptState (setRepoMap)
+import Debian.Repo.Monads.MonadApt (MonadApt(getApt, putApt))
+import Debian.Repo.Monads.Top (TopT, runTopT)
 import Debian.Repo.Types ( SliceList(..) )
 import Debian.URI ( parseURI )
 import System.Directory ( createDirectoryIfMissing, getPermissions, writable )
@@ -32,7 +33,7 @@ import System.Environment ( getEnv )
 import System.Process.Progress (qPutStrLn)
 
 -- |Create a Cache object from a parameter set.
-buildCache :: ParamRec -> FilePath -> Packages -> AptIOT IO CacheRec
+buildCache :: MonadApt e m => ParamRec -> FilePath -> Packages -> m CacheRec
 buildCache params top packages =
     do qPutStrLn ("Preparing autobuilder cache in " ++ top ++ "...")
        liftIO $ mapM_ (createDirectoryIfMissing True . ((top ++ "/") ++))
@@ -55,16 +56,26 @@ buildCache params top packages =
 -- CacheClass, and RunClass.
 -- instance (ParamClass p) => RunClass (p, Cache)
 
-loadRepoCache :: FilePath -> AptIOT IO ()
+loadRepoCache :: MonadApt e m => FilePath -> m ()
 loadRepoCache top =
     do qPutStrLn "Loading repo cache..."
-       state <- get
+       state <- getApt
        uris <- liftIO $ try (readFile (top ++ "/repoCache")) >>=
                try . evaluate . either (\ (_ :: SomeException) -> []) read >>=
                return . either (\ (_ :: SomeException) -> []) id
-       put (setRepoMap (fromList (map fixURI uris)) state)
+       putApt (setRepoMap (fromList (map fixURI uris)) state)
     where
       fixURI (s, x) = (fromJust (parseURI s), x)
+
+computeTopDir' :: MonadIO m => Maybe FilePath -> TopT m a -> m a
+computeTopDir' mpath action =
+    do home <- liftIO $ liftIO $ getEnv "HOME"
+       let path = fromMaybe (home ++ "/.autobuilder") mpath
+       liftIO $ createDirectoryIfMissing True path
+       canWrite <- liftIO $ getPermissions path >>= return . writable
+       case canWrite of
+         False -> error "Cache directory not writable (are you root?)"
+         True -> runTopT path action
 
 -- Compute the top directory, try to create it, and then make sure it
 -- exists.  Then we can safely return it from topDir below.
