@@ -25,6 +25,7 @@ import Debian.Sources ( SliceName(..) )
 import Debian.Repo ( EnvRoot(EnvRoot), NamedSliceList(..), parseSourcesList, verifySourcesList, repoSources )
 import Debian.Repo.Monads.AptState (setRepoMap)
 import Debian.Repo.Monads.MonadApt (MonadApt(getApt, putApt))
+import Debian.Repo.Monads.MonadDeb (MonadDeb)
 import Debian.Repo.Monads.Top (TopT, runTopT)
 import Debian.Repo.Types ( SliceList(..) )
 import Debian.URI ( parseURI )
@@ -33,7 +34,7 @@ import System.Environment ( getEnv )
 import System.Process.Progress (qPutStrLn)
 
 -- |Create a Cache object from a parameter set.
-buildCache :: MonadApt e m => ParamRec -> FilePath -> Packages -> m CacheRec
+buildCache :: MonadDeb e m => ParamRec -> FilePath -> Packages -> m CacheRec
 buildCache params top packages =
     do qPutStrLn ("Preparing autobuilder cache in " ++ top ++ "...")
        liftIO $ mapM_ (createDirectoryIfMissing True . ((top ++ "/") ++))
@@ -56,7 +57,7 @@ buildCache params top packages =
 -- CacheClass, and RunClass.
 -- instance (ParamClass p) => RunClass (p, Cache)
 
-loadRepoCache :: MonadApt e m => FilePath -> m ()
+loadRepoCache :: MonadDeb e m => FilePath -> m ()
 loadRepoCache top =
     do qPutStrLn "Loading repo cache..."
        state <- getApt

@@ -23,7 +23,7 @@ documentation = [ "deb-dir:(<target>):(<target>) - A target of this form combine
                 , "where one points to an un-debianized source tree and the other contains"
                 , "a debian subdirectory." ]
 
-prepare :: MonadApt e m => P.CacheRec -> P.Packages -> T.Download -> T.Download -> m T.Download
+prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> T.Download -> T.Download -> m T.Download
 prepare cache package upstream debian = liftIO $
     createDirectoryIfMissing True (P.topDir cache ++ "/deb-dir") >>
     copyUpstream >>

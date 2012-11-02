@@ -40,7 +40,7 @@ password userInfo =
     then []
     else ["--password",unEscapeString pw]
 
-prepare :: MonadApt e m => P.CacheRec -> P.Packages -> String -> m T.Download
+prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> String -> m T.Download
 prepare cache package uri = liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir

@@ -20,7 +20,7 @@ import System.Unix.Directory
 documentation = [ "hg:<string> - A target of this form target obtains the source"
                 , "code by running the Mercurial command 'hg clone <string>'." ]
 
-prepare :: MonadApt e m => P.CacheRec -> P.Packages -> String -> m T.Download
+prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> String -> m T.Download
 prepare cache package archive = liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO $ removeRecursiveSafely dir)

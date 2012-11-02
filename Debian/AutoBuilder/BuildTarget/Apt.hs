@@ -13,7 +13,7 @@ import qualified Debian.AutoBuilder.Types.ParamRec as P
 import Debian.Relation (SrcPkgName)
 import Debian.Repo (aptDir, aptGetSource, topdir, sliceListName)
 import Debian.Repo.AptImage (prepareAptEnv)
-import Debian.Repo.Monads.MonadApt (MonadApt)
+import Debian.Repo.Monads.MonadDeb (MonadDeb)
 import Debian.Sources
 import Debian.Version (parseDebianVersion, prettyDebianVersion)
 import System.Unix.Directory
@@ -22,7 +22,7 @@ documentation = [ "apt:<distribution>:<packagename> - a target of this form look
                 , "the sources.list named <distribution> and retrieves the package with"
                 , "the given name from that distribution." ]
 
-prepare :: MonadApt e m => P.CacheRec -> P.Packages -> String -> SrcPkgName -> m Download
+prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> String -> SrcPkgName -> m Download
 prepare cache target dist package =
     do os <- prepareAptEnv (P.topDir cache) (P.ifSourcesChanged (P.params cache)) distro
        when (P.flushSource (P.params cache)) (liftIO . removeRecursiveSafely $ aptDir os package)

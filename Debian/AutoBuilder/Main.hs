@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables #-}
 {-# OPTIONS -Wall #-}
 -- |AutoBuilder - application to build Debian packages in a clean
 -- environment.  In the following list, each module's dependencies
@@ -12,8 +12,8 @@ import Control.Applicative ((<$>))
 import Control.Applicative.Error (Failing(..), maybeRead)
 import Control.Exception(Exception, SomeException, try, catch, AsyncException(UserInterrupt), fromException)
 import Control.Monad(foldM, when, unless)
-import Control.Monad.Error (catchError)
-import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), runStateT)
+import Control.Monad.Error (MonadError, catchError)
+import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), StateT, runStateT)
 import qualified Data.ByteString.Lazy as L
 import Data.Either (partitionEithers)
 import qualified Data.Map as Map
@@ -34,8 +34,9 @@ import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
 import Debian.Repo.Insert(deleteGarbage)
-import Debian.Repo.Monads.AptState (AptIOT, AptState, initState, getRepoMap, tryAB, tryJustAB)
+import Debian.Repo.Monads.AptState (AptState, initState, getRepoMap)
 import Debian.Repo.Monads.MonadApt (MonadApt(getApt))
+import Debian.Repo.Monads.MonadDeb (MonadDeb)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(OSImage, buildEssential, prepareEnv, chrootEnv)
 import Debian.Repo.Release(prepareRelease)
@@ -89,7 +90,7 @@ main paramSets = do
 
 -- |Process one set of parameters.  Usually there is only one, but there
 -- can be several which are run sequentially.  Stop on first failure.
-doParameterSet :: MonadApt e m => [Failing ([Output L.ByteString], NominalDiffTime)] -> (P.ParamRec, P.Packages) -> m [Failing ([Output L.ByteString], NominalDiffTime)]
+doParameterSet :: MonadDeb e m => [Failing ([Output L.ByteString], NominalDiffTime)] -> (P.ParamRec, P.Packages) -> m [Failing ([Output L.ByteString], NominalDiffTime)]
 doParameterSet results (params, packages)
     | any isFailure results = return results
     where
@@ -103,7 +104,7 @@ doParameterSet results (params, packages) =
                result <- runParameterSet cacheRec
                return (result : results)) `catchError` (\ e -> return (Failure [show e] : results))
 
-runParameterSet :: MonadApt e m => C.CacheRec -> m (Failing ([Output L.ByteString], NominalDiffTime))
+runParameterSet :: MonadDeb e m => C.CacheRec -> m (Failing ([Output L.ByteString], NominalDiffTime))
 runParameterSet cache =
     do
       liftIO doRequiredVersion
@@ -201,7 +202,7 @@ runParameterSet cache =
                      True -> deleteGarbage repo'
                      False -> return repo'
                _ -> error "Expected local repo"
-      retrieveTargetList :: MonadApt e m => OSImage -> m [Either e Download]
+      retrieveTargetList :: MonadDeb e m => OSImage -> m [Either e Download]
       retrieveTargetList cleanOS =
           do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              when (P.report params) (ePutStrLn . doReport $ allTargets)
@@ -210,7 +211,7 @@ runParameterSet cache =
           where
             buildOS = chrootEnv cleanOS (P.dirtyRoot cache)
             allTargets = C.packages cache
-      retrieveTarget :: MonadApt e m => OSImage -> P.Packages -> (String, m (Either e Download))
+      retrieveTarget :: MonadDeb e m => OSImage -> P.Packages -> (String, m (Either e Download))
       retrieveTarget buildOS (target :: P.Packages) =
           (show (P.spec target),
            (retrieve buildOS cache target >>= return . Right)
@@ -257,7 +258,7 @@ runParameterSet cache =
                              try (timeTask (runProcessF id (ShellCommand cmd) L.empty)) >>= return . either (\ (e :: SomeException) -> Failure [show e]) Success
                 _ -> error "Missing Upload-URI parameter"
           | True = return (Success ([], (fromInteger 0)))
-      updateRepoCache :: MonadApt e m => m ()
+      updateRepoCache :: MonadDeb e m => m ()
       updateRepoCache =
           do let path = C.topDir cache  ++ "/repoCache"
              live <- getApt >>= return . getRepoMap

@@ -30,15 +30,14 @@ import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Relation (SrcPkgName(..), PkgName(..))
-import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, copySourceTree, SourceTree(dir'), topdir)
-import Debian.Repo.Monads.MonadApt (MonadApt)
+import Debian.Repo (OSImage, rootPath, rootDir, findSourceTree, copySourceTree, SourceTree(dir'), topdir, MonadDeb)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import System.Process (CmdSpec(..))
 import System.Process.Progress (runProcessF, qPutStrLn, quieter)
 
 -- | Given a RetrieveMethod, perform the retrieval and return the result.
-retrieve :: MonadApt e m => OSImage -> P.CacheRec -> P.Packages -> m Download
+retrieve :: MonadDeb e m => OSImage -> P.CacheRec -> P.Packages -> m Download
 retrieve buildOS cache target =
     (\ x -> qPutStrLn (" " ++ show (P.spec target)) >> quieter 1 x) $
      case P.spec target of
