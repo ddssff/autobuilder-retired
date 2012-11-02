@@ -14,10 +14,11 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
+import Debian.Repo.Monads.Top (sub)
 import Debian.URI
 import System.Directory
 import System.Exit
-import System.FilePath (splitFileName)
+import System.FilePath (splitFileName, (</>))
 import System.Process (CmdSpec(..))
 import System.Process.Progress (Output, keepStdout, keepStderr, keepResult, timeTask, runProcessF, runProcess)
 import System.Unix.Directory
@@ -28,12 +29,12 @@ documentation = [ "svn:<uri> - A target of this form retrieves the source code f
 svn :: [String] -> IO [Output L.ByteString]
 svn args = runProcessF id (RawCommand "svn" args) L.empty
 
-username userInfo = 
+username userInfo =
     let un = takeWhile (/= ':') userInfo in
     if null un
     then []
     else ["--username", unEscapeString un]
-     
+
 password userInfo =
     let pw = takeWhile (/= '@') . dropWhile (== ':') . dropWhile (/= ':') $ userInfo in
     if null pw
@@ -41,7 +42,8 @@ password userInfo =
     else ["--password",unEscapeString pw]
 
 prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> String -> m T.Download
-prepare cache package uri = liftIO $
+prepare cache package uri =
+    sub ("svn" </> show (md5 (L.pack (maybe "" uriRegName (uriAuthority uri') ++ (uriPath uri'))))) >>= \ dir -> liftIO $
     do when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
        exists <- liftIO $ doesDirectoryExist dir
        tree <- if exists then verifySource dir else createSource dir
@@ -77,11 +79,11 @@ prepare cache package uri = liftIO $
       createSource dir =
           let (parent, _) = splitFileName dir in
           liftIO (createDirectoryIfMissing True parent) >>
-          checkout >>
+          checkout dir >>
           findSourceTree dir
-      checkout :: IO (Either String [Output L.ByteString])
+      checkout :: FilePath -> IO (Either String [Output L.ByteString])
       --checkout = svn createStyle args 
-      checkout = runProcess id (RawCommand "svn" args) L.empty >>= return . finish
+      checkout dir = runProcess id (RawCommand "svn" args) L.empty >>= return . finish
           where
             args = ([ "co","--no-auth-cache","--non-interactive"] ++ 
                     (username userInfo) ++ (password userInfo) ++ 
@@ -90,7 +92,6 @@ prepare cache package uri = liftIO $
                               [ExitSuccess] -> Right output
                               _ -> Left $ "*** FAILURE: svn " ++ concat (intersperse " " args)
       userInfo = maybe "" uriUserInfo (uriAuthority uri')
-      dir = P.topDir cache ++ "/svn/" ++ show (md5 (L.pack (maybe "" uriRegName (uriAuthority uri') ++ (uriPath uri'))))
 
 mustParseURI :: String -> URI
 mustParseURI s = maybe (error ("Svn - parse failure: " ++ show s)) id (parseURI s)

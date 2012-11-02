@@ -13,6 +13,7 @@ import Control.Applicative.Error (Failing(..), maybeRead)
 import Control.Exception(Exception, SomeException, try, catch, AsyncException(UserInterrupt), fromException)
 import Control.Monad(foldM, when, unless)
 import Control.Monad.Error (MonadError, catchError)
+import Control.Monad.Reader (runReaderT)
 import Control.Monad.State(MonadIO(..), MonadTrans(..), MonadState(get), StateT, runStateT)
 import qualified Data.ByteString.Lazy as L
 import Data.Either (partitionEithers)
@@ -30,6 +31,7 @@ import qualified Debian.AutoBuilder.Types.Packages as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Version as V
 import Debian.Release (parseSection', releaseName')
+import Debian.Repo.Monads.Top (askTop)
 import Debian.Sources (SliceName(..))
 import Debian.Repo.AptImage(prepareAptEnv)
 import Debian.Repo.Cache(updateCacheSources)
@@ -37,6 +39,7 @@ import Debian.Repo.Insert(deleteGarbage)
 import Debian.Repo.Monads.AptState (AptState, initState, getRepoMap)
 import Debian.Repo.Monads.MonadApt (MonadApt(getApt))
 import Debian.Repo.Monads.MonadDeb (MonadDeb)
+import Debian.Repo.Monads.Top (sub)
 import Debian.Repo.LocalRepository(prepareLocalRepository, flushLocalRepository)
 import Debian.Repo.OSImage(OSImage, buildEssential, prepareEnv, chrootEnv)
 import Debian.Repo.Release(prepareRelease)
@@ -68,7 +71,9 @@ main :: [(P.ParamRec, P.Packages)] -> IO ()
 main [] = error "No parameter sets"
 main paramSets = do
   -- Do parameter sets until there is a failure.
-  (results, _) <- runStateT (foldM doParameterSet [] paramSets) initState
+  (results, _) <- runStateT (foldM (\ results (params, pkgs) ->
+                                        do top <- liftIO $ P.computeTopDir params
+                                           runReaderT (doParameterSet results (params, pkgs)) top) [] paramSets) initState
   IO.hFlush IO.stdout
   IO.hFlush IO.stderr
   -- The result of processing a set of parameters is either an
@@ -97,26 +102,27 @@ doParameterSet results (params, packages)
       isFailure (Failure _) = True
       isFailure _ = False
 doParameterSet results (params, packages) =
-    (do top <- liftIO $ P.computeTopDir params
-        quieter (- (P.verbosity params)) $
-          withLock (top ++ "/lockfile") $
-            do cacheRec <- quieter 2 (P.buildCache params top packages)
+    (do quieter (- (P.verbosity params)) $
+          sub "lockfile" >>= \ path -> withLock path $
+            do cacheRec <- quieter 2 (P.buildCache params packages)
                result <- runParameterSet cacheRec
                return (result : results)) `catchError` (\ e -> return (Failure [show e] : results))
 
 runParameterSet :: MonadDeb e m => C.CacheRec -> m (Failing ([Output L.ByteString], NominalDiffTime))
 runParameterSet cache =
+    askTop >>= \ top ->
     do
       liftIO doRequiredVersion
       when (P.showParams params) (withModifiedVerbosity (const 1) (liftIO doShowParams))
       when (P.showSources params) (withModifiedVerbosity (const 1) (liftIO doShowSources))
-      when (P.flushAll params) (liftIO doFlush)
+      when (P.flushAll params) doFlush
       liftIO checkPermissions
       maybe (return ()) (verifyUploadURI (P.doSSHExport $ params)) (P.uploadURI params)
       localRepo <- prepareLocalRepo			-- Prepare the local repository for initial uploads
+      cleanRoot <- P.cleanRoot cache
       cleanOS <-
               prepareEnv top
-                         (P.cleanRoot cache)
+                         cleanRoot
                          buildRelease
                          (Just localRepo)
                          (P.flushRoot params)
@@ -141,7 +147,7 @@ runParameterSet cache =
       let poolSources = NamedSliceList { sliceListName = SliceName (sliceName (sliceListName buildRelease) ++ "-all")
                                        , sliceList = appendSliceLists [buildRepoSources, localSources] }
       -- Build an apt-get environment which we can use to retrieve all the package lists
-      poolOS <-prepareAptEnv (C.topDir cache) (P.ifSourcesChanged params) poolSources
+      poolOS <-prepareAptEnv top (P.ifSourcesChanged params) poolSources
       (failures, targets) <- retrieveTargetList cleanOS >>= mapM (either (return . Left) (liftIO . try . asBuildable)) >>= return . partitionEithers
       when (not $ null $ failures) (error $ intercalate "\n " $ "Some targets could not be retrieved:" : map show failures)
       buildResult <- buildTargets cache cleanOS globalBuildDeps localRepo poolOS targets
@@ -151,7 +157,6 @@ runParameterSet cache =
       updateRepoCache
       return result
     where
-      top = C.topDir cache
       params = C.params cache
       baseRelease =  either (error . show) id (P.findSlice cache (P.baseRelease params))
       buildRepoSources = C.buildRepoSources cache
@@ -181,17 +186,18 @@ runParameterSet cache =
                    qPutStrLn . show . pretty . sliceList $ sources
                    exitWith ExitSuccess
       doFlush =
-          do qPutStrLn "Flushing cache"
-             removeRecursiveSafely (C.topDir cache)
-             createDirectoryIfMissing True (C.topDir cache)
+          do top <- askTop
+             qPutStrLn "Flushing cache"
+             liftIO (removeRecursiveSafely top >> createDirectoryIfMissing True top)
       checkPermissions =
           do isRoot <- liftIO $ checkSuperUser
              case isRoot of
                True -> return ()
                False -> do qPutStr "You must be superuser to run the autobuilder (to use chroot environments.)"
                            liftIO $ exitWith (ExitFailure 1)
-      prepareLocalRepo = (\ x -> qPutStrLn ("Preparing local repository " ++ P.localPoolDir cache) >> quieter 1 x) $
-          do let path = EnvPath (EnvRoot "") (P.localPoolDir cache)
+      prepareLocalRepo = (\ x -> P.localPoolDir cache >>= \ poolDir -> qPutStrLn ("Preparing local repository " ++ poolDir) >> quieter 1 x) $
+          do poolDir <- P.localPoolDir cache
+             let path = EnvPath (EnvRoot "") poolDir
              repo <- prepareLocalRepository path (Just Flat) >>=
                      (if P.flushPool params then flushLocalRepository else return)
              qPutStrLn $ "Preparing release main in local repository at " ++ outsidePath path
@@ -204,12 +210,12 @@ runParameterSet cache =
                _ -> error "Expected local repo"
       retrieveTargetList :: MonadDeb e m => OSImage -> m [Either e Download]
       retrieveTargetList cleanOS =
-          do qPutStr ("\n" ++ showTargets allTargets ++ "\n")
+          do dirtyRoot <- P.dirtyRoot cache
+             qPutStr ("\n" ++ showTargets allTargets ++ "\n")
              when (P.report params) (ePutStrLn . doReport $ allTargets)
              qPutStrLn "Retrieving all source code:\n"
-             countTasks' (map (retrieveTarget buildOS) (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) allTargets []))
+             countTasks' (map (retrieveTarget (chrootEnv cleanOS dirtyRoot)) (P.foldPackages (\ name spec flags l -> P.Package name spec flags : l) allTargets []))
           where
-            buildOS = chrootEnv cleanOS (P.dirtyRoot cache)
             allTargets = C.packages cache
       retrieveTarget :: MonadDeb e m => OSImage -> P.Packages -> (String, m (Either e Download))
       retrieveTarget buildOS (target :: P.Packages) =
@@ -260,7 +266,7 @@ runParameterSet cache =
           | True = return (Success ([], (fromInteger 0)))
       updateRepoCache :: MonadDeb e m => m ()
       updateRepoCache =
-          do let path = C.topDir cache  ++ "/repoCache"
+          do path <- sub "repoCache"
              live <- getApt >>= return . getRepoMap
              repoCache <- liftIO $ loadCache path
              let merged = show . map (\ (uri, x) -> (show uri, x)) . Map.toList $ Map.union live repoCache

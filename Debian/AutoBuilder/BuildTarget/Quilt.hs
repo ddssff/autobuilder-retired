@@ -20,11 +20,13 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Changes (ChangeLogEntry(..), prettyEntry, parseLog, parseEntry)
 import Debian.Repo (DebianSourceTreeC(debdir), SourceTreeC(topdir), SourceTree, findSourceTree, findOneDebianBuildTree, copySourceTree, MonadDeb)
+import Debian.Repo.Monads.Top (MonadTop, sub)
 import Debian.Version
 import Extra.Files (replaceFile)
 import "Extra" Extra.List ()
 import System.Directory (doesFileExist, createDirectoryIfMissing, doesDirectoryExist, renameDirectory)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
+import System.FilePath ((</>))
 import System.Process (CmdSpec(..))
 import System.Process.Progress (unpackOutputs, mergeToStderr, runProcessF, runProcess, qPutStrLn, quieter)
 import Text.Regex
@@ -45,13 +47,14 @@ getEntry (Patch x) = x
 
 quiltPatchesDir = "quilt-patches"
 
-makeQuiltTree :: P.CacheRec -> P.RetrieveMethod -> T.Download -> T.Download -> IO (SourceTree, FilePath)
-makeQuiltTree cache m base patch =
+makeQuiltTree :: (MonadIO m, MonadTop m) => P.RetrieveMethod -> T.Download -> T.Download -> m (SourceTree, FilePath)
+makeQuiltTree m base patch =
+    sub "quilt" >>= \ quilt ->
+    sub ("quilt" </> show (md5 (L.pack (show m)))) >>= \ copyDir -> liftIO $
     do qPutStrLn $ "Quilt base: " ++ T.getTop base
        qPutStrLn $ "Quilt patch: " ++ T.getTop patch
        -- This will be the top directory of the quilt target
-       let copyDir = P.topDir cache ++ "/quilt/" ++ show (md5 (L.pack (show m)))
-       liftIO (createDirectoryIfMissing True (P.topDir cache ++ "/quilt"))
+       liftIO (createDirectoryIfMissing True quilt)
        baseTree <- try (findSourceTree (T.getTop base))
        patchTree <- try (findSourceTree (T.getTop patch))
        case (baseTree, patchTree) of
@@ -81,9 +84,9 @@ failing f _ (Failure x) = f x
 failing _ s (Success x) = s x
 
 prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> T.Download -> T.Download -> m T.Download
-prepare cache package base patch = liftIO $
+prepare _cache package base patch =
     (\ x -> qPutStrLn "Preparing quilt target" >> quieter 1 x) $
-    makeQuiltTree cache (P.spec package) base patch >>= withUpstreamQuiltHidden make
+    makeQuiltTree (P.spec package) base patch >>= liftIO . withUpstreamQuiltHidden make
     where
       withUpstreamQuiltHidden make (quiltTree, quiltDir) =
           hide >> make (quiltTree, quiltDir) >>= unhide

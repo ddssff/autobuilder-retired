@@ -10,7 +10,8 @@ import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
-import System.FilePath (splitFileName)
+import Debian.Repo.Monads.Top (sub)
+import System.FilePath (splitFileName, (</>))
 import System.Unix.Directory
 import System.Process (CmdSpec(..))
 import System.Process.Progress (timeTask, runProcessF, qPutStrLn)
@@ -20,7 +21,8 @@ documentation = [ "tla:<revision> - A target of this form retrieves the a TLA ar
                 , "given revision name." ]
 
 prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> String -> m T.Download
-prepare cache package version = liftIO $
+prepare cache package version =
+    sub ("tla" </> version) >>= \ dir -> liftIO $
     do
       when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
       exists <- liftIO $ doesDirectoryExist dir
@@ -60,5 +62,3 @@ prepare cache package version = liftIO $
             liftIO $ createDirectoryIfMissing True parent
             _output <- runProcessF id (ShellCommand ("tla get " ++ version ++ " " ++ dir)) L.empty
             findSourceTree dir
-
-      dir = P.topDir cache ++ "/tla/" ++ version

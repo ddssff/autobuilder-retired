@@ -55,7 +55,7 @@ retrieve buildOS cache target =
                             , T.buildWrapper = id
                             }
 
-      P.Darcs uri -> liftIO $ Darcs.prepare cache target uri
+      P.Darcs uri -> Darcs.prepare cache target uri
 
       P.DataFiles base files loc ->
           do base' <- retrieve buildOS cache (target {P.spec = base})
@@ -88,7 +88,7 @@ retrieve buildOS cache target =
       P.Hg string -> Hg.prepare cache target string
       P.Patch base patch ->
           retrieve buildOS cache (target {P.spec = base}) >>=
-          liftIO . Patch.prepare cache target buildOS patch
+          Patch.prepare cache target buildOS patch
 
       P.Proc spec' ->
           retrieve buildOS cache (target {P.spec = spec'}) >>= \ base ->

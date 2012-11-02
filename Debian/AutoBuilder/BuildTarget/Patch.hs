@@ -5,13 +5,14 @@ module Debian.AutoBuilder.BuildTarget.Patch where
 import qualified Debug.Trace as D
 
 import Control.Exception (SomeException, try)
-import Control.Monad.Trans (liftIO)
+import Control.Monad.Trans (MonadIO, liftIO)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.Digest.Pure.MD5 (md5)
 import qualified Debian.AutoBuilder.Types.CacheRec as P
 import qualified Debian.AutoBuilder.Types.Download as T
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo (OSImage, findSourceTree, copySourceTree, SourceTree(dir'), findDebianSourceTrees)
+import Debian.Repo.Monads.Top (MonadTop, sub)
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import System.FilePath ((</>))
@@ -41,8 +42,9 @@ instance Show Patch where
 documentation :: [String]
 documentation = [ "Patch <target> <patchtext> - Apply the patch to the target." ]
 
-prepare :: P.CacheRec -> P.Packages -> OSImage -> String -> T.Download -> IO T.Download
-prepare cache package _buildOS patch base =
+prepare :: (MonadIO m, MonadTop m) => P.CacheRec -> P.Packages -> OSImage -> String -> T.Download -> m T.Download
+prepare _cache package _buildOS patch base =
+    sub ("quilt" </> show (md5 (B.pack (show (P.spec package))))) >>= \ copyDir -> liftIO $
     do baseTree <- findSourceTree (T.getTop base)
        liftIO (createDirectoryIfMissing True copyDir)
        tree <- copySourceTree baseTree copyDir
@@ -67,7 +69,6 @@ prepare cache package _buildOS patch base =
     where
       cmd = "/usr/bin/patch"
       args = ["-p1"]
-      copyDir = P.topDir cache ++ "/quilt/" ++ show (md5 (B.pack (show (P.spec package))))
 
 indent :: String -> String
 indent = unlines . map (" > " ++) . lines

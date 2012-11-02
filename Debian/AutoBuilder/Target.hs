@@ -369,23 +369,24 @@ buildTarget cache cleanOS globalBuildDeps repo poolOS target =
 -- | Build a package and upload it to the local repository.
 buildPackage :: MonadDeb e m => P.CacheRec -> OSImage -> Maybe DebianVersion -> Fingerprint -> Fingerprint -> ChangeLogEntry -> Target -> SourcePackageStatus -> LocalRepository -> m (Failing LocalRepository)
 buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog target status repo =
+    P.dirtyRoot cache >>= return . Debian.Repo.chrootEnv cleanOS >>= \ buildOS ->
     checkDryRun >>
-    liftIO prepareImage >>=
+    liftIO (prepareImage buildOS) >>=
     failing (return . Failure) logEntry >>=
-    failing (return . Failure) (quieter (-1) . build) >>=
+    failing (return . Failure) (quieter (-1) . build buildOS) >>=
     failing (return . Failure) find >>=
     failing (return . Failure) upload
     where
       checkDryRun = when (P.dryRun (P.params cache))
                       (do qPutStrLn "Not proceeding due to -n option."
                           liftIO (exitWith ExitSuccess))
-      prepareImage = prepareBuildImage cache cleanOS newFingerprint buildOS target
+      prepareImage buildOS = prepareBuildImage cache cleanOS newFingerprint buildOS target
       logEntry buildTree =
           case P.noClean (P.params cache) of
             False -> liftIO $ maybeAddLogEntry buildTree newVersion >> return (Success buildTree)
             True -> return (Success buildTree)
-      build :: MonadDeb e m => DebianBuildTree -> m (Failing (DebianBuildTree, NominalDiffTime))
-      build buildTree =
+      build :: MonadDeb e m => OSImage -> DebianBuildTree -> m (Failing (DebianBuildTree, NominalDiffTime))
+      build buildOS buildTree =
           do -- The --commit flag does not appear until dpkg-dev-1.16.1,
              -- so we need to check this version number.  We also
              -- don't want to leave the patches subdirectory here
@@ -465,7 +466,6 @@ buildPackage cache cleanOS newVersion oldFingerprint newFingerprint sourceLog ta
               -- Update lists to reflect the availability of the package we just built
               [] -> liftIO (updateLists cleanOS) >> return (Success repo)
               _ -> return (Failure ["Local upload failed:\n " ++ showErrors (map snd errors)])
-      buildOS = Debian.Repo.chrootEnv cleanOS (P.dirtyRoot cache)
 
 -- |Prepare the build image by copying the clean image, installing
 -- dependencies, and copying the clean source tree.  For a lax build

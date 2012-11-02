@@ -13,8 +13,9 @@ import Debian.AutoBuilder.Types.Download (Download(..))
 import qualified Debian.AutoBuilder.Types.ParamRec as P
 import qualified Debian.AutoBuilder.Types.Packages as P
 import Debian.Repo
+import Debian.Repo.Monads.Top (sub)
 import Debian.URI
-import System.FilePath (splitFileName)
+import System.FilePath (splitFileName, (</>))
 import System.Unix.Directory
 import System.Process (CmdSpec(..))
 import System.Process.Progress (keepOutput, timeTask, runProcessF, qPutStrLn)
@@ -24,10 +25,11 @@ documentation = [ "bzr:<revision> - A target of this form retrieves the a Bazaar
                 , "given revision name." ]
 
 prepare :: MonadDeb e m => P.CacheRec -> P.Packages -> String -> m Download
-prepare cache package version = liftIO $
+prepare cache package version =
+  sub ("bzr" </> show (md5 (L.pack (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))))) >>= \ dir -> liftIO $
   do
-    when (P.flushSource (P.params cache)) (liftIO (removeRecursiveSafely dir))
-    exists <- liftIO $ doesDirectoryExist dir
+    when (P.flushSource (P.params cache)) (removeRecursiveSafely dir)
+    exists <- doesDirectoryExist dir
     tree <- if exists then updateSource dir else createSource dir
     return $ Download
                { package = package
@@ -52,7 +54,7 @@ prepare cache package version = liftIO $
               Right _output -> mergeSource dir
             where
                 cmd   = "cd " ++ dir ++ " && ! `bzr status | grep -q 'modified:'`"
-        
+
         -- computes a diff between this archive and some other parent archive and tries to merge the changes
         mergeSource dir =
             runProcessF id (ShellCommand cmd) L.empty >>= \ b ->
@@ -63,7 +65,7 @@ prepare cache package version = liftIO $
                 cmd   = "cd " ++ dir ++ " && bzr merge"
                 -- style = (setStart (Just ("Merging local Bazaar source archive '" ++ dir ++ "' with parent archive")).
                 --          setError (Just (\ _ -> "bzr merge failed in '" ++ dir ++ "'")))
-        
+
         -- Bazaar is a distributed revision control system so you must commit to the local source
         -- tree after you merge from some other source tree
         commitSource dir =
@@ -72,7 +74,7 @@ prepare cache package version = liftIO $
                 cmd   = "cd " ++ dir ++ " && bzr commit -m 'Merged Upstream'"
                 -- style = (setStart (Just ("Commiting merge to local Bazaar source archive '" ++ dir ++ "'")) .
                 --     setError (Just (\ _ -> "bzr commit failed in '" ++ dir ++ "'")))
-        
+
         removeSource dir = liftIO $ removeRecursiveSafely dir
 
         createSource dir = do
@@ -88,5 +90,4 @@ prepare cache package version = liftIO $
         uri = mustParseURI version
             where
                 mustParseURI s = maybe (error ("Failed to parse URI: " ++ s)) id (parseURI s)
-        dir = (P.topDir cache) ++ "/bzr/" ++ show (md5 (L.pack (maybe "" uriRegName (uriAuthority uri) ++ (uriPath uri))))
 
